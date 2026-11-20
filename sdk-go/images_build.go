@@ -14,7 +14,7 @@ import (
 // Build submits a declarative builder and returns its initial observation,
 // without waiting for readiness. Use ImageFromDockerfile for Dockerfile text.
 // Invalid options and builder inputs return ErrBadRequest before submission.
-func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildImageOptions) (image *Image, err error) {
+func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildImageOptions) (*Image, error) {
 	options := BuildImageOptions{}
 	if opts != nil {
 		options = *opts
@@ -38,11 +38,7 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 		if prepareErr != nil {
 			return nil, prepareErr
 		}
-		defer func() {
-			if closeErr := archive.Close(); closeErr != nil && err == nil {
-				err = wrapError(closeErr, "remove temporary build context")
-			}
-		}()
+		defer archive.Close() //nolint:errcheck // Best-effort local cleanup must not fail an accepted build.
 		upload, uploadErr := s.uploadContext(ctx, archive, request.Region)
 		if uploadErr != nil {
 			return nil, uploadErr
@@ -67,7 +63,7 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 // The result is an initial observation; wait using Get or BuildAndWait.
 func (s *Images) BuildFromContext(
 	ctx context.Context, contextPath string, opts *BuildFromContextOptions,
-) (image *Image, err error) {
+) (*Image, error) {
 	options := BuildFromContextOptions{}
 	if opts != nil {
 		options = *opts
@@ -93,11 +89,9 @@ func (s *Images) BuildFromContext(
 	if err != nil {
 		return nil, imageContextError(err)
 	}
-	defer func() {
-		if closeErr := archive.Close(); closeErr != nil && err == nil {
-			err = wrapError(closeErr, "remove temporary build context")
-		}
-	}()
+	defer archive.Close() //nolint:errcheck // Best-effort local cleanup must not fail an accepted build.
+	// Keep the caller's spelling on the wire; preparation already validated it.
+	archive.Dockerfile = dockerfile
 	upload, err := s.uploadContext(ctx, archive, request.Region)
 	if err != nil {
 		return nil, err
