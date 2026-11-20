@@ -793,7 +793,7 @@ class ProjectBudget:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class UsageLimit:
-    """A limit and the usage counted against it; ``limit`` ``None`` means unlimited."""
+    """A limit and the usage counted against it; ``limit`` ``None`` means no limit, except on a count whose limit is not returned."""
 
     limit: Optional[int]
     usage: int
@@ -810,6 +810,8 @@ class MemberLimits:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SandboxLimits:
     concurrent: UsageLimit
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     total: UsageLimit
 
 
@@ -820,8 +822,14 @@ class ImageBuildLimits:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class StorageLimits:
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     volumes: UsageLimit
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     images: UsageLimit
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     snapshots: UsageLimit
 
 

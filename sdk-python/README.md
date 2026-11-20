@@ -1220,8 +1220,10 @@ from positional identity arguments instead:
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
-and counts as `limit`, `current` and `max`. Other rate-limited requests keep
-raising plain `RateLimitError`.
+as `limit`, and the counts as `current` and `max` when the refusal reports
+them. Daytona determines some organization limits for each organization and
+reports neither the limit nor the counts; contact support to request a higher
+one. Other rate-limited requests keep raising plain `RateLimitError`.
 
 On a sandbox that is deleted or being deleted, `set_labels()`,
 `update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls

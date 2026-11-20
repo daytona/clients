@@ -280,11 +280,13 @@ class LimitExceededError(RateLimitError):
 
 
 class ImageTooLargeError(ConflictError):
-    pass
+    """``IMAGE_TOO_LARGE`` (409): ``max_bytes`` is the limit and ``bytes`` the image's size
+    when the refusal reports them; both are ``None`` when it does not."""
 
 
 class SnapshotTooLargeError(ConflictError):
-    pass
+    """``SNAPSHOT_TOO_LARGE`` (409): ``max_bytes`` is the limit and ``bytes`` the snapshot's
+    size when the refusal reports them; both are ``None`` when it does not."""
 
 
 class PreconditionRequiredError(DaytonaError):

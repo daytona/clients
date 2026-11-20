@@ -53,6 +53,10 @@ export interface UsageLimit {
 
 export interface SandboxLimits {
   readonly concurrent: UsageLimit
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly total: UsageLimit
 }
 
@@ -61,8 +65,20 @@ export interface ImageBuildLimits {
 }
 
 export interface StorageLimits {
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly volumes: UsageLimit
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly images: UsageLimit
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly snapshots: UsageLimit
 }
 

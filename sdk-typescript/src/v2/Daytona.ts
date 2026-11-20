@@ -153,7 +153,8 @@ export class Daytona {
 
   /**
    * Return the organization's limits and current usage. An undefined `limit` means
-   * unlimited. With an API key the organization defaults to the key's own,
+   * unlimited, except on the deprecated sandbox and storage counts, whose limit is
+   * not returned. With an API key the organization defaults to the key's own,
    * looked up once and cached; with `jwtToken` authentication pass
    * `organizationId`. The credential needs `read:limits`. Member counts
    * (`members`) are not included: they are served to signed-in members only.

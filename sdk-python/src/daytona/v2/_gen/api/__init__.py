@@ -204,6 +204,7 @@ from daytona.v2._gen.api.models.project_api_key_page import ProjectApiKeyPage as
 from daytona.v2._gen.api.models.project_api_key_with_context import ProjectApiKeyWithContext as ProjectApiKeyWithContext
 from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyWithToken as ProjectApiKeyWithToken
 from daytona.v2._gen.api.models.project_budget import ProjectBudget as ProjectBudget
+from daytona.v2._gen.api.models.project_image_build_limits import ProjectImageBuildLimits as ProjectImageBuildLimits
 from daytona.v2._gen.api.models.project_lifecycle_defaults import ProjectLifecycleDefaults as ProjectLifecycleDefaults
 from daytona.v2._gen.api.models.project_lifecycle_policy import ProjectLifecyclePolicy as ProjectLifecyclePolicy
 from daytona.v2._gen.api.models.project_limits import ProjectLimits as ProjectLimits
