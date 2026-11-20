@@ -33,39 +33,49 @@ func (s *Processes) runStreaming(
 	}
 	defer cancel()
 	logs, err := options.consume(streamCtx, handle)
-	if err != nil {
-		var deliveryErr *outputDeliveryError
-		if errors.As(err, &deliveryErr) {
-			handle.stopAfterOutputFailure(ctx, ProcessSignalTerminate)
-			return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
+	if err == nil {
+		wait, waitErr := handle.waitRemaining(ctx, started, budget)
+		if waitErr != nil {
+			return nil, waitErr
 		}
-		if ctx.Err() != nil {
-			return nil, transportError(ctx, err)
-		}
-		if !errors.Is(streamCtx.Err(), context.DeadlineExceeded) {
-			return nil, err
-		}
-		snapshot, readErr := processCollectLogs(ctx, handle, 8)
-		if readErr != nil {
-			return nil, readErr
-		}
-		return processResult(handle.id, WaitResult{Reason: ProcessReasonTimedOut}, snapshot), nil
+		return processResult(handle.id, *wait, logs), nil
 	}
-	wait, err := handle.waitRemaining(ctx, started, budget)
-	if err != nil {
+	var deliveryErr *outputDeliveryError
+	if errors.As(err, &deliveryErr) {
+		handle.stopAfterOutputFailure(ctx, ProcessSignalTerminate)
+		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, logs), err
+	}
+	if ctx.Err() != nil {
+		return nil, transportError(ctx, err)
+	}
+	if !errors.Is(streamCtx.Err(), context.DeadlineExceeded) {
 		return nil, err
 	}
-	return processResult(handle.id, *wait, logs), nil
+	snapshot, readErr := processCollectLogs(ctx, handle, 8)
+	if readErr != nil {
+		return nil, readErr
+	}
+	seen := make(map[string]bool, len(logs))
+	for _, frame := range logs {
+		seen[frame.Cursor] = true
+	}
+	// Preserve replay semantics; exclude only overlap with the live stream.
+	for _, frame := range snapshot {
+		if !seen[frame.Cursor] {
+			logs = append(logs, frame)
+		}
+	}
+	return processResult(handle.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil
 }
 
 func (o ExecOptions) consume(ctx context.Context, handle *ProcessHandle) ([]LogFrame, error) {
 	logs := make([]LogFrame, 0)
 	for frame, err := range handle.Logs(ctx, nil) {
 		if err != nil {
-			return nil, err
+			return logs, err
 		}
 		if ctx.Err() != nil {
-			return nil, transportError(ctx, ctx.Err())
+			return logs, transportError(ctx, ctx.Err())
 		}
 		var writer io.Writer
 		switch frame.Channel {
