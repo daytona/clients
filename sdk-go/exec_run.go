@@ -16,7 +16,7 @@ import (
 func (s *Processes) run(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
-	timeout, err := processTimeout(options.Timeout)
+	timeout, err := processTimeout("Timeout", options.Timeout)
 	if err != nil {
 		return nil, err
 	}

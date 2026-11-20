@@ -147,10 +147,10 @@ func processListQuery(opts *ListProcessesOptions) (url.Values, error) {
 		}
 	}
 	if opts.State != "" && opts.State != "all" && opts.State != "running" && opts.State != "terminal" {
-		return nil, badRequest("state must be running, terminal or all")
+		return nil, badRequest("State must be running, terminal or all")
 	}
 	if opts.Kind != "" && processKind(string(opts.Kind)) == ProcessKindUnknown {
-		return nil, badRequest("kind must be exec, pty, code or session")
+		return nil, badRequest("Kind must be exec, pty, code or session")
 	}
 	for key, value := range map[string]string{
 		"tag": opts.Tag, "state": string(opts.State), "kind": string(opts.Kind),
@@ -178,7 +178,7 @@ func (s *Processes) KillAll(ctx context.Context, tag string, opts *KillAllProces
 		timeout = opts.Timeout
 	}
 	if timeout < 0 || timeout > 60*time.Second {
-		return nil, badRequest("kill timeout must be positive and at most 60 seconds; zero selects the default")
+		return nil, badRequest("Timeout must be positive and at most 60 seconds; zero selects the default")
 	}
 	body := struct {
 		Tag       string `json:"tag"`

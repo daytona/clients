@@ -45,7 +45,7 @@ func processStartBody(command *string, argv []string, opts *ProcessStartOptions)
 			return processCreateRequest{}, err
 		}
 	}
-	timeout, err := processTimeout(options.ExecutionTimeout)
+	timeout, err := processTimeout("ExecutionTimeout", options.ExecutionTimeout)
 	if err != nil {
 		return processCreateRequest{}, err
 	}
@@ -54,14 +54,14 @@ func processStartBody(command *string, argv []string, opts *ProcessStartOptions)
 		stdin = ProcessStdinClosed
 	}
 	if processStdin(string(stdin)) == ProcessStdinUnknown {
-		return processCreateRequest{}, badRequest("stdin must be open or closed")
+		return processCreateRequest{}, badRequest("Stdin must be open or closed")
 	}
 	retention := options.KeepLogs
 	if retention == "" {
 		retention = ProcessKeepLogsOnExitTTL
 	}
 	if processRetention(string(retention)) == ProcessKeepLogsUnknown {
-		return processCreateRequest{}, badRequest("keep logs must be on_exit_ttl, until_cleanup or none")
+		return processCreateRequest{}, badRequest("KeepLogs must be on_exit_ttl, until_cleanup or none")
 	}
 	return processCreateRequest{
 		ShellCommand: clonePointer(command), Argv: slices.Clone(argv), Kind: ProcessKindExec,
@@ -71,22 +71,22 @@ func processStartBody(command *string, argv []string, opts *ProcessStartOptions)
 	}, nil
 }
 
-func processTimeout(value time.Duration) (time.Duration, error) {
+func processTimeout(name string, value time.Duration) (time.Duration, error) {
 	if value < 0 && value != WaitForever && value != NoTimeout {
-		return 0, badRequest("timeout must be non-negative, WaitForever or NoTimeout")
+		return 0, badRequest(name + " must be non-negative, WaitForever or NoTimeout")
 	}
 	return boundedTimeout(value), nil
 }
 
 func processTag(tag string) error {
 	if len(tag) == 0 || len(tag) > 128 || tag == "." || tag == ".." {
-		return badRequest("tag must be 1..128 safe ASCII characters, excluding '.' and '..'")
+		return badRequest("Tag must be 1..128 safe ASCII characters, excluding '.' and '..'")
 	}
 	for _, char := range tag {
 		valid := char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' ||
 			char >= '0' && char <= '9' || strings.ContainsRune("._-", char)
 		if !valid {
-			return badRequest("tag must contain only ASCII letters, digits, '.', '_' and '-'")
+			return badRequest("Tag must contain only ASCII letters, digits, '.', '_' and '-'")
 		}
 	}
 	return nil
@@ -94,7 +94,7 @@ func processTag(tag string) error {
 
 func processTerminal(size TerminalSize) error {
 	if size.Cols < 1 || size.Cols > 65535 || size.Rows < 1 || size.Rows > 65535 {
-		return badRequest("terminal cols and rows must each be between 1 and 65535")
+		return badRequest("Terminal Cols and Rows must each be between 1 and 65535")
 	}
 	return nil
 }

@@ -55,10 +55,10 @@ func processLogQuery(opts *ProcessLogsOptions) (url.Values, error) {
 		return query, nil
 	}
 	if opts.Limit < 0 {
-		return nil, badRequest("log limit must be non-negative")
+		return nil, badRequest("Limit must be non-negative")
 	}
 	if opts.Encoding != "" && opts.Encoding != LogEncodingText && opts.Encoding != LogEncodingBase64 {
-		return nil, badRequest("log encoding must be text or base64")
+		return nil, badRequest("Encoding must be text or base64")
 	}
 	if opts.Cursor != "" {
 		query.Set("cursor", opts.Cursor)

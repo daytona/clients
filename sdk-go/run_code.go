@@ -71,7 +71,7 @@ func (s *Interpreter) Run(ctx context.Context, code string, opts *RunCodeOptions
 	if err != nil {
 		return nil, err
 	}
-	timeout, err := processTimeout(options.Timeout)
+	timeout, err := processTimeout("Timeout", options.Timeout)
 	if err != nil {
 		return nil, err
 	}

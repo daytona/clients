@@ -20,7 +20,7 @@ func (h *ProcessHandle) Wait(ctx context.Context, opts *WaitProcessOptions) (*Wa
 	if opts != nil {
 		value = opts.Timeout
 	}
-	budget, err := processTimeout(value)
+	budget, err := processTimeout("Timeout", value)
 	if err != nil {
 		return nil, err
 	}
