@@ -17,6 +17,7 @@ type sandboxWatch struct {
 
 type waitProbe struct {
 	watch      sandboxWatch
+	before     events.FrameStamp
 	delay      time.Duration
 	shortFirst bool
 	retry      *waitReadRetry
@@ -32,8 +33,9 @@ func newWaitProbe(watch sandboxWatch, deadline time.Time, retry *waitReadRetry) 
 	}
 }
 
-func (p *waitProbe) ready() (events.FrameStamp, bool) {
+func (p *waitProbe) ready() bool {
 	frame := p.watch.activity.Frame()
+	p.before = frame
 	quiet := p.watch.silentFor(frame) >= waitEarlyProbe
 	if p.shortFirst {
 		quiet = !frame.LastFrameAt.After(p.watch.activity.RegisteredAt)
@@ -42,10 +44,15 @@ func (p *waitProbe) ready() (events.FrameStamp, bool) {
 	if !quiet {
 		p.delay = p.watch.quietDelay(0)
 	}
-	return frame, quiet
+	return quiet
 }
 
 func (p *waitProbe) accept(ctx context.Context, w *sandboxWait, result waitReadResult) (bool, error) {
+	// Decide before adopting metadata: only nondecisive reads can be stale.
+	if result.err == nil && !w.decisive(result.detail.info.State) && p.before != p.watch.activity.Frame() {
+		p.delay = p.watch.quietDelay(0)
+		return false, nil
+	}
 	outcome, err := w.accept(result)
 	if err != nil {
 		if stopped := w.retryReadError(ctx, err, p.retry); stopped != nil {

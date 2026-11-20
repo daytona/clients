@@ -21,6 +21,7 @@ type stateObservation struct {
 
 // watch's release is idempotent. A nil channel means no event source is
 // available: lifecycle code must use API reads. The hub owns channel closure.
+// A non-nil channel requires liveness with non-nil Frame and Jitter functions.
 type sandboxStateSource interface {
 	watch(ctx context.Context, sandboxID, region string) (<-chan stateObservation, func(), events.WatchLiveness)
 }

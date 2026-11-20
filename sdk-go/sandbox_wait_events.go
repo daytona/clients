@@ -35,8 +35,7 @@ func (w *sandboxWait) withEvents(
 		if waitRemaining(share) == 0 {
 			return false, waitTimeout(nil)
 		}
-		before, quiet := probe.ready()
-		if !quiet {
+		if !probe.ready() {
 			continue
 		}
 		result := w.raceRead(ctx, watch.events, share)
@@ -46,11 +45,6 @@ func (w *sandboxWait) withEvents(
 		if result.closed {
 			return false, nil
 		}
-		// Like the reference hub, a frame or reroute supersedes the poll.
-		if result.read.err == nil && before != watch.activity.Frame() {
-			probe.delay = watch.quietDelay(0)
-			continue
-		}
 		if waitRemaining(share) == 0 && waitSDKTimeout(result.read.err) {
 			return false, waitTimeout(nil)
 		}
@@ -58,6 +52,10 @@ func (w *sandboxWait) withEvents(
 			return true, probeErr
 		}
 	}
+}
+
+func (w *sandboxWait) decisive(state SandboxState) bool {
+	return w.target(state) || slices.Contains(w.terminal, state)
 }
 
 type waitEventWindow struct {
@@ -86,7 +84,7 @@ func (w *sandboxWait) awaitEvents(
 			if !ok {
 				return nil, false, nil
 			}
-			if event.NotFound || w.target(event.State) || slices.Contains(w.terminal, event.State) {
+			if event.NotFound || w.decisive(event.State) {
 				return &event, true, nil
 			}
 			w.sandbox.observeWait(event)
@@ -126,7 +124,7 @@ func (w *sandboxWait) raceRead(
 			if !ok {
 				return waitRaceResult{closed: true}
 			}
-			if event.NotFound || w.target(event.State) || slices.Contains(w.terminal, event.State) {
+			if event.NotFound || w.decisive(event.State) {
 				return waitRaceResult{event: &event}
 			}
 			w.sandbox.observeWait(event)
