@@ -42,6 +42,7 @@ type SessionRunOptions struct {
 
 // Start queues a command in this shell and returns its handle immediately.
 // ErrSessionNotFound and ErrSessionEnded surface unchanged; no shell is recreated.
+// A malformed create response with a valid ID returns a reconnectable handle alongside the error.
 func (s *Session) Start(ctx context.Context, command string, opts *SessionStartOptions) (*ProcessHandle, error) {
 	options := SessionStartOptions{}
 	if opts != nil {
