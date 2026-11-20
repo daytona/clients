@@ -22,8 +22,8 @@ type interpreterContextRequest struct {
 
 // CreateContext creates independent kernel state. Language is case-sensitive
 // and server-defined; unsupported languages return ErrUnsupportedOperation.
-// If a named context's response is malformed, the error identifies the context
-// that may exist and preserves the parse failure as its cause.
+// If a named context's response cannot be parsed or bound, the error identifies
+// the context that may exist and preserves the failure as its cause.
 func (s *Interpreter) CreateContext(
 	ctx context.Context, language string, opts *CreateInterpreterContextOptions,
 ) (*InterpreterContext, error) {
@@ -37,9 +37,6 @@ func (s *Interpreter) CreateContext(
 func (s *Interpreter) createContext(
 	ctx context.Context, body interpreterContextRequest, timeout time.Duration,
 ) (*InterpreterContext, error) {
-	if body.Kernel == "" {
-		return nil, badRequest("interpreter context language must be a non-empty string")
-	}
 	if body.ID != "" {
 		if _, err := pathSegment(body.ID); err != nil {
 			return nil, err
@@ -52,13 +49,17 @@ func (s *Interpreter) createContext(
 		return nil, err
 	}
 	id, _, err := parseInterpreterSession(raw)
+	var bound *InterpreterContext
+	if err == nil {
+		bound, err = s.ConnectContext(id, body.Kernel)
+	}
 	if err != nil {
 		if body.ID != "" {
 			return nil, wrapError(err, fmt.Sprintf("context %q may have been created", body.ID))
 		}
 		return nil, err
 	}
-	return s.ConnectContext(id, body.Kernel)
+	return bound, nil
 }
 
 // ConnectContext binds an existing context ID and language without a request.
