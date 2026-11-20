@@ -27,7 +27,7 @@ func computerUseA11yTestSandbox(t *testing.T, handler http.HandlerFunc) (*Sandbo
 		"/computeruse/":      handler,
 	})
 	client := newTestClient(t, fake.Server)
-	sandbox, err := client.Get(t.Context(), "sbx", &GetOptions{
+	sandbox, err := client.Get(t.Context(), "sbx", &GetSandboxOptions{
 		ToolboxURL:  fake.Server.URL,
 		AccessToken: "test-" + "sandbox-token",
 	})
