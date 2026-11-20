@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 	"sort"
@@ -106,12 +107,36 @@ func requestUTF8Map(value reflect.Value, path string, depth int) error {
 		if key.Kind() == reflect.String {
 			keyPath = path + "[" + strconv.Quote(key.String()) + "]"
 		}
-		if err := requestUTF8Field(key, keyPath, depth); err != nil {
+		if err := requestUTF8MapKey(key, keyPath); err != nil {
 			return err
 		}
 		if err := requestUTF8Field(value.MapIndex(key), keyPath, depth); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func requestUTF8MapKey(key reflect.Value, path string) error {
+	// Match encoding/json: string kinds take precedence over MarshalText,
+	// nil pointer keys encode as "", then text marshalers precede integers.
+	if key.Kind() == reflect.String {
+		return requestUTF8Field(key, path, 0)
+	}
+	if key.Kind() == reflect.Pointer && key.IsNil() {
+		return nil
+	}
+	if marshaler, ok := key.Interface().(encoding.TextMarshaler); ok {
+		text, err := marshaler.MarshalText()
+		if err != nil {
+			result := badRequest("request map key " + path + " could not be marshaled")
+			result.Err = err
+			return result
+		}
+		if !utf8.Valid(text) {
+			return badRequest("request map key " + path + " must be valid UTF-8")
+		}
+	}
+	// Plain integers need no UTF-8 check; json.Marshal rejects other keys.
 	return nil
 }
