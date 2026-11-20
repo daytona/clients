@@ -38,6 +38,7 @@ from ._api_core import (
     expect_organization_limits,
     expect_project_budget,
     expect_sandbox_detail,
+    expect_sandbox_lifecycle_policy,
     sandbox_detail_wire,
     usable_path_id,
 )
@@ -60,6 +61,7 @@ from ._core import (
     image_options_body,
     lifecycle_body,
     page_params,
+    parse_lifecycle,
     parse_search_page,
     parse_timestamp,
     path_segment,
@@ -89,6 +91,7 @@ from .image import ImageBuilder
 from .network_policy import serialize_network_policy_input
 from .sandbox import (
     AsyncSandbox,
+    _lifecycle_wire_timestamps,
     _scoped_toolbox_url,
     _wait_without_raising_for_its_end,
     sandbox_info_from_id,
@@ -816,6 +819,18 @@ class AsyncDaytona:
         # the create route fixes (linux, or macos for create_macos); the rest
         # is unknown until a detail read. The response's `image` is canonical when present.
         booted = artifact_ref_from_wire(data.get("image"))
+        # The lifecycle policy as of the create response, checked as the policy
+        # echo is. A missing one, or one that breaks the contract, is absent,
+        # never an error: the sandbox exists.
+        raw_lifecycle = data.get("lifecycle_policy")
+        lifecycle_policy = None
+        if raw_lifecycle is not None:
+            try:
+                lifecycle_policy = parse_lifecycle(
+                    expect_sandbox_lifecycle_policy({"id": sandbox_id, "lifecycle_policy": raw_lifecycle})
+                )
+            except DaytonaError:
+                lifecycle_policy = None
         info = _SandboxInfo(
             id=sandbox_id,
             name=str(data.get("name")) if isinstance(data.get("name"), str) else None,
@@ -832,6 +847,10 @@ class AsyncDaytona:
             reservation_id=str(data.get("reservation_id"))
             if isinstance(data.get("reservation_id"), str)
             else None,
+            lifecycle_policy=lifecycle_policy,
+            wire_timestamps=_lifecycle_wire_timestamps(raw_lifecycle)
+            if lifecycle_policy is not None and isinstance(raw_lifecycle, dict)
+            else {},
         )
         sandbox = self._sandbox_handle(
             info,

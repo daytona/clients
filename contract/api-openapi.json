@@ -8625,6 +8625,17 @@
               }
             ]
           },
+          "lifecycle_policy": {
+            "description": "Automatic timeout and idle-expiry behavior: the object\n`GET /sandboxes/{id}` returns, as the create set it (on an idempotent\nreplay, as the sandbox has it now). Starting the sandbox restarts\n`timeout_at` and `idle_timeout_at`, so after a start, even one `status`\nalready reports as `running`, `GET /sandboxes/{id}` returns the new\ndeadlines. Null when the policy could not be read.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LifecyclePolicy"
+              }
+            ]
+          },
           "name": {
             "description": "Sandbox name (caller-provided or the generated `sandbox-<short-id>`).",
             "type": "string"
