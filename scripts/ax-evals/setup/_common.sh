@@ -49,10 +49,11 @@ retry clone
 cd /opt/clients
 echo "build under test: $(git log --oneline -1)"
 
-# Install the Go version cli/go.mod asks for. GOTOOLCHAIN=local makes the check
-# report the installed Go instead of auto-switching (and downloading).
+# Install the Go version a go.mod asks for (default: the CLI's). GOTOOLCHAIN=local
+# makes the check report the installed Go instead of auto-switching (and
+# downloading).
 install_go() {
-  GO_VERSION=$(awk '/^go /{print $2; exit}' /opt/clients/cli/go.mod)
+  GO_VERSION=$(awk '/^go /{print $2; exit}' "${1:-/opt/clients/cli/go.mod}")
   if [ "$(GOTOOLCHAIN=local go env GOVERSION 2>/dev/null)" != "go${GO_VERSION}" ]; then
     t "install go ${GO_VERSION}"
     $SUDO rm -rf /usr/local/go
