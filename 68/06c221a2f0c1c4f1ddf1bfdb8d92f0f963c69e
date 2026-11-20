@@ -1,0 +1,23 @@
+sdk-go/internal/events/protocol_test.go
+  s_3456b2013a20e2::t_0ee32ebb0f5798 68-70
+  s_3456b2013a20e2::t_2e54a8db57497f 53-55
+  s_3456b2013a20e2::t_af78a98c9995ff 1-52,56-67,71-80
+sdk-go/internal/events/protocol.go
+  s_3456b2013a20e2::t_cb390a916bcc39 1-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6806c221a2f0c1c4f1ddf1bfdb8d92f0f963c69e",
+  "prompts": {},
+  "sessions": {
+    "s_3456b2013a20e2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b48b98ffeB8ycU3gMzAwvzt",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
