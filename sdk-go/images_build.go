@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strings"
 
@@ -64,6 +65,34 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 func (s *Images) BuildFromContext(
 	ctx context.Context, contextPath string, opts *BuildFromContextOptions,
 ) (*Image, error) {
+	return s.buildFromContext(ctx, func(ctx context.Context, dockerfile string) (*buildcontext.Archive, error) {
+		return buildcontext.FromPath(ctx, contextPath, dockerfile)
+	}, opts)
+}
+
+// BuildFromContextReader snapshots size archive bytes from r starting at offset
+// zero, then uploads them and submits a build without waiting for readiness.
+// Size must be positive and at most 1 GiB; invalid sizes, nil readers, short reads
+// and unsafe Dockerfile paths return ErrBadRequest before any network request.
+// Options and multipart upload behavior are the same as BuildFromContext.
+// The caller retains ownership of r and must keep its bytes stable during the
+// call. Reads must return promptly: context cancellation is checked between
+// reads but cannot interrupt a blocking ReaderAt. The SDK never closes r.
+func (s *Images) BuildFromContextReader(
+	ctx context.Context, r io.ReaderAt, size int64, opts *BuildFromContextOptions,
+) (*Image, error) {
+	if r == nil {
+		return nil, badRequest("build context reader must not be nil")
+	}
+	return s.buildFromContext(ctx, func(ctx context.Context, dockerfile string) (*buildcontext.Archive, error) {
+		return buildcontext.FromReader(ctx, io.NewSectionReader(r, 0, size), dockerfile)
+	}, opts)
+}
+
+func (s *Images) buildFromContext(
+	ctx context.Context, prepare func(context.Context, string) (*buildcontext.Archive, error),
+	opts *BuildFromContextOptions,
+) (*Image, error) {
 	options := BuildFromContextOptions{}
 	if opts != nil {
 		options = *opts
@@ -85,7 +114,7 @@ func (s *Images) BuildFromContext(
 	if strings.TrimSpace(dockerfile) == "" {
 		return nil, badRequest("dockerfile must be a non-empty path")
 	}
-	archive, err := buildcontext.FromPath(ctx, contextPath, dockerfile)
+	archive, err := prepare(ctx, dockerfile)
 	if err != nil {
 		return nil, imageContextError(err)
 	}
