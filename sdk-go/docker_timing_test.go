@@ -27,7 +27,7 @@ func dockerTimingSandbox(t *testing.T, transport dockerTimingTransport) *Sandbox
 		WithHTTPClient(&http.Client{Transport: transport}))
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: "http://toolbox.invalid", AccessToken: "caller"},
+		Options: GetSandboxOptions{ToolboxURL: "http://toolbox.invalid", AccessToken: "caller"},
 	})
 	require.NoError(t, err)
 	return sandbox

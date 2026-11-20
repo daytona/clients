@@ -112,7 +112,7 @@ func TestGitRemote_whenCallBudgetExceedsClientTimeout(t *testing.T) {
 				t.Cleanup(func() { require.NoError(t, client.Close()) })
 				sandbox, err := client.newSandbox(sandboxInit{
 					Info: SandboxInfo{ID: "sbx"}, ToolboxURL: "https://example.org",
-					Options: GetOptions{AccessToken: "caller"},
+					Options: GetSandboxOptions{AccessToken: "caller"},
 				})
 				require.NoError(t, err)
 				// When

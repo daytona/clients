@@ -18,7 +18,7 @@ func gitTestService(t *testing.T, routes map[string]http.HandlerFunc) (*Git, *fa
 	client := newTestClient(t, fake.Server)
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info: SandboxInfo{ID: "sbx"}, ToolboxURL: fake.Server.URL + "/toolbox",
-		Options: GetOptions{AccessToken: "caller"},
+		Options: GetSandboxOptions{AccessToken: "caller"},
 	})
 	require.NoError(t, err)
 	return sandbox.Git(), fake

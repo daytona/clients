@@ -15,7 +15,7 @@ import (
 func portsTestSandbox(t *testing.T, fake *fakeServer) *Sandbox {
 	t.Helper()
 	sandbox, err := newTestClient(t, fake.Server).newSandbox(sandboxInit{
-		Info: SandboxInfo{ID: "sbx"}, Options: GetOptions{
+		Info: SandboxInfo{ID: "sbx"}, Options: GetSandboxOptions{
 			ToolboxURL: fake.Server.URL + "/toolbox", AccessToken: "caller-token",
 		},
 	})

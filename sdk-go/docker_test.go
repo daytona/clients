@@ -17,7 +17,7 @@ func dockerVolumeSandbox(t *testing.T, fake *fakeServer, opts ...Option) *Sandbo
 	client := newTestClient(t, fake.Server, opts...)
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: fake.Server.URL, AccessToken: "caller"},
+		Options: GetSandboxOptions{ToolboxURL: fake.Server.URL, AccessToken: "caller"},
 	})
 	require.NoError(t, err)
 	return sandbox
