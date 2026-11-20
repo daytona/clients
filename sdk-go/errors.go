@@ -113,7 +113,7 @@ func (e *Error) Is(target error) bool {
 		category := e.category
 		if category == "" {
 			status := e.StatusCode
-			if known := catalogStatus(e.Source, e.Code); known != 0 {
+			if known := volumeCodeStatus(e.Source, e.Code); known != 0 {
 				status = known
 			}
 			category = statusCategory(status)

@@ -28,6 +28,7 @@ type Client struct {
 	auth           credentialProvider
 	stateSource    sandboxStateSource
 	searchFallback atomic.Bool
+	accountLimits  accountLimitsCache
 	version        string
 }
 
