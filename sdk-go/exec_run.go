@@ -43,11 +43,11 @@ func (s *Processes) run(
 	}); err != nil {
 		return nil, err
 	}
-	info, err := parseProcess(raw)
-	if err != nil {
-		return nil, err
-	}
+	info, err := parseCreatedProcess(raw)
 	handle := s.startedHandle(info, body)
+	if err != nil {
+		return handle.creationFailureResult(), err
+	}
 	page, err := execInlineLogs(raw)
 	if err != nil {
 		return processResult(handle.id, WaitResult{Reason: ProcessReasonUnknown}, nil), err

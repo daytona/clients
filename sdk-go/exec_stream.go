@@ -21,7 +21,7 @@ func (s *Processes) runStreaming(
 	}
 	handle, err := s.start(ctx, body, requestTimeout)
 	if err != nil {
-		return nil, err
+		return handle.creationFailureResult(), err
 	}
 	started := time.Now()
 	streamCtx, cancel := context.WithCancel(ctx)
