@@ -27,7 +27,7 @@ type createBody struct {
 	MemoryMax     *int64               `json:"memory_max_mib,omitempty"`
 	Disk          int64                `json:"disk_mib,omitempty"`
 	DiskMax       *int64               `json:"disk_max_mib,omitempty"`
-	CPUArch       string               `json:"cpu_arch,omitempty"`
+	CPUArch       CPUArch              `json:"cpu_arch,omitempty"`
 	CPUType       string               `json:"cpu_type,omitempty"`
 	Spot          *bool                `json:"spot,omitempty"`
 	User          string               `json:"user,omitempty"`

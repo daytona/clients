@@ -48,10 +48,10 @@ func followBuildLogs(ctx context.Context, source buildLogSource,
 
 func validateFollowBuildLogs(options FollowBuildLogsOptions) error {
 	if options.Cursor != "" && !buildLogCursorValid(options.Cursor) {
-		return badRequest("cursor must contain at most 2048 characters with no control characters")
+		return badRequest("Cursor must contain at most 2048 characters with no control characters")
 	}
 	if options.Timeout < 0 && options.Timeout != NoTimeout && options.Timeout != WaitForever {
-		return badRequest("invalid build log observation timeout")
+		return badRequest("Timeout must be non-negative, NoTimeout or WaitForever")
 	}
 	return nil
 }

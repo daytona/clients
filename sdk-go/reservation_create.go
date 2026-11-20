@@ -66,7 +66,7 @@ func (s *Reservations) CreateBulk(
 		return nil, badRequest("count must be an integer from 1 to 100")
 	}
 	if options.MinCount < 0 || options.MinCount > count {
-		return nil, badRequest("MinCount must be an integer from 1 to count")
+		return nil, badRequest("MinCount must be 0 (defaults to count) or 1 to count")
 	}
 	key, err := reservationKey(options.IdempotencyKey)
 	if err != nil {
@@ -83,7 +83,7 @@ func (s *Reservations) CreateBulk(
 
 func checkReservationPurchase(body reservationPurchase) error {
 	if !utf8.ValidString(body.Region) || !utf8.ValidString(body.Model) {
-		return badRequest("region and model must be valid UTF-8")
+		return badRequest("Region and Model must be valid UTF-8")
 	}
 	return nil
 }

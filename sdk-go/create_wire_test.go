@@ -24,7 +24,7 @@ func TestCreate_whenAllLinuxOptionsAreGiven(t *testing.T) {
 	options := CreateOptions{
 		Name: "worker", Labels: labels, Region: "region-a", Wait: NoWait, CreateTimeout: &provision,
 		IdempotencyKey: "request-123", Env: map[string]string{"MODE": "test"}, User: "worker",
-		CPUArch: "arm64", CPUType: "performance", Spot: &spot,
+		CPUArch: CPUArchARM64, CPUType: "performance", Spot: &spot,
 		Resources: &Resources{
 			CPU: 1.25, CPUMax: &ceiling, MemoryGiB: 1.5, MemoryMaxGiB: &memoryMax,
 			DiskGiB: 10, DiskMaxGiB: &diskMax,

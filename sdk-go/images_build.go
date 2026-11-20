@@ -102,14 +102,14 @@ func (s *Images) buildFromContext(
 		return nil, err
 	}
 	if options.Timeout < 0 && options.Timeout != NoTimeout {
-		return nil, badRequest("timeout must be non-negative or NoTimeout")
+		return nil, badRequest("Timeout must be non-negative or NoTimeout")
 	}
 	dockerfile := options.Dockerfile
 	if dockerfile == "" {
 		dockerfile = "Dockerfile"
 	}
 	if strings.TrimSpace(dockerfile) == "" {
-		return nil, badRequest("dockerfile must be a non-empty path")
+		return nil, badRequest("Dockerfile must be a non-empty path")
 	}
 	archive, err := prepare(ctx, dockerfile)
 	if err != nil {

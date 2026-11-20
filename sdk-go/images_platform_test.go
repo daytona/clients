@@ -40,7 +40,7 @@ func TestImagesListRejectsUnknownPlatformFilter(t *testing.T) {
 			_, err := client.Images().List(t.Context(), &ListImagesOptions{Platform: platform})
 			// Then the caller gets a local validation error without a request.
 			require.ErrorIs(t, err, ErrBadRequest)
-			require.ErrorContains(t, err, `platform must be "true", "false" or "any"`)
+			require.ErrorContains(t, err, `Platform must be "true", "false" or "any"`)
 			require.Empty(t, fake.requests())
 		})
 	}

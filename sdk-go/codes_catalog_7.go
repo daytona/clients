@@ -82,7 +82,7 @@ const CodeClientClosed = "CLIENT_CLOSED"
 // ErrClientClosed matches code CLIENT_CLOSED, independently of its source.
 var ErrClientClosed = codeSentinel{"CLIENT_CLOSED", 0}
 
-// CodeRequestCancelled is REQUEST_CANCELLED ().
+// CodeRequestCancelled is REQUEST_CANCELLED (SDK).
 const CodeRequestCancelled = "REQUEST_CANCELLED"
 
 // ErrRequestCancelled matches code REQUEST_CANCELLED, independently of its source.

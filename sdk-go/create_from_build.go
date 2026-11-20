@@ -60,7 +60,7 @@ func (c *Client) CreateFromBuild(
 	prepared.body.Key = createIdempotencyKey(prepared.body.Name, prepared.body.Key)
 	buildOptions := BuildImageWaitOptions{
 		BuildImageOptions: BuildImageOptions{
-			Region: prepared.body.Region, CPUArch: ImageCPUArch(options.CPUArch), IdleExpiry: options.IdleExpiry,
+			Region: prepared.body.Region, CPUArch: options.CPUArch, IdleExpiry: options.IdleExpiry,
 		},
 		Timeout: options.BuildTimeout,
 	}

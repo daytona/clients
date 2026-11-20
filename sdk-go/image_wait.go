@@ -92,7 +92,7 @@ func (r artifactReader[T]) wait(ctx context.Context) (T, error) {
 
 func imageWaitDuration(value time.Duration) error {
 	if value < 0 && value != WaitForever {
-		return badRequest("timeout must be non-negative or WaitForever")
+		return badRequest("Timeout must be non-negative or WaitForever")
 	}
 	return nil
 }

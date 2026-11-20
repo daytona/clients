@@ -9,14 +9,14 @@ import (
 	"unicode/utf8"
 )
 
-// ImageCPUArch selects the CPU architecture for an image build or import.
-type ImageCPUArch string
+// CPUArch is the CPU architecture of a sandbox or image.
+type CPUArch string
 
 const (
-	// ImageCPUArchAMD64 selects x86-64.
-	ImageCPUArchAMD64 ImageCPUArch = "amd64"
-	// ImageCPUArchARM64 selects ARM64.
-	ImageCPUArchARM64 ImageCPUArch = "arm64"
+	// CPUArchAMD64 selects x86-64.
+	CPUArchAMD64 CPUArch = "amd64"
+	// CPUArchARM64 selects ARM64.
+	CPUArchARM64 CPUArch = "arm64"
 )
 
 // BuildImageOptions controls image naming, retention and placement.
@@ -30,7 +30,7 @@ type BuildImageOptions struct {
 	// Region selects placement. Empty, blank or "local" uses the default.
 	Region string
 	// CPUArch selects amd64 or arm64; empty uses the server default.
-	CPUArch ImageCPUArch
+	CPUArch CPUArch
 }
 
 // BuildFromContextOptions selects a Dockerfile in a path or reader build context.
@@ -74,7 +74,7 @@ type imageBuildRequest struct {
 	Name            string               `json:"name,omitempty"`
 	IdleExpiry      *int64               `json:"idle_expiry_seconds,omitempty"`
 	Region          string               `json:"region_id,omitempty"`
-	CPUArch         ImageCPUArch         `json:"cpu_arch,omitempty"`
+	CPUArch         CPUArch              `json:"cpu_arch,omitempty"`
 	Source          *imageRegistrySource `json:"source,omitempty"`
 	Dockerfile      string               `json:"dockerfile,omitempty"`
 	ContextUploadID string               `json:"context_upload_id,omitempty"`
@@ -92,7 +92,7 @@ func imageOptions(options BuildImageOptions) (imageBuildRequest, error) {
 		return result, err
 	}
 	switch options.CPUArch {
-	case "", ImageCPUArchAMD64, ImageCPUArchARM64:
+	case "", CPUArchAMD64, CPUArchARM64:
 	default:
 		return result, badRequest("CPUArch must be amd64 or arm64")
 	}

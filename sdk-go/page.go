@@ -87,7 +87,7 @@ func pageQuery(cursor string, limit int) (url.Values, error) {
 		return nil, badRequest("cursor must be valid UTF-8")
 	}
 	if limit < 0 || limit > 200 {
-		return nil, badRequest("limit must be an integer between 1 and 200")
+		return nil, badRequest("Limit must be an integer between 1 and 200")
 	}
 	params := make(url.Values)
 	if cursor != "" {

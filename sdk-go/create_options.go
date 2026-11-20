@@ -34,7 +34,7 @@ type CreateOptions struct {
 	// Resources requests CPU cores and GiB capacity; zero axes use defaults.
 	Resources *Resources
 	// CPUArch selects "amd64" or "arm64"; empty uses the platform default.
-	CPUArch string
+	CPUArch CPUArch
 	// CPUType is an optional platform CPU selector.
 	CPUType string
 	// Secrets lists project secret names; nil omits it and an empty slice sends [].
