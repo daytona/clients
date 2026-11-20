@@ -793,7 +793,7 @@ class ProjectBudget:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class UsageLimit:
-    """A limit and the usage counted against it; ``limit`` ``None`` means unlimited."""
+    """A limit and the usage counted against it; ``limit`` ``None`` means no limit, except on a count whose limit is not returned."""
 
     limit: Optional[int]
     usage: int
