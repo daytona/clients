@@ -65,6 +65,7 @@ func New(opts ...Option) (*Client, error) {
 		client.auth = &projectCredential{cache: tokenCache{owner: client, now: time.Now}, owner: client}
 	}
 	client.apiClient = &apiClient{transport: transport{owner: client, baseURL: config.baseURL, auth: client.auth}}
+	client.installSandboxEvents()
 	return client, nil
 }
 
@@ -76,6 +77,7 @@ func (c *Client) Close() error {
 		c.workerMu.Lock()
 		c.cancel(closedError())
 		c.workerMu.Unlock()
+		c.closeSandboxEvents()
 		c.workers.Wait()
 		if c.ownsTransport {
 			c.http.CloseIdleConnections()

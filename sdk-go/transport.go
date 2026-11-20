@@ -64,17 +64,20 @@ func (t *transport) do(ctx context.Context, spec apiRequest) (failure error) {
 		if spec.Result != nil {
 			return badRequest("expected JSON response: the body is not application/json")
 		}
+		t.learnSandboxEvents(spec, response, body)
 		return nil
 	}
 	if checkErr := checkJSON(body); checkErr != nil {
 		return checkErr
 	}
 	if spec.Result == nil {
+		t.learnSandboxEvents(spec, response, body)
 		return nil
 	}
 	if decodeErr := json.Unmarshal(body, spec.Result); decodeErr != nil {
 		return wrapJSONError(decodeErr)
 	}
+	t.learnSandboxEvents(spec, response, body)
 	return nil
 }
 
