@@ -1,0 +1,30 @@
+sdk-go/internal/events/subscriptions_cooldown_test.go
+  s_68057454b585bb::t_99f1ff493368c5 1-15,17-21,23,25-90
+  s_ed96adef3173d1::t_8e8b18b46f90f6 16,22,24
+sdk-go/internal/events/subscriptions.go
+  s_68057454b585bb::t_3a376ed71a6a7f 77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b4dc7679ef462ba27df5d7f02a39617d7c545d0",
+  "prompts": {},
+  "sessions": {
+    "s_68057454b585bb": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e21b6ffewGCtHW5Kk5WcbA",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_ed96adef3173d1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e7900ffeUI2NEr1dxblqIw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
