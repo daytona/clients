@@ -1,0 +1,19 @@
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_fd84769df23dd6::t_646af3f9c93c4c 396-399
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "192b54eee517944c7874f1944cd91e8ad2f6304f",
+  "prompts": {},
+  "sessions": {
+    "s_fd84769df23dd6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_e0a3f3654ffeXE8ydBHCTsQrQ7",
+        "model": "unknown"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
