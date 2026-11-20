@@ -36,7 +36,7 @@ func (f *FileSystem) Grep(ctx context.Context, path, pattern string) (*FileSearc
 			return nil, err
 		}
 	}
-	items, err := fileItems(itemsRaw, parseFileMatch)
+	items, err := fileItems(itemsRaw, "items", parseFileMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (f *FileSystem) Glob(ctx context.Context, path, pattern string) (*FileSearc
 	if err != nil {
 		return nil, err
 	}
-	items, err := fileStrings(object["files"])
+	items, err := fileStrings(object["files"], "files")
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func fileSkipped(object jsonObject) ([]string, error) {
 	if !present(object["skipped"]) {
 		return []string{}, nil
 	}
-	return fileStrings(object["skipped"])
+	return fileStrings(object["skipped"], "skipped")
 }
 
 // Replace substitutes a literal substring in each requested file.
