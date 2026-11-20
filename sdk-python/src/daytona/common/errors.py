@@ -6,9 +6,12 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    from .process import ExecuteResponse
 
 #: Wire-format ``source`` identifier for errors originating from the Daytona
 #: API. ``source = None`` means the response did not carry a structured
@@ -46,6 +49,11 @@ class DaytonaError(Exception):
             :data:`SOURCE_API`, :data:`SOURCE_DAEMON`, :data:`SOURCE_PROXY`.
         headers (dict[str, Any]): Response headers (empty for client-side errors).
     """
+
+    # Present after a membership request was accepted or an all-node command partially failed.
+    operation_id: str | None = None
+    node_failures: dict[int, Exception] | None = None
+    node_results: dict[int, ExecuteResponse] | None = None
 
     def __init__(
         self,

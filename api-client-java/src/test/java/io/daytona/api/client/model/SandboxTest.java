@@ -21,6 +21,7 @@ import com.google.gson.stream.JsonWriter;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.GpuType;
 import io.daytona.api.client.model.SandboxDesiredState;
+import io.daytona.api.client.model.SandboxNode;
 import io.daytona.api.client.model.SandboxState;
 import io.daytona.api.client.model.SandboxVolume;
 import java.io.IOException;
@@ -414,6 +415,62 @@ public class SandboxTest {
     @Test
     public void toolboxProxyUrlTest() {
         // TODO: test toolboxProxyUrl
+    }
+
+    /**
+     * Test the property 'nodes'
+     */
+    @Test
+    public void nodesTest() {
+        // TODO: test nodes
+    }
+
+    /**
+     * Test the property 'topologyGeneration'
+     */
+    @Test
+    public void topologyGenerationTest() {
+        // TODO: test topologyGeneration
+    }
+
+    /**
+     * Test the property 'incarnation'
+     */
+    @Test
+    public void incarnationTest() {
+        // TODO: test incarnation
+    }
+
+    /**
+     * Test the property 'nodeCount'
+     */
+    @Test
+    public void nodeCountTest() {
+        // TODO: test nodeCount
+    }
+
+    /**
+     * Test the property 'nodeRank'
+     */
+    @Test
+    public void nodeRankTest() {
+        // TODO: test nodeRank
+    }
+
+    /**
+     * Test the property 'headSandboxId'
+     */
+    @Test
+    public void headSandboxIdTest() {
+        // TODO: test headSandboxId
+    }
+
+    /**
+     * Test the property 'degraded'
+     */
+    @Test
+    public void degradedTest() {
+        // TODO: test degraded
     }
 
 }

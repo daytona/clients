@@ -31,6 +31,9 @@ module Daytona
     #     puts e.status_code, e.code, e.source
     #   end
     class Error < StandardError
+      # Accepted membership operation to inspect when a wait fails.
+      attr_accessor :operation_id
+
       def initialize(message = nil, status_code: nil, code: nil, source: nil, headers: nil)
         super(message)
         @status_code = status_code

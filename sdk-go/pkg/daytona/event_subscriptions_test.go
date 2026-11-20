@@ -61,6 +61,8 @@ type eventTestServer struct {
 	// getStatus, when set, picks the response to the nth sandbox GET (from 1):
 	// a status code other than 200 and its headers.
 	getStatus func(n int) (int, http.Header)
+	// errorReason, when set, is the errorReason of the sandbox the GETs return.
+	errorReason string
 }
 
 func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestServer {
@@ -98,6 +100,7 @@ func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestSe
 		state := s.state
 		operation := s.operation
 		status, header := http.StatusOK, http.Header(nil)
+		errorReason := s.errorReason
 		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/sandbox/") {
 			s.getTimes = append(s.getTimes, time.Now())
 			s.getIDs = append(s.getIDs, id)
@@ -127,7 +130,11 @@ func newEventTestServer(t *testing.T, state apiclient.SandboxState) *eventTestSe
 				"nextCursor": nil,
 			})
 		default:
-			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(id, "sandbox", state))
+			payload := testSandboxPayload(id, "sandbox", state)
+			if errorReason != "" {
+				payload["errorReason"] = errorReason
+			}
+			writeJSONResponse(t, w, http.StatusOK, payload)
 		}
 	}))
 	t.Cleanup(s.server.Close)
@@ -245,12 +252,21 @@ func (s *eventTestServer) awaitSubscribed(id string) bool {
 // current socket connection, as the gateway does: only if the socket
 // subscribed to the sandbox. Safe to call from handler goroutines.
 func (s *eventTestServer) emitState(oldState, newState apiclient.SandboxState) {
+	s.emitStateWith(oldState, newState, nil)
+}
+
+// emitStateWith is emitState with more fields in the event's sandbox object.
+func (s *eventTestServer) emitStateWith(oldState, newState apiclient.SandboxState, fields map[string]any) {
 	s.t.Helper()
 	if !s.isSubscribed(eventTestSandboxID) {
 		return
 	}
+	sandbox := map[string]any{"id": eventTestSandboxID, "state": newState}
+	for k, v := range fields {
+		sandbox[k] = v
+	}
 	payload, err := json.Marshal(map[string]any{
-		"sandbox":  map[string]any{"id": eventTestSandboxID, "state": newState},
+		"sandbox":  sandbox,
 		"oldState": oldState,
 		"newState": newState,
 	})
@@ -1415,4 +1431,42 @@ func TestStopReadsFirstWhenItsSubscriptionExpiredDuringTheRequest(t *testing.T) 
 	assert.Len(t, subIDs, 2, "the wait subscribed again")
 	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
 	assertEndedOnImmediateRead(t, srv, start)
+}
+
+func TestWaitEndingOnAnErrorEventReportsTheReason(t *testing.T) {
+	tests := []struct {
+		name       string
+		fields     map[string]any
+		wantReason string
+		wantGets   int
+	}{
+		{"reason in the event", map[string]any{"errorReason": "out of memory"}, "out of memory", 0},
+		{"no reason in the event: read once", nil, "disk full", 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubNoScheduledPolls(t)
+			srv := newEventTestServer(t, apiclient.SANDBOXSTATE_ERROR)
+			client := newEventTestClient(t, srv)
+			connectEvents(t, client)
+			sandbox := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
+			srv.mu.Lock()
+			srv.errorReason = "disk full"
+			srv.mu.Unlock()
+			srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
+				timer := time.AfterFunc(300*time.Millisecond, func() {
+					if srv.awaitSubscribed(eventTestSandboxID) {
+						srv.emitStateWith(apiclient.SANDBOXSTATE_STOPPING, apiclient.SANDBOXSTATE_ERROR, tt.fields)
+					}
+				})
+				t.Cleanup(func() { timer.Stop() })
+			})
+
+			err := sandbox.doStopWithTimeout(context.Background(), readsFirstTimeout, false)
+			require.Error(t, err)
+			assert.EqualError(t, err, "sandbox entered error state: error, error reason: "+tt.wantReason)
+			assert.Equal(t, tt.wantGets, srv.gets())
+		})
+	}
 }

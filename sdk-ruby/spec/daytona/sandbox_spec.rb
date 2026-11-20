@@ -596,6 +596,12 @@ RSpec.describe Daytona::Sandbox do
   end
 
   describe '#resize' do
+    it 'rejects per-node allocations' do
+      expect do
+        sandbox.resize(Daytona::Resources.new(memory_per_node: [8, 16]))
+      end.to raise_error(Daytona::Sdk::Error, /[Pp]er-node/)
+    end
+
     it 'raises error when resources is nil' do
       expect { sandbox.resize(nil) }.to raise_error(Daytona::Sdk::Error, /Resources must not be nil/)
     end
@@ -678,6 +684,42 @@ RSpec.describe Daytona::Sandbox do
         errored.wait_for_sandbox_start
       end.to raise_error(Daytona::Sdk::Error,
                          /entered error state: error, error reason: boom/i)
+    end
+
+    it 'reports the error reason carried by the state event' do
+      starting = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: 'starting'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      # The event arrives while a poll is in flight; the poll then returns the earlier state.
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123') do
+        starting.send(:handle_event, 'sandbox.state.updated',
+                      { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'error', 'desiredState' => 'started',
+                                       'errorReason' => 'disk full' },
+                        'oldState' => 'starting', 'newState' => 'error' })
+        build_sandbox_dto(state: 'starting')
+      end
+
+      expect do
+        starting.wait_for_sandbox_start
+      end.to raise_error(Daytona::Sdk::Error, /entered error state: error, error reason: disk full/)
+    end
+
+    it 'clears the error reason on a state event without one' do
+      errored = described_class.new(
+        sandbox_dto: build_sandbox_dto(state: DaytonaApiClient::SandboxState::ERROR, error_reason: 'transient'),
+        config: config,
+        sandbox_api: sandbox_api,
+        subscription_manager: subscription_manager
+      )
+      errored.send(:handle_event, 'sandbox.state.updated',
+                   { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'started' },
+                     'oldState' => 'error', 'newState' => 'started' })
+
+      expect(errored.state).to eq('started')
+      expect(errored.error_reason).to be_nil
     end
 
     it 'raises QueueTimeoutError when the sandbox is destroyed after queue timeout' do
@@ -1832,6 +1874,39 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_api).to have_received(:get_sandbox).once
       expect(waits).to be_empty
       expect(started_sandbox.state).to eq('stopped')
+    end
+
+    it 'stop: reports the error reason that came with an error-state event, without a read' do
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
+      allow(started_sandbox).to receive(:poll_jitter_random).and_return(0.5)
+      allow(ConditionVariable).to receive(:new).and_wrap_original do |original|
+        original.call.tap do |cv|
+          allow(cv).to receive(:wait).and_wrap_original do |wait, mutex, seconds|
+            Thread.new do
+              handler.last.call('sandbox.state.updated',
+                                { 'sandbox' => { 'id' => 'sandbox-123', 'state' => 'error', 'errorReason' => 'oom' } })
+            end
+            wait.call(mutex, seconds)
+          end
+        end
+      end
+
+      expect do
+        started_sandbox.stop(5)
+      end.to raise_error(Daytona::Sdk::Error, /entered error state: error, error reason: oom/)
+      expect(sandbox_api).not_to have_received(:get_sandbox)
+    end
+
+    it 'stop: reads the error reason once when the error-state event carries none' do
+      allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(state: 'stopping'))
+      allow(sandbox_api).to receive(:get_sandbox).with('sandbox-123')
+                                                 .and_return(build_sandbox_dto(state: 'error',
+                                                                               error_reason: 'disk full'))
+      emit_when_waiting('error')
+
+      expect { started_sandbox.stop(5) }
+        .to raise_error(Daytona::Sdk::Error, /entered error state: error, error reason: disk full/)
+      expect(sandbox_api).to have_received(:get_sandbox).once
     end
 
     it 'stop: releases the subscription and raises the original error when the request fails' do

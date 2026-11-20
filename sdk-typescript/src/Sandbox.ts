@@ -27,6 +27,7 @@ import type {
   SandboxListSortField,
   SandboxListSortDirection,
   MetricSeries,
+  GangMembershipOperation,
 } from '@daytona/api-client'
 import { Daytona } from './Daytona'
 import type { ForkSandboxParams, Resources } from './Daytona'
@@ -63,6 +64,141 @@ import { EventSubscriptionManager } from './utils/EventSubscriptionManager'
 import { SUBSCRIPTION_REJECTED_EVENT } from './utils/EventDispatcher'
 import { buildSignedFileUrl } from './utils/fileUrlSigning'
 import { WaitPollCadence, isRateLimitError, retryAfterMs } from './utils/WaitPolling'
+import { checkNodeRdma, SandboxNode } from './SandboxNode'
+import type { ExecuteResponse } from './types/ExecuteResponse'
+
+export interface NodeExecuteOptions {
+  /** Execution limit per rank in seconds. Omitted or 0 disables it. */
+  timeout?: number
+}
+
+/** CPU, memory, and disk allocated to one appended Sandbox node. */
+export interface NodeResources {
+  cpu: number
+  memory: number
+  disk: number
+}
+
+export interface SandboxNodeProcess {
+  /** Execute on every node in parallel and return buffered output by rank. Use per-node sessions for live output. */
+  executeCommand(command: string, options?: NodeExecuteOptions): Promise<Record<number, ExecuteResponse>>
+}
+
+export interface SandboxNodeFileSystem {
+  /** Upload the same file to every current node in parallel. Successful uploads are not rolled back. */
+  uploadFile(src: string | Buffer, dst: string, timeout?: number): Promise<void>
+}
+
+export interface SandboxNodeCollection extends ReadonlyArray<SandboxNode> {
+  readonly process: SandboxNodeProcess
+  readonly fs: SandboxNodeFileSystem
+  /** Append one rank for each resource specification and wait for completion. */
+  add(nodes: ReadonlyArray<NodeResources>, timeout?: number): Promise<GangMembershipOperation>
+  /** Release the highest ranks and wait for completion. */
+  release(count?: number, timeout?: number): Promise<GangMembershipOperation>
+  /** Replace a degraded rank and wait for completion. */
+  replace(rank: number, timeout?: number): Promise<GangMembershipOperation>
+}
+
+interface SandboxNodeCollectionCallbacks {
+  add(nodes: ReadonlyArray<NodeResources>, timeout?: number): Promise<GangMembershipOperation>
+  release(count?: number, timeout?: number): Promise<GangMembershipOperation>
+  replace(rank: number, timeout?: number): Promise<GangMembershipOperation>
+}
+
+function snapshotNodes(nodes: ReadonlyArray<SandboxNode>): SandboxNode[] {
+  if (nodes.length === 0) throw new DaytonaError('Node membership is unavailable. Call refreshData() and retry.')
+  return [...nodes]
+}
+
+async function executeOnNodes(
+  nodes: ReadonlyArray<SandboxNode>,
+  command: string,
+  options: NodeExecuteOptions = {},
+): Promise<Record<number, ExecuteResponse>> {
+  if (options.timeout !== undefined && (!Number.isSafeInteger(options.timeout) || options.timeout < 0)) {
+    throw new DaytonaInvalidArgumentError('timeout must be a non-negative integer')
+  }
+  const snapshot = snapshotNodes(nodes)
+  const outcomes = await Promise.allSettled(
+    snapshot.map(async (node): Promise<ExecuteResponse> => {
+      if (snapshot.length > 1) await checkNodeRdma(node)
+      return options.timeout === undefined
+        ? node.process.executeCommand(command)
+        : node.process.executeCommand(command, undefined, undefined, options.timeout)
+    }),
+  )
+  const results: Record<number, ExecuteResponse> = {}
+  const failures: Record<number, unknown> = {}
+  outcomes.forEach((outcome, index) => {
+    const rank = snapshot[index].rank
+    if (outcome.status === 'fulfilled') results[rank] = outcome.value
+    else failures[rank] = outcome.reason
+  })
+  const failed = Object.entries(failures)
+  if (failed.length) {
+    const first = failed[0][1]
+    if (snapshot.length === 1 && first instanceof Error) {
+      throw Object.assign(first, { nodeFailures: failures, nodeResults: results })
+    }
+    const details = failed.map(([rank, reason]) => `rank ${rank}: ${String(reason)}`).join('; ')
+    const ErrorType = failed.every(([, reason]) => reason instanceof DaytonaTimeoutError)
+      ? DaytonaTimeoutError
+      : DaytonaError
+    const error = new ErrorType(`Command failed on ${details}`)
+    error.nodeResults = results
+    error.nodeFailures = failures
+    error.cause = first
+    throw error
+  }
+  return results
+}
+
+async function uploadToNodes(
+  nodes: ReadonlyArray<SandboxNode>,
+  src: string | Buffer,
+  dst: string,
+  timeout = 30 * 60,
+): Promise<void> {
+  const snapshot = snapshotNodes(nodes)
+  const results = await Promise.allSettled(
+    snapshot.map((node) =>
+      // Narrow the union for FileSystem's path and buffer overloads.
+      typeof src === 'string' ? node.fs.uploadFile(src, dst, timeout) : node.fs.uploadFile(src, dst, timeout),
+    ),
+  )
+  const failures = results.flatMap((result, index) =>
+    result.status === 'rejected' ? [{ rank: snapshot[index].rank, error: result.reason }] : [],
+  )
+  if (failures.length) {
+    const ranks = failures.map(({ rank }) => rank).sort((left, right) => left - right)
+    const details = failures
+      .sort((left, right) => left.rank - right.rank)
+      .map(({ rank, error }) => `rank ${rank}: ${error instanceof Error ? error.message : String(error)}`)
+      .join('; ')
+    throw new DaytonaError(`Failed to upload file to node ranks [${ranks.join(', ')}]: ${details}`)
+  }
+}
+
+function createSandboxNodeCollection(callbacks: SandboxNodeCollectionCallbacks): SandboxNodeCollection {
+  const nodes: SandboxNode[] = []
+  Object.defineProperties(nodes, {
+    process: {
+      value: {
+        executeCommand: (command: string, options?: NodeExecuteOptions) => executeOnNodes(nodes, command, options),
+      },
+    },
+    fs: {
+      value: {
+        uploadFile: (src: string | Buffer, dst: string, timeout?: number) => uploadToNodes(nodes, src, dst, timeout),
+      },
+    },
+    add: { value: callbacks.add },
+    release: { value: callbacks.release },
+    replace: { value: callbacks.replace },
+  })
+  return nodes as unknown as SandboxNodeCollection
+}
 
 /**
  * A state subscription taken before an operation's request and handed to the operation's wait.
@@ -158,6 +294,14 @@ export class Sandbox {
   public readonly process: Process
   public readonly computerUse: ComputerUse
   public readonly codeInterpreter: CodeInterpreter
+  /** Live physical members in rank order, including the head at index 0. */
+  public readonly nodes: SandboxNodeCollection
+  /** Derived physical node count. */
+  public nodeCount = 1
+  public topologyGeneration?: number
+  // A sparse refresh can update metadata while retaining the previous members.
+  private membershipGeneration?: number
+  public degraded?: boolean
 
   public id!: string
   public name!: string
@@ -246,6 +390,11 @@ export class Sandbox {
     private readonly subscriptionManager: EventSubscriptionManager,
     private readonly requestTimeoutMs?: number,
   ) {
+    this.nodes = createSandboxNodeCollection({
+      add: (nodes, timeout) => this.addNodes(nodes, timeout),
+      release: (count, timeout) => this.releaseNodes(count, timeout),
+      replace: (rank, timeout) => this.replaceNode(rank, timeout),
+    })
     this.processSandboxDto(sandboxDto)
 
     const getPreviewToken = async () => (await this.getPreviewLink(1)).token
@@ -269,6 +418,116 @@ export class Sandbox {
     this.infoApi = new InfoApi(this.clientConfig, '', this.axiosInstance)
     this.serverApi = new ServerApi(this.clientConfig, '', this.axiosInstance)
     this.systemApi = new SystemApi(this.clientConfig, '', this.axiosInstance)
+
+    this.processNodes(sandboxDto)
+  }
+
+  private validateNodeOperationTimeout(timeout: number): void {
+    if (!Number.isFinite(timeout) || timeout < 0) {
+      throw new DaytonaInvalidArgumentError('Timeout must be a finite non-negative number')
+    }
+  }
+
+  private nodeOperationRequestOptions(timeout: number, deadline?: number) {
+    let requestTimeout = this.requestTimeoutMs
+    if (deadline !== undefined) {
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) throw new DaytonaTimeoutError(`Node operation exceeded timeout of ${timeout} seconds`)
+      requestTimeout =
+        requestTimeout !== undefined && requestTimeout > 0 ? Math.min(requestTimeout, remaining) : remaining
+    }
+    return requestTimeout === undefined
+      ? undefined
+      : { timeout: requestTimeout === 0 ? 0 : Math.max(1, Math.floor(requestTimeout)) }
+  }
+
+  private currentTopologyGeneration(): number {
+    if (this.membershipGeneration === undefined) {
+      throw new DaytonaError('Sandbox does not expose a topology generation; elastic node operations are unavailable')
+    }
+    return this.membershipGeneration
+  }
+
+  private async waitForNodeOperation(
+    operation: GangMembershipOperation,
+    timeout: number,
+    deadline?: number,
+  ): Promise<GangMembershipOperation> {
+    try {
+      while (operation.status !== 'COMPLETED' && operation.status !== 'FAILED') {
+        this.nodeOperationRequestOptions(timeout, deadline)
+        const delay = deadline === undefined ? 1000 : Math.min(1000, Math.max(1, deadline - Date.now()))
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        const response = await this.sandboxApi.getGangMembershipOperation(
+          this.id,
+          operation.id,
+          undefined,
+          this.nodeOperationRequestOptions(timeout, deadline),
+        )
+        operation = response.data
+      }
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new DaytonaError(String(cause))
+      throw Object.assign(error, { operationId: operation.id })
+    }
+    if (operation.status === 'FAILED') {
+      const error = new DaytonaError(operation.errorReason ?? `Node ${operation.type.toLowerCase()} operation failed`)
+      error.operationId = operation.id
+      throw error
+    }
+    // A local refresh failure cannot change the terminal server outcome.
+    try {
+      const response = await this.sandboxApi.getSandbox(
+        this.id,
+        undefined,
+        undefined,
+        this.nodeOperationRequestOptions(timeout, deadline),
+      )
+      this.processSandboxDto(response.data)
+    } catch {
+      // The next refresh can recover the cached handles.
+    }
+    return operation
+  }
+
+  private async addNodes(nodes: ReadonlyArray<NodeResources>, timeout = 600): Promise<GangMembershipOperation> {
+    this.validateNodeOperationTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
+    const response = await this.sandboxApi.addSandboxNodes(
+      this.id,
+      {
+        expectedGeneration: this.currentTopologyGeneration(),
+        nodes: nodes.map((node) => ({ ...node })),
+      },
+      undefined,
+      this.nodeOperationRequestOptions(timeout, deadline),
+    )
+    return this.waitForNodeOperation(response.data, timeout, deadline)
+  }
+
+  private async releaseNodes(count = 1, timeout = 600): Promise<GangMembershipOperation> {
+    this.validateNodeOperationTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
+    const response = await this.sandboxApi.removeSandboxNodes(
+      this.id,
+      { expectedGeneration: this.currentTopologyGeneration(), count },
+      undefined,
+      this.nodeOperationRequestOptions(timeout, deadline),
+    )
+    return this.waitForNodeOperation(response.data, timeout, deadline)
+  }
+
+  private async replaceNode(rank: number, timeout = 600): Promise<GangMembershipOperation> {
+    this.validateNodeOperationTimeout(timeout)
+    const deadline = timeout === 0 ? undefined : Date.now() + timeout * 1000
+    const response = await this.sandboxApi.replaceSandboxNode(
+      this.id,
+      String(rank),
+      { expectedGeneration: this.currentTopologyGeneration() },
+      undefined,
+      this.nodeOperationRequestOptions(timeout, deadline),
+    )
+    return this.waitForNodeOperation(response.data, timeout, deadline)
   }
 
   /**
@@ -473,6 +732,8 @@ export class Sandbox {
    * Stops the Sandbox.
    *
    * This method stops the Sandbox and waits for it to be fully stopped.
+   * For a multi-node GPU Sandbox, this irreversibly destroys the complete
+   * gang and all ephemeral local data; it cannot be started again.
    *
    * @param {number} [timeout] - Maximum time to wait in seconds. 0 means no timeout.
    *                            Defaults to 60-second timeout.
@@ -948,7 +1209,8 @@ export class Sandbox {
    *
    * The Sandbox will be destroyed once the TTL elapses, counted as wall-clock time regardless of the
    * Sandbox state - even if it is stopped, paused, or archived. Calling this method re-anchors the
-   * deadline from the current time. Call `refreshData()` afterwards to read the updated `autoDestroyAt`.
+   * deadline from the current time. On a multi-node head, expiry destroys every member and all
+   * ephemeral local data. Call `refreshData()` afterwards to read the updated `autoDestroyAt`.
    *
    * @param {number} ttlMinutes - Number of minutes from now after which the Sandbox will be destroyed.
    *                           Set to 0 to disable the TTL.
@@ -1434,10 +1696,28 @@ export class Sandbox {
     if (!raw || typeof raw !== 'object') return
 
     const newState = raw.state ?? data.newState
-    if (newState) {
-      this.stateEventCount++
-      this.applyState(newState)
+    if (!newState) return
+    this.stateEventCount++
+    const reason = data.sandbox ? raw.errorReason : undefined
+    if (data.sandbox) {
+      // Set before the state: a wait that ends on an error state reports this reason. The event omits the field
+      // when the sandbox has none.
+      this.errorReason = reason ?? undefined
     }
+    if (this.nodes.length === 1 && (this.nodeCount === 1 || this.nodes[0].rank > 0)) {
+      this.nodes[0].state = newState
+    }
+    if (!reason && this.stateWaiters.some((waiter) => waiter.errorStates.has(newState as SandboxState))) {
+      // An error state without its reason: read the sandbox first, so the wait's error carries it.
+      void this.refreshData().then(
+        () => {
+          for (const waiter of [...this.stateWaiters]) this.checkStateWaiter(waiter, this.state)
+        },
+        () => this.applyState(newState),
+      )
+      return
+    }
+    this.applyState(newState)
   }
 
   /**
@@ -1691,6 +1971,11 @@ export class Sandbox {
     this.target = sandboxDto.target
     this.cpu = sandboxDto.cpu
     this.gpu = sandboxDto.gpu
+    this.nodeCount = ('nodeCount' in sandboxDto ? sandboxDto.nodeCount : undefined) ?? this.nodeCount ?? 1
+    if ('degraded' in sandboxDto) this.degraded = sandboxDto.degraded
+    if ('topologyGeneration' in sandboxDto && sandboxDto.topologyGeneration !== undefined) {
+      this.topologyGeneration = sandboxDto.topologyGeneration
+    }
     this.spot = sandboxDto.spot ?? false
     this.spotEvictedAt = sandboxDto.spotEvictedAt
     this.queueTimeout = sandboxDto.queueTimeout
@@ -1736,6 +2021,7 @@ export class Sandbox {
       }
       this.axiosInstance.defaults.baseURL = baseUrl + this.id
       this.clientConfig.basePath = this.axiosInstance.defaults.baseURL
+      for (const node of this.nodes) node.updateToolboxProxyUrl(newProxyUrl)
     }
     if (newProxyUrl) {
       this.toolboxProxyUrl = newProxyUrl
@@ -1744,6 +2030,70 @@ export class Sandbox {
     if (newState) {
       this.applyState(newState)
     }
+
+    if (this.process) this.processNodes(sandboxDto)
+  }
+
+  private processNodes(sandboxDto: SandboxDto | SandboxListItemDto): void {
+    let workerRank = 'headSandboxId' in sandboxDto && sandboxDto.headSandboxId ? sandboxDto.nodeRank : undefined
+    let rawNodes = 'nodes' in sandboxDto ? sandboxDto.nodes : undefined
+    if (!rawNodes?.length) {
+      let previous: SandboxNode | undefined = this.nodes[0]
+      const incarnation = 'incarnation' in sandboxDto ? sandboxDto.incarnation : undefined
+      if (previous) {
+        if (this.nodes.length !== 1) return
+        if (previous.rank > 0) workerRank ??= previous.rank
+        if (previous.id !== sandboxDto.id || (incarnation != null && incarnation !== previous.incarnation)) {
+          previous = undefined
+        }
+      }
+      // A gang head reports totals that cannot be assigned to individual ranks.
+      if (workerRank == null && this.nodeCount > 1) return
+      rawNodes = [
+        {
+          rank: workerRank ?? 0,
+          id: sandboxDto.id,
+          state: sandboxDto.state ?? previous?.state ?? SandboxState.UNKNOWN,
+          incarnation: incarnation ?? previous?.incarnation ?? 1,
+          cpu: sandboxDto.cpu,
+          gpu: sandboxDto.gpu,
+          memory: sandboxDto.memory,
+          disk: sandboxDto.disk,
+          failure: previous?.failure,
+          fabricAddress: previous?.fabricAddress,
+          fabricPrefixLength: previous?.fabricPrefixLength,
+          fabricHealthy: previous?.fabricHealthy,
+          fabricUnhealthySince: previous?.fabricUnhealthySince,
+        },
+      ]
+    }
+    if (
+      (workerRank !== undefined && (workerRank < 1 || rawNodes.length !== 1)) ||
+      rawNodes.some((node, index) => node.rank !== index + (workerRank ?? 0)) ||
+      rawNodes[0]?.id !== sandboxDto.id
+    ) {
+      throw new DaytonaError('Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head')
+    }
+    const language = sandboxDto.labels?.[CODE_TOOLBOX_LANGUAGE_LABEL]
+    const existing = new Map(this.nodes.map((node) => [node.id, node]))
+    const updated = rawNodes.map((node) => {
+      const current = existing.get(node.id)
+      if (current) {
+        current.update(node)
+        return current
+      }
+      return new SandboxNode(
+        node,
+        sandboxDto.toolboxProxyUrl || this.toolboxProxyUrl,
+        this.clientConfig,
+        this.sandboxApi,
+        language,
+        this.requestTimeoutMs,
+      )
+    })
+    Array.prototype.splice.call(this.nodes, 0, this.nodes.length, ...updated)
+    this.membershipGeneration =
+      workerRank == null && 'topologyGeneration' in sandboxDto ? sandboxDto.topologyGeneration : undefined
   }
 
   /**

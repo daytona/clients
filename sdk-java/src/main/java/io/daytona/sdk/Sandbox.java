@@ -67,6 +67,21 @@ import java.util.function.DoubleSupplier;
  * observes the state by polling only when the deprecated polling mode is enabled.
  */
 public class Sandbox {
+    private final SandboxNodes nodes = new SandboxNodes(this);
+    private int nodeCount = 1;
+    private Integer topologyGeneration;
+    private boolean degraded;
+
+    /** Rank-ordered nodes, including the head at rank zero. */
+    public SandboxNodes getNodes() { return nodes; }
+    /** Number of nodes reported by the last refresh. */
+    public int getNodeCount() { return nodeCount; }
+    /** Current topology generation, or null when elasticity is unavailable. */
+    public Integer getTopologyGeneration() { return topologyGeneration; }
+    /** Whether the API reports a degraded gang. */
+    public boolean isDegraded() { return degraded; }
+    SandboxApi nodeSandboxApi() { return sandboxApi; }
+    void applyNodeResponse(io.daytona.api.client.model.Sandbox data) { populateFromDTO(data); }
     private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(
             "daytona.sandbox.cpu.utilization", "cpuUsedPct",
             "daytona.sandbox.cpu.limit", "cpuCount",
@@ -233,6 +248,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
+        nodes.update(data);
     }
 
     Sandbox(SandboxApi sandboxApi, DaytonaConfig config, SandboxListItem data,
@@ -253,6 +269,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
+        nodes.update(null);
     }
 
     /**
@@ -943,6 +960,10 @@ public class Sandbox {
         this.volumes = d.getVolumes() == null ? null : Collections.unmodifiableList(d.getVolumes());
         this.buildInfo = d.getBuildInfo();
         this.backupCreatedAt = d.getBackupCreatedAt();
+        if (d.getNodeCount() != null) this.nodeCount = d.getNodeCount();
+        if (d.getTopologyGeneration() != null) this.topologyGeneration = d.getTopologyGeneration();
+        if (d.getDegraded() != null) this.degraded = d.getDegraded();
+        if (toolboxApiClient != null) nodes.update(d);
 
         applyState(d.getState() == null ? "" : d.getState().getValue());
     }
@@ -1012,10 +1033,13 @@ public class Sandbox {
         this.updatedAt = updatedAt;
         this.lastActivityAt = lastActivityAt;
         String newProxyUrl = asString(toolboxProxyUrl);
-        if (!newProxyUrl.isEmpty() && !newProxyUrl.equals(this.toolboxProxyUrl) && this.toolboxApiClient != null) {
-            this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
+        if (!newProxyUrl.isBlank() && !newProxyUrl.equals(this.toolboxProxyUrl)) {
+            this.toolboxProxyUrl = newProxyUrl;
+            if (this.toolboxApiClient != null) {
+                this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
+                nodes.updateProxy(newProxyUrl);
+            }
         }
-        this.toolboxProxyUrl = newProxyUrl;
         this.autoDestroyAt = autoDestroyAt;
         this.queueTimeout = queueTimeout;
         this.sandboxClass = sandboxClass;
@@ -1031,7 +1055,7 @@ public class Sandbox {
         }
         this.state = newState;
         for (StateWaiter waiter : stateWaiters) {
-            waiter.onStateChanged(newState, queueTimedOutAt != null, spotEvictedAt != null);
+            waiter.onStateChanged(newState, queueTimedOutAt != null, spotEvictedAt != null, errorReason);
         }
     }
 
@@ -1047,6 +1071,16 @@ public class Sandbox {
             return;
         }
 
+        boolean hasReason = false;
+        JsonNode eventSandbox = data.get("sandbox");
+        if (eventSandbox != null && eventSandbox.isObject()) {
+            // Set before the state: a wait that ends on an error state reports this reason. The event omits the
+            // field when the sandbox has none.
+            JsonNode reason = eventSandbox.path("errorReason");
+            hasReason = reason.isTextual();
+            this.errorReason = hasReason ? reason.asText() : null;
+        }
+
         JsonNode stateNode = data.path("newState");
         if (!stateNode.isTextual()) {
             JsonNode sandboxNode = data.has("sandbox") ? data.get("sandbox") : data;
@@ -1054,11 +1088,28 @@ public class Sandbox {
                 stateNode = sandboxNode.path("state");
             }
         }
-
-        if (stateNode.isTextual()) {
-            stateEventCount.incrementAndGet();
-            applyState(stateNode.asText());
+        if (!stateNode.isTextual()) {
+            return;
         }
+        String newState = stateNode.asText();
+        stateEventCount.incrementAndGet();
+
+        if (!hasReason && stateWaiters.stream().anyMatch(waiter -> waiter.errorStates.contains(newState))) {
+            // An error state without its reason: read the sandbox first, so the wait's error carries it.
+            // Off the event thread, which must not block on HTTP.
+            REFRESH_EXECUTOR.submit(() -> {
+                try {
+                    fetchData();
+                    for (StateWaiter waiter : stateWaiters) {
+                        notifyWaiterOfCurrentState(waiter);
+                    }
+                } catch (Exception e) {
+                    applyState(newState);
+                }
+            });
+            return;
+        }
+        applyState(newState);
     }
 
     /**
@@ -1493,7 +1544,7 @@ public class Sandbox {
     private void notifyWaiterOfCurrentState(StateWaiter waiter) {
         String current = this.state;
         if (current != null) {
-            waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null);
+            waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null, errorReason);
         }
     }
 
@@ -1503,18 +1554,21 @@ public class Sandbox {
         final AtomicReference<String> resolvedState = new AtomicReference<>();
         final AtomicReference<RuntimeException> pollError = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
+        // The error reason that came with resolvedState; a refresh still in flight may replace the sandbox's after.
+        volatile String resolvedReason;
 
         StateWaiter(Set<String> targetStates, Set<String> errorStates) {
             this.targetStates = targetStates;
             this.errorStates = errorStates;
         }
 
-        void onStateChanged(String newState, boolean queueTimedOut, boolean spotEvicted) {
+        void onStateChanged(String newState, boolean queueTimedOut, boolean spotEvicted, String errorReason) {
             boolean terminalDestroyed = DESTROYED_STATES.contains(newState)
                     && !targetStates.contains(newState)
                     && (queueTimedOut || spotEvicted);
             if (targetStates.contains(newState) || errorStates.contains(newState) || terminalDestroyed) {
                 if (resolvedState.compareAndSet(null, newState)) {
+                    resolvedReason = errorReason;
                     latch.countDown();
                 }
             }
@@ -1555,7 +1609,8 @@ public class Sandbox {
                 }
             }
             if (resolved != null && errorStates.contains(resolved)) {
-                throw new DaytonaException("Sandbox entered error state: " + resolved);
+                throw new DaytonaException("Sandbox " + sandbox.id + " entered error state: " + resolved
+                        + ", error reason: " + resolvedReason);
             }
         }
     }

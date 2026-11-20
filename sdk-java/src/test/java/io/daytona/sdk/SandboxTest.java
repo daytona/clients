@@ -3,6 +3,8 @@
 
 package io.daytona.sdk;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.api.client.ApiClient;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.CreateSandboxSnapshot;
@@ -25,8 +27,6 @@ import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaSpotEvictedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
 import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.sdk.internal.EventDispatcher;
 import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.sdk.internal.FakeEventGateway;
@@ -45,6 +45,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -154,7 +155,7 @@ class SandboxTest {
         TestSupport.setField(sandbox, "state", "starting");
 
         assertThatThrownBy(() -> sandbox.waitUntilStarted(2))
-                .hasMessageContaining("Sandbox entered error state: error");
+                .hasMessageContaining("Sandbox sb-1 entered error state: error");
     }
 
     @Test
@@ -273,7 +274,7 @@ class SandboxTest {
         TestSupport.setField(sandbox, "state", "stopping");
 
         assertThatThrownBy(() -> sandbox.waitUntilStopped(2))
-                .hasMessageContaining("Sandbox entered error state: error");
+                .hasMessageContaining("Sandbox sb-1 entered error state: error");
     }
 
     @Test
@@ -593,7 +594,7 @@ class SandboxTest {
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(error);
 
         assertThatThrownBy(() -> sandbox.createSnapshot("snap-err", 2))
-                .hasMessageContaining("Sandbox entered error state: error");
+                .hasMessageContaining("Sandbox sb-1 entered error state: error");
     }
 
     @Test
@@ -1278,6 +1279,46 @@ class SandboxTest {
         verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
     }
 
+    @Test
+    void anErrorStateFromAnEventReportsTheReasonItCarriedWithoutARead() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread worker = new Thread(() -> runCapturing(() -> sb.stop(30), error));
+        worker.start();
+        // The skip check and the first scheduled poll each renew the subscription.
+        verify(manager, timeout(5000).times(2)).refresh("mock-sub-id");
+
+        handlerOf(manager, "sb-s").accept("sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\":{\"id\":\"sb-s\",\"state\":\"error\",\"errorReason\":\"disk full\"},\"newState\":\"error\"}"));
+        worker.join(5000);
+
+        assertThat(error.get()).hasMessage("Sandbox sb-s entered error state: error, error reason: disk full");
+        verify(sandboxApi, never()).getSandbox(any(), any(), any());
+    }
+
+    @Test
+    void anErrorStateFromAnEventWithoutItsReasonReadsTheSandboxFirst() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
+        io.daytona.api.client.model.Sandbox failed = TestSupport.mainSandbox("sb-s", SandboxState.ERROR);
+        failed.setErrorReason("from the read");
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(failed);
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread worker = new Thread(() -> runCapturing(() -> sb.stop(30), error));
+        worker.start();
+        verify(manager, timeout(5000).times(2)).refresh("mock-sub-id");
+
+        handlerOf(manager, "sb-s").accept("sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\":{\"id\":\"sb-s\",\"state\":\"error\"},\"newState\":\"error\"}"));
+        worker.join(5000);
+
+        assertThat(error.get()).hasMessage("Sandbox sb-s entered error state: error, error reason: from the read");
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+    }
+
     /** Records each poll delay the wait's own cadence decides; {@code actual} picks the delay scheduled. */
     private static List<Long> recordDecisions(Sandbox sb, Sandbox.PollScheduleHook actual) {
         List<Long> decisions = new CopyOnWriteArrayList<>();
@@ -1749,7 +1790,7 @@ class SandboxTest {
         when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.ERROR));
 
         long start = System.nanoTime();
-        assertThatThrownBy(() -> sb.stop(30)).hasMessageContaining("Sandbox entered error state: error");
+        assertThatThrownBy(() -> sb.stop(30)).hasMessageContaining("Sandbox sb-s entered error state: error");
 
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2000);
         verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
@@ -1882,7 +1923,7 @@ class SandboxTest {
     }
 
     @Test
-    void stateEventResolvesWaitAndAppliesOnlyTheState() throws Exception {
+    void stateEventResolvesWaitAndAppliesOnlyTheStateAndErrorReason() throws Exception {
         EventSubscriptionManager manager = mockSubscriptionManager();
         Sandbox sb = startingSandbox("sb-e", manager);
         lenient().when(sandboxApi.getSandbox("sb-e", null, null)).thenReturn(TestSupport.mainSandbox("sb-e", SandboxState.STARTING));
@@ -1900,8 +1941,9 @@ class SandboxTest {
 
         assertThat(error.get()).isNull();
         assertThat(waiter.isAlive()).isFalse();
+        // Only the state and, since the event carries one, the error reason; never the other fields.
         assertThat(sb.getCpu()).isEqualTo(1);
-        assertThat(sb.getErrorReason()).isNull();
+        assertThat(sb.getErrorReason()).isEqualTo("from-event");
     }
 
     @Test
@@ -1962,6 +2004,40 @@ class SandboxTest {
         } catch (Throwable e) {
             error.set(e);
         }
+    }
+
+    @Test
+    void waitUntilStartedReportsTheErrorReasonCarriedByTheStateEvent() throws Exception {
+        JsonNode event = new ObjectMapper().readTree("{\"sandbox\": {\"id\": \"sb-1\", \"state\": \"error\", "
+                + "\"desiredState\": \"started\", \"errorReason\": \"disk full\"}, "
+                + "\"oldState\": \"starting\", \"newState\": \"error\"}");
+        Method handleEvent = Sandbox.class.getDeclaredMethod("handleEvent", String.class, JsonNode.class);
+        handleEvent.setAccessible(true);
+        // The event arrives while a poll is in flight; the poll then returns the earlier state.
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenAnswer(invocation -> {
+            handleEvent.invoke(sandbox, "sandbox.state.updated", event);
+            TestSupport.setField(sandbox, "errorReason", null);
+            return TestSupport.mainSandbox("sb-1", SandboxState.STARTING);
+        });
+        TestSupport.setField(sandbox, "state", "starting");
+
+        assertThatThrownBy(() -> sandbox.waitUntilStarted(10))
+                .hasMessage("Sandbox sb-1 entered error state: error, error reason: disk full");
+    }
+
+    @Test
+    void stateEventWithoutAnErrorReasonClearsIt() throws Exception {
+        TestSupport.setField(sandbox, "state", "error");
+        TestSupport.setField(sandbox, "errorReason", "transient");
+        Method handleEvent = Sandbox.class.getDeclaredMethod("handleEvent", String.class, JsonNode.class);
+        handleEvent.setAccessible(true);
+
+        handleEvent.invoke(sandbox, "sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\": {\"id\": \"sb-1\", \"state\": \"started\"}, \"oldState\": \"error\", "
+                        + "\"newState\": \"started\"}"));
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+        assertThat(sandbox.getErrorReason()).isNull();
     }
 
     private EventSubscriptionManager mockSubscriptionManager() {

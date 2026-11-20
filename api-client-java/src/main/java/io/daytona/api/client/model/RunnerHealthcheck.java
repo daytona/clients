@@ -19,6 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.daytona.api.client.model.RunnerFabricHealth;
 import io.daytona.api.client.model.RunnerHealthMetrics;
 import io.daytona.api.client.model.RunnerServiceHealth;
 import java.io.IOException;
@@ -83,6 +84,11 @@ public class RunnerHealthcheck {
   @SerializedName(SERIALIZED_NAME_APP_VERSION)
   @javax.annotation.Nonnull
   private String appVersion;
+
+  public static final String SERIALIZED_NAME_FABRIC = "fabric";
+  @SerializedName(SERIALIZED_NAME_FABRIC)
+  @javax.annotation.Nullable
+  private RunnerFabricHealth fabric;
 
   public RunnerHealthcheck() {
   }
@@ -208,6 +214,25 @@ public class RunnerHealthcheck {
     this.appVersion = appVersion;
   }
 
+
+  public RunnerHealthcheck fabric(@javax.annotation.Nullable RunnerFabricHealth fabric) {
+    this.fabric = fabric;
+    return this;
+  }
+
+  /**
+   * Get fabric
+   * @return fabric
+   */
+  @javax.annotation.Nullable
+  public RunnerFabricHealth getFabric() {
+    return fabric;
+  }
+
+  public void setFabric(@javax.annotation.Nullable RunnerFabricHealth fabric) {
+    this.fabric = fabric;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -268,13 +293,14 @@ public class RunnerHealthcheck {
         Objects.equals(this.domain, runnerHealthcheck.domain) &&
         Objects.equals(this.proxyUrl, runnerHealthcheck.proxyUrl) &&
         Objects.equals(this.apiUrl, runnerHealthcheck.apiUrl) &&
-        Objects.equals(this.appVersion, runnerHealthcheck.appVersion)&&
+        Objects.equals(this.appVersion, runnerHealthcheck.appVersion) &&
+        Objects.equals(this.fabric, runnerHealthcheck.fabric)&&
         Objects.equals(this.additionalProperties, runnerHealthcheck.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(metrics, serviceHealth, domain, proxyUrl, apiUrl, appVersion, additionalProperties);
+    return Objects.hash(metrics, serviceHealth, domain, proxyUrl, apiUrl, appVersion, fabric, additionalProperties);
   }
 
   @Override
@@ -287,6 +313,7 @@ public class RunnerHealthcheck {
     sb.append("    proxyUrl: ").append(toIndentedString(proxyUrl)).append("\n");
     sb.append("    apiUrl: ").append(toIndentedString(apiUrl)).append("\n");
     sb.append("    appVersion: ").append(toIndentedString(appVersion)).append("\n");
+    sb.append("    fabric: ").append(toIndentedString(fabric)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -306,7 +333,7 @@ public class RunnerHealthcheck {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("metrics", "serviceHealth", "domain", "proxyUrl", "apiUrl", "appVersion"));
+    openapiFields = new HashSet<String>(Arrays.asList("metrics", "serviceHealth", "domain", "proxyUrl", "apiUrl", "appVersion", "fabric"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("appVersion"));
@@ -361,6 +388,10 @@ public class RunnerHealthcheck {
       }
       if (!jsonObj.get("appVersion").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `appVersion` to be a primitive type in the JSON string but got `%s`", jsonObj.get("appVersion").toString()));
+      }
+      // validate the optional field `fabric`
+      if (jsonObj.get("fabric") != null && !jsonObj.get("fabric").isJsonNull()) {
+        RunnerFabricHealth.validateJsonElement(jsonObj.get("fabric"));
       }
   }
 

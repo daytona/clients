@@ -51,6 +51,7 @@ require_relative 'volume_service'
 require_relative 'warm_pool'
 require_relative 'warm_pool_service'
 require_relative 'process'
+require_relative 'sandbox_nodes'
 
 module Daytona
   module Sdk

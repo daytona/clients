@@ -182,6 +182,15 @@ module Daytona
     # @return [Daytona::Process]
     attr_reader :process
 
+    # @return [Daytona::SandboxNodes] Rank-ordered node handles. A gang head includes all ranks. A direct worker lookup includes only that worker.
+    attr_reader :nodes
+    # @return [Integer] Number of nodes reported by the last refresh
+    attr_reader :node_count
+    # @return [Integer, nil] Current topology generation
+    attr_reader :topology_generation
+    # @return [Boolean, nil] Whether the API reports a degraded gang
+    attr_reader :degraded
+
     # @return [Daytona::FileSystem]
     attr_reader :fs
 
@@ -260,6 +269,8 @@ module Daytona
       @info_api = info_api
       @server_api = server_api
       @system_api = system_api
+      @nodes = SandboxNodes.new(self)
+      @nodes.send(:update, sandbox_dto)
     end
 
     # Archives the sandbox, making it inactive and preserving its state. When sandboxes are
@@ -750,6 +761,7 @@ module Daytona
     def resize(resources, timeout = DEFAULT_TIMEOUT)
       raise Sdk::Error, 'Resources must not be nil' if resources.nil?
 
+      resources.validate_scalar! if resources.is_a?(Resources)
       if resources.gpu || resources.gpu_type
         raise Sdk::Error,
               'Resize does not support changes to gpu or gpu_type — to change GPU, create a new sandbox'
@@ -1091,6 +1103,7 @@ module Daytona
       return if sandbox_dto.nil?
 
       new_state = sandbox_dto.state
+      @node_count ||= 1
 
       # Fields shared by both DaytonaApiClient::Sandbox and DaytonaApiClient::SandboxListItem.
       @id = sandbox_dto.id
@@ -1143,6 +1156,10 @@ module Daytona
         @volumes = sandbox_dto.volumes
         @build_info = sandbox_dto.build_info
         @backup_created_at = sandbox_dto.backup_created_at
+        @node_count = sandbox_dto.node_count unless sandbox_dto.node_count.nil?
+        @topology_generation = sandbox_dto.topology_generation unless sandbox_dto.topology_generation.nil?
+        @degraded = sandbox_dto.degraded unless sandbox_dto.degraded.nil?
+        @nodes&.send(:update, sandbox_dto)
       end
 
       apply_state(new_state)
@@ -1272,6 +1289,10 @@ module Daytona
       mutex = Mutex.new
       state_changed = ConditionVariable.new
       result_state = nil
+      # The error reason that came with result_state; a refresh still in flight may replace error_reason after.
+      result_reason = nil
+      # Whether result_state came from an event, which may carry no reason.
+      result_from_event = false
       # Set when the server rejects this Sandbox's subscription: no events will come, so read now.
       read_now = false
 
@@ -1284,6 +1305,8 @@ module Daytona
             next if result_state
 
             result_state = new_state
+            result_reason = error_reason
+            result_from_event = true
             state_changed.signal
           end
         end,
@@ -1310,7 +1333,10 @@ module Daytona
           raise_destroyed_lifecycle_error_if_needed(target_strings)
           mutex.synchronize do
             current = state.to_s
-            result_state ||= current if error_strings.include?(current)
+            if !result_state && error_strings.include?(current)
+              result_state = current
+              result_reason = error_reason
+            end
           end
           poll_interval = next_poll_interval(subscription:, fast_poll_interval:, backoff:)
         end
@@ -1340,7 +1366,10 @@ module Daytona
             next if result_state
 
             current = state.to_s
-            result_state = current if target_strings.include?(current) || error_strings.include?(current)
+            if target_strings.include?(current) || error_strings.include?(current)
+              result_state = current
+              result_reason = error_reason
+            end
           end
 
           fast_poll_interval = next_fast_poll_interval(current_interval: fast_poll_interval, started_at:)
@@ -1349,8 +1378,9 @@ module Daytona
         end
 
         if result_state && error_strings.include?(result_state)
+          result_reason = read_error_reason if result_from_event && result_reason.nil?
           raise Sdk::Error,
-                "Sandbox #{id} entered error state: #{result_state}, error reason: #{error_reason}"
+                "Sandbox #{id} entered error state: #{result_state}, error reason: #{result_reason}"
         end
       rescue Sdk::TimeoutError => e
         begin
@@ -1638,6 +1668,14 @@ module Daytona
       !sandbox_dto.nil? && !sandbox_dto.state.to_s.empty?
     end
 
+    # A wait ended on an error state from an event that carried no reason: read it once before failing.
+    #
+    # @return [String, nil]
+    def read_error_reason
+      refresh_data_safe
+      error_reason
+    end
+
     # The server rejected this Sandbox's subscription: the running waits read now and poll from then on.
     def wake_waits_to_read
       @waiter_mutex.synchronize { @state_waiters.each { |waiter| waiter[:read_now].call } }
@@ -1662,9 +1700,19 @@ module Daytona
       return unless new_state
 
       @waiter_mutex.synchronize { @state_event_count += 1 }
+      # Set before the state: a wait that ends on an error state reports this reason.
+      apply_event_error_reason(data)
       apply_state(new_state)
     rescue StandardError
       nil
+    end
+
+    # The event omits errorReason when the sandbox has none, so an event with a sandbox object clears it then.
+    #
+    # @param data [Hash] A state event payload
+    def apply_event_error_reason(data)
+      sandbox = data['sandbox']
+      @error_reason = sandbox['errorReason'] if sandbox.is_a?(Hash)
     end
 
     def next_fast_poll_interval(current_interval:, started_at:)

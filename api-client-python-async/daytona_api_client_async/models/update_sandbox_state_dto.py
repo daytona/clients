@@ -20,6 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from pydantic import TypeAdapter
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,8 +34,10 @@ class UpdateSandboxStateDto(BaseModel):
     state: StrictStr = Field(description="The new state for the sandbox")
     error_reason: Optional[StrictStr] = Field(default=None, description="Optional error message when reporting an error state", serialization_alias="errorReason")
     recoverable: Optional[StrictBool] = Field(default=None, description="Whether the sandbox is recoverable")
+    incarnation: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Physical gang-member incarnation producing this report.")
+    fabric_fenced: Optional[StrictBool] = Field(default=None, description="The runner has restored an idle-closed fabric state for this failed member.", serialization_alias="fabricFenced")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["state", "errorReason", "recoverable"]
+    __properties: ClassVar[List[str]] = ["state", "errorReason", "recoverable", "incarnation", "fabricFenced"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,7 +98,9 @@ class UpdateSandboxStateDto(BaseModel):
         _obj = cls.model_validate({
             "state": obj.get("state"),
             "error_reason": obj.get("errorReason"),
-            "recoverable": obj.get("recoverable")
+            "recoverable": obj.get("recoverable"),
+            "incarnation": obj.get("incarnation"),
+            "fabric_fenced": obj.get("fabricFenced")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

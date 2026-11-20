@@ -18,6 +18,29 @@ const DOC_TARGETS = [
   },
   { outputFile: 'sandbox.mdx', logName: 'Sandbox', classes: [{ file: 'Sandbox.java', className: 'Sandbox' }] },
   {
+    outputFile: 'sandbox-node.mdx',
+    logName: 'SandboxNode',
+    classes: [{ file: 'SandboxNode.java', className: 'SandboxNode' }],
+  },
+  {
+    outputFile: 'sandbox-nodes.mdx',
+    logName: 'SandboxNodes',
+    classes: [
+      { file: 'SandboxNodes.java', className: 'SandboxNodes', includeInner: ['NodeProcess', 'NodeFileSystem'] },
+    ],
+  },
+  {
+    outputFile: 'node-resources.mdx',
+    logName: 'NodeResources',
+    classes: [{ file: 'model/NodeResources.java', className: 'NodeResources' }],
+  },
+  {
+    outputFile: 'node-execute-options.mdx',
+    logName: 'NodeExecuteOptions',
+    classes: [{ file: 'model/NodeExecuteOptions.java', className: 'NodeExecuteOptions' }],
+  },
+
+  {
     outputFile: 'process.mdx',
     logName: 'Process',
     classes: [{ file: 'Process.java', className: 'Process' }],
@@ -364,7 +387,11 @@ function parsePublicMembers(classBlock) {
       // Strip single-line method bodies: "public Type foo() { return x; }" → "public Type foo() {"
       const normalized = normalizeWhitespace(trimmed).replace(/\{[^{}]*\}\s*$/, '{')
 
-      if (normalized.startsWith('public static class ') || normalized.startsWith('public class ')) {
+      if (
+        normalized.startsWith('public static class ') ||
+        normalized.startsWith('public class ') ||
+        normalized.startsWith('public final class ')
+      ) {
         pendingJavadocRaw = ''
       } else if (
         normalized.startsWith('public ') &&
@@ -591,7 +618,7 @@ function parseInnerClass(parentSource, parentClassName, innerClassName) {
   const parent = findClassBlock(parentSource, parentClassName)
   if (!parent) return null
 
-  const classRx = new RegExp(`public\\s+(?:static\\s+)?class\\s+${innerClassName}\\b[^\\{]*\\{`, 'm')
+  const classRx = new RegExp(`public\\s+(?:static\\s+)?(?:final\\s+)?class\\s+${innerClassName}\\b[^\\{]*\\{`, 'm')
   const classMatch = classRx.exec(parent.body)
   if (!classMatch) return null
 

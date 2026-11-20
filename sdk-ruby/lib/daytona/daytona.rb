@@ -171,7 +171,16 @@ module Daytona
           first_page = false
           response = fetch_sandbox_page(q, cursor)
           response.items.each do |sandbox_dto|
-            yielder << to_sandbox(sandbox_dto: sandbox_dto)
+            if sandbox_dto.gpu.to_i > SandboxNodes::GPUS_PER_NODE
+              begin
+                sandbox = get(sandbox_dto.id)
+              rescue Sdk::NotFoundError
+                next
+              end
+            else
+              sandbox = to_sandbox(sandbox_dto:)
+            end
+            yielder << sandbox
           end
           cursor = response.next_cursor
           break if cursor.nil? || (cursor.respond_to?(:empty?) && cursor.empty?)
@@ -334,6 +343,11 @@ module Daytona
         create_sandbox.cpu = params.resources&.cpu
         create_sandbox.memory = params.resources&.memory
         create_sandbox.disk = params.resources&.disk
+        if params.resources.is_a?(Resources)
+          create_sandbox.cpu_per_node = params.resources.cpu_per_node unless params.resources.cpu_per_node.nil?
+          create_sandbox.memory_per_node = params.resources.memory_per_node unless params.resources.memory_per_node.nil?
+          create_sandbox.disk_per_node = params.resources.disk_per_node unless params.resources.disk_per_node.nil?
+        end
         create_sandbox.gpu = params.resources&.gpu
         if params.resources&.gpu_type
           create_sandbox.gpu_type =

@@ -74,6 +74,8 @@ type APIClient struct {
 
 	SandboxAPI SandboxAPI
 
+	SandboxMembershipAPI SandboxMembershipAPI
+
 	SecretAPI SecretAPI
 
 	SnapshotsAPI SnapshotsAPI
@@ -115,6 +117,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.RegionsAPI = (*RegionsAPIService)(&c.common)
 	c.RunnersAPI = (*RunnersAPIService)(&c.common)
 	c.SandboxAPI = (*SandboxAPIService)(&c.common)
+	c.SandboxMembershipAPI = (*SandboxMembershipAPIService)(&c.common)
 	c.SecretAPI = (*SecretAPIService)(&c.common)
 	c.SnapshotsAPI = (*SnapshotsAPIService)(&c.common)
 	c.UsersAPI = (*UsersAPIService)(&c.common)
