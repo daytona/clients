@@ -1099,7 +1099,11 @@ public class Sandbox {
             // Off the event thread, which must not block on HTTP.
             REFRESH_EXECUTOR.submit(() -> {
                 try {
-                    fetchData();
+                    if (!fetchData()) {
+                        // An empty body carries nothing to read; the event's state still ends the wait.
+                        applyState(newState);
+                        return;
+                    }
                     for (StateWaiter waiter : stateWaiters) {
                         notifyWaiterOfCurrentState(waiter);
                     }

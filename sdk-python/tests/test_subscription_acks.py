@@ -10,7 +10,7 @@ import collections
 import threading
 import time
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -490,9 +490,18 @@ class TestPendingAckPruning:
         for callback in callbacks:
             pending.append((expired_at, callback))
 
-        start = time.perf_counter()
-        event_dispatcher_module._prune_pending_acks(sio, pending)
-        elapsed = time.perf_counter() - start
+        snapshots = 0
+        real_list = list
+
+        def counting_list(iterable=()):  # counts copies of the pending table
+            nonlocal snapshots
+            if isinstance(iterable, type({}.items())):
+                snapshots += 1
+            return real_list(iterable)
+
+        with patch.object(event_dispatcher_module, "list", counting_list, create=True):
+            event_dispatcher_module._prune_pending_acks(sio, pending)
 
         assert list(sio.callbacks["/"]) == [0] and not pending
-        assert elapsed < 0.2
+        # One snapshot of the table, not one per expired callback.
+        assert snapshots <= 1

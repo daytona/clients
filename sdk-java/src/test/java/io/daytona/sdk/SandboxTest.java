@@ -1320,6 +1320,31 @@ class SandboxTest {
         verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
     }
 
+    @Test
+    void anErrorStateFromAnEventWithoutItsReasonStillFailsTheWaitWhenTheReadIsEmpty() throws Exception {
+        EventSubscriptionManager manager = connectedSubscriptionManager();
+        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox("sb-s", SandboxState.STARTED), () -> null, manager);
+        when(sandboxApi.stopSandbox("sb-s", null, null)).thenReturn(TestSupport.mainSandbox("sb-s", SandboxState.STOPPING));
+        // The read answers with an empty body.
+        when(sandboxApi.getSandbox("sb-s", null, null)).thenReturn(null);
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        Thread worker = new Thread(() -> runCapturing(() -> sb.stop(30), error));
+        worker.start();
+        verify(manager, timeout(5000).times(2)).refresh("mock-sub-id");
+
+        long start = System.nanoTime();
+        handlerOf(manager, "sb-s").accept("sandbox.state.updated", new ObjectMapper().readTree(
+                "{\"sandbox\":{\"id\":\"sb-s\",\"state\":\"error\"},\"newState\":\"error\"}"));
+        // Well under the next poll (4-6 s) and the 30 s timeout.
+        worker.join(3000);
+
+        assertThat(worker.isAlive()).isFalse();
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(3000);
+        assertThat(error.get()).isNotInstanceOf(DaytonaTimeoutException.class)
+                .hasMessageStartingWith("Sandbox sb-s entered error state: error");
+        verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
+    }
+
     /** Records each poll delay the wait's own cadence decides; {@code actual} picks the delay scheduled. */
     private static List<Long> recordDecisions(Sandbox sb, Sandbox.PollScheduleHook actual) {
         List<Long> decisions = new CopyOnWriteArrayList<>();
