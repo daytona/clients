@@ -1,0 +1,58 @@
+sdk-go/git_branches.go
+  s_29ea5c3bed31ea::t_d5d065321c7733 8,31-32,34-38
+  s_29ea5c3bed31ea::t_e93e60bc949902 1-7,9-30,33,39-95
+sdk-go/git_example_test.go
+  s_29ea5c3bed31ea::t_c4feacd2c2bacb 54-55
+  s_29ea5c3bed31ea::t_1543a21d928296 1-53,56-64
+sdk-go/git_remote.go
+  s_29ea5c3bed31ea::t_562881f7e03524 134,139-141,145
+  s_29ea5c3bed31ea::t_eafb85712a88e2 1-133,135-138,142-144,146-159
+sdk-go/git_config.go
+  s_29ea5c3bed31ea::t_29d41f1b52b6f5 10-11,58-59
+  s_29ea5c3bed31ea::t_e93e60bc949902 1-9,12-57,60-77
+sdk-go/git_models.go
+  s_29ea5c3bed31ea::t_e93e60bc949902 1-60
+sdk-go/git_parse_test.go
+  s_29ea5c3bed31ea::t_5ae4d2890ff085 1-72
+  s_29ea5c3bed31ea::t_93ab1eb8d620e6 73-81
+sdk-go/git.go
+  s_29ea5c3bed31ea::t_eafb85712a88e2 1-131
+sdk-go/git_validation_test.go
+  s_29ea5c3bed31ea::t_d21420dcba7cd1 133
+  s_29ea5c3bed31ea::t_9ef05cd9f7d69e 1-76,85-88,93-132,134-155
+  s_29ea5c3bed31ea::t_098e427ac83c9a 77-84,89-92
+sdk-go/git_remote_test.go
+  s_29ea5c3bed31ea::t_d5d065321c7733 1-20,23-26,35-36,45-48,55-76,81-93,129,131-132,134-135,137-144
+  s_29ea5c3bed31ea::t_098e427ac83c9a 21-22,27-34,37-44,49-54
+  s_29ea5c3bed31ea::t_5ae4d2890ff085 94-128,130,133,136
+  s_29ea5c3bed31ea::t_c4feacd2c2bacb 77-80
+sdk-go/git_read.go
+  s_29ea5c3bed31ea::t_fd130e6d945bdc 60-61,63-74
+  s_29ea5c3bed31ea::t_70eb69a6196263 98-100
+  s_29ea5c3bed31ea::t_e93e60bc949902 1-59,75-97,101-116
+  s_29ea5c3bed31ea::t_18903fb214eeb6 62
+sdk-go/git_read_test.go
+  s_29ea5c3bed31ea::t_098e427ac83c9a 27-30
+  s_29ea5c3bed31ea::t_14960e6b413329 116-117,119-130
+  s_29ea5c3bed31ea::t_9ef05cd9f7d69e 1-26,31-115
+  s_29ea5c3bed31ea::t_38d4f71160595f 118
+sdk-go/git_test.go
+  s_29ea5c3bed31ea::t_098e427ac83c9a 31,33-38,41-56,59-66,69-80,83-90,93-100,103-104
+  s_29ea5c3bed31ea::t_d5d065321c7733 1-30,32,39-40,57-58,67-68,81-82,91-92,101-102,105-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "21df2faabac0c7a3b1cf93df701a1b95a72e44ce",
+  "prompts": {},
+  "sessions": {
+    "s_29ea5c3bed31ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b45dfdffe4ZMJBVHgLMeDuZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
