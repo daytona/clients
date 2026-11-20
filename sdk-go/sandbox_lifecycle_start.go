@@ -67,6 +67,9 @@ func (s *Sandbox) startObserved(ctx context.Context, w *sandboxWait, acceptedOnl
 		// These states already have work in flight, or will fail the wait.
 	}
 	if action != "" {
+		if err := w.check(ctx); err != nil {
+			return err
+		}
 		if err := s.client.api().do(ctx, apiRequest{Method: http.MethodPost, Path: w.path + "/" + action}); err != nil {
 			return err
 		}

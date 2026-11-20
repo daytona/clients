@@ -26,6 +26,9 @@ import (
 // only on 401, 403, or 404. Final-reserve failures remain timeout causes.
 // With events disabled, read failures are returned immediately.
 func (s *Sandbox) Wait(ctx context.Context, opts *WaitOptions) error {
+	if err := s.client.ensureOpen(); err != nil {
+		return err
+	}
 	options := WaitOptions{}
 	if opts != nil {
 		options = *opts
@@ -40,9 +43,6 @@ func (s *Sandbox) Wait(ctx context.Context, opts *WaitOptions) error {
 	}
 	w, err := s.newWait(states)
 	if err != nil {
-		return err
-	}
-	if err = s.client.ensureOpen(); err != nil {
 		return err
 	}
 	if ctx.Err() != nil {
