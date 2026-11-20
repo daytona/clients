@@ -1,0 +1,21 @@
+sdk-go/sandbox_list.go
+  s_59ddbabbbc1807::t_3342e4b4ba38a2 37-38,51
+sdk-go/sandbox_list_reprobe_test.go
+  s_59ddbabbbc1807::t_b09ec82e6c781a 1-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc88832d6f6b09154208b526297ef2b71aeb2e69",
+  "prompts": {},
+  "sessions": {
+    "s_59ddbabbbc1807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05aeae0affef5A154QQt8pMam",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
