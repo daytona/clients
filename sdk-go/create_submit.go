@@ -70,7 +70,7 @@ func uncertainCreateError(ctx context.Context, err error, key string) error {
 	switch {
 	case errors.Is(err, ErrClientTimeout):
 		return &SandboxCreateRequestTimeoutError{SDKError: detail, IdempotencyKey: key}
-	case errors.Is(err, context.Canceled):
+	case errors.Is(err, context.Canceled), errors.Is(err, ErrClientClosed):
 		failure := *detail
 		failure.category = ErrConnection
 		return &SandboxCreateConnectionError{SDKError: &failure, IdempotencyKey: key}
