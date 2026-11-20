@@ -20,7 +20,7 @@ type InterpreterContextJSON struct {
 }
 
 // MarshalJSON serializes only the context's identity, without credentials.
-func (c *InterpreterContext) MarshalJSON() ([]byte, error) {
+func (c InterpreterContext) MarshalJSON() ([]byte, error) {
 	data, err := json.Marshal(c.Identity())
 	if err != nil {
 		return nil, wrapError(err, "encode interpreter context identity")
