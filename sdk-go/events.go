@@ -42,11 +42,18 @@ func (c *Client) closeSandboxEvents() {
 	}
 }
 
-func (s *eventsStateSource) watch(ctx context.Context, id, region string) (<-chan stateObservation, func()) {
+func (*eventsStateSource) enabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("DAYTONA_SANDBOX_EVENTS"))) {
 	case "0", "false", "off":
-		return nil, func() {}
+		return false
 	default:
+		return true
+	}
+}
+
+func (s *eventsStateSource) watch(ctx context.Context, id, region string) (<-chan stateObservation, func()) {
+	if !s.enabled() {
+		return nil, func() {}
 	}
 	if tag := regionOf(id); tag != "" {
 		region = tag

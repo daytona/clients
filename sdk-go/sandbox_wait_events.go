@@ -13,7 +13,9 @@ import (
 // withEvents gives the source all but the final-read reserve. Polls are still
 // needed when a live source loses a transition; a closed source falls back
 // immediately. Every probe is joined before using the reserve.
-func (w *sandboxWait) withEvents(ctx context.Context, events <-chan stateObservation) (bool, error) {
+func (w *sandboxWait) withEvents(
+	ctx context.Context, events <-chan stateObservation, retry *waitReadRetry,
+) (bool, error) {
 	share := w.deadline
 	if remaining := waitRemaining(share); remaining >= 0 {
 		share = share.Add(-min(waitFinalReserve, remaining/4))
@@ -42,17 +44,19 @@ func (w *sandboxWait) withEvents(ctx context.Context, events <-chan stateObserva
 			return false, nil
 		}
 		outcome, readErr := w.accept(result.read)
+		if waitRemaining(share) == 0 && waitSDKTimeout(readErr) {
+			return false, waitTimeout(nil)
+		}
 		if readErr != nil {
-			if ctx.Err() == nil && waitRemaining(share) == 0 && errors.Is(readErr, ErrRequestTimeout) {
-				return false, waitTimeout(nil)
+			if stopped := w.retryReadError(ctx, readErr, retry); stopped != nil {
+				return true, stopped
 			}
-			return true, readErr
+			delay = retry.remaining()
+			continue
 		}
-		if w.target(outcome.State) {
-			return true, nil
-		}
-		if slices.Contains(w.terminal, outcome.State) {
-			return true, w.terminalError(outcome)
+		retry.succeeded()
+		if decided, outcomeErr := w.readOutcome(outcome); decided {
+			return true, outcomeErr
 		}
 		delay = max(0, waitMinInterval-time.Since(started))
 	}
