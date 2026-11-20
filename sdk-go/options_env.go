@@ -46,7 +46,8 @@ func (c *clientConfig) resolveEnvironment() error {
 	if c.baseURL == "" {
 		c.baseURL = DefaultAPIURL
 	}
-	return nil
+	_, err := parseHTTPBase(c.baseURL)
+	return err
 }
 
 func nonBlankEnv(name string) *string {
