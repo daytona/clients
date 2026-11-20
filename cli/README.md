@@ -205,11 +205,11 @@ a prompt; subsequent key changes are refused. This is trust on first use:
 an attacker intercepting the first connection could supply the trusted key.
 SSH options you forward after the sandbox id (for example
 `-o StrictHostKeyChecking=no` or `-o UserKnownHostsFile=…`) override this
-policy. The gateway login carries your credential, so the CLI replaces it with
-`<redacted>` wherever `ssh` prints it on stderr (an authentication failure,
-`-v` output). Standard output is passed through byte for byte and is not
+policy. The gateway login carries a short-lived sandbox access token limited
+to SSH, minted for each run, so the CLI replaces it with `<redacted>` wherever
+`ssh` prints it on stderr (an authentication failure, `-v` output). Standard output is passed through byte for byte and is not
 redacted: `-G`, which prints the resolved configuration there, includes the
-credential in its `user` line, so do not log that output.
+short-lived token in its `user` line, so do not log that output.
 
 ### macOS sandboxes
 
@@ -683,7 +683,7 @@ pass `--api-key` / `DAYTONA_API_KEY` for that API, or sign in to it with
 After a browser or device `daytona login`, sandbox, image, secret, and registry commands
 use automatically refreshed, project-scoped credentials. Platform tokens expire
 after five minutes; automatically minted project API keys expire after 24 hours.
-The CLI uses project API keys for `exec`, `cp`, `logs`, `port` and `ssh`, and as
+The CLI uses project API keys for `exec`, `cp`, `logs` and `port`, and as
 a fallback when platform tokens are unavailable. Automatically minted keys stay
 on Daytona V2. A replacement attempts to revoke its superseded key.
 
