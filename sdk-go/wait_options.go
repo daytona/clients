@@ -59,15 +59,17 @@ func lifecycleOptions(opts *LifecycleWaitOptions) (time.Duration, error) {
 	return lifecycleWaitBudget(opts.Timeout)
 }
 
-func waitDeadline(ctx context.Context, budget time.Duration) time.Time {
+// waitDeadline returns the earlier of the SDK wait budget and the context's
+// deadline, and whether the context's deadline is the one that binds.
+func waitDeadline(ctx context.Context, budget time.Duration) (time.Time, bool) {
 	deadline, _ := ctx.Deadline()
 	if budget > 0 {
 		local := time.Now().Add(budget)
 		if deadline.IsZero() || local.Before(deadline) {
-			return local
+			return local, false
 		}
 	}
-	return deadline
+	return deadline, !deadline.IsZero()
 }
 
 func waitRemaining(deadline time.Time) time.Duration {
@@ -105,11 +107,15 @@ func waitWireState(state SandboxState) (string, error) {
 }
 
 type sandboxWait struct {
-	sandbox            *Sandbox
-	path               string
-	states             []SandboxState
-	terminal           []SandboxState
-	deadline           time.Time
+	sandbox  *Sandbox
+	path     string
+	states   []SandboxState
+	terminal []SandboxState
+	deadline time.Time
+	// contextDeadline reports that deadline is the caller's context deadline:
+	// reaching it is the caller's context.DeadlineExceeded, not the SDK's
+	// wait timeout, even before the context's own timer has fired.
+	contextDeadline    bool
 	missingIsDestroyed bool
 }
 
@@ -134,7 +140,18 @@ func (w *sandboxWait) check(ctx context.Context) error {
 		return transportError(ctx, ctx.Err())
 	}
 	if waitRemaining(w.deadline) == 0 {
-		return waitTimeout(nil)
+		return w.expiredAt(ctx, w.deadline)
 	}
 	return nil
+}
+
+// expiredAt is the error for a wait read bounded by deadline once it has
+// passed: the caller's context.DeadlineExceeded when deadline is the wait's
+// own deadline and that came from the caller's context (even before the
+// context's timer fired), else the SDK's wait timeout.
+func (w *sandboxWait) expiredAt(ctx context.Context, deadline time.Time) error {
+	if w.contextDeadline && deadline.Equal(w.deadline) {
+		return transportError(ctx, context.DeadlineExceeded)
+	}
+	return waitTimeout(nil)
 }

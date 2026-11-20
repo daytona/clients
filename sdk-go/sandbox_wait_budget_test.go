@@ -166,3 +166,36 @@ func TestWait_whenProbeReachesReserve_joinsBeforeFinalRead(t *testing.T) {
 		require.Equal(t, 2, reads)
 	})
 }
+
+func TestWaitExpired_reportsTheCallersDeadlineEvenBeforeItsTimerFires(t *testing.T) {
+	// Given a wait whose binding deadline is the caller's context deadline,
+	// observed when that instant passed but before the context's own timer
+	// marked it done (the race the scheduler can produce).
+	sandbox := virtualWaitSandbox(t, func(http.ResponseWriter, *http.Request) {})
+	w, err := sandbox.newWait([]SandboxState{SandboxStateStarted})
+	require.NoError(t, err)
+	w.deadline, w.contextDeadline = time.Now().Add(-time.Millisecond), true
+
+	// When the wait checks its deadline with a context that is not done yet
+	err = w.check(t.Context())
+
+	// Then the error carries the caller's deadline (a client timeout), not the
+	// SDK's own wait timeout
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, ErrClientTimeout)
+}
+
+func TestWaitExpired_reportsTheSDKTimeoutForItsOwnBudget(t *testing.T) {
+	// Given a wait bound by its own budget
+	sandbox := virtualWaitSandbox(t, func(http.ResponseWriter, *http.Request) {})
+	w, err := sandbox.newWait([]SandboxState{SandboxStateStarted})
+	require.NoError(t, err)
+	w.deadline, w.contextDeadline = time.Now().Add(-time.Millisecond), false
+
+	// When the budget has passed
+	err = w.check(t.Context())
+
+	// Then the error is the SDK's wait timeout
+	require.ErrorIs(t, err, ErrRequestTimeout)
+	require.NotErrorIs(t, err, context.DeadlineExceeded)
+}

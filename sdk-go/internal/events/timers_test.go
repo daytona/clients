@@ -154,13 +154,19 @@ func TestReconcileIncludesRecentlyHeardIDsWhenIntervalExpires(t *testing.T) {
 	// Given
 	f := newFixture(t, 0)
 	f.hub.config.ReconcileInterval = 2 * time.Second
+	reconcileAt := f.clock.Now().Add(2 * time.Second)
 	ch, release := f.hub.Watch(t.Context(), "sbx", "a")
 	defer release()
 	p := receive(t, f.accepted)
 	nextFrame(t, p, "subscribe")
 	f.clock.advance(time.Second)
+	// The sweep re-arms the socket timer for the reconcile instant; wait for
+	// it, then for its re-arm after the event, so the clock never moves while
+	// the socket loop is between computing a delay and arming its timer.
+	awaitTimer(t, f.clock, reconcileAt)
 	send(t, p, `{"type":"event","id":"sbx","status":"running","version":1}`)
 	receive(t, ch)
+	awaitTimer(t, f.clock, reconcileAt)
 
 	// When
 	f.clock.advance(time.Second)

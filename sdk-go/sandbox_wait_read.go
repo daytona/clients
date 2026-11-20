@@ -22,10 +22,10 @@ type waitReadResult struct {
 	err    error
 }
 
-func (w *sandboxWait) readRequest(options waitReadOptions) (apiRequest, error) {
+func (w *sandboxWait) readRequest(ctx context.Context, options waitReadOptions) (apiRequest, error) {
 	remaining := waitRemaining(options.deadline)
 	if remaining == 0 {
-		return apiRequest{}, waitTimeout(nil)
+		return apiRequest{}, w.expiredAt(ctx, options.deadline)
 	}
 	budget := w.sandbox.client.config.timeout
 	spec := apiRequest{Path: w.path}
@@ -60,7 +60,7 @@ func (w *sandboxWait) readRequest(options waitReadOptions) (apiRequest, error) {
 }
 
 func (w *sandboxWait) fetch(ctx context.Context, options waitReadOptions) waitReadResult {
-	spec, err := w.readRequest(options)
+	spec, err := w.readRequest(ctx, options)
 	if err != nil {
 		return waitReadResult{err: err}
 	}
@@ -68,7 +68,7 @@ func (w *sandboxWait) fetch(ctx context.Context, options waitReadOptions) waitRe
 	spec.Result = &raw
 	if err = w.sandbox.client.api().do(ctx, spec); err != nil {
 		if ctx.Err() == nil && errors.Is(err, ErrClientTimeout) && waitRemaining(options.deadline) == 0 {
-			return waitReadResult{err: waitTimeout(nil)}
+			return waitReadResult{err: w.expiredAt(ctx, options.deadline)}
 		}
 		return waitReadResult{err: err}
 	}

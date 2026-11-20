@@ -72,7 +72,7 @@ func (s *Sandbox) transition(ctx context.Context, transition lifecycleTransition
 	if budget == NoWait {
 		return nil
 	}
-	w.deadline = waitDeadline(ctx, budget)
+	w.deadline, w.contextDeadline = waitDeadline(ctx, budget)
 	return w.run(ctx)
 }
 

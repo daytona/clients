@@ -23,7 +23,7 @@ func (s *Sandbox) Start(ctx context.Context, opts *LifecycleWaitOptions) error {
 	if err != nil {
 		return err
 	}
-	w.deadline = waitDeadline(ctx, budget)
+	w.deadline, w.contextDeadline = waitDeadline(ctx, budget)
 	outcome, err := w.read(ctx, waitReadOptions{deadline: w.deadline})
 	if err != nil {
 		return err

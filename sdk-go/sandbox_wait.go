@@ -44,7 +44,7 @@ func (s *Sandbox) Wait(ctx context.Context, opts *WaitOptions) error {
 	if budget == NoWait {
 		return nil
 	}
-	w.deadline = waitDeadline(ctx, budget)
+	w.deadline, w.contextDeadline = waitDeadline(ctx, budget)
 	return w.run(ctx)
 }
 
