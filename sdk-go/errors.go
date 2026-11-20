@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -31,42 +32,73 @@ type Error struct {
 	RetryAfter time.Duration
 	// Err is the underlying cause, including context cancellation.
 	Err error
-	// Feature names an unavailable feature.
-	Feature string
-	// Entitlement names a required entitlement.
-	Entitlement string
-	// Replacement names the replacement for a removed resource.
-	Replacement string
-	// FirstAvailableCursor is the oldest retained cursor.
-	FirstAvailableCursor string
-	// Stated is the request's region.
-	Stated string
-	// Actual is the resolved region.
-	Actual string
-	// Region is an unrecognized region selector.
-	Region string
-	// Limit names an exhausted organization limit.
-	Limit string
-	// Current is reported usage; nil means absent.
-	Current *int64
-	// Max is the reported maximum; nil means absent.
-	Max *int64
-	// MaxBytes is the allowed size in bytes; nil means absent.
-	MaxBytes *int64
-	// Bytes is the actual size in bytes; nil means absent.
-	Bytes    *int64
+	// Details holds the optional data a server error carries for specific
+	// codes; its fields are zero for every other error.
+	Details  ErrorDetails
 	category errorCategory
 }
 
+// ErrorDetails is the optional data some server errors carry. Each field is set
+// only by the codes its comment names and is zero otherwise.
+type ErrorDetails struct {
+	// Feature is the feature the organization lacks (CodeFeatureNotEnabled).
+	Feature string
+	// Entitlement is the entitlement the organization lacks
+	// (CodeEntitlementRequired).
+	Entitlement string
+	// Replacement names what replaces a removed resource or route (CodeGone).
+	Replacement string
+	// FirstAvailableCursor is the oldest cursor still available
+	// (CodeCursorExpired).
+	FirstAvailableCursor string
+	// StatedRegion is the region the request stated (CodeRegionMismatch).
+	StatedRegion string
+	// ActualRegion is the region actually in effect (CodeRegionMismatch).
+	ActualRegion string
+	// UnknownRegion is the region the server did not recognize
+	// (CodeUnknownRegion).
+	UnknownRegion string
+	// LimitName is the machine name of the exhausted organization limit
+	// (CodeLimitExceeded).
+	LimitName string
+	// LimitCurrent is the organization's current count for LimitName
+	// (CodeLimitExceeded); nil when not reported.
+	LimitCurrent *int64
+	// LimitMax is the maximum allowed (CodeLimitExceeded,
+	// CodeIdleOutOfRange, CodeCreateTTLOutOfRange); nil when not reported.
+	LimitMax *int64
+	// MaxBytes is the size limit in bytes (CodeImageTooLarge,
+	// CodeSnapshotTooLarge); nil when not reported.
+	MaxBytes *int64
+	// Bytes is the artifact's size in bytes (CodeImageTooLarge,
+	// CodeSnapshotTooLarge); nil when not reported.
+	Bytes *int64
+}
+
 // Error returns the server's message, or an HTTP/code fallback.
+// Error returns "daytona: <message> (<code>, HTTP <status>)", leaving out the
+// parts the error does not have. Message holds the explanation alone.
 func (e *Error) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
+	var text strings.Builder
+	text.WriteString("daytona: ")
+	text.WriteString(e.Message)
+	var tags []string
 	if e.Code != "" {
-		return e.Code
+		tags = append(tags, e.Code)
 	}
-	return "HTTP " + strconv.Itoa(e.StatusCode)
+	if e.StatusCode != 0 {
+		tags = append(tags, "HTTP "+strconv.Itoa(e.StatusCode))
+	}
+	switch {
+	case len(tags) == 0 && e.Message == "":
+		text.WriteString("error")
+	case len(tags) == 0:
+	case e.Message == "":
+		text.WriteString(strings.Join(tags, ", "))
+	default:
+		text.WriteString(" (" + strings.Join(tags, ", ") + ")")
+	}
+	return text.String()
 }
 
 // Unwrap exposes the original cause.

@@ -2,6 +2,8 @@ version: "2"
 
 run:
   timeout: 5m
+  # Several worktrees of this repository lint at once on one machine.
+  allow-parallel-runners: true
   tests: true
   # Lint the live e2e tests too.
   build-tags:

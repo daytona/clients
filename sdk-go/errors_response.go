@@ -62,18 +62,18 @@ func populateErrorDetails(result *Error, object jsonObject) {
 	if request := optionalErrorString(object, "requestId"); request != "" {
 		result.RequestID = request
 	}
-	result.Feature = optionalErrorString(object, "feature")
-	result.Entitlement = optionalErrorString(object, "entitlement")
-	result.Replacement = optionalErrorString(object, "replacement")
-	result.FirstAvailableCursor = optionalErrorString(object, "firstAvailableCursor")
-	result.Stated = optionalErrorString(object, "stated")
-	result.Actual = optionalErrorString(object, "actual")
-	result.Region = optionalErrorString(object, "region")
-	result.Limit = optionalErrorString(object, "limit")
-	result.Current = optionalErrorInteger(object, "current")
-	result.Max = optionalErrorInteger(object, "max")
-	result.MaxBytes = optionalErrorInteger(object, "max_bytes")
-	result.Bytes = optionalErrorInteger(object, "bytes")
+	result.Details.Feature = optionalErrorString(object, "feature")
+	result.Details.Entitlement = optionalErrorString(object, "entitlement")
+	result.Details.Replacement = optionalErrorString(object, "replacement")
+	result.Details.FirstAvailableCursor = optionalErrorString(object, "firstAvailableCursor")
+	result.Details.StatedRegion = optionalErrorString(object, "stated")
+	result.Details.ActualRegion = optionalErrorString(object, "actual")
+	result.Details.UnknownRegion = optionalErrorString(object, "region")
+	result.Details.LimitName = optionalErrorString(object, "limit")
+	result.Details.LimitCurrent = optionalErrorInteger(object, "current")
+	result.Details.LimitMax = optionalErrorInteger(object, "max")
+	result.Details.MaxBytes = optionalErrorInteger(object, "max_bytes")
+	result.Details.Bytes = optionalErrorInteger(object, "bytes")
 	if seconds := optionalErrorInteger(object, "retry_after_seconds"); seconds != nil {
 		result.RetryAfter = saturatedDuration(*seconds, time.Second)
 	}

@@ -9,9 +9,9 @@ import (
 	"iter"
 )
 
-// ListOptions selects a page. Limit is 1–200; zero uses the server default.
-// Filters belong to SearchOptions, not ListOptions.
-type ListOptions struct {
+// ListSandboxesOptions selects a page. Limit is 1–200; zero uses the server default.
+// Filters belong to SearchSandboxesOptions, not ListSandboxesOptions.
+type ListSandboxesOptions struct {
 	// Cursor is the opaque continuation cursor.
 	Cursor string
 	// Limit is the maximum page size; zero uses the server default.
@@ -20,11 +20,11 @@ type ListOptions struct {
 
 // List returns exactly one page, preferring search and remembering deployments
 // that do not serve it. Only a 404 or SEARCH_NOT_CONFIGURED 501 enables fallback.
-func (c *Client) List(ctx context.Context, opts *ListOptions) (*Page[*Sandbox], error) {
+func (c *Client) List(ctx context.Context, opts *ListSandboxesOptions) (*Page[*Sandbox], error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err
 	}
-	options := ListOptions{}
+	options := ListSandboxesOptions{}
 	if opts != nil {
 		options = *opts
 	}
@@ -59,8 +59,8 @@ func (c *Client) List(ctx context.Context, opts *ListOptions) (*Page[*Sandbox], 
 
 // ListAll traverses pages until exhaustion, a repeated cursor, an error, or
 // caller cancellation. Breaking iteration makes no further requests.
-func (c *Client) ListAll(ctx context.Context, opts *ListOptions) iter.Seq2[*Sandbox, error] {
-	options := ListOptions{}
+func (c *Client) ListAll(ctx context.Context, opts *ListSandboxesOptions) iter.Seq2[*Sandbox, error] {
+	options := ListSandboxesOptions{}
 	if opts != nil {
 		options = *opts
 	}

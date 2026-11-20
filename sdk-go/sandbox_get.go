@@ -11,10 +11,10 @@ import (
 	"unicode/utf8"
 )
 
-// GetOptions configures a sandbox connection. ToolboxURL is an explicitly
+// GetSandboxOptions configures a sandbox connection. ToolboxURL is an explicitly
 // trusted direct URL; {sandboxId} and {sandbox_id} path placeholders are expanded.
 // AccessToken is caller-owned and is never automatically replaced.
-type GetOptions struct {
+type GetSandboxOptions struct {
 	// ToolboxURL overrides the sandbox's tools destination with a trusted URL.
 	ToolboxURL string
 	// AccessToken is an optional caller-managed sandbox token.
@@ -23,11 +23,11 @@ type GetOptions struct {
 
 // Get fetches a sandbox by ID. It validates input before making a request and
 // returns ErrNotFound for a missing sandbox.
-func (c *Client) Get(ctx context.Context, id string, opts *GetOptions) (*Sandbox, error) {
+func (c *Client) Get(ctx context.Context, id string, opts *GetSandboxOptions) (*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err
 	}
-	options := GetOptions{}
+	options := GetSandboxOptions{}
 	if opts != nil {
 		options = *opts
 	}

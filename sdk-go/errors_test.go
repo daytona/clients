@@ -78,10 +78,10 @@ func TestErrors_whenEnvelopeCarriesDetails(t *testing.T) {
 	require.Equal(t, "trace", detail.TraceID)
 	require.Equal(t, "request", detail.RequestID)
 	require.Equal(t, 1250*time.Millisecond, detail.RetryAfter)
-	require.EqualValues(t, 5, *detail.Current)
-	require.EqualValues(t, 6, *detail.Max)
-	require.EqualValues(t, 100, *detail.MaxBytes)
-	require.Equal(t, "oldest", detail.FirstAvailableCursor)
+	require.EqualValues(t, 5, *detail.Details.LimitCurrent)
+	require.EqualValues(t, 6, *detail.Details.LimitMax)
+	require.EqualValues(t, 100, *detail.Details.MaxBytes)
+	require.Equal(t, "oldest", detail.Details.FirstAvailableCursor)
 }
 
 func TestErrors_whenMediaTypeIsNotJSON(t *testing.T) {
@@ -93,7 +93,27 @@ func TestErrors_whenMediaTypeIsNotJSON(t *testing.T) {
 	// Then
 	require.ErrorIs(t, err, ErrNotFound)
 	require.NotErrorIs(t, err, ErrFileNotFound)
-	require.Equal(t, string(body), err.Error())
+	var detail *Error
+	require.ErrorAs(t, err, &detail)
+	require.Equal(t, string(body), detail.Message)
+}
+
+func TestErrorString_namesTheCodeAndStatus(t *testing.T) {
+	cases := map[string]struct {
+		err  *Error
+		want string
+	}{
+		"server error":   {&Error{Message: "image not found", Code: "IMAGE_NOT_FOUND", StatusCode: 404}, "daytona: image not found (IMAGE_NOT_FOUND, HTTP 404)"},
+		"no status":      {&Error{Message: "stream ended", Code: "CONNECTION_ERROR"}, "daytona: stream ended (CONNECTION_ERROR)"},
+		"no code":        {&Error{Message: "bad gateway", StatusCode: 502}, "daytona: bad gateway (HTTP 502)"},
+		"no message":     {&Error{Code: "GONE", StatusCode: 410}, "daytona: GONE, HTTP 410"},
+		"nothing at all": {&Error{}, "daytona: error"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.err.Error())
+		})
+	}
 }
 
 func TestCatalog_whenReferenceAddsCode(t *testing.T) {

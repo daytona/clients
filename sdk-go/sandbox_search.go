@@ -16,11 +16,11 @@ import (
 // Search returns one page and its hit count. Unlike List it never falls back
 // when search is unavailable. ErrSearchNotConfigured and ErrSearchUnavailable
 // distinguish those deployment conditions.
-func (c *Client) Search(ctx context.Context, opts *SearchOptions) (*SearchPage[*Sandbox], error) {
+func (c *Client) Search(ctx context.Context, opts *SearchSandboxesOptions) (*SearchPage[*Sandbox], error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err
 	}
-	options := SearchOptions{}
+	options := SearchSandboxesOptions{}
 	if opts != nil {
 		options = *opts
 	}
@@ -65,7 +65,7 @@ func (c *Client) searchObservations(ctx context.Context, request apiRequest) (sa
 
 // SearchAll traverses Search results lazily. The options are snapshotted at the
 // call; an error is yielded once and terminates iteration.
-func (c *Client) SearchAll(ctx context.Context, opts *SearchOptions) iter.Seq2[*Sandbox, error] {
+func (c *Client) SearchAll(ctx context.Context, opts *SearchSandboxesOptions) iter.Seq2[*Sandbox, error] {
 	options := snapshotSearchOptions(opts)
 	return paginate(ctx, options.Cursor, func(ctx context.Context, cursor string) (*Page[*Sandbox], error) {
 		pageOptions := options
@@ -78,9 +78,9 @@ func (c *Client) SearchAll(ctx context.Context, opts *SearchOptions) iter.Seq2[*
 	})
 }
 
-func snapshotSearchOptions(opts *SearchOptions) SearchOptions {
+func snapshotSearchOptions(opts *SearchSandboxesOptions) SearchSandboxesOptions {
 	if opts == nil {
-		return SearchOptions{}
+		return SearchSandboxesOptions{}
 	}
 	result := *opts
 	result.Labels = maps.Clone(opts.Labels)
@@ -124,7 +124,7 @@ func (c *Client) FindByName(ctx context.Context, name string, opts *FindByNameOp
 		}
 		headers.Set("X-Daytona-Region", region)
 	}
-	query, err := searchQuery(SearchOptions{Labels: map[string]string{"name": name}, Limit: 100})
+	query, err := searchQuery(SearchSandboxesOptions{Labels: map[string]string{"name": name}, Limit: 100})
 	if err != nil {
 		return nil, err
 	}

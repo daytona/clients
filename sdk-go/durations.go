@@ -3,7 +3,10 @@
 
 package daytona
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 const (
 	// NoWait returns after the server accepts an operation, without waiting for its outcome.
@@ -52,4 +55,41 @@ func wireMilliseconds(value time.Duration) int64 {
 		milliseconds++
 	}
 	return milliseconds
+}
+
+// checkDuration validates a caller-supplied duration option named name: zero
+// (the option's default) and positive values pass, and so does each sentinel
+// in allowed (for example NoWait, WaitForever or NoTimeout, where the option
+// documents it). Any other negative value is a BAD_REQUEST error from the SDK.
+func checkDuration(name string, value time.Duration, allowed ...time.Duration) error {
+	if value >= 0 {
+		return nil
+	}
+	for _, sentinel := range allowed {
+		if value == sentinel {
+			return nil
+		}
+	}
+	return badRequest(name + " must not be negative (" + value.String() + ")" + sentinelHint(allowed))
+}
+
+var sentinelNames = map[time.Duration]string{
+	NoWait:      "NoWait",
+	WaitForever: "WaitForever",
+	NoTimeout:   "NoTimeout",
+}
+
+func sentinelHint(allowed []time.Duration) string {
+	if len(allowed) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(allowed))
+	for _, sentinel := range allowed {
+		name, ok := sentinelNames[sentinel]
+		if !ok {
+			name = sentinel.String()
+		}
+		names = append(names, name)
+	}
+	return "; use zero for the default, a positive duration, or " + strings.Join(names, ", ")
 }

@@ -113,7 +113,7 @@ func TestGet_whenCallerInputIsInvalid(t *testing.T) {
 		_, err := client.Get(t.Context(), id, nil)
 		require.ErrorIs(t, err, ErrBadRequest)
 	}
-	for _, options := range []GetOptions{
+	for _, options := range []GetSandboxOptions{
 		{AccessToken: " padded "},
 		{AccessToken: "a\nb"},
 		{AccessToken: "é"},

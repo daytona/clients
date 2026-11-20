@@ -41,7 +41,7 @@ func TestToolbox_whenMintingOrUsingCallerToken(t *testing.T) {
 			client := newTestClient(t, fake.Server)
 			sandbox, err := client.newSandbox(sandboxInit{
 				Info: SandboxInfo{ID: "sbx"}, ToolboxURL: fake.Server.URL + "/toolbox",
-				Options: GetOptions{AccessToken: test.caller},
+				Options: GetSandboxOptions{AccessToken: test.caller},
 			})
 			require.NoError(t, err)
 			// When
@@ -145,7 +145,7 @@ func TestStream_whenBodyExceedsBufferedLimit(t *testing.T) {
 	client := newTestClient(t, fake.Server, WithMaxResponseBytes(1))
 	sandbox, err := client.newSandbox(sandboxInit{
 		Info:    SandboxInfo{ID: "sbx"},
-		Options: GetOptions{ToolboxURL: fake.Server.URL, AccessToken: "caller"},
+		Options: GetSandboxOptions{ToolboxURL: fake.Server.URL, AccessToken: "caller"},
 	})
 	require.NoError(t, err)
 	// When
@@ -178,6 +178,7 @@ func TestToolbox_whenResolvingConnectionInfo(t *testing.T) {
 	require.Equal(t, fake.Server.URL+"/toolbox/sbx", endpoint)
 	require.Equal(t, "Bearer minted", headers.Get("Authorization"))
 	require.Equal(t, "sdk-go", headers.Get("X-Daytona-Source"))
-	require.Equal(t, "minted", sandbox.Info().AccessToken)
+	token, _ := sandbox.AccessToken()
+	require.Equal(t, "minted", token)
 	require.Len(t, fake.requests(), 1)
 }

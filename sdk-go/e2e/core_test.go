@@ -43,7 +43,7 @@ func TestGetSearchAndFindByName(t *testing.T) {
 		return len(found) == 1 && found[0].ID() == id, findErr
 	})
 	eventually(ctx, t, 30*time.Second, func() (bool, error) {
-		for item, searchErr := range client.SearchAll(ctx, &daytona.SearchOptions{
+		for item, searchErr := range client.SearchAll(ctx, &daytona.SearchSandboxesOptions{
 			Labels: map[string]string{labelKey: labelValue, "name": name},
 		}) {
 			if searchErr != nil {

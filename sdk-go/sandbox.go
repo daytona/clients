@@ -28,7 +28,12 @@ type sandboxInit struct {
 	Info SandboxInfo
 	// ToolboxURL is a trusted API-provided proxy BASE, scoped once by newSandbox.
 	ToolboxURL string
-	Options    GetOptions
+	Options    GetSandboxOptions
+	// AccessToken and AccessTokenExpiresAt carry an API-issued sandbox token
+	// (a create or fork response); they are kept out of SandboxInfo so that
+	// printing metadata never prints a credential.
+	AccessToken          string
+	AccessTokenExpiresAt time.Time
 	// FromCreate permits refreshing the initial, API-issued token.
 	FromCreate bool
 }
@@ -45,16 +50,16 @@ func (c *Client) newSandbox(init sandboxInit) (*Sandbox, error) {
 	}
 	token := init.Options.AccessToken
 	if token == "" {
-		token = init.Info.AccessToken
+		token = init.AccessToken
 	}
 	sandbox.auth = &sandboxCredential{
 		sandbox: sandbox, cache: tokenCache{owner: c, now: time.Now},
 		mintable: init.Options.AccessToken == "" || init.FromCreate,
 	}
 	sandbox.auth.cache.value = cachedToken{token: token}
-	if init.FromCreate && !init.Info.AccessTokenExpiresAt.IsZero() {
-		sandbox.auth.cache.value.expiresAt = init.Info.AccessTokenExpiresAt
-		sandbox.auth.cache.value.refreshAt = init.Info.AccessTokenExpiresAt.Add(-time.Minute)
+	if init.FromCreate && !init.AccessTokenExpiresAt.IsZero() {
+		sandbox.auth.cache.value.expiresAt = init.AccessTokenExpiresAt
+		sandbox.auth.cache.value.refreshAt = init.AccessTokenExpiresAt.Add(-time.Minute)
 	}
 	sandbox.toolboxClient = &toolboxClient{sandbox: sandbox}
 	return sandbox, nil
@@ -81,13 +86,21 @@ func (s *Sandbox) State() SandboxState {
 }
 
 // Info returns an independent copy, including maps, slices and optional values.
+// It never contains a credential; see AccessToken.
 func (s *Sandbox) Info() SandboxInfo {
 	s.mu.RLock()
-	info := cloneSandboxInfo(s.info)
-	s.mu.RUnlock()
-	token := s.auth.cache.snapshot()
-	info.AccessToken, info.AccessTokenExpiresAt = token.token, token.expiresAt
-	return info
+	defer s.mu.RUnlock()
+	return cloneSandboxInfo(s.info)
+}
+
+// AccessToken returns the sandbox access token the handle currently holds and
+// when it expires (zero when unknown). The token is a credential for this
+// sandbox's toolbox: never log or print it. It is empty until the API issued
+// one or GetSandboxOptions supplied one; the SDK mints and refreshes it as
+// needed when the handle calls the toolbox.
+func (s *Sandbox) AccessToken() (token string, expiresAt time.Time) {
+	current := s.auth.cache.snapshot()
+	return current.token, current.expiresAt
 }
 
 // Refresh reloads metadata. It returns ErrNotFound if the sandbox no longer

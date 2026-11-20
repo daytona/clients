@@ -50,10 +50,6 @@ type SandboxInfo struct {
 	ReservationID string
 	// ImageBuildID identifies the associated image build.
 	ImageBuildID string
-	// AccessToken is the sensitive sandbox credential currently held by the handle.
-	AccessToken string
-	// AccessTokenExpiresAt is zero when expiry is not known.
-	AccessTokenExpiresAt time.Time
 	// CreatedAt is the creation timestamp, or zero when absent.
 	CreatedAt time.Time
 	// UpdatedAt is the update timestamp, or zero when absent.

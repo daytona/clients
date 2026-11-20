@@ -5,11 +5,11 @@ package daytona
 
 import "time"
 
-// SearchOptions filters sandboxes. Filters combine with AND; values within
+// SearchSandboxesOptions filters sandboxes. Filters combine with AND; values within
 // States, Classes and Regions combine with OR. Nil slices/maps omit filters;
 // explicit empty ones are invalid. Memory/disk bounds are MiB, CPU bounds cores.
 // Zero timestamps omit bounds; starts are inclusive and ends exclusive.
-type SearchOptions struct {
+type SearchSandboxesOptions struct {
 	// Q is free text or an exact ID.
 	Q string
 	// NamePrefix filters by name prefix.

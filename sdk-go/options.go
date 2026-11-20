@@ -65,8 +65,8 @@ func WithProjectID(id string) Option {
 // it. Transfers use this duration as an idle timeout instead.
 func WithRequestTimeout(timeout time.Duration) Option {
 	return func(c *clientConfig) error {
-		if timeout < 0 && timeout != NoTimeout {
-			return badRequest("requestTimeout must be a non-negative duration or NoTimeout")
+		if err := checkDuration("WithRequestTimeout", timeout, NoTimeout); err != nil {
+			return err
 		}
 		if timeout != 0 {
 			c.timeout = boundedTimeout(timeout)
@@ -116,8 +116,11 @@ func WithLogger(logger *slog.Logger) Option {
 // WithSandboxEvents configures state subscriptions. Configuration is copied.
 func WithSandboxEvents(events SandboxEventsConfig) Option {
 	return func(c *clientConfig) error {
-		if events.ReconcileInterval < 0 || (events.IdleClose < 0 && events.IdleClose != NoTimeout) {
-			return badRequest("events durations must be non-negative (IdleClose also accepts NoTimeout)")
+		if err := checkDuration("SandboxEventsConfig.ReconcileInterval", events.ReconcileInterval); err != nil {
+			return err
+		}
+		if err := checkDuration("SandboxEventsConfig.IdleClose", events.IdleClose, NoTimeout); err != nil {
+			return err
 		}
 		c.events = events
 		if events.Enabled != nil {

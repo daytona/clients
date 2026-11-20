@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 )
 
-func searchQuery(options SearchOptions) (url.Values, error) {
+func searchQuery(options SearchSandboxesOptions) (url.Values, error) {
 	query, err := pageQuery(options.Cursor, options.Limit)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func searchQuery(options SearchOptions) (url.Values, error) {
 	return query, nil
 }
 
-func searchSequences(query url.Values, options SearchOptions) error {
+func searchSequences(query url.Values, options SearchSandboxesOptions) error {
 	if options.States != nil {
 		wire, err := stateFilter(options.States)
 		if err != nil {
@@ -116,7 +116,7 @@ func stateFilter(states []SandboxState) (string, error) {
 	return strings.Join(wire, ","), nil
 }
 
-func searchBounds(query url.Values, options SearchOptions) error {
+func searchBounds(query url.Values, options SearchSandboxesOptions) error {
 	for name, value := range map[string]*float64{"min_cores": options.MinCores, "max_cores": options.MaxCores} {
 		if value == nil {
 			continue
@@ -155,7 +155,7 @@ func searchBounds(query url.Values, options SearchOptions) error {
 	return nil
 }
 
-func searchOrdering(query url.Values, options SearchOptions) error {
+func searchOrdering(query url.Values, options SearchSandboxesOptions) error {
 	switch options.Sort {
 	case "":
 	case SearchSortCreatedAt, SearchSortUpdatedAt, SearchSortLastActivityAt, SearchSortName,

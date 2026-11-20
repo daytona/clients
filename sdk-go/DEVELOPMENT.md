@@ -159,9 +159,19 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
 - `c.newSandbox(sandboxInit{Info: info, ToolboxURL: proxyBase})` constructs a
   handle for create/fork workers. `ToolboxURL` is an API-trusted **unscoped base**.
   `Info` is copied; `Options.ToolboxURL` is a trusted direct override. For
-  API-issued initial access tokens set `FromCreate: true`, `Info.AccessToken`
-  and `Info.AccessTokenExpiresAt`; caller tokens are never automatically minted
+  API-issued initial access tokens set `FromCreate: true`, `AccessToken`
+  and `AccessTokenExpiresAt` on `sandboxInit` (never on `SandboxInfo`, which
+  must stay printable without leaking a credential); caller tokens are never automatically minted
   over. `Refresh` updates observations but preserves a direct URL override.
+- `checkDuration(name, value, allowed...)` validates a caller duration option:
+  zero (the default) and positive values pass, each sentinel listed in
+  `allowed` (`NoWait`, `WaitForever`, `NoTimeout`) passes, any other negative
+  value is a `BAD_REQUEST` from the SDK naming the option. Call it for every
+  `time.Duration` a caller passes, before any request.
+- `*Error` keeps the identification fields; per-code server data lives in
+  `Error.Details` (`ErrorDetails`). `Error()` prints
+  `daytona: <message> (<code>, HTTP <status>)`; `Message` is the explanation
+  alone (server text verbatim), for parity with the other SDKs.
 - `wireSeconds` and `wireMilliseconds` round positive durations upward;
   `boundedTimeout` treats a budget above 2,147,483.647 seconds as unbounded.
   Zero is the public option default; `NoWait`, `WaitForever`, `NoTimeout` and

@@ -74,3 +74,29 @@ func TestRequestScope_whenOpeningTimerIsDisarmed(t *testing.T) {
 		require.ErrorIs(t, context.Cause(scope.ctx), ErrClientClosed)
 	})
 }
+
+func TestCheckDuration(t *testing.T) {
+	cases := map[string]struct {
+		value   time.Duration
+		allowed []time.Duration
+		ok      bool
+	}{
+		"zero is the default":        {0, nil, true},
+		"positive":                   {time.Second, nil, true},
+		"allowed sentinel":           {NoWait, []time.Duration{NoWait}, true},
+		"sentinel not allowed here":  {NoTimeout, []time.Duration{NoWait}, false},
+		"other negative":             {-5 * time.Second, []time.Duration{NoWait, WaitForever}, false},
+		"negative without sentinels": {-time.Nanosecond, nil, false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := checkDuration("Wait", tc.value, tc.allowed...)
+			if tc.ok {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, ErrBadRequest)
+			require.Contains(t, err.Error(), "Wait must not be negative")
+		})
+	}
+}

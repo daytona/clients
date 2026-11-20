@@ -22,7 +22,7 @@ func TestSearch_whenAllFiltersAreSet(t *testing.T) {
 	minCores, maxCores, spot, minMemory, maxMemory, minDisk, maxDisk := 0.5, 2.0, false, int64(0), int64(2048), int64(1), int64(4096)
 	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.FixedZone("offset", 3600))
 	// When
-	page, err := client.Search(t.Context(), &SearchOptions{
+	page, err := client.Search(t.Context(), &SearchSandboxesOptions{
 		Q: "query", NamePrefix: "name", IDPrefix: "id", States: []SandboxState{SandboxStateCreating, SandboxStateError},
 		Classes: []SandboxClass{SandboxClassLinux}, Regions: []string{"a", "b"}, ImageRef: "image", ImageRefPrefix: "prefix",
 		Labels: map[string]string{"team": "sdk"}, Spot: &spot, ForkedFrom: "parent", MinCores: &minCores, MaxCores: &maxCores,
@@ -52,7 +52,7 @@ func TestSearch_whenInvalidOptionsArePassed(t *testing.T) {
 	fake := newFakeServer(t, nil)
 	client := newTestClient(t, fake.Server)
 	nan, unsafe := math.NaN(), int64(maxSafeInteger+1)
-	for _, options := range []SearchOptions{
+	for _, options := range []SearchSandboxesOptions{
 		{States: []SandboxState{}},
 		{States: []SandboxState{SandboxStateUnknown}},
 		{Classes: []SandboxClass{}},
