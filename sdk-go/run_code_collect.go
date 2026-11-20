@@ -97,6 +97,9 @@ func (s *Interpreter) streamCode(
 
 func (o *runCodeOutput) stream(ctx context.Context, handle *ProcessHandle) (bool, error) {
 	for event, err := range handle.StreamLogs(ctx, nil) {
+		if ctx.Err() != nil {
+			return false, transportError(ctx, ctx.Err())
+		}
 		if err != nil {
 			return false, err
 		}
