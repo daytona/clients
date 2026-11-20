@@ -19,15 +19,22 @@ func searchQuery(options SearchSandboxesOptions) (url.Values, error) {
 	if err != nil {
 		return nil, err
 	}
-	for name, value := range map[string]string{
-		"q": options.Q, "name_prefix": options.NamePrefix, "id_prefix": options.IDPrefix,
-		"image_ref": options.ImageRef, "image_ref_prefix": options.ImageRefPrefix, "forked_from": options.ForkedFrom,
+	for _, entry := range []struct {
+		name  string
+		value string
+	}{
+		{"q", options.Q},
+		{"name_prefix", options.NamePrefix},
+		{"id_prefix", options.IDPrefix},
+		{"image_ref", options.ImageRef},
+		{"image_ref_prefix", options.ImageRefPrefix},
+		{"forked_from", options.ForkedFrom},
 	} {
-		if !utf8.ValidString(value) {
-			return nil, badRequest(name + " must be valid UTF-8")
+		if !utf8.ValidString(entry.value) {
+			return nil, badRequest(entry.name + " must be valid UTF-8")
 		}
-		if value != "" {
-			query.Set(name, value)
+		if entry.value != "" {
+			query.Set(entry.name, entry.value)
 		}
 	}
 	if fieldErr := searchSequences(query, options); fieldErr != nil {
@@ -117,40 +124,56 @@ func stateFilter(states []SandboxState) (string, error) {
 }
 
 func searchBounds(query url.Values, options SearchSandboxesOptions) error {
-	for name, value := range map[string]*float64{"min_cores": options.MinCores, "max_cores": options.MaxCores} {
-		if value == nil {
-			continue
-		}
-		if math.IsInf(*value, 0) || math.IsNaN(*value) {
-			return badRequest(name + " must be finite")
-		}
-		query.Set(name, strconv.FormatFloat(*value, 'g', -1, 64))
-	}
-	for name, value := range map[string]*int64{
-		"min_memory_mib": options.MinMemoryMiB, "max_memory_mib": options.MaxMemoryMiB,
-		"min_disk_mib": options.MinDiskMiB, "max_disk_mib": options.MaxDiskMiB,
+	for _, entry := range []struct {
+		name  string
+		value *float64
+	}{
+		{"min_cores", options.MinCores}, {"max_cores", options.MaxCores},
 	} {
-		if value == nil {
+		if entry.value == nil {
 			continue
 		}
-		if *value > maxSafeInteger || *value < -maxSafeInteger {
-			return badRequest(name + " must be a safe integer")
+		if math.IsInf(*entry.value, 0) || math.IsNaN(*entry.value) {
+			return badRequest(entry.name + " must be finite")
 		}
-		query.Set(name, strconv.FormatInt(*value, 10))
+		query.Set(entry.name, strconv.FormatFloat(*entry.value, 'g', -1, 64))
 	}
-	for name, value := range map[string]time.Time{
-		"created_start_at": options.CreatedStartAt, "created_end_at": options.CreatedEndAt,
-		"updated_start_at": options.UpdatedStartAt, "updated_end_at": options.UpdatedEndAt,
-		"last_activity_start_at": options.LastActivityStartAt, "last_activity_end_at": options.LastActivityEndAt,
+	for _, entry := range []struct {
+		name  string
+		value *int64
+	}{
+		{"min_memory_mib", options.MinMemoryMiB},
+		{"max_memory_mib", options.MaxMemoryMiB},
+		{"min_disk_mib", options.MinDiskMiB},
+		{"max_disk_mib", options.MaxDiskMiB},
 	} {
-		if value.IsZero() {
+		if entry.value == nil {
 			continue
 		}
-		utc := value.UTC()
+		if *entry.value > maxSafeInteger || *entry.value < -maxSafeInteger {
+			return badRequest(entry.name + " must be a safe integer")
+		}
+		query.Set(entry.name, strconv.FormatInt(*entry.value, 10))
+	}
+	for _, entry := range []struct {
+		name  string
+		value time.Time
+	}{
+		{"created_start_at", options.CreatedStartAt},
+		{"created_end_at", options.CreatedEndAt},
+		{"updated_start_at", options.UpdatedStartAt},
+		{"updated_end_at", options.UpdatedEndAt},
+		{"last_activity_start_at", options.LastActivityStartAt},
+		{"last_activity_end_at", options.LastActivityEndAt},
+	} {
+		if entry.value.IsZero() {
+			continue
+		}
+		utc := entry.value.UTC()
 		if utc.Year() < 1 || utc.Year() > 9999 {
-			return badRequest(name + " must be in years 0001-9999")
+			return badRequest(entry.name + " must be in years 0001-9999")
 		}
-		query.Set(name, utc.Format(time.RFC3339Nano))
+		query.Set(entry.name, utc.Format(time.RFC3339Nano))
 	}
 	return nil
 }
