@@ -19,9 +19,9 @@ on:
         description: 'NPM package version (empty: skip TypeScript SDK publish)'
         required: false
       npm_tag:
-        description: 'NPM tag (default: latest)'
+        description: 'NPM dist-tag. 0.x releases use v0-latest: npm latest belongs to the 2.x SDK'
         required: false
-        default: latest
+        default: v0-latest
       rubygems_pkg_version:
         description: 'RubyGems package version (empty: skip Ruby SDK publish)'
         required: false

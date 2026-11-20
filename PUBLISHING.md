@@ -90,7 +90,7 @@ The repository includes a GitHub Actions workflow for automated publishing: `.gi
    - **pypi_pkg_version**: (Optional) Override PyPI version
    - **npm_pkg_version**: (Optional) Override npm version
    - **rubygems_pkg_version**: (Optional) Override RubyGems version
-   - **npm_tag**: npm dist-tag (default: `latest`; see [Release Branches](#release-branches) for maintenance releases)
+   - **npm_tag**: npm dist-tag (default: `v0-latest`, because npm `latest` belongs to the 2.x SDK; see [Release Branches](#release-branches))
 
 #### Required Secrets
 
