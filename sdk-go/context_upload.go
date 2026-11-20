@@ -109,9 +109,6 @@ func (u *contextUploader) upload(ctx context.Context, region string) (buildConte
 	if declaration.ready {
 		return declaration.upload, nil
 	}
-	if _, err = pathSegment(declaration.upload.ID); err != nil {
-		return buildContextUpload{}, badRequest("build context upload response has an invalid id")
-	}
 	parts, err := contextUploadLayout(declaration.parts, u.archive.Size)
 	if err != nil {
 		return buildContextUpload{}, err

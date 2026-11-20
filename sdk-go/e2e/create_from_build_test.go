@@ -18,9 +18,9 @@ import (
 
 func TestCreateFromBuild(t *testing.T) {
 	// Given a tiny Python image build and a labelled sandbox.
-	client := newClient(t)
+	client := newBuildClient(t)
 	ctx := testContext(t)
-	builder := daytona.NewImageBuilder("python:3.12-slim").PipInstall("six==1.17.0")
+	builder := daytona.NewImageBuilder(smokeImage()).PipInstall("six==1.17.0")
 
 	// When building and booting with separate readiness and create budgets.
 	sandbox, err := client.CreateFromBuild(ctx, builder, &daytona.CreateFromBuildOptions{
@@ -51,9 +51,12 @@ func TestCreateFromBuild(t *testing.T) {
 	require.Equal(t, daytona.SandboxStateStarted, sandbox.State())
 
 	// Then the sandbox runs the package installed by the build.
-	result, execErr := sandbox.Exec(ctx, `python3 -c "import six; print(six.__version__)"`, nil)
-	require.NoError(t, execErr)
-	require.Equal(t, "1.17.0\n", result.Stdout)
-	require.NotNil(t, result.ExitCode)
-	require.Zero(t, *result.ExitCode)
+	t.Run("toolbox", func(t *testing.T) {
+		requireToolbox(t)
+		result, execErr := sandbox.Exec(ctx, `python3 -c "import six; print(six.__version__)"`, nil)
+		require.NoError(t, execErr)
+		require.Equal(t, "1.17.0\n", result.Stdout)
+		require.NotNil(t, result.ExitCode)
+		require.Zero(t, *result.ExitCode)
+	})
 }

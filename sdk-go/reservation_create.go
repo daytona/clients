@@ -65,7 +65,7 @@ func (s *Reservations) CreateBulk(
 		return nil, badRequest("count must be an integer from 1 to 100")
 	}
 	if options.MinCount < 0 || options.MinCount > count {
-		return nil, badRequest("minCount must be an integer from 1 to count")
+		return nil, badRequest("MinCount must be an integer from 1 to count")
 	}
 	key, err := reservationKey(options.IdempotencyKey)
 	if err != nil {
@@ -112,7 +112,7 @@ func reservationKey(key string) (string, error) {
 	if key == "" {
 		return rand.Text(), nil
 	}
-	if err := headerText(key, "idempotencyKey"); err != nil {
+	if err := headerText(key, "IdempotencyKey"); err != nil {
 		return "", err
 	}
 	return key, nil

@@ -38,6 +38,9 @@ func parseContextUpload(raw json.RawMessage) (contextUploadDeclaration, error) {
 	if err != nil {
 		return declaration, err
 	}
+	if err = checkResponseID(id); err != nil {
+		return declaration, err
+	}
 	region, err := contextUploadText(object, "region_id")
 	if err != nil {
 		return declaration, err

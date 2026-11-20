@@ -16,7 +16,7 @@ import (
 
 func TestComputerUseDesktop(t *testing.T) {
 	// Given
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-computeruse"))
 	sandbox, err := client.Get(ctx, id, nil)

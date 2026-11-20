@@ -107,16 +107,16 @@ func (s *Secrets) Set(ctx context.Context, name, value string, opts *SetSecretOp
 		return nil, badRequest("value must be a non-empty UTF-8 string")
 	}
 	if opts == nil || len(opts.AllowedDomains) == 0 {
-		return nil, badRequest("allowedDomains must not be empty")
+		return nil, badRequest("AllowedDomains must not be empty")
 	}
 	options := *opts
 	domains := slices.Clone(options.AllowedDomains)
 	if slices.ContainsFunc(domains, func(domain string) bool { return !utf8.ValidString(domain) }) {
-		return nil, badRequest("allowedDomains must contain UTF-8 strings")
+		return nil, badRequest("AllowedDomains must contain UTF-8 strings")
 	}
 	description := options.Description
 	if description != nil && !utf8.ValidString(*description) {
-		return nil, badRequest("description must be a UTF-8 string")
+		return nil, badRequest("Description must be a UTF-8 string")
 	}
 	if description == nil && !options.IfNotExists {
 		description, err = s.storedDescription(ctx, name)

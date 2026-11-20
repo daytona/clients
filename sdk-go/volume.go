@@ -125,10 +125,10 @@ func (v *Volumes) Create(ctx context.Context, name string, opts *CreateVolumeOpt
 	case VolumeTypeUnknown:
 		fallthrough
 	default:
-		return nil, badRequest("type must be disk or bucket")
+		return nil, badRequest("Type must be disk or bucket")
 	}
 	if options.SizeGiB < 0 || options.SizeGiB > math.MaxInt32 {
-		return nil, badRequest("sizeGiB must be a positive integer up to 2147483647, or zero for default")
+		return nil, badRequest("SizeGiB must be a positive integer up to 2147483647, or zero for default")
 	}
 	body := struct {
 		Name    string     `json:"name"`

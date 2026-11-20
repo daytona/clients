@@ -18,13 +18,13 @@ import (
 
 func TestImagesBuildContextReader(t *testing.T) {
 	// Given an archive assembled in memory, with no caller-owned context path.
-	client := newClient(t)
+	client := newBuildClient(t)
 	ctx := testContext(t)
 	name := uniqueName(t, "gosdk-e2e-reader")
 	cleanupImage(t, client, name)
 	var archive bytes.Buffer
 	writer := tar.NewWriter(&archive)
-	dockerfile := []byte("FROM alpine:3.22\nRUN printf 'reader context\\n' > /message.txt\n")
+	dockerfile := []byte("FROM " + smokeImage() + "\nRUN printf 'reader context\\n' > /message.txt\n")
 	require.NoError(t, writer.WriteHeader(&tar.Header{Name: "Dockerfile", Mode: 0o644, Size: int64(len(dockerfile))}))
 	_, err := writer.Write(dockerfile)
 	require.NoError(t, err)

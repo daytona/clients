@@ -148,7 +148,7 @@ func imageAcknowledgedID(raw JSONValue) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err = pathSegment(id); err != nil {
+	if err = checkResponseID(id); err != nil {
 		return "", err
 	}
 	return id, nil

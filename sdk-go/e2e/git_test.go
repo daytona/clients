@@ -59,7 +59,7 @@ const gitLivePath = "/tmp/gosdk-git-repo"
 
 func gitLiveRepository(t *testing.T) (*daytona.Git, context.Context, string) {
 	t.Helper()
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-git"))
 	sandbox, err := client.Get(ctx, id, nil)
@@ -77,7 +77,7 @@ func gitLiveRepository(t *testing.T) (*daytona.Git, context.Context, string) {
 
 func TestDockerReadinessLive(t *testing.T) {
 	// Given
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-git-docker"))
 	sandbox, err := client.Get(ctx, id, nil)
@@ -105,7 +105,7 @@ func TestDockerReadinessLive(t *testing.T) {
 
 func TestSandboxVolumePullLive(t *testing.T) {
 	// Given: a bucket volume attached to a fresh sandbox.
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	name := uniqueName(t, "gosdk-git-volume")
 	volumeBody, err := json.Marshal(map[string]string{"name": name, "type": "bucket"})

@@ -21,7 +21,7 @@ func (closedProcessOutput) Write([]byte) (int, error) { return 0, syscall.EPIPE 
 
 func TestProcessOutputFailureLive(t *testing.T) {
 	// Given a running sandbox and a caller whose output pipe is closed.
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-output-failure"))
 	sandbox, err := client.Get(ctx, id, nil)
@@ -45,7 +45,7 @@ func TestProcessOutputFailureLive(t *testing.T) {
 
 func TestInterpreterOutputFailureLive(t *testing.T) {
 	// Given an interpreter cell whose output destination is a closed pipe.
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-cell-output-failure"))
 	sandbox, err := client.Get(ctx, id, nil)

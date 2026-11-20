@@ -95,7 +95,7 @@ func portsExecRaw(t *testing.T, ctx context.Context, sandboxID, command string) 
 
 func TestPortsLive(t *testing.T) {
 	// Given: a server bound to port 8080 in a uniquely named, cleanup-owned sandbox.
-	client := newClient(t)
+	client := newToolboxClient(t)
 	ctx := testContext(t)
 	id := rawSandbox(t, uniqueName(t, "gosdk-ports"))
 	sandbox, err := client.Get(ctx, id, nil)

@@ -22,11 +22,11 @@ import (
 
 func TestImagesBuildLifecycle(t *testing.T) {
 	// Given a reusable Python image with a tiny package.
-	client := newClient(t)
+	client := newBuildClient(t)
 	ctx := testContext(t)
 	name := uniqueName(t, "gosdk-e2e-images")
 	cleanupImage(t, client, name)
-	builder := daytona.NewImageBuilder("python:3.12-slim").PipInstall("six==1.17.0")
+	builder := daytona.NewImageBuilder(smokeImage()).PipInstall("six==1.17.0")
 
 	// When building and starting a sandbox from the resulting image.
 	image, err := client.Images().BuildAndWait(ctx, builder, &daytona.BuildImageWaitOptions{
@@ -70,13 +70,13 @@ func TestImagesBuildLifecycle(t *testing.T) {
 
 func TestImagesBuildContext(t *testing.T) {
 	// Given a directory context, including a file copied into the image.
-	client := newClient(t)
+	client := newBuildClient(t)
 	ctx := testContext(t)
 	name := uniqueName(t, "gosdk-e2e-context")
 	cleanupImage(t, client, name)
 	directory := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "Dockerfile"),
-		[]byte("FROM alpine:3.22\nCOPY message.txt /message.txt\n"), 0o600))
+		[]byte("FROM "+smokeImage()+"\nCOPY message.txt /message.txt\n"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(directory, "message.txt"), []byte("context upload\n"), 0o600))
 
 	// When building from that context.
