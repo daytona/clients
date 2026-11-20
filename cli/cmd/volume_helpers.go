@@ -16,6 +16,7 @@ import (
 type volumeBucketCredentialsView struct {
 	AccessKeySecret string `json:"access_key_secret"`
 	SecretKeySecret string `json:"secret_key_secret"`
+	RoleArn         string `json:"role_arn"`
 }
 
 type volumeBucketOptionsView struct {
@@ -52,6 +53,7 @@ func volumeKV(volume gen.Volume) [][2]string {
 		[2]string{"bucket_prefix", formatPtr(volumeBucketPrefix(bucket))},
 		[2]string{"bucket_access_key_secret", volumeBucketAccessKeySecret(bucket)},
 		[2]string{"bucket_secret_key_secret", volumeBucketSecretKeySecret(bucket)},
+		[2]string{"bucket_role_arn", volumeBucketRoleArn(bucket)},
 	)
 }
 
@@ -78,16 +80,30 @@ func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 	if req.Bucket.Origin != nil && *req.Bucket.Origin != "external" {
 		return cerr.Usage("bucket.origin must be \"external\" (a platform-owned bucket is requested by omitting the bucket object)")
 	}
-	// Customer buckets require both project secret names.
+	// A customer bucket needs both project secret names, or an IAM role.
 	if req.Bucket.Credentials == nil {
-		return cerr.Usage("a customer bucket needs --access-key-secret and --secret-key-secret (project secret names)")
+		return cerr.Usage("a customer bucket needs --access-key-secret and --secret-key-secret (project secret names), or --role-arn")
 	}
-	hasAccessKey := strings.TrimSpace(req.Bucket.Credentials.AccessKeySecret) != ""
-	hasSecretKey := strings.TrimSpace(req.Bucket.Credentials.SecretKeySecret) != ""
+	creds := req.Bucket.Credentials
+	hasAccessKey := strings.TrimSpace(ptrValue(creds.AccessKeySecret)) != ""
+	hasSecretKey := strings.TrimSpace(ptrValue(creds.SecretKeySecret)) != ""
+	if strings.TrimSpace(ptrValue(creds.RoleArn)) != "" {
+		if hasAccessKey || hasSecretKey {
+			return cerr.Usage("--role-arn replaces --access-key-secret and --secret-key-secret; pass one or the other")
+		}
+		return nil
+	}
 	if !hasAccessKey || !hasSecretKey {
 		return cerr.Usage("--access-key-secret and --secret-key-secret are required together")
 	}
 	return nil
+}
+
+func ptrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // volumeType is the type the request names, "" when it leaves the choice to the server.
@@ -160,4 +176,11 @@ func volumeBucketSecretKeySecret(bucket *volumeBucketOptionsView) string {
 		return ""
 	}
 	return bucket.Credentials.SecretKeySecret
+}
+
+func volumeBucketRoleArn(bucket *volumeBucketOptionsView) string {
+	if bucket == nil || bucket.Credentials == nil {
+		return ""
+	}
+	return bucket.Credentials.RoleArn
 }
