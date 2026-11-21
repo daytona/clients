@@ -970,7 +970,9 @@ milliseconds; `type` is `"create"`, `"write"`, `"remove"`, `"rename"`,
 a time and are awaited. A failing `on_event` or `on_overflow` ends the watch
 with that error, which `exit_error` / `wait_for_exit()` report and `on_exit`
 receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
-`ConnectionError`. `on_exit` runs exactly once for a watch `watch_dir()`
+`ConnectionError`; one whose directory is deleted ends without an error, after a
+last `remove` event with an empty `name`, where the sandbox reports the removal.
+`on_exit` runs exactly once for a watch `watch_dir()`
 returned; a failure before the watch starts (a refused connection, an HTTP
 error, a stream that ends before `start`) is raised from `watch_dir()` and
 does not call it. `stop()` returns once a callback that is already running,

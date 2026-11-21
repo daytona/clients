@@ -806,7 +806,11 @@ skipping exist only in the TypeScript tool).
   data, and a known one whose data is not JSON is the malformed-response
   error; an SSE block without a `data:` line, or an unterminated final one,
   dispatches nothing. A watch whose stream ends on its own (or is cut short)
-  ends with `ConnectionError` (source `SDK`), and a close failure after the
+  ends with `ConnectionError` (source `SDK`), except when the last listed
+  event was the watched directory's own removal (`type` `remove`, empty
+  `name`, a directory): the sandbox ends the stream after it, and the watch
+  then ends without an error, as after `stop()`; a stream cut short after
+  that event is still the error. A close failure after the
   caller's own `stop()` is not an exit error. The exit callback belongs to a
   watch `watch_dir()` / `watchDir()` returned and runs exactly once; any
   failure before that call returns (a refused connection, an HTTP error, a

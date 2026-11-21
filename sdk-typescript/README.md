@@ -898,7 +898,9 @@ later sandbox adds, passed through as its string).
 Callbacks may return promises; they run one at a time and are awaited. A
 failing `onEvent` or `onOverflow` ends the watch with that error, which
 `exitError` / `waitForExit()` report and `onExit` receives; a failing `onExit`
-is ignored. A watch whose stream drops ends with `ConnectionError`. `onExit`
+is ignored. A watch whose stream drops ends with `ConnectionError`; one whose
+directory is deleted ends without an error, after a last `remove` event with an
+empty `name`, where the sandbox reports the removal. `onExit`
 runs exactly once for a watch `watchDir()` returned; a failure before the
 watch starts (a refused connection, an HTTP error, a stream that ends before
 `start`) rejects `watchDir()` and does not call it. `stop()` resolves once a

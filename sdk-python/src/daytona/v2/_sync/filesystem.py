@@ -212,7 +212,10 @@ class FileSystemService:
         time, in order.
         A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
-        when the watch ends, and its own failure is ignored. A failure before
+        when the watch ends, and its own failure is ignored. Deleting the
+        watched directory ends the watch without an error, after a last
+        ``remove`` event whose ``name`` is empty, where the sandbox reports
+        it. A failure before
         the watch starts is raised from this call and does not call ``on_exit``;
         a stream that sends more than 4096 events, or more than 1 MiB, before
         ``start`` is one (``BadRequestError``). After ``start`` an event larger
