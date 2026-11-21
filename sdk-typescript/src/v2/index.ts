@@ -47,6 +47,24 @@ export type {
   RestoreOptions,
 } from './Git.js'
 export { InterpreterContext, InterpreterService } from './Interpreter.js'
+export type {
+  BarChart,
+  BoxAndWhiskerChart,
+  Chart,
+  ChartBar,
+  ChartBox,
+  ChartOrientation,
+  ChartPieSlice,
+  ChartScale,
+  ChartSeries,
+  ChartType,
+  ChartValue,
+  CompositeChart,
+  LineChart,
+  PieChart,
+  ScatterChart,
+  UnknownChart,
+} from './charts.js'
 export { ComputerUseService } from './ComputerUse.js'
 export {
   AddonProcessesService,

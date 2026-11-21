@@ -35,7 +35,8 @@ examples/
 │   ├── examples.test.ts      offline tests (fake client, see test-support/)
 │   ├── pagination/index.ts
 │   ├── volumes/index.ts
-│   └── secrets-env/index.ts
+│   ├── secrets-env/index.ts
+│   └── charts/index.ts
 ├── python/
 │   ├── _common.py            shared client/env helpers
 │   ├── exec_command.py
@@ -51,6 +52,7 @@ examples/
 │   ├── pagination.py
 │   ├── volumes.py
 │   ├── secrets_env.py
+│   ├── charts.py
 │   └── test_examples.py      offline tests (fake client)
 ├── volumes_share.{ts,py}     persistent-volume round-trip (see below)
 └── run-examples.sh           run all examples (or `check` them statically)
@@ -63,6 +65,7 @@ The examples exercise the V2 SDK surface in both languages.
 | Area | Example | Notes |
 |---|---|---|
 | process | `exec-command` | ✅ `process.run()` plus `interpreter.run()` code execution. |
+| charts | `charts` | ✅ Draws a matplotlib figure with two subplots in `interpreter.run()`, reads each subplot's data from `result.charts`, and takes the figure's image from the output that carries its chart (`png`, present when an image was captured). Installs matplotlib with pip, so the sandbox needs to reach the package index. Needs a deployment whose sandboxes return chart data: an older one returns only the image, and the example fails. |
 | files | `file-operations` | ✅ `fs.*` single-file upload, list, search, replace and download. |
 | git | `git` | ✅ clone/add/commit/branches/status/push/pull. |
 | lifecycle | `lifecycle` | ✅ create/get/list/run/delete. |
@@ -124,7 +127,7 @@ DAYTONA_RUN_VOLUMES=1 DAYTONA_API_KEY=dtn_... ./run-examples.sh
 `tsc --noEmit` and `mypy --strict` over every example, plus offline tests
 (`typescript/examples.test.ts`, `python/test_examples.py`) that run the
 exec-command, file-operations, git, lifecycle, secrets-env, dynamic-build, local-files,
-build-logs and volumes-share examples (and the Python dockerfile-sandbox)
+charts, build-logs and volumes-share examples (and the Python dockerfile-sandbox)
 against a fake client and check their exit codes and cleanup. CI runs the same
 command (`Examples CI`). `check` uses `../sdk-python/.venv` when it exists, so
 install the SDK's dev extras there:

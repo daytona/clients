@@ -253,7 +253,8 @@ class ProcessService:
         The common case is one round trip: the sandbox starts the process, holds
         the request until it exits (or ``timeout`` expires), and returns the
         output inline. A process that outlives the wait window or produces more
-        output than fits in one page falls back to split calls automatically.
+        output than fits in one page falls back to split calls automatically,
+        reading on after the inline page.
 
         The result holds the output available when the call returns:
         its per-process log is bounded, so very large output loses its oldest

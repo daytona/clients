@@ -31,6 +31,7 @@ from typing import (
 from typing_extensions import NotRequired, Required, Self
 
 from . import _gen
+from .charts import Chart
 from .errors import create_error
 
 MacReservationStatus = Literal[
@@ -1392,6 +1393,9 @@ class InterpreterOutput:
     png: Optional[str] = None
     svg: Optional[str] = None
     json: Optional[JsonValue] = None
+    chart: Optional[Chart] = None
+    """The data of the matplotlib figure this output shows (its image, when one
+    was captured, is ``png``); ``None`` for any other output."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1402,6 +1406,8 @@ class InterpreterResult:
     results: tuple[InterpreterOutput, ...] = ()
     logs: InterpreterLogs = field(default_factory=InterpreterLogs)
     error: Optional[InterpreterError] = None
+    charts: tuple[Chart, ...] = ()
+    """Every chart in ``results``, in order: the figures the run displayed."""
 
 
 @dataclass(frozen=True, slots=True)

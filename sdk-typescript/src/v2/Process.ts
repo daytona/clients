@@ -128,7 +128,8 @@ export class ProcessService {
    * Run a command, wait for its shell to exit, and collect its output.
    *
    * Normally one round trip: starts, waits, and returns inline logs. Larger
-   * output or a process outliving the wait window falls back to split calls.
+   * output or a process outliving the wait window falls back to split calls,
+   * reading on after the inline page.
    * Output is bounded by per-process retention; a timed-out result collects
    * only the first few log pages rather than chasing a live writer.
    *

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping
-from typing import AsyncIterator, List, Optional, Sequence, Union
+from typing import AsyncIterator, List, Optional, Sequence, Set, Union
 
 from . import _clock
 from . import _codes as codes
@@ -39,7 +39,14 @@ from ._core import (
     wait_spec,
 )
 from ._transport import AsyncTransport
-from .errors import ClientTimeoutError, ConnectionError, DaytonaError, UnsupportedOperationError, create_error
+from .errors import (
+    ClientTimeoutError,
+    ConnectionError,
+    CursorExpiredError,
+    DaytonaError,
+    UnsupportedOperationError,
+    create_error,
+)
 from .session import AsyncSession
 from .session import _require_id as _require_session_id
 from .types import (
@@ -157,14 +164,44 @@ def _started_process_kind(reported: ProcessReportedKind, requested: ProcessKind)
 TIMED_OUT_LOG_PAGE_LIMIT = 8
 
 
-async def _all_logs(handle: AsyncProcessHandle, *, max_pages: Optional[int] = None) -> List[LogFrame]:
+async def _all_logs(
+    handle: AsyncProcessHandle, *, max_pages: Optional[int] = None, first: Optional[LogPage] = None
+) -> List[LogFrame]:
+    """Every frame retention kept, in order. Frames the sandbox evicted before
+    they were read are skipped: the read resumes at the first one kept, as
+    ``run()``'s inline log page does, instead of failing the whole read.
+
+    ``first`` is a page already in hand (``run()``'s inline one): its frames
+    are kept, it counts as one of ``max_pages``, and the read goes on from its
+    cursor, so retention evicting them meanwhile loses none of them. It costs
+    no request, so it is kept even when ``max_pages`` allows none. Without a
+    cursor to go on from, the read starts over and its frames come from that
+    read instead."""
     frames: List[LogFrame] = []
     cursor: Optional[str] = None
+    resumed: Set[str] = set()
     pages = 0
+    if first is not None and first.items and first.next_cursor:
+        frames.extend(first.items)
+        if first.eof:
+            return frames
+        cursor = first.next_cursor
+        pages = 1
     while True:
         if max_pages is not None and pages >= max_pages:
             return frames
-        page = await handle.logs(cursor=cursor)
+        try:
+            page = await handle.logs(cursor=cursor)
+        except CursorExpiredError as error:
+            resume = error.first_available_cursor
+            # Retention only moves forward: the cursor just read, or a resume
+            # point already read from, would read the same pages again forever.
+            if not resume or resume == cursor or resume in resumed:
+                raise
+            resumed.add(resume)
+            cursor = resume
+            pages += 1
+            continue
         pages += 1
         frames.extend(page.items)
         if page.eof or not page.next_cursor or page.next_cursor == cursor or not page.items:
@@ -704,7 +741,8 @@ class AsyncProcessService:
         The common case is one round trip: the sandbox starts the process, holds
         the request until it exits (or ``timeout`` expires), and returns the
         output inline. A process that outlives the wait window or produces more
-        output than fits in one page falls back to split calls automatically.
+        output than fits in one page falls back to split calls automatically,
+        reading on after the inline page.
 
         The result holds the output available when the call returns:
         its per-process log is bounded, so very large output loses its oldest
@@ -791,7 +829,9 @@ class AsyncProcessService:
             logs = parse_log_page(inline).items
         else:
             logs = await _all_logs(
-                handle, max_pages=TIMED_OUT_LOG_PAGE_LIMIT if wait.reason == "timed_out" else None
+                handle,
+                max_pages=TIMED_OUT_LOG_PAGE_LIMIT if wait.reason == "timed_out" else None,
+                first=parse_log_page(inline) if inline is not None else None,
             )
         stdout = "".join(frame.data for frame in logs if frame.channel in ("stdout", "pty"))
         stderr = "".join(frame.data for frame in logs if frame.channel == "stderr")

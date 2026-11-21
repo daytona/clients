@@ -102,7 +102,10 @@ Another deliberate difference, in compressed response bodies: a body cut short
 on the wire is caught by `Content-Length` / chunked framing in both SDKs, but
 incomplete compressed data inside a complete HTTP message is refused by Python
 (`ConnectionError`; it decodes itself) and passed through by TypeScript, whose
-runtimes decode it and accept it.
+runtimes decode it and accept it. And `InterpreterResult.charts`: Python's is a
+tuple that defaults to empty; TypeScript's is optional in the type, so an
+`InterpreterResult` a caller builds (a test double) written against 2.0 still
+compiles, though every result the SDK returns sets it.
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
 `version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
@@ -164,9 +167,10 @@ no closed validator on an open inline enum), and every public SDK field backed b
 a contract enum is CLOSED known values + `'unknown'`, normalized at the
 boundary, with the raw string on a `raw<Field>` / `raw_<field>` sibling.
 Vocabularies the contract does not declare as an enum (`ImageStatus`,
-`MacBootMode`, …) stay open until it does, as do the two the
+`MacBootMode`, …) stay open until it does, as do those the
 SDKs leave open on purpose (`LifecycleAction` on `lifecycle`, the interpreter
-`language`). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
+`language`, and a chart's axis scale and bar/box orientation, `ChartScale` and
+`ChartOrientation`). Known lists come from `sdk-typescript/src/v2/gen/*-enums.ts` / the
 `daytona/v2/_gen` enums; never cast an open wire value into a closed public type.
 
 TypeScript: consumers import the alias layers as namespaces (`import type *
@@ -879,6 +883,18 @@ skipping exist only in the TypeScript tool).
   channels; rich interpreter outputs split into `results[]`, `logs`, and
   `error`; `execute_result` alone sets `isMainResult=true`; `setup` frames are
   provisioning narration, never part of `output`.
+- **Interpreter outputs are read as a notebook shows them.** An output whose
+  bundle carries the sandbox's display media type
+  (`application/vnd.daytona.display.v1+json`, `{displayId, update}`) with
+  `update: true` replaces the earlier outputs of that display id in
+  `results[]`, keeping their place; an update whose display the run did not
+  publish is a new output. The display media type is removed from `data`. The
+  chart media type (`application/vnd.daytona.chart.v1+json`) stays in `data`
+  and is parsed by hand (`charts.py` / `charts.ts`) until the contract copy
+  carries its schema (`InterpreterChart`): a chart that does not match it is no
+  chart (`None` / absent), never an error, and an unknown `type` is an
+  `UnknownChart` with the raw type. Both SDKs read one fixture,
+  `sdk-python/tests/fixtures/interpreter-charts.json`.
 - **Rehydrated code handles are replay/control only.** A serialized
   `ProcessHandle` with `kind=code` still supports `logs`/`wait`/`kill`, but it
   does not yield a decomposed `InterpreterResult` on another worker; document
