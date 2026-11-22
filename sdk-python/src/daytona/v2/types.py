@@ -793,7 +793,13 @@ class ProjectBudget:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class UsageLimit:
-    """A limit and the usage counted against it; ``limit`` ``None`` means unlimited."""
+    """A limit and the usage counted against it.
+
+    ``limit`` ``None`` means unlimited, except on the counts whose organization
+    limit is not returned: ``SandboxLimits.total`` and the ``StorageLimits``
+    counts. Daytona sets those limits for each organization and they still
+    apply: a create that reaches one raises :class:`~daytona.v2.LimitExceededError`.
+    """
 
     limit: Optional[int]
     usage: int
@@ -810,6 +816,7 @@ class MemberLimits:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SandboxLimits:
     concurrent: UsageLimit
+    #: The total sandbox count. Its organization limit is not returned: ``limit`` is ``None``.
     total: UsageLimit
 
 
@@ -820,6 +827,8 @@ class ImageBuildLimits:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class StorageLimits:
+    """Volume, image and snapshot counts. Their organization limits are not returned: ``limit`` is ``None``."""
+
     volumes: UsageLimit
     images: UsageLimit
     snapshots: UsageLimit

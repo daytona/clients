@@ -17,13 +17,13 @@ import (
 
 func limitsFixture() map[string]any {
 	usageLimit := func(usage int, limit any) map[string]any { return map[string]any{"usage": usage, "limit": limit} }
-	concurrent, total, snapshots, volumes, macReservations := int64(10), int64(50), int64(100), int64(20), int64(10)
+	concurrent, macReservations := int64(10), int64(10)
 	return map[string]any{
 		// Generated types supply every required contract field, including
 		// fields that this CLI does not display in its table.
 		"sandboxes": gen.SandboxLimits{
 			Concurrent: gen.UsageLimit{Usage: 4, Limit: &concurrent},
-			Total:      gen.UsageLimit{Usage: 9, Limit: &total},
+			Total:      gen.UsageLimit{Usage: 9},
 		},
 		"sandbox_resources": map[string]any{"max_cores": 2.5, "max_memory_mib": 8192},
 		"sandbox_timeout":   map[string]any{"max_seconds": 3600, "ceiling_seconds": 86400},
@@ -31,9 +31,10 @@ func limitsFixture() map[string]any {
 		"members":           map[string]any{"usage": 3, "limit": 5, "pending_invitations": 1},
 		"mac_reservations":  gen.UsageLimit{Usage: 4, Limit: &macReservations},
 		"storage": gen.StorageLimits{
+			// The API does not return these organization limits.
 			Images:    gen.UsageLimit{Usage: 5},
-			Snapshots: gen.UsageLimit{Usage: 7, Limit: &snapshots},
-			Volumes:   gen.UsageLimit{Usage: 2, Limit: &volumes},
+			Snapshots: gen.UsageLimit{Usage: 7},
+			Volumes:   gen.UsageLimit{Usage: 2},
 		},
 		"secrets_per_project":       usageLimit(2, 100),
 		"api_keys_per_project":      usageLimit(1, 10),
@@ -67,29 +68,62 @@ func TestOrgLimits(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("%d %s", code, errb)
 	}
-	for _, want := range []string{"Concurrent sandboxes", "4 / 10", "9 / 50", "1 / unlimited", "Members", "3 + 1 pending / 5",
-		"Cores per sandbox", "max 2.5", "Memory per sandbox (MiB)", "max 8192",
-		"Images", "5 / unlimited", "Snapshots", "7 / 100", "Mac reservations", "4 / 10"} {
+	for _, want := range []string{"Concurrent sandboxes", "4 / 10", "1 / unlimited", "Members", "3 + 1 pending / 5",
+		"Cores per sandbox", "max 2.5", "Memory per sandbox (MiB)", "max 8192", "Mac reservations", "4 / 10"} {
 		if !has(out, want) {
 			t.Fatalf("table lacks %q:\n%s", want, out)
+		}
+	}
+	// A count whose organization limit is not returned shows the count only,
+	// never "unlimited".
+	rows := map[string]string{}
+	for _, line := range strings.Split(out, "\n") {
+		for _, name := range []string{"Total sandboxes", "Images", "Snapshots", "Volumes"} {
+			if strings.HasPrefix(strings.TrimSpace(line), name) {
+				rows[name] = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), name))
+			}
+		}
+	}
+	for name, want := range map[string]string{"Total sandboxes": "9", "Images": "5", "Snapshots": "7", "Volumes": "2"} {
+		if rows[name] != want {
+			t.Fatalf("%s row = %q, want %q:\n%s", name, rows[name], want, out)
 		}
 	}
 	if has(out, "Usage in") {
 		t.Fatalf("per-domain usage rows must not render:\n%s", out)
 	}
-	volumesRow := ""
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "Volumes") {
-			volumesRow = line
-		}
-	}
-	if !has(volumesRow, "2 / 20") {
-		t.Fatalf("table lacks the Volumes row:\n%s", out)
-	}
-
 	_, errb, code = run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "json", "org", "limits")
 	if code != cerr.ExitUsage || !has(errb, "organization") {
 		t.Fatalf("no org selected must be a usage error: %d %s", code, errb)
+	}
+}
+
+// A deployment that still returns a storage or total-sandbox limit gets it
+// rendered as "current / max".
+func TestOrgLimitsShowsAReturnedCountLimit(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	total, volumes := int64(50), int64(20)
+	fixture := limitsFixture()
+	fixture["sandboxes"] = gen.SandboxLimits{
+		Concurrent: gen.UsageLimit{Usage: 4},
+		Total:      gen.UsageLimit{Usage: 9, Limit: &total},
+	}
+	fixture["storage"] = gen.StorageLimits{
+		Images:    gen.UsageLimit{Usage: 5},
+		Snapshots: gen.UsageLimit{Usage: 7},
+		Volumes:   gen.UsageLimit{Usage: 2, Limit: &volumes},
+	}
+	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, fixture)
+
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "org", "limits", "--org", testOrgA)
+	if code != 0 {
+		t.Fatalf("%d %s", code, errb)
+	}
+	for _, want := range []string{"9 / 50", "2 / 20"} {
+		if !has(out, want) {
+			t.Fatalf("table lacks %q:\n%s", want, out)
+		}
 	}
 }
 

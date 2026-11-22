@@ -965,7 +965,9 @@ class AsyncDaytona:
     async def get_limits(self, *, organization_id: Optional[str] = None) -> OrganizationLimits:
         """Return the organization's limits and current usage.
 
-        A null ``limit`` means unlimited. With an API key the organization
+        A null ``limit`` means unlimited, except on the counts whose limit is
+        not returned (``sandboxes.total`` and the ``storage`` counts; see
+        :class:`~daytona.v2.UsageLimit`). With an API key the organization
         defaults to the key's own, looked up once and cached; with
         ``jwt_token`` authentication pass ``organization_id``. The credential
         needs the ``read:limits`` permission. Member counts (``members``) are

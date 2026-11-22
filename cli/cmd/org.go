@@ -185,7 +185,9 @@ func newOrgCmd() *cobra.Command {
 		Long: `Show the organization's limits — sandboxes, image
 builds, Mac reservations, members, images, snapshots, volumes, secrets and API
 keys — each with the current usage it is checked against; "unlimited" means no
-limit applies. A request refused by one of them — a Mac reservation purchase
+limit applies. Total sandboxes, images, snapshots and volumes show the count
+only: Daytona sets those organization limits for each organization and does
+not return them, but they still apply. A request refused by one of them — a Mac reservation purchase
 included (reservation create or renew, or a sandbox create-macos or start
 that buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
 maximum. Requires read:organization, or read:limits with an API key. An API
@@ -562,7 +564,7 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 	// Fields the response omits are not printed as zero.
 	rows := [][2]string{
 		{"Concurrent sandboxes", usageLimitString(l.Sandboxes.Concurrent)},
-		{"Total sandboxes", usageLimitString(l.Sandboxes.Total)},
+		{"Total sandboxes", unreturnedLimitString(l.Sandboxes.Total)},
 	}
 	rows = append(rows,
 		[2]string{"Concurrent image builds", usageLimitString(l.ImageBuilds.Concurrent)},
@@ -583,9 +585,9 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 	}
 	if l.HasStorage {
 		rows = append(rows,
-			[2]string{"Images", usageLimitString(l.Storage.Images)},
-			[2]string{"Snapshots", usageLimitString(l.Storage.Snapshots)},
-			[2]string{"Volumes", usageLimitString(l.Storage.Volumes)},
+			[2]string{"Images", unreturnedLimitString(l.Storage.Images)},
+			[2]string{"Snapshots", unreturnedLimitString(l.Storage.Snapshots)},
+			[2]string{"Volumes", unreturnedLimitString(l.Storage.Volumes)},
 		)
 	}
 	if m := l.MacReservations; m != nil {
@@ -604,6 +606,16 @@ func usageLimitString(q gen.UsageLimit) string {
 		return fmt.Sprintf("%d / unlimited", q.Usage)
 	}
 	return fmt.Sprintf("%d / %d", q.Usage, *q.Limit)
+}
+
+// unreturnedLimitString renders a count whose organization limit the API does
+// not return: a null limit there does not mean unlimited, so only the count is
+// shown. A deployment that still returns the limit gets "current / max".
+func unreturnedLimitString(q gen.UsageLimit) string {
+	if q.Limit == nil {
+		return strconv.FormatInt(q.Usage, 10)
+	}
+	return usageLimitString(q)
 }
 
 func membersLimit(m gen.MemberLimits) string {
