@@ -174,7 +174,7 @@ response body the SDK holds in memory whole: a larger body raises
 status's error).
 Set `connection_pool_maxsize=` to cap the HTTP connections of each pool the
 `v2` client keeps (one for API calls, one for calls into sandboxes; default 100,
-all kept open for reuse; `d.v0` keeps its own default unless you set it).
+all of them reusable while idle; `d.v0` keeps its own default unless you set it).
 Every call, streams and watches included, holds one connection of its pool
 until it returns or closes, long `exec` runs and waits too; build-log follows
 use connections of their own. A call beyond the cap waits for a free

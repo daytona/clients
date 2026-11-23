@@ -1157,9 +1157,10 @@ def _is_one_shot_content(content: object) -> bool:
     return hasattr(content, "__anext__") or hasattr(content, "__next__")
 
 
-# httpx's default number of connections. Every one of them is kept open for
-# reuse (httpx keeps only 20), so a burst of concurrent calls does not pay a new
-# TLS handshake for each call above 20 once it is over.
+# httpx's default number of connections. All of them may stay idle for reuse
+# (httpx keeps only 20; idle ones still expire after its keep-alive expiry), so
+# a burst of concurrent calls does not pay a new TLS handshake for each call
+# above 20 right after it.
 DEFAULT_CONNECTION_POOL_MAXSIZE = 100
 
 
