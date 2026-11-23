@@ -243,9 +243,7 @@ class SyncTransport:
                 "http2": _HTTP2,
                 "cookies": _cookie_jar(),
             }
-            limits = _client_limits(connection_pool_maxsize)
-            if limits is not None:
-                kwargs["limits"] = limits
+            kwargs["limits"] = _client_limits(connection_pool_maxsize)
             self._client = httpx.Client(**kwargs)
         else:
             self._client = client
@@ -490,12 +488,10 @@ class AsyncResponseStream:
             await self._close_owned()
             return
         # Deliberately NOT the sync path's socket shutdown. That exists to wake a
-        # thread parked in recv(), and it costs the whole connection: on a
-        # negotiated HTTP/2 link it tears down sibling streams too.
+        # thread parked in recv(), and it costs the whole connection.
         # Async has no parked thread — the reader is a suspended coroutine that
-        # awaits this finalizer — so releasing the response is enough, and one
-        # sandbox ending its stream cannot disconnect the others multiplexed
-        # onto the shared client.
+        # awaits this finalizer — so releasing the response is enough, and the
+        # shared client's connection is not torn down for it.
         #
         # Shielded because this runs from the reader's `finally`: when the
         # reader is cancelled (Ctrl-C, a task group unwinding), an unshielded
@@ -663,9 +659,7 @@ class AsyncTransport:
             "http2": _HTTP2,
             "cookies": _cookie_jar(),
         }
-        limits = _client_limits(self._connection_pool_maxsize)
-        if limits is not None:
-            kwargs["limits"] = limits
+        kwargs["limits"] = _client_limits(self._connection_pool_maxsize)
         return httpx.AsyncClient(**kwargs)
 
     @classmethod
@@ -1163,13 +1157,15 @@ def _is_one_shot_content(content: object) -> bool:
     return hasattr(content, "__anext__") or hasattr(content, "__next__")
 
 
-def _client_limits(connection_pool_maxsize: Optional[int]) -> Optional[httpx.Limits]:
-    if connection_pool_maxsize is None:
-        return None
-    return httpx.Limits(
-        max_connections=connection_pool_maxsize,
-        max_keepalive_connections=connection_pool_maxsize,
-    )
+# httpx's default number of connections. Every one of them is kept open for
+# reuse (httpx keeps only 20), so a burst of concurrent calls does not pay a new
+# TLS handshake for each call above 20 once it is over.
+DEFAULT_CONNECTION_POOL_MAXSIZE = 100
+
+
+def _client_limits(connection_pool_maxsize: Optional[int]) -> httpx.Limits:
+    size = DEFAULT_CONNECTION_POOL_MAXSIZE if connection_pool_maxsize is None else connection_pool_maxsize
+    return httpx.Limits(max_connections=size, max_keepalive_connections=size)
 
 
 def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:

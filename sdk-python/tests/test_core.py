@@ -12275,7 +12275,7 @@ async def test_connection_pool_maxsize_sets_httpx_limits() -> None:
 
 
 @pytest.mark.anyio
-async def test_sdk_clients_speak_http1_even_with_h2_installed() -> None:
+async def test_sdk_clients_speak_http1_with_a_reusable_pool_even_with_h2_installed() -> None:
     # Over one HTTP/2 connection httpx holds a ready response behind long-held
     # calls on the same client, so the SDK never enables HTTP/2. The dev extra
     # installs h2, which the SDK used to switch HTTP/2 on with.
@@ -12290,6 +12290,8 @@ async def test_sdk_clients_speak_http1_even_with_h2_installed() -> None:
             pool = client._transport._pool  # type: ignore[attr-defined]
             assert pool._http1 is True
             assert pool._http2 is False
+            assert pool._max_connections == 100
+            assert pool._max_keepalive_connections == 100
     finally:
         sync_transport.close()
         await async_transport.close()
