@@ -175,8 +175,8 @@ status's error).
 Set `connection_pool_maxsize=` to cap both live and keep-alive HTTP connections
 (default 100). Each call in flight holds one connection until it returns,
 long `exec` runs and waits included, and a call beyond the cap waits for a free
-one (a call that gets none within `request_timeout` raises
-`ClientTimeoutError`), so raise it when you keep more calls than that open at
+one (a call whose timeout runs out first raises `ClientTimeoutError`), so
+raise it when you keep more calls than that open at
 once. Set
 `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
 The extra brings only `opentelemetry-api`; spans are exported only once your
