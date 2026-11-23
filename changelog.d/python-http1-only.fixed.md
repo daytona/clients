@@ -1,0 +1,7 @@
+**Python: calls no longer wait behind long-running calls on the same client**
+— when the optional `h2` package was installed (other packages install it),
+the Python SDK spoke HTTP/2, and a call whose response had already arrived
+could wait until long-held calls on the same client (long `exec` runs,
+waits) finished. The SDK now always uses HTTP/1.1, as the TypeScript SDK
+does, with one connection per concurrent call up to
+`connection_pool_maxsize`.

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib.util
 import json
 import socket
 from http.cookiejar import CookieJar, DefaultCookiePolicy
@@ -52,7 +51,13 @@ from ._otel import OpenTelemetrySupport
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
-_HTTP2_AVAILABLE = importlib.util.find_spec("h2") is not None
+# Every client the SDK builds speaks HTTP/1.1, even when the optional ``h2``
+# package is installed (another dependency may bring it). Over one HTTP/2
+# connection, httpcore reads every stream's response under one lock, so a call
+# whose response has already arrived waits behind long-held calls (a long
+# ``exec``, a wait) on the same client until they finish. Over HTTP/1.1 each
+# call has its own connection, up to ``connection_pool_maxsize``.
+_HTTP2 = False
 
 
 def _installed_version() -> str:
@@ -235,7 +240,7 @@ class SyncTransport:
             kwargs: dict[str, object] = {
                 "headers": {**client_identity_headers(source), "Accept-Encoding": ACCEPT_ENCODING},
                 "timeout": _client_timeout(self._request_timeout_seconds),
-                "http2": _HTTP2_AVAILABLE,
+                "http2": _HTTP2,
                 "cookies": _cookie_jar(),
             }
             limits = _client_limits(connection_pool_maxsize)
@@ -655,7 +660,7 @@ class AsyncTransport:
         kwargs: dict[str, object] = {
             "headers": {**client_identity_headers(self._source), "Accept-Encoding": ACCEPT_ENCODING},
             "timeout": _client_timeout(self._request_timeout_seconds),
-            "http2": _HTTP2_AVAILABLE,
+            "http2": _HTTP2,
             "cookies": _cookie_jar(),
         }
         limits = _client_limits(self._connection_pool_maxsize)

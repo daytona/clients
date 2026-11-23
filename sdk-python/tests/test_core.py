@@ -8,6 +8,7 @@ import asyncio
 import dataclasses
 import hashlib
 import importlib
+import importlib.util
 import inspect
 import json
 import os
@@ -12271,6 +12272,28 @@ async def test_connection_pool_maxsize_sets_httpx_limits() -> None:
     finally:
         sync_transport.close()
         await async_transport.close()
+
+
+@pytest.mark.anyio
+async def test_sdk_clients_speak_http1_even_with_h2_installed() -> None:
+    # Over one HTTP/2 connection httpx holds a ready response behind long-held
+    # calls on the same client, so the SDK never enables HTTP/2. The dev extra
+    # installs h2, which the SDK used to switch HTTP/2 on with.
+    assert importlib.util.find_spec("h2") is not None
+    sync_transport = SyncTransport("http://api.invalid")
+    async_transport = AsyncTransport("http://api.invalid")
+    assert async_transport._stream_client_factory is not None
+    stream_client = async_transport._stream_client_factory()
+
+    try:
+        for client in (sync_transport._client, async_transport._client, stream_client):
+            pool = client._transport._pool  # type: ignore[attr-defined]
+            assert pool._http1 is True
+            assert pool._http2 is False
+    finally:
+        sync_transport.close()
+        await async_transport.close()
+        await stream_client.aclose()
 
 
 @pytest.mark.anyio
