@@ -21,7 +21,7 @@ processes, files, Git, code execution, ports and computer use.
 ├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (upgrade/typescript/) + PyPI (upgrade/python/) packages,
 │                    one shared mapping (mapping/), the generated MIGRATION.md
 ├── examples/        runnable examples for the Python and TypeScript SDKs (Go's are Example
-│                    functions in sdk-go/, shown by go doc)
+│                    functions in sdk-go/, run by go test and shown on pkg.go.dev)
 ├── e2e/             live API e2e, run.sh (needs DAYTONA_API_KEY)
 ├── scripts/         bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
 │                    (+ v0-sdk-version, the pinned 0.x tag the v0 namespace vendors;
@@ -118,7 +118,8 @@ scripts/test-upgrade.sh   # both daytona-upgrade packages + mapping / guide drif
 
 The TypeScript suite also runs a live toolbox test when
 `DAYTONA_SDKTS_TOOLBOX_URL` points at a reachable sandbox toolbox, and skips it
-otherwise. The end-to-end suites (`e2e/`, run with `e2e/run.sh py|ts|go|all`)
+otherwise. The end-to-end suites (`e2e/`, run with `e2e/run.sh` — Python and TypeScript by default — or
+`e2e/run.sh py|ts|go|all`)
 run against a Daytona deployment when `DAYTONA_API_KEY` is set. Details: each package's
 `DEVELOPMENT.md`.
 
