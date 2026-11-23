@@ -19,6 +19,9 @@ func (s *Sandbox) Ports() *Ports { return &Ports{sandbox: s} }
 // List returns every listening TCP port in one non-pageable page.
 // The toolbox reports non-negative int32 values, without a 65535 upper bound.
 func (p *Ports) List(ctx context.Context) (*Page[int], error) {
+	if err := p.requireToolbox(); err != nil {
+		return nil, err
+	}
 	var raw JSONValue
 	if err := p.sandbox.toolbox().do(ctx, toolboxRequest{Path: "/port", Result: &raw}); err != nil {
 		return nil, err
@@ -50,6 +53,9 @@ func (p *Ports) List(ctx context.Context) (*Page[int], error) {
 // BAD_REQUEST for other ports, rather than reporting false.
 func (p *Ports) IsInUse(ctx context.Context, port int) (bool, error) {
 	if err := validatePort(port); err != nil {
+		return false, err
+	}
+	if err := p.requireToolbox(); err != nil {
 		return false, err
 	}
 	var raw JSONValue
@@ -97,4 +103,22 @@ func (p *Ports) portPath(port int) (string, error) {
 		return "", err
 	}
 	return base + "/" + strconv.Itoa(port), nil
+}
+
+// requireToolbox reports a handle without a toolbox URL as UNSUPPORTED_OPERATION,
+// as the TypeScript SDK's ports.list and ports.isInUse do; other toolbox calls
+// report it as BAD_REQUEST.
+func (p *Ports) requireToolbox() error {
+	s := p.sandbox
+	if err := s.client.ensureOpen(); err != nil {
+		return err
+	}
+	s.mu.RLock()
+	endpoint := s.toolboxURL
+	s.mu.RUnlock()
+	if endpoint == "" {
+		return newSDKError(CodeUnsupportedOperation, 400,
+			"sandbox handle has no toolbox URL; fetch the sandbox with Get (or pass ToolboxURL)")
+	}
+	return nil
 }
