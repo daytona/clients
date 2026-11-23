@@ -17,7 +17,7 @@ processes, files, Git, code execution, ports and computer use.
 ├── sdk-python/      daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
 ├── sdk-typescript/  @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
 ├── sdk-go/          go.daytona.com/sdk/v2   — one package `daytona`; no v0 namespace (0.x users import
-│                    github.com/daytona/clients/sdk-go next to it); tags sdk-go/vX.Y.Z
+│                    github.com/daytona/clients/sdk-go/pkg/daytona next to it); tags sdk-go/vX.Y.Z
 ├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (upgrade/typescript/) + PyPI (upgrade/python/) packages,
 │                    one shared mapping (mapping/), the generated MIGRATION.md
 ├── examples/        runnable examples for the Python and TypeScript SDKs (Go's are Example
@@ -29,7 +29,12 @@ processes, files, Git, code execution, ports and computer use.
 └── docs/            RELEASING.md, VERSIONING.md, PREPARING_YOUR_CHANGES.md, adr/ (architecture decision records)
 ```
 
-## The shared V2 model (both languages, one shape)
+## The shared V2 model (Python and TypeScript, one shape)
+
+The Go SDK implements the same contract with Go conventions (context first,
+options structs, `time.Duration`, `errors.Is`); see
+[`sdk-go/README.md`](sdk-go/README.md) and
+[`sdk-go/DEVELOPMENT.md`](sdk-go/DEVELOPMENT.md).
 
 - **Serializable handles.** `sandbox.to_json()` / `toJSON()` returns a
   `SandboxHandleJSON`: a credential-free snapshot of the sandbox's metadata,
