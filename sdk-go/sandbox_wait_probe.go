@@ -48,8 +48,10 @@ func (p *waitProbe) ready() bool {
 }
 
 func (p *waitProbe) accept(ctx context.Context, w *sandboxWait, result waitReadResult) (bool, error) {
-	// Decide before adopting metadata: only nondecisive reads can be stale.
-	if result.err == nil && !w.decisive(result.detail.info.State) && p.before != p.watch.activity.Frame() {
+	// A frame or reroute during the read means the socket is alive: let it
+	// decide, as the other SDKs do (contract client_rules.early_probe). The
+	// read is dropped before its metadata is adopted, whatever state it shows.
+	if result.err == nil && p.before != p.watch.activity.Frame() {
 		p.delay = p.watch.quietDelay(0)
 		return false, nil
 	}
