@@ -1,0 +1,41 @@
+sdk-go/e2e/environment_helpers_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 1-44
+sdk-go/e2e/computer_use_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 19
+sdk-go/e2e/create_from_build_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 21,23,54-61
+sdk-go/e2e/process_output_failure_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 24,48
+sdk-go/e2e/ports_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 98
+sdk-go/e2e/images_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 25,29,73,79
+sdk-go/e2e/git_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 62,80
+  s_ecdbede00c9ca5::t_5037c988496ba0 108
+sdk-go/e2e/images_reader_test.go
+  s_ecdbede00c9ca5::t_5bbbb635df3955 27
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 21
+sdk-go/e2e/fs_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 27
+sdk-go/e2e/process_test.go
+  s_ecdbede00c9ca5::t_e4abbbd75b230b 21
+sdk-go/e2e/environment_test.go
+  s_ecdbede00c9ca5::t_16f5a394b34aff 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba709a40bc31aa6f8c13a1a37a4cbb72e4e0c463",
+  "prompts": {},
+  "sessions": {
+    "s_ecdbede00c9ca5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d99ce8ffeQ8utu1Yq5q7bYd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

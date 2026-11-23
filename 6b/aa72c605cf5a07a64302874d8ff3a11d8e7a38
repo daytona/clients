@@ -1,0 +1,37 @@
+sdk-go/computer_use_decode.go
+  s_afebdb3d95034a::t_c77d73c7823371 97-100
+sdk-go/computer_use_process.go
+  s_afebdb3d95034a::t_c77d73c7823371 98-102,112-116,126-130,140-144,199-202,222-225
+sdk-go/computer_use_display.go
+  s_afebdb3d95034a::t_c77d73c7823371 63-66,88-91
+sdk-go/computer_use_r5_test.go
+  s_afebdb3d95034a::t_c08bec4421bf7c 1-166
+sdk-go/computer_use_recording.go
+  s_afebdb3d95034a::t_c77d73c7823371 91-93,96-99,141,171-174
+sdk-go/computer_use_mouse.go
+  s_afebdb3d95034a::t_c77d73c7823371 169-173
+sdk-go/computer_use_a11y.go
+  s_afebdb3d95034a::t_c77d73c7823371 29
+sdk-go/computer_use_screen.go
+  s_afebdb3d95034a::t_c77d73c7823371 112-115
+sdk-go/computer_use_keyboard.go
+  s_afebdb3d95034a::t_c77d73c7823371 34,44,52
+sdk-go/computer_use_status.go
+  s_afebdb3d95034a::t_c77d73c7823371 126-129,143-146,161-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6baa72c605cf5a07a64302874d8ff3a11d8e7a38",
+  "prompts": {},
+  "sessions": {
+    "s_afebdb3d95034a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d92b7dffeRlJ7wFqTTmUk2L",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

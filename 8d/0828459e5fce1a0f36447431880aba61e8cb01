@@ -1,0 +1,14 @@
+sdk-go/platform_option_names_test.go
+  h_e7759ddd73fa65 66,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d0828459e5fce1a0f36447431880aba61e8cb01",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

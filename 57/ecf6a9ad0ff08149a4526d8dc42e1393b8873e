@@ -1,0 +1,23 @@
+sdk-go/errors_response.go
+  s_245320a22f521c::t_99395a7b23b7a6 22
+sdk-go/errors_trace_test.go
+  s_245320a22f521c::t_99395a7b23b7a6 28-31
+  s_245320a22f521c::t_5f8afd54c373d9 1-27,32,36-50
+  s_245320a22f521c::t_2608684fe94fa2 33-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "57ecf6a9ad0ff08149a4526d8dc42e1393b8873e",
+  "prompts": {},
+  "sessions": {
+    "s_245320a22f521c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e056ba7d7ffe1385WvP1s2FwrR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

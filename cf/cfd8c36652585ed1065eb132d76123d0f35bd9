@@ -1,0 +1,40 @@
+sdk-go/sandbox_json.go
+  s_59ddbabbbc1807::t_554e58e4c487d3 1-17,19,25-29,33-69,75-86
+  s_59ddbabbbc1807::t_5299e8d4472440 18,20-21,70-74
+  s_59ddbabbbc1807::t_cef8d456719d8b 22-24,30-32
+sdk-go/sandbox_info.go
+  s_59ddbabbbc1807::t_5299e8d4472440 44,67,82,91,130,137,140,143
+  s_59ddbabbbc1807::t_2fe96e73d4251f 45,68-74,83,92,131,138,141,144
+sdk-go/sandbox_json_presence_test.go
+  s_59ddbabbbc1807::t_cef8d456719d8b 1-82
+sdk-go/sandbox_info_parse.go
+  s_59ddbabbbc1807::t_2fe96e73d4251f 81-87,130-131
+  s_59ddbabbbc1807::t_3342e4b4ba38a2 135,137-143,145,150-152,158-162,164,168,172,174
+sdk-go/sandbox_info_nested.go
+  s_59ddbabbbc1807::t_2fe96e73d4251f 57,86,168,170-172,181-183
+  s_59ddbabbbc1807::t_3342e4b4ba38a2 174,179
+sdk-go/sandbox_json_types.go
+  s_59ddbabbbc1807::t_554e58e4c487d3 1-90
+sdk-go/sandbox_json_test.go
+  s_59ddbabbbc1807::t_08a38e1741c7a9 1-108
+sdk-go/DEVELOPMENT.md
+  s_59ddbabbbc1807::t_554e58e4c487d3 77-79
+sdk-go/sandbox_json_example_test.go
+  s_59ddbabbbc1807::t_cef8d456719d8b 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cfcfd8c36652585ed1065eb132d76123d0f35bd9",
+  "prompts": {},
+  "sessions": {
+    "s_59ddbabbbc1807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05aeae0affef5A154QQt8pMam",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+scripts/ax-evals/setup/go.sh
+  h_e7759ddd73fa65 8,18
+sdk-go/DEVELOPMENT.md
+  h_e7759ddd73fa65 80-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d74070128024b86e4f787606b57281cc80de5e3",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

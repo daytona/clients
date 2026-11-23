@@ -1,0 +1,19 @@
+sdk-go/git_options_string.go
+  s_12824b4efce078::t_c73c9f531065eb 19,33,42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "22c5cf85f9156619a4f0dbeb16d02a988e1eece3",
+  "prompts": {},
+  "sessions": {
+    "s_12824b4efce078": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589d934ffeyVm6EPUp2Pr83v",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

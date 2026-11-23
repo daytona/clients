@@ -1,0 +1,62 @@
+sdk-go/exec_run.go
+  s_c0f2fe82701301::t_607ab3b47a17f7 51,91,97,99
+  s_c0f2fe82701301::t_51e24cfcda9752 24
+  s_c0f2fe82701301::t_282d4c6ba15587 52-54,59-63,67-71,73
+sdk-go/exec.go
+  s_c0f2fe82701301::t_282d4c6ba15587 43-45,58
+sdk-go/process_logs.go
+  s_71f125b97950a2::t_111e9a4e3d58bd 153
+sdk-go/run_code_collect.go
+  s_c0f2fe82701301::t_282d4c6ba15587 19,22-24,27-29,39,41,45,99-105
+sdk-go/run_code_r5_test.go
+  s_c0f2fe82701301::t_2db44a78ace3f1 9,40-41,125
+  s_c0f2fe82701301::t_d4f95caaf680c5 14,90
+  s_c0f2fe82701301::t_fa57dd3650e4e3 144-147
+  s_c0f2fe82701301::t_0441bbebe2f784 1-8,10-11,13,15-39,42-89,91-124,126-143,148,180-182
+  s_c0f2fe82701301::t_a1208daf1e0c43 12,149-179
+sdk-go/exec_r5_test.go
+  s_c0f2fe82701301::t_2db44a78ace3f1 49
+  s_c0f2fe82701301::t_a1208daf1e0c43 132-152
+  s_c0f2fe82701301::t_0441bbebe2f784 1-48,50-131
+sdk-go/session_run.go
+  s_c0f2fe82701301::t_282d4c6ba15587 63
+sdk-go/run_code.go
+  s_c0f2fe82701301::t_51e24cfcda9752 132,135,158,165
+  s_c0f2fe82701301::t_282d4c6ba15587 20-21
+  s_c0f2fe82701301::t_fa57dd3650e4e3 22-23
+sdk-go/exec_stream.go
+  s_c0f2fe82701301::t_282d4c6ba15587 37,63-64
+  s_afebdb3d95034a::t_154ef3fa4c880f 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "850b5c42002c524f4bb446eef67c7c338fcebf5b",
+  "prompts": {},
+  "sessions": {
+    "s_71f125b97950a2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d99e1cffese6napWCzkkQQU",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_afebdb3d95034a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d92b7dffeRlJ7wFqTTmUk2L",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_c0f2fe82701301": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d940b2ffeqYf0dhiPPicqGi",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

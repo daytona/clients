@@ -1,0 +1,26 @@
+sdk-go/doc.go
+  h_e7759ddd73fa65 58-60
+sdk-go/exec.go
+  h_e7759ddd73fa65 14-16,35-37
+sdk-go/fs.go
+  h_e7759ddd73fa65 70-71
+sdk-go/git_history_items_test.go
+  h_e7759ddd73fa65 1-24
+sdk-go/git_read.go
+  h_e7759ddd73fa65 62-65
+sdk-go/process_options.go
+  h_e7759ddd73fa65 27-29,41-43
+sdk-go/pty_options.go
+  h_e7759ddd73fa65 10-12,30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "808d53169ea71c48a0980d4b033c31a5a647e4ab",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
