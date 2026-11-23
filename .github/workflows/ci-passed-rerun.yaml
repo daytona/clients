@@ -17,6 +17,7 @@ on:
       - CLI CI
       - Contract types
       - Examples CI
+      - Go SDK CI
       - License headers
       - SDK CI
       - Secret scan

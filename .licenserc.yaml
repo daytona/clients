@@ -37,6 +37,8 @@ header:
       - 'sdk-typescript/**/*.js'
       - 'sdk-typescript/**/*.mjs'
       - 'sdk-typescript/**/*.cjs'
+      - 'sdk-go/**/*.go'
+      - 'sdk-go/**/*.sh'
       - 'scripts/**/*.py'
       - 'scripts/**/*.sh'
       - 'upgrade/**/*.py'
@@ -52,6 +54,7 @@ header:
       # carries a "generated" notice instead. (The generated synchronous Python
       # surface, sdk-python/src/daytona/v2/_sync/, emits this header itself.)
       - 'sdk-python/src/daytona/v2/_gen/**'
+      - 'sdk-go/internal/gen/**'
       - 'sdk-typescript/src/v2/gen/api.ts'
       - 'sdk-typescript/src/v2/gen/toolbox.ts'
       - 'sdk-typescript/src/v2/gen/api-enums.ts'

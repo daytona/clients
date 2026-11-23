@@ -1,8 +1,9 @@
-# Daytona SDKs — V2 (TypeScript + Python)
+# Daytona SDKs — V2 (TypeScript + Python + Go)
 
 The Daytona V2 client libraries and the `daytona` CLI. Package names are
-`@daytona/sdk` (npm) and `daytona` / module `daytona` (PyPI); the CLI lives in
-[`cli/`](cli/).
+`@daytona/sdk` (npm), `daytona` / module `daytona` (PyPI) and the Go module
+`go.daytona.com/sdk/v2` (package `daytona`, in [`sdk-go/`](sdk-go/)); the CLI
+lives in [`cli/`](cli/).
 
 The SDKs expose Daytona's API through resource handles and namespaces for
 processes, files, Git, code execution, ports and computer use.
@@ -15,9 +16,12 @@ processes, files, Git, code execution, ports and computer use.
 ├── contract/        OpenAPI contracts the SDKs and CLI generate their wire types from
 ├── sdk-python/      daytona (module daytona) — root client + daytona.v2 (async-native, sync surface generated) + daytona.v0 (bundled at publish)
 ├── sdk-typescript/  @daytona/sdk            — root client + /v2 + /v0 (bundled at publish), ESM + CJS
+├── sdk-go/          go.daytona.com/sdk/v2   — one package `daytona`; no v0 namespace (0.x users import
+│                    github.com/daytona/clients/sdk-go/pkg/daytona next to it); tags sdk-go/vX.Y.Z
 ├── upgrade/         daytona-upgrade          — 0.x → 2.x migration tool: npm (upgrade/typescript/) + PyPI (upgrade/python/) packages,
 │                    one shared mapping (mapping/), the generated MIGRATION.md
-├── examples/        runnable examples for both SDKs
+├── examples/        runnable examples for the Python and TypeScript SDKs (Go's are Example
+│                    functions in sdk-go/, run by go test and shown on pkg.go.dev)
 ├── e2e/             live API e2e, run.sh (needs DAYTONA_API_KEY)
 ├── scripts/         bundle-v0.sh            — publish-time v0 namespace bundling; its output is never committed
 │                    (+ v0-sdk-version, the pinned 0.x tag the v0 namespace vendors;
@@ -25,7 +29,12 @@ processes, files, Git, code execution, ports and computer use.
 └── docs/            RELEASING.md, VERSIONING.md, PREPARING_YOUR_CHANGES.md, adr/ (architecture decision records)
 ```
 
-## The shared V2 model (both languages, one shape)
+## The shared V2 model (Python and TypeScript, one shape)
+
+The Go SDK implements the same contract with Go conventions (context first,
+options structs, `time.Duration`, `errors.Is`); see
+[`sdk-go/README.md`](sdk-go/README.md) and
+[`sdk-go/DEVELOPMENT.md`](sdk-go/DEVELOPMENT.md).
 
 - **Serializable handles.** `sandbox.to_json()` / `toJSON()` returns a
   `SandboxHandleJSON`: a credential-free snapshot of the sandbox's metadata,
@@ -107,14 +116,16 @@ processes, files, Git, code execution, ports and computer use.
 ```bash
 (cd sdk-python && uv venv && uv pip install -e '.[dev]' && .venv/bin/python -m pytest -x -q)
 (cd sdk-typescript && npm install && npm run typecheck && npm test && npm run build)
+(cd sdk-go && go vet ./... && go test -race ./... && golangci-lint run ./...)
 (cd cli && go vet ./... && go test ./...)
 scripts/test-upgrade.sh   # both daytona-upgrade packages + mapping / guide drift
 ```
 
 The TypeScript suite also runs a live toolbox test when
 `DAYTONA_SDKTS_TOOLBOX_URL` points at a reachable sandbox toolbox, and skips it
-otherwise. The end-to-end suites (`e2e/`, run with `e2e/run.sh`) run against
-a Daytona deployment when `DAYTONA_API_KEY` is set. Details: each package's
+otherwise. The end-to-end suites (`e2e/`, run with `e2e/run.sh` — Python and TypeScript by default — or
+`e2e/run.sh py|ts|go|all`)
+run against a Daytona deployment when `DAYTONA_API_KEY` is set. Details: each package's
 `DEVELOPMENT.md`.
 
 Releases: [RELEASING.md](docs/RELEASING.md) · [VERSIONING.md](docs/VERSIONING.md) ·

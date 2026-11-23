@@ -17,6 +17,8 @@ on:
       - 'sdk-python/gen-contract.sh'
       - 'sdk-python/gen/**'
       - 'sdk-python/src/daytona/v2/_gen/**'
+      - 'sdk-go/gen-contract.sh'
+      - 'sdk-go/internal/gen/**'
       - 'cli/hack/gen.sh'
       - 'cli/gen/**'
       - '.github/workflows/contracts.yaml'

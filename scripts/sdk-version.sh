@@ -16,6 +16,12 @@
 #     pypi=2.0.0a3                     # daytona on PyPI — PEP 440 spelling
 #
 #   sdk-version.sh --pep440 2.0.0-rc.1 # prints only the PEP 440 spelling: 2.0.0rc1
+#   sdk-version.sh --go v2.1.0 sdk-go/go.mod
+#     go=v2.1.0
+#     go_tag=sdk-go/v2.1.0
+#     go_module=go.daytona.com/sdk/v2
+# --go reads (never executes) the source module declaration and refuses majors
+# below 2 or a mismatched path: sdk-go/v0.* and v1.* would poison the 0.x module.
 #
 # Accepted input: `v`-prefixed or bare `MAJOR.MINOR.PATCH`, optionally followed
 # by `-alpha.N`, `-beta.N` or `-rc.N`; numeric parts without leading zeros (npm
@@ -32,7 +38,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $(basename "$0") [--pep440] <vX.Y.Z[-alpha.N|-beta.N|-rc.N]>" >&2
+  echo "usage: $(basename "$0") [--pep440|--go] <vX.Y.Z[-alpha.N|-beta.N|-rc.N]> [sdk-go/go.mod (--go only)]" >&2
   exit 2
 }
 
@@ -69,10 +75,13 @@ semver() {
 mode=full
 case "${1:-}" in
   --pep440) mode=pep440; shift ;;
+  --go) mode=go; shift ;;
   -h|--help) usage ;;
   --*) usage ;;
 esac
-[ $# -eq 1 ] || usage
+if [ "$mode" = go ]; then [ $# -eq 2 ] || usage
+else [ $# -eq 1 ] || usage
+fi
 input="$1"
 
 if ! parse "$input"; then
@@ -86,6 +95,24 @@ if [ "$mode" = pep440 ]; then
 fi
 
 version="$(semver)"
+if [ "$mode" = go ]; then
+  case "$MAJOR" in
+    0|1) echo "::error::Go SDK releases require major >= 2; sdk-go/v0.* or sdk-go/v1.* would break the 0.x Go module" >&2; exit 1 ;;
+  esac
+  if [ ! -f "$2" ]; then
+    echo "::error::source_ref has no sdk-go/go.mod; untick publish_go when publishing a source commit from before the Go SDK" >&2
+    exit 1
+  fi
+  module="go.daytona.com/sdk/v${MAJOR}"
+  # Require one declaration with exactly this path, allowing a trailing comment;
+  # do not run go or source code.
+  if ! declared=$(awk '$1 == "module" { sub(/[[:space:]]+\/\/.*/, ""); if (NF != 2) exit 1; print $2 }' "$2") || [ "$declared" != "$module" ]; then
+    echo "::error::source sdk-go/go.mod must declare exactly module ${module} (release major ${MAJOR} must match its /vMAJOR suffix)" >&2
+    exit 1
+  fi
+  printf 'go=v%s\ngo_tag=sdk-go/v%s\ngo_module=%s\n' "$version" "$version" "$module"
+  exit 0
+fi
 printf 'version=%s\n' "$version"
 printf 'npm=%s\n' "$version"
 printf 'cli=%s\n' "$version"

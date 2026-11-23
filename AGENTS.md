@@ -1,8 +1,8 @@
 # AGENTS.md
 
 Instructions for AI agents (and humans) working in this repository: the
-Daytona Python SDK (`daytona`), TypeScript SDK (`@daytona/sdk`) and the
-`daytona` CLI.
+Daytona Python SDK (`daytona`), TypeScript SDK (`@daytona/sdk`), Go SDK
+(`go.daytona.com/sdk/v2`) and the `daytona` CLI.
 
 **If `AGENTS.local.md` exists in the repository root, read it first; it
 overrides this file.** It is git-ignored and never committed.
@@ -70,6 +70,7 @@ husky hooks. Scans need git 2.36 or later.
 |---|---|
 | `sdk-python/` | `daytona` (module `daytona`) — root client + `daytona.v2` + `daytona.v0` (bundled at publish) |
 | `sdk-typescript/` | `@daytona/sdk` — root client + `/v2` + `/v0` (bundled at publish), ESM + CJS |
+| `sdk-go/` | `go.daytona.com/sdk/v2` — flat public package `daytona`; generated wire types in `internal/gen/`, live tests in `e2e/` |
 | `cli/` | the `daytona` CLI (Go) |
 | `contract/` | the machine-readable API contracts the SDKs and the CLI are built against |
 | `scripts/` | v0 bundling (+ the `scripts/v0-sdk-version` pin), release helpers, the changelog tool, the AX evals harness (`scripts/ax-evals/`) |
@@ -81,9 +82,9 @@ husky hooks. Scans need git 2.36 or later.
 
 ## PARITY CONTRACT (the rule that matters)
 
-Any feature or fix lands in BOTH SDKs in the same PR, with tests in both, plus
-one or more changelog fragments under `changelog.d/`. Naming follows each
-language: Python `snake_case` ↔ TS `camelCase`. One deliberate difference in
+Any feature or fix lands in Python and TypeScript in the same PR, with tests in
+both, plus one or more changelog fragments under `changelog.d/`. Naming follows
+each language: Python `snake_case` ↔ TS `camelCase`. One deliberate difference in
 the root config's v0 routing: Python forwards `connection_pool_maxsize` to
 `d.v0`, TypeScript keeps `connectionPoolMaxsize` v2-only, because the 0.x
 TypeScript SDK has no pool-size setting (`ROOT_CONFIG_ROUTING` in both SDKs
@@ -103,6 +104,14 @@ on the wire is caught by `Content-Length` / chunked framing in both SDKs, but
 incomplete compressed data inside a complete HTTP message is refused by Python
 (`ConnectionError`; it decodes itself) and passed through by TypeScript, whose
 runtimes decode it and accept it.
+
+**Go follows the same 2.x contract** (operations, wire requests, validation,
+errors and waits). Applicable features and fixes land in Go with tests in the
+same PR; otherwise the PR explains the difference and links a tracked issue.
+Use Go's language conventions (`context.Context`, `time.Duration`, owned
+structs and `errors.Is` / `errors.As`), documented in
+[`sdk-go/DEVELOPMENT.md`](sdk-go/DEVELOPMENT.md). Go has one flat package and
+no bundled v0 namespace; the 0.x SDK remains a separate module.
 
 Versions are NOT bumped per PR, nor anywhere else in git: the tracked
 `version` fields in `sdk-python/pyproject.toml`, `sdk-typescript/package.json` and
@@ -149,9 +158,10 @@ the SDK does call fails as stale).
   flag it.
 - **Vendored wire types are generated from them — never hand-edit those
   either.** `sdk-typescript/src/v2/gen/{toolbox,api}.ts`,
-  `sdk-python/src/daytona/v2/_gen/{toolbox,api}/` (pydantic v2 models) and
-  `cli/gen/` type each wire boundary. After a contract refresh run
-  `scripts/gen-contract-types.sh` (needs node, a JRE and Go) and let
+  `sdk-python/src/daytona/v2/_gen/{toolbox,api}/` (pydantic v2 models),
+  `sdk-go/internal/gen/{toolbox,api}/` and `cli/gen/` type each wire boundary.
+  After a contract refresh run `scripts/gen-contract-types.sh` (needs node,
+  a JRE and Go) and let
   typecheck / mypy / `go build` surface what must adapt; CI runs it with
   `--check`.
 
@@ -210,7 +220,8 @@ Release kind, formula) comes from its version through
 
 ## Version namespaces
 
-Both packages are a thin ROOT over one namespace per API major version:
+The Python and TypeScript packages are a thin ROOT over one namespace per API
+major version; Go uses its module path's `/v2` suffix instead:
 
 - **Root** (`sdk-python/src/daytona/__init__.py` + `_client.py`;
   `sdk-typescript/src/index.ts` + `Daytona.ts`) exports only the client
@@ -1037,6 +1048,7 @@ Each package's full suite, for reference and for reproducing a CI failure:
 ```bash
 (cd sdk-python && uv venv && uv pip install -e ".[dev]" && .venv/bin/python -m pytest -x -q -n 8 -m "not timing" && .venv/bin/python -m pytest -x -q -m timing)
 (cd sdk-typescript && npm install && npm run typecheck && npm test && npm run lint && npm run build)
+(cd sdk-go && go build ./... && go vet ./... && go vet -tags e2e ./... && go test -race -shuffle=on -count=1 ./... && golangci-lint run ./...)
 (cd cli && go vet ./... && go test ./...)
 python3 scripts/changelog/assemble.py check --dir changelog.d
 scripts/gen-contract-types.sh --check     # only after touching contract/ or a generator
@@ -1058,8 +1070,8 @@ generate the reports listed in `scripts/patch_coverage.py`, then
 `python3 scripts/patch_coverage.py`.
 
 Live suites, when credentials are available and the change alters behaviour
-against the server: `DAYTONA_API_KEY=… ./e2e/run.sh` (both SDKs; `py` / `ts`
-for one).
+against the server: `DAYTONA_API_KEY=… ./e2e/run.sh` (Python and TypeScript;
+`py` / `ts` for one). For Go: `DAYTONA_API_KEY=… ./e2e/run.sh go`.
 
 ### Rebasing a branch
 

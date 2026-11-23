@@ -1,19 +1,20 @@
 # Releasing the SDKs
 
-How to publish the two client SDKs and the `daytona` CLI.
+How to publish the Python, TypeScript and Go SDKs and the `daytona` CLI.
 
 > **One version, every target.** The SDKs and the CLI share one version line
 > ([VERSIONING.md](VERSIONING.md) "One version line"). A release publishes one
-> `vX.Y.Z[-pre.N]` version to PyPI, npm and the CLI's GitHub Release; the
-> publish workflow derives each registry's spelling from it and records it as
-> the tag `vX.Y.Z[-pre.N]` on the published commit.
+> `vX.Y.Z[-pre.N]` version to PyPI, npm, the Go module proxy and the CLI's
+> GitHub Release; the publish workflow derives each registry's spelling from
+> it and records it as the tag `vX.Y.Z[-pre.N]` on the published commit.
 
 > **The only path: on-demand release via CI.** Run
 > [`.github/workflows/sdk_publish.yaml`](../.github/workflows/sdk_publish.yaml)
 > (Actions → *SDK Publish* → *Run workflow*, or `gh workflow run`). It
 > publishes using **OIDC Trusted Publishing** — no tokens, no 2FA/OTP — and
 > **commits nothing**: the version is stamped into the manifest inside the
-> runner only. There is [no manual publish](#no-manual-publish).
+> runner only. Go needs no registry credential: it publishes a source tag.
+> There is [no manual publish](#no-manual-publish).
 
 > **The version picks the channel.** The publish workflow accepts
 > `vX.Y.Z` (stable), `vX.Y.Z-rc.N` (release candidate) and `vX.Y.Z-alpha.N`
@@ -101,6 +102,7 @@ and rejects anything that is not a release version:
 | Target | From `v2.0.0-alpha.3` | Mechanism |
 |---|---|---|
 | npm `@daytona/sdk` | `2.0.0-alpha.3` | `npm version` + `npm run stamp-version` in the runner's checkout |
+| Go `go.daytona.com/sdk/v2` | `v2.0.0-alpha.3`, tag `sdk-go/v2.0.0-alpha.3` | tag the source commit, then request the version from `proxy.golang.org`; no upload or version stamp |
 | CLI GitHub Release (and tag) | `v2.0.0-alpha.3` | `VERSION=2.0.0-alpha.3 hack/build.sh` (ldflags) |
 | PyPI `daytona` | `2.0.0a3` — PEP 440: `-alpha.N` → `aN`, `-rc.N` → `rcN`; stable unchanged | `sed` on `pyproject.toml` in the runner's checkout |
 
@@ -162,17 +164,30 @@ One-time setup (see the header of
 - **Repo:** Settings → Environments → `release` → required reviewers on,
   deployment branches `main` and `release/*` only. Environment secret
   `GITHUBBOT_TOKEN` (the Homebrew formula dispatch).
+- **Go:** No registry account, secret or additional approval. The vanity site
+  is a deployment dependency from [PR #688](https://github.com/daytona/clients/pull/688)
+  (`scripts/go-vanity-site.sh` and `.github/workflows/go-vanity-pages.yaml`).
+  Before publishing Go, verify that PR is merged and the site deployed:
+  `https://go.daytona.com/sdk/v2?go-get=1`
+  must return HTTP 200 or 404 with the exact meta element
+  `<meta name="go-import" content="go.daytona.com/sdk git https://github.com/daytona/clients sdk-go">`.
+  Module paths use `404.html`; Go reads its meta even with HTTP 404.
+  Transfer failures, other HTTP statuses, and missing or incorrect meta are refused.
+  The Go-only registry preflight checks this before any release tag is created.
+  Add `refs/tags/sdk-go/v*` to the repository's protected **Release tags**
+  ruleset, permitting the workflow's token to create tags, not move or delete them.
 
 The workflow is split into tokenless **build** jobs (which run the
-install/test/build and upload an artifact) and one **publish** job (which
+install/test/build and, except for Go, upload an artifact) and one **publish** job (which
 holds `id-token: write`, `contents: write` and the environment, never checks
-out source, and only uploads the built artifacts), so code under test never
-sees a publishing credential. The publish job is the only job on the
+out source, and only uploads the built artifacts or creates the Go tag), so
+code under test never sees a publishing credential. The publish job is the only job on the
 `release` environment, so a run asks for exactly one approval, after every
 requested build is green; a failed or cancelled build skips it (nothing is
 published, no approval is asked). Inside it the targets run in order — PyPI,
 npm, the migration tool (PyPI, then npm, each once the SDK version it pins is
-visible on that registry), the CLI's GitHub Release, the Homebrew formula —
+visible on that registry), the Go tag and proxy fetch, the CLI's GitHub
+Release, the Homebrew formula —
 and a failed target stops the ones after it. A failed tool upload therefore
 also holds back the CLI: re-run the publish job to finish it (targets already
 published are skipped). The
@@ -190,27 +205,51 @@ For each release:
 
 ```bash
 gh workflow run sdk_publish.yaml --ref main -f version=v2.0.0-alpha.3
-# optional: -f publish_pypi=false / -f publish_npm=false / -f publish_cli=false / -f publish_upgrade=false  (all default true)
+# optional: -f publish_pypi=false / -f publish_npm=false / -f publish_cli=false / -f publish_upgrade=false / -f publish_go=false  (all default true)
 # optional: -f force_republish=true      # resume a half-landed publish of this version (see below)
 gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databaseId --jq '.[0].databaseId')"
 ```
 
 - `source_ref` picks the commit to build (default: the dispatch ref).
-- The four `publish_*` booleans pick the targets; all four publish by
+- The five `publish_*` booleans pick the targets; all five publish by
   default so the SDKs, the CLI and the migration tool stay on the same number.
   See [The migration tool](#the-migration-tool) for what `publish_upgrade`
   needs: untick it for a run that does not publish an SDK and is not meant
   to publish the tool (a CLI-only run, an SDK resume), or the gate or the
   registry check refuses it.
 - The gate refuses a version a target registry **already has** (npm, PyPI,
-  this repository's releases), and a version whose tag already names another
-  commit. `force_republish=true` skips the registry check to *resume* a run
+  the Go module proxy, this repository's releases), and a version whose tag
+  already names another commit. `force_republish=true` skips the
+  already-published refusal to *resume* a run
   that half-landed (say PyPI succeeded and npm failed): targets already on
   their registry are skipped — PyPI `skip-existing`, an npm pre-check, the
-  CLI release's identical-checksums resume — and only the missing ones are
+  CLI release's identical-checksums resume, Go's same-source tag and proxy
+  confirmation — and only the missing ones are
   published. Re-running the failed publish job of the same run (*Re-run
   failed jobs*, one more approval) resumes the same way. Nothing is ever
   overwritten; registries refuse re-uploads regardless.
+- **Go releases:** The gate reads `sdk-go/go.mod` from the source commit,
+  without executing it. The release major must be at least 2 and its module
+  line must be exactly `go.daytona.com/sdk/v<major>`. For a source commit
+  predating the Go SDK, untick `publish_go`, including on a resume.
+  The tokenless `build-go` job verifies modules, builds, vets and tests the
+  snapshot. After the one `release` approval, the publish job creates
+  `sdk-go/<version>` (for example
+  `sdk-go/v2.1.0`) at that same source SHA, which the CLI release or
+  `record-tag` also records as `v2.1.0`. An existing Go tag at another commit
+  is always refused, including on resume; a same-source tag is left alone.
+  The job asks the Go module proxy for the version, retrying for up to 35
+  minutes to outlast cached not-found responses and checking its returned
+  `Version`. If that times out, the tag remains: resume the run, never move
+  the tag. Verify the result with
+  `go list -m go.daytona.com/sdk/v2@vX.Y.Z` (substitute the release version).
+  Proxy versions are **permanent**: deleting a Git tag cannot unpublish one.
+  If the proxy already lists a version but its `sdk-go/<version>` tag is
+  missing, the workflow refuses to recreate the tag, even with
+  `force_republish=true`. Deleting a published tag therefore leaves no resume
+  path: publish the next version instead. A bad version can only be retracted
+  by a later release with a `retract` directive in `sdk-go/go.mod`; publish
+  that later release through CI too.
 - A run cancelled while it created the CLI release can leave a **draft**
   release under the tag (`gh release create` uploads the assets to a draft and
   publishes it at the end). The resume refuses a draft, because it cannot
@@ -238,11 +277,12 @@ gh run watch "$(gh run list --workflow sdk_publish.yaml --limit 1 --json databas
 |-----|----------|---------|---------------------|---------|
 | Python | [PyPI](https://pypi.org/project/daytona/) | `daytona` | `import daytona` | PEP 440 spelling of the version, stamped into `sdk-python/pyproject.toml` at publish |
 | TypeScript | [npm](https://www.npmjs.com/package/@daytona/sdk) | `@daytona/sdk` | `from '@daytona/sdk'` | the version without `v`, stamped into `sdk-typescript/package.json` + `src/version.ts` at publish |
+| Go | [Go module proxy](https://proxy.golang.org) | `go.daytona.com/sdk/v2` | `import "go.daytona.com/sdk/v2"` (package `daytona`) | the `v`-prefixed version; tag `sdk-go/vX.Y.Z[-pre.N]` on the published source commit |
 | CLI | [GitHub Releases](https://github.com/daytona/clients/releases) + the channel's Homebrew formula | `daytona` | `daytona` | the version, stamped by `hack/build.sh` ldflags at publish; every binary checked with `go version -m` (toolchain at or above `cli/go.mod`'s `go` line) |
 | Migration tool (Python) | [PyPI](https://pypi.org/project/daytona-upgrade/) | `daytona-upgrade` | `uvx daytona-upgrade@<version>` | the PyPI spelling, stamped into `upgrade/python/pyproject.toml` at publish |
 | Migration tool (TypeScript) | [npm](https://www.npmjs.com/package/@daytona/upgrade) | `@daytona/upgrade` | `npx @daytona/upgrade@<version>` | the npm spelling, stamped into `upgrade/typescript/package.json` at publish |
 
-These five packages are all this line publishes. The legacy names, the PyPI
+These six packages are all this line publishes. The legacy names, the PyPI
 alias `daytona-sdk` (`daytona_sdk`) and the npm mirror `@daytonaio/sdk`, are
 published only from the 0.x line on `release/v0` and never carry 2.x. Their
 trusted publishers name the same workflow file and environment, so the
@@ -292,7 +332,7 @@ pre-release also keeps migrated projects off the stale `2.0.0-rc.1` /
   leave the tool out of a run; the SDKs still name the tool release of their
   version (the gate warns and the run summary says so), so publish it later at
   that version from the same commit: `-f publish_pypi=false -f
-  publish_npm=false -f publish_cli=false -f source_ref=<that commit>` (the
+  publish_npm=false -f publish_cli=false -f publish_go=false -f source_ref=<that commit>` (the
   registry check requires both SDKs to be published already).
 
 ### The migration guide
@@ -439,14 +479,16 @@ Procedure:
    ```
 
    It publishes PyPI `daytona==2.0.0`, npm `@daytona/sdk@2.0.0` and
-   `@daytona/upgrade@2.0.0` under `latest`, `daytona-upgrade==2.0.0`, the CLI
-   release `v2.0.0` (a normal release, marked **Latest**), and moves the
+   `@daytona/upgrade@2.0.0` under `latest`, `daytona-upgrade==2.0.0`, the
+   Go tag `sdk-go/v2.0.0` and proxy version, the CLI release `v2.0.0`
+   (a normal release, marked **Latest**), and moves the
    `daytona` formula to `2.0.0`.
 6. **Check:**
 
    ```bash
    npm view @daytona/sdk dist-tags              # latest: 2.0.0
    npm view @daytona/upgrade dist-tags          # latest: 2.0.0
+   go list -m go.daytona.com/sdk/v2@v2.0.0
    gh release view --repo daytona/clients --json tagName --jq .tagName   # v2.0.0 (Latest)
    gh api repos/daytonaio/homebrew-cli/contents/daytona.rb --jq .content | base64 -d | grep '^  version'
    curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh   # installs 2.0.0
@@ -476,7 +518,9 @@ build jobs of `sdk_publish.yaml` run, including the v0 bundle:
 ```bash
 python -m pip install build                       # the Python build front end (the build job installs it too)
 scripts/sdk-version.sh v2.0.0                     # the registry spellings
+scripts/sdk-version.sh --go v2.0.0 sdk-go/go.mod   # Go version, module and tag (source-major check)
 scripts/release-channel.sh v2.0.0                 # the channel
+(cd sdk-go && go mod verify && go build ./... && go vet ./... && go test -count=1 ./...)
 bash scripts/bundle-v0.sh --lang all              # the pinned v0 namespace (scripts/v0-sdk-version)
 (cd sdk-python && python -m build && python ../scripts/check_dist_artifacts.py python dist --v0)
 (cd sdk-typescript && npm install && DAYTONA_REQUIRE_V0_BUNDLE=1 npm run build \
@@ -497,6 +541,8 @@ sdk-typescript/package-lock.json`).
 - [ ] Stable / rc: the prepare-release PR merged before publishing
 - [ ] The run summary shows every requested target published
 - [ ] The version's tag points at the published commit
+- [ ] Go: `sdk-go/<version>` points at the same source commit and
+      `go list -m go.daytona.com/sdk/v2@<version>` resolves it
 - [ ] The first stable 2.x release: [its procedure](#the-first-stable-release-200)
 
 ---
