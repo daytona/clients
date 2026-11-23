@@ -28,3 +28,6 @@ AGENTS.local.md
 sdk-python/coverage.xml
 sdk-python/.coverage
 sdk-typescript/coverage/
+
+# scripts/go-vanity-site.sh output
+/go-vanity-site/
