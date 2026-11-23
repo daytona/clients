@@ -19,11 +19,6 @@ module Daytona
     # Most resource ids per subscribe / unsubscribe message.
     SUBSCRIBE_BATCH_SIZE = 100
 
-    # Most resource ids the SDK subscribes to on one connection. A server with a lower limit rejects the
-    # subscribes beyond it with SUBSCRIPTION_LIMIT_EXCEEDED in their acknowledgement, and those ids fall back
-    # to polling. Specs lower it with stub_const.
-    MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
-
     # Local event, not from the server, passed to the handlers of an id whose subscribe the server rejected:
     # no events will come for it.
     SUBSCRIPTION_REJECTED_EVENT = 'daytona.subscription.rejected'
@@ -45,10 +40,10 @@ module Daytona
       @failed = false
       @fail_error = nil
       @listeners = {}
-      # The ids the server serves, or will after the next connect: at most MAX_SUBSCRIPTIONS_PER_CONNECTION of
-      # the ids with listeners. An id that found no room, or whose subscribe the server rejected, stays
-      # unserved until its last listener goes. Maps each id to the number it was served under, so a late
-      # rejection of an earlier subscribe of the same id cannot unserve a newer one.
+      # The ids the server serves, or will after the next connect: every id with listeners, except one whose
+      # subscribe the server rejected (including past its per-socket limit), which stays unserved until its
+      # last listener goes. Maps each id to the number it was served under, so a late rejection of an earlier
+      # subscribe of the same id cannot unserve a newer one.
       @served = {}
       @serve_token = 0
       @registered_events = Set.new
@@ -175,7 +170,7 @@ module Daytona
 
     # @param resource_id [String]
     # @return [Boolean] Whether the server is asked to send events for +resource_id+: it has listeners and
-    #   was within the per-connection cap when it got its first
+    #   the server has not rejected its subscribe
     def served?(resource_id)
       @mutex.synchronize { @served.key?(resource_id) }
     end
@@ -225,12 +220,9 @@ module Daytona
       emit_ids_locked('unsubscribe', [resource_id]) if @served.delete(resource_id) && @connected
     end
 
-    # Serves an id that gained its first listener, if the cap has room. While disconnected only the set
-    # changes; the next connect sends it. Beyond the cap nothing is sent: the server would reject it, and
-    # the id's waits poll instead.
+    # Serves an id that gained its first listener. While disconnected only the set changes; the next connect
+    # sends it. The server enforces its per-socket limit and rejects the excess in the acknowledgement.
     def serve_locked(resource_id)
-      return if @served.size >= MAX_SUBSCRIPTIONS_PER_CONNECTION
-
       @served[resource_id] = (@serve_token += 1)
       emit_subscribe_locked([resource_id]) if @connected
     end

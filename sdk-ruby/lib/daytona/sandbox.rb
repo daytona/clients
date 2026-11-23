@@ -1739,8 +1739,8 @@ module Daytona
     EVENT_BACKED_POLL_INTERVAL = 5.0
     private_constant :EVENT_BACKED_POLL_INTERVAL
 
-    # A subscribed wait without events (connection down, subscription rejected or over the limit) starts at
-    # 1 s and backs off, so many such waits do not spend the request budget.
+    # A subscribed wait without events (connection down, or the subscription rejected by the server, including
+    # past its per-socket limit) starts at 1 s and backs off, so many such waits do not spend the request budget.
     FALLBACK_POLL_INTERVAL = 1.0
     private_constant :FALLBACK_POLL_INTERVAL
 

@@ -169,74 +169,6 @@ class EventDispatcherTest {
     }
 
     @Test
-    void servesIdsUpToTheCapAndSendsNothingForTheRest() throws Exception {
-        EventDispatcher capped = cappedDispatcher();
-        EventSubscriptionManager manager = new EventSubscriptionManager(capped);
-        try {
-            manager.subscribe("sb-1", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
-            manager.subscribe("sb-2", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
-            manager.subscribe("sb-3", NOOP, STATE_EVENTS);
-
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-            assertThat(capped.isServed("sb-3")).isFalse();
-            assertThat(manager.isEventBacked("sb-1")).isTrue();
-            assertThat(manager.isEventBacked("sb-3")).isFalse();
-        } finally {
-            manager.shutdown();
-            capped.shutdown();
-        }
-    }
-
-    @Test
-    void freesASlotOnTheLastListenerWithoutPromotingAnUnservedId() throws Exception {
-        EventDispatcher capped = cappedDispatcher();
-        try {
-            Runnable releaseFirst = capped.subscribe("sb-1", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
-            capped.subscribe("sb-2", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
-            Runnable releaseThird = capped.subscribe("sb-3", NOOP, STATE_EVENTS);
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-
-            releaseFirst.run();
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "unsubscribe", Set.of("sb-1"));
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-            assertThat(capped.isServed("sb-3")).isFalse();
-
-            capped.subscribe("sb-4", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-4"));
-
-            // sb-3 was never served, so its last listener sends nothing.
-            releaseThird.run();
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-        } finally {
-            capped.shutdown();
-        }
-    }
-
-    @Test
-    void resendsExactlyTheServedIdsOnReconnect() throws Exception {
-        EventDispatcher capped = cappedDispatcher();
-        try {
-            capped.subscribe("sb-1", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1"));
-            capped.subscribe("sb-2", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
-            capped.subscribe("sb-3", NOOP, STATE_EVENTS);
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-
-            gateway.dropConnection();
-
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-1", "sb-2"));
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-        } finally {
-            capped.shutdown();
-        }
-    }
-
-    @Test
     void isNotEventBackedWhileDisconnectedOrAfterShutdown() throws Exception {
         EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
         gateway.holdConnects();
@@ -277,38 +209,28 @@ class EventDispatcherTest {
         assertThat(new EventSubscriptionManager(stub).isEventBacked("sb-1")).isFalse();
     }
 
-    @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(ints = {20_000, 0, -1})
-    void aLimitAboveTheGatewayOrNotPositiveIsClampedToTheGatewayLimit(int limit) throws Exception {
-        EventDispatcher clamped = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", limit);
-        try {
-            // Subscribed while the connect is held, so the connect sends the whole served set in chunks.
-            gateway.holdConnects();
-            for (int i = 0; i <= 10_000; i++) {
-                clamped.subscribe("sb-" + i, NOOP, STATE_EVENTS);
-            }
-            gateway.resumeAccepting();
-
-            // Wait for each expected chunk, so slow emission cannot cut the count short; then nothing
-            // may follow, since the 10001st id is past the gateway limit.
-            List<String> sent = new ArrayList<>();
-            while (sent.size() < 10_000) {
-                FakeEventGateway.Emitted message = gateway.takeEmitted(WAIT_MILLIS);
-                assertThat(message).as("subscribe messages up to the gateway limit").isNotNull();
-                assertThat(message.event).isEqualTo("subscribe");
-                sent.addAll(ids(message));
-            }
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).as("nothing past the gateway limit").isNull();
-            List<String> expected = new ArrayList<>();
-            for (int i = 0; i < 10_000; i++) {
-                expected.add("sb-" + i);
-            }
-            assertThat(sent).containsExactlyInAnyOrderElementsOf(expected);
-            assertThat(clamped.isServed("sb-9999")).isTrue();
-            assertThat(clamped.isServed("sb-10000")).isFalse();
-        } finally {
-            clamped.shutdown();
+    @Test
+    void hasNoClientSideLimitEveryIdPastTheOldTenThousandIsSubscribedInChunks() throws Exception {
+        int count = 10_101;
+        // Subscribed while the connect is held, so the connect sends the whole served set in chunks.
+        gateway.holdConnects();
+        for (int i = 0; i < count; i++) {
+            dispatcher.subscribe("sb-" + i, NOOP, STATE_EVENTS);
         }
+        gateway.resumeAccepting();
+
+        // Wait for each expected chunk, so slow emission cannot cut the count short.
+        List<String> sent = new ArrayList<>();
+        while (sent.size() < count) {
+            FakeEventGateway.Emitted message = gateway.takeEmitted(WAIT_MILLIS);
+            assertThat(message).as("subscribe messages for every id").isNotNull();
+            assertThat(message.event).isEqualTo("subscribe");
+            assertThat(ids(message)).hasSizeLessThanOrEqualTo(100);
+            sent.addAll(ids(message));
+        }
+        assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
+        assertThat(sent).hasSize(count).doesNotHaveDuplicates();
+        assertThat(dispatcher.isServed("sb-" + (count - 1))).isTrue();
     }
 
     @Test
@@ -324,41 +246,35 @@ class EventDispatcherTest {
         assertThat(unsubscribe.ackId).isNull();
     }
 
-    @Test
-    void aRejectionFreesTheSlotMarksTheIdRejectedTellsItsHandlersAndKeepsItOutOfTheReconnectSet() throws Exception {
-        EventDispatcher capped = cappedDispatcher();
-        EventSubscriptionManager manager = new EventSubscriptionManager(capped);
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"OVERLOADED", "SUBSCRIPTION_LIMIT_EXCEEDED"})
+    void aRejectionUnservesTheIdMarksItRejectedTellsItsHandlersAndKeepsItOutOfTheReconnectSet(String code)
+            throws Exception {
+        EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
         try {
             BlockingQueue<String> notified = new LinkedBlockingQueue<>();
-            capped.subscribe("sb-1", (event, data) -> notified.add(event + " " + data.path("error").asText()), STATE_EVENTS);
+            dispatcher.subscribe("sb-1", (event, data) -> notified.add(event + " " + data.path("error").asText()), STATE_EVENTS);
             FakeEventGateway.Emitted first = gateway.takeEmitted(WAIT_MILLIS);
             assertEmitted(first, "subscribe", Set.of("sb-1"));
-            capped.subscribe("sb-2", NOOP, STATE_EVENTS);
+            dispatcher.subscribe("sb-2", NOOP, STATE_EVENTS);
             assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
-            capped.subscribe("sb-3", NOOP, STATE_EVENTS);
-            assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
             assertThat(manager.isEventBacked("sb-1")).isTrue();
 
-            gateway.ack(first, "{\"ok\":false,\"error\":\"OVERLOADED\",\"message\":\"shedding\"}");
+            gateway.ack(first, "{\"ok\":false,\"error\":\"" + code + "\",\"message\":\"no\"}");
 
             assertThat(notified.poll(WAIT_MILLIS, TimeUnit.MILLISECONDS))
-                    .isEqualTo(EventDispatcher.SUBSCRIPTION_REJECTED_EVENT + " OVERLOADED");
-            assertThat(capped.isServed("sb-1")).isFalse();
-            assertThat(capped.isRejected("sb-1")).isTrue();
+                    .isEqualTo(EventDispatcher.SUBSCRIPTION_REJECTED_EVENT + " " + code);
+            assertThat(dispatcher.isServed("sb-1")).isFalse();
+            assertThat(dispatcher.isRejected("sb-1")).isTrue();
             assertThat(manager.isEventBacked("sb-1")).isFalse();
-
-            // Its slot is free for the next new id; the over-limit id is not promoted.
-            capped.subscribe("sb-4", NOOP, STATE_EVENTS);
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-4"));
-            assertThat(capped.isServed("sb-3")).isFalse();
+            assertThat(dispatcher.isServed("sb-2")).isTrue();
 
             gateway.dropConnection();
-            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2", "sb-4"));
+            assertEmitted(gateway.takeEmitted(WAIT_MILLIS), "subscribe", Set.of("sb-2"));
             assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-            assertThat(capped.isRejected("sb-1")).isTrue();
+            assertThat(dispatcher.isRejected("sb-1")).isTrue();
         } finally {
             manager.shutdown();
-            capped.shutdown();
         }
     }
 
@@ -493,22 +409,6 @@ class EventDispatcherTest {
     }
 
     @Test
-    void aLoweredLimitIsKept() {
-        EventDispatcher capped = cappedDispatcher();
-        try {
-            gateway.holdConnects();
-            for (int i = 0; i < 3; i++) {
-                capped.subscribe("sb-" + i, NOOP, STATE_EVENTS);
-            }
-
-            assertThat(capped.isServed("sb-1")).isTrue();
-            assertThat(capped.isServed("sb-2")).isFalse();
-        } finally {
-            capped.shutdown();
-        }
-    }
-
-    @Test
     void aStaleConnectCallbackFromAReplacedSocketChangesNothing() throws Exception {
         BlockingQueue<JsonNode> received = new LinkedBlockingQueue<>();
         dispatcher.subscribe("sb-1", (event, data) -> received.add(data), STATE_EVENTS);
@@ -551,10 +451,6 @@ class EventDispatcherTest {
         java.lang.reflect.Field field = EventDispatcher.class.getDeclaredField(name);
         field.setAccessible(true);
         return type.cast(field.get(dispatcher));
-    }
-
-    private EventDispatcher cappedDispatcher() {
-        return new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "1.2.3", 2);
     }
 
     @Test

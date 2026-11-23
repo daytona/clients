@@ -1883,7 +1883,8 @@ class Sandbox(SandboxDto):
                 pass
 
     def _event_backed(self) -> bool:
-        # Connected is not enough: an id past the connection's subscription cap gets no events.
+        # Connected is not enough: an id the server rejected (e.g. past its per-socket limit) gets
+        # no events.
         return self._subscription_manager.is_event_backed(self.id)
 
     def _read_state_event_count(self) -> int:
@@ -1950,8 +1951,8 @@ class Sandbox(SandboxDto):
 
         The wait subscribes to the sandbox's state events for its own duration only. Polls are a safety
         net: slow while events are flowing, backing off from 1 s to 10 s while they are not (connection
-        down, subscription rejected or past the connection's limit), and fast only without a
-        subscription (see ``internal.wait_poll``). A rate-limited poll does not fail the wait: the next
+        down, or subscription rejected by the server, including past its per-socket limit), and fast
+        only without a subscription (see ``internal.wait_poll``). A rate-limited poll does not fail the wait: the next
         one waits at least the current interval, the fallback backoff and ``Retry-After``.
 
         Args:

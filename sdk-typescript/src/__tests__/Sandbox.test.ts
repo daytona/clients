@@ -2220,7 +2220,7 @@ class FakeSocket extends FakeEmitter {
   }
 }
 
-describe('Sandbox waits over the per-connection subscription cap', () => {
+describe('Sandbox waits whose subscription the server rejects', () => {
   const ioMock = io as unknown as jest.Mock
   let socket: FakeSocket
   let dispatcher: EventDispatcher
@@ -2230,8 +2230,6 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
     socket.sent.mock.calls
       .filter(([name]) => name === event)
       .flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
-
-  const stateEvent = (id: string, state: string) => ({ sandbox: { id, state }, newState: state })
 
   // A sandbox whose stop request returns 'stopping' and whose reads keep saying 'stopping'.
   const stoppingSandbox = (id: string) => {
@@ -2248,7 +2246,7 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
       socket = new FakeSocket()
       return socket
     })
-    dispatcher = new EventDispatcher('https://api.example.test/api', 'token', undefined, undefined, undefined, 2)
+    dispatcher = new EventDispatcher('https://api.example.test/api', 'token')
     manager = new EventSubscriptionManager(dispatcher)
     const connecting = dispatcher.connect()
     socket.serverAccepts()
@@ -2261,39 +2259,7 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
     jest.useRealTimers()
   })
 
-  it('an overflow wait reads first and polls every ~1s; the served waits stay event-backed', async () => {
-    const a = stoppingSandbox('sb-a')
-    const b = stoppingSandbox('sb-b')
-    const c = stoppingSandbox('sb-c')
-
-    const stops = [a.sandbox.stop(60), b.sandbox.stop(60), c.sandbox.stop(60)]
-    await jest.advanceTimersByTimeAsync(0)
-
-    expect(subscribedIds('subscribe')).toEqual(['sb-a', 'sb-b'])
-    expect(manager.isEventBacked('sb-a')).toBe(true)
-    expect(manager.isEventBacked('sb-c')).toBe(false)
-    expect(a.sandboxApi.getSandbox).not.toHaveBeenCalled()
-    expect(b.sandboxApi.getSandbox).not.toHaveBeenCalled()
-    expect(c.sandboxApi.getSandbox).toHaveBeenCalledTimes(1)
-
-    // The fallback polls come after 1 s and 1.5 s more (x0.8-1.2 jitter, so at most 3 s together);
-    // the event-backed waits poll no earlier than 4 s.
-    await jest.advanceTimersByTimeAsync(3000)
-    expect(c.sandboxApi.getSandbox).toHaveBeenCalledTimes(3)
-    expect(a.sandboxApi.getSandbox).not.toHaveBeenCalled()
-    expect(b.sandboxApi.getSandbox).not.toHaveBeenCalled()
-
-    socket.fire('sandbox.state.updated', stateEvent('sb-a', 'stopped'))
-    socket.fire('sandbox.state.updated', stateEvent('sb-b', 'stopped'))
-    c.sandboxApi.getSandbox.mockResolvedValue(createApiResponse(dtoFor('sb-c', { state: 'stopped' })))
-    // The next fallback poll is 2.25 s (at most 2.7 s) after the previous one.
-    await jest.advanceTimersByTimeAsync(3000)
-    await Promise.all(stops)
-    expect(c.sandboxApi.getSandbox).toHaveBeenCalledTimes(4)
-    expect(subscribedIds('subscribe')).toEqual(['sb-a', 'sb-b'])
-  })
-
-  it('a rejected subscription makes its wait read at once, then poll at the fallback cadence', async () => {
+  it('a subscription past the server limit makes its wait read at once, then poll at the fallback cadence', async () => {
     const random = jest.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
       const a = stoppingSandbox('sb-a')
@@ -2305,7 +2271,7 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
       dispatcher.subscribe('sb-a', handler, ['sandbox.state.updated'])
 
       const ack = socket.acks.find(({ payload }) => (payload as { sandboxIds: string[] }).sandboxIds.includes('sb-a'))
-      ack?.ack({ ok: false, error: 'OVERLOADED', message: 'shedding' })
+      ack?.ack({ ok: false, error: 'SUBSCRIPTION_LIMIT_EXCEEDED', message: 'limit reached' })
       expect(handler).toHaveBeenCalledWith(SUBSCRIPTION_REJECTED_EVENT, expect.anything())
       expect(manager.isEventBacked('sb-a')).toBe(false)
       await jest.advanceTimersByTimeAsync(0)
@@ -2318,6 +2284,12 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
       await jest.advanceTimersByTimeAsync(1500)
       expect(a.sandboxApi.getSandbox).toHaveBeenCalledTimes(3)
 
+      // A reconnect does not ask for the rejected id again.
+      socket.sent.mockClear()
+      socket.drop()
+      socket.serverAccepts()
+      expect(subscribedIds('subscribe')).toEqual([])
+
       a.sandboxApi.getSandbox.mockResolvedValue(createApiResponse(dtoFor('sb-a', { state: 'stopped' })))
       await jest.advanceTimersByTimeAsync(2250)
       await stop
@@ -2325,37 +2297,6 @@ describe('Sandbox waits over the per-connection subscription cap', () => {
     } finally {
       random.mockRestore()
     }
-  })
-
-  it('a freed slot goes to the next new wait, not to the overflow wait', async () => {
-    const a = stoppingSandbox('sb-a')
-    const b = stoppingSandbox('sb-b')
-    const c = stoppingSandbox('sb-c')
-    const stopA = a.sandbox.stop(60)
-    const stopB = b.sandbox.stop(60)
-    const stopC = c.sandbox.stop(60)
-    await jest.advanceTimersByTimeAsync(0)
-
-    socket.fire('sandbox.state.updated', stateEvent('sb-a', 'stopped'))
-    await stopA
-    expect(subscribedIds('unsubscribe')).toEqual(['sb-a'])
-    expect(manager.isEventBacked('sb-c')).toBe(false)
-
-    const d = stoppingSandbox('sb-d')
-    const stopD = d.sandbox.stop(60)
-    await jest.advanceTimersByTimeAsync(0)
-    expect(subscribedIds('subscribe')).toEqual(['sb-a', 'sb-b', 'sb-d'])
-    expect(d.sandboxApi.getSandbox).not.toHaveBeenCalled()
-    expect(manager.isEventBacked('sb-c')).toBe(false)
-
-    socket.fire('sandbox.state.updated', stateEvent('sb-b', 'stopped'))
-    socket.fire('sandbox.state.updated', stateEvent('sb-d', 'stopped'))
-    // The gateway sends nothing for an unserved id: sb-c resolves through its ~1 s poll.
-    c.sandboxApi.getSandbox.mockResolvedValue(createApiResponse(dtoFor('sb-c', { state: 'stopped' })))
-    await jest.advanceTimersByTimeAsync(1500)
-    await Promise.all([stopB, stopC, stopD])
-    // sb-c was never served, so its last listener sends no unsubscribe.
-    expect(subscribedIds('unsubscribe')).toEqual(['sb-a', 'sb-b', 'sb-d'])
   })
 })
 

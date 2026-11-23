@@ -7,8 +7,8 @@ import { DaytonaError, DaytonaRateLimitError } from '../errors/DaytonaError'
 
 // State events drive waits; polling is only a safety net, so keep it sparse while events flow.
 export const EVENT_BACKED_POLL_INTERVAL_MS = 5000
-// Subscribed but no events arrive (connection down, subscription rejected or over the connection's
-// limit): start at 1 s and back off, so thousands of such waits do not exhaust the request budget.
+// Subscribed but no events arrive (connection down, or the subscription rejected by the server, including
+// past its per-socket limit): start at 1 s and back off, so thousands of such waits do not exhaust the request budget.
 export const FALLBACK_POLL_INTERVAL_MS = 1000
 export const FALLBACK_POLL_GROWTH = 1.5
 export const FALLBACK_POLL_MAX_INTERVAL_MS = 10_000

@@ -33,12 +33,6 @@ function extractIdFromEvent(data: any): string | undefined {
 const SUBSCRIPTION_CHUNK_SIZE = 100
 
 /**
- * Most sandbox ids one connection subscribes to. A gateway with a lower limit rejects the excess with
- * `SUBSCRIPTION_LIMIT_EXCEEDED` in the subscribe acknowledgement, which marks those ids rejected.
- */
-export const MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
-
-/**
  * How long the first acknowledged subscribe of a connection waits before the connection counts as one
  * whose server never acknowledges. Silence never changes an id's state.
  */
@@ -70,8 +64,9 @@ export class EventDispatcher {
   private _failed = false
   private _failError: string | null = null
   private listeners = new Map<string, Set<EventHandler>>()
-  // Ids the server holds, or will hold after the next connect (at most maxSubscriptions), each with the
-  // token it was served under, so a late rejection of an earlier subscription cannot unserve a newer one.
+  // Ids the server holds, or will hold after the next connect, each with the token it was served under,
+  // so a late rejection of an earlier subscription cannot unserve a newer one. The server enforces its
+  // per-socket limit by rejecting the excess (SUBSCRIPTION_LIMIT_EXCEEDED), which unserves those ids.
   private readonly served = new Map<string, number>()
   private serveToken = 0
   // Per connection: whether an acknowledgement arrived, the timer of the first acknowledged subscribe,
@@ -95,7 +90,6 @@ export class EventDispatcher {
   // Set once on the first Manager 'open' by capability probe, not runtime name.
   // `undefined` (pre-connect) is treated as `false` → ephemeral disconnect.
   private supportsBackgroundUnref: boolean | undefined = undefined
-  private readonly maxSubscriptions: number
 
   constructor(
     private readonly apiUrl: string,
@@ -103,14 +97,7 @@ export class EventDispatcher {
     private readonly organizationId?: string,
     private readonly source?: string,
     private readonly sdkVersion?: string,
-    maxSubscriptions = MAX_SUBSCRIPTIONS_PER_CONNECTION,
-  ) {
-    // The gateway never accepts more; a non-positive value means the default.
-    this.maxSubscriptions =
-      maxSubscriptions > 0 && maxSubscriptions <= MAX_SUBSCRIPTIONS_PER_CONNECTION
-        ? maxSubscriptions
-        : MAX_SUBSCRIPTIONS_PER_CONNECTION
-  }
+  ) {}
 
   /**
    * Idempotent: ensure a connection attempt is in progress or already established.
@@ -335,11 +322,8 @@ export class EventDispatcher {
     if (!handlers) {
       handlers = new Set()
       this.listeners.set(resourceId, handlers)
-      // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
-      if (this.served.size < this.maxSubscriptions) {
-        this.served.set(resourceId, ++this.serveToken)
-        this.emitSubscriptionChange('subscribe', [resourceId])
-      }
+      this.served.set(resourceId, ++this.serveToken)
+      this.emitSubscriptionChange('subscribe', [resourceId])
     }
     handlers.add(handler)
 

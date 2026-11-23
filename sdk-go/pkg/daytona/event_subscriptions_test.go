@@ -6,7 +6,6 @@ package daytona
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -318,18 +317,6 @@ func (s *eventTestServer) getTimesCopy() []time.Time {
 	return append([]time.Time(nil), s.getTimes...)
 }
 
-func (s *eventTestServer) getsFor(id string) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	n := 0
-	for _, got := range s.getIDs {
-		if got == id {
-			n++
-		}
-	}
-	return n
-}
-
 func (s *eventTestServer) gets() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -352,16 +339,6 @@ func (s *eventTestServer) events() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]string(nil), s.received...)
-}
-
-// subscribedTo reports whether a subscribe message carried id.
-func (s *eventTestServer) subscribedTo(id string) bool {
-	for _, e := range s.events() {
-		if ids, ok := strings.CutPrefix(e, "subscribe:"); ok && slices.Contains(strings.Split(ids, ","), id) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *eventTestServer) hasEvent(event string) bool {
@@ -943,103 +920,6 @@ func TestStopReadsFirstWhenLiveResponseIsEmpty(t *testing.T) {
 	assertEndedOnImmediateRead(t, srv, start)
 }
 
-// lowerSubscriptionCap sets the per-connection subscription cap for
-// dispatchers created afterwards.
-func lowerSubscriptionCap(t *testing.T, limit int) {
-	t.Helper()
-	original := common.MaxSubscriptionsPerConnection
-	common.MaxSubscriptionsPerConnection = limit
-	t.Cleanup(func() { common.MaxSubscriptionsPerConnection = original })
-}
-
-func capTestSandboxID(i int) string {
-	return fmt.Sprintf("00000000-0000-4000-8000-%012d", 100+i)
-}
-
-func newEventTestSandboxWithID(client *Client, id string, state apiclient.SandboxState) *Sandbox {
-	return NewSandbox(client, nil, &apiclient.Sandbox{Id: id, Name: "sandbox", State: &state}, types.CodeLanguagePython, client.subscriptionManager)
-}
-
-// startWait runs a stand-alone start wait on sandbox until the test ends or
-// the returned cancel is called.
-func startWait(t *testing.T, sandbox *Sandbox) (cancel func()) {
-	t.Helper()
-	ctx, cancelCtx := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- sandbox.doWaitForStart(ctx, 0) }()
-	var once sync.Once
-	cancel = func() {
-		once.Do(func() {
-			cancelCtx()
-			assert.ErrorIs(t, <-done, context.Canceled)
-		})
-	}
-	t.Cleanup(cancel)
-	return cancel
-}
-
-func TestWaitBeyondSubscriptionCapReadsFirstAndPollsAtSubscribedCadence(t *testing.T) {
-	stubNoScheduledPolls(t)
-	lowerSubscriptionCap(t, 2)
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
-	client := newEventTestClient(t, srv)
-	idA, idB := capTestSandboxID(1), capTestSandboxID(2)
-	sandboxA := newEventTestSandboxWithID(client, idA, apiclient.SANDBOXSTATE_STARTING)
-	startWait(t, sandboxA)
-	startWait(t, newEventTestSandboxWithID(client, idB, apiclient.SANDBOXSTATE_STARTING))
-	require.Eventually(t, func() bool {
-		return srv.subscribedTo(idA) && srv.subscribedTo(idB) && client.subscriptionManager.IsConnected()
-	}, 10*time.Second, 10*time.Millisecond)
-
-	// The third sandbox: its wait holds a subscription, but no events come.
-	sandboxC := newEventTestSandbox(client, apiclient.SANDBOXSTATE_STARTED)
-	held := sandboxC.subscribeForWait()
-	defer held.close()
-	assert.Equal(t, waitPollSubscribed, held.pollMode(), "an unserved wait polls every second")
-	heldA := sandboxA.subscribeForWait()
-	defer heldA.close()
-	assert.Equal(t, waitPollEventBacked, heldA.pollMode(), "served waits stay event-backed")
-
-	srv.setState(apiclient.SANDBOXSTATE_STOPPED)
-	srv.setOperation(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload(eventTestSandboxID, "sandbox", apiclient.SANDBOXSTATE_STOPPING))
-	})
-	start := time.Now()
-	require.NoError(t, sandboxC.doStopWithTimeout(context.Background(), readsFirstTimeout, false))
-	assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandboxC.currentState())
-	assert.Less(t, time.Since(start), readsFirstTimeout/2, "the wait ended at its deadline, not on its immediate read")
-	assert.Equal(t, 1, srv.getsFor(eventTestSandboxID), "the stop's wait reads first")
-
-	assert.False(t, srv.subscribedTo(eventTestSandboxID), "a subscribe beyond the cap is never sent")
-	assert.True(t, client.subscriptionManager.IsEventBacked(idA))
-	assert.False(t, client.subscriptionManager.IsEventBacked(eventTestSandboxID))
-}
-
-func TestFreedSubscriptionSlotGoesToTheNextNewID(t *testing.T) {
-	stubNoScheduledPolls(t)
-	lowerSubscriptionCap(t, 2)
-	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STARTING)
-	client := newEventTestClient(t, srv)
-	idA, idB, idC, idD := capTestSandboxID(1), capTestSandboxID(2), capTestSandboxID(3), capTestSandboxID(4)
-	cancelA := startWait(t, newEventTestSandboxWithID(client, idA, apiclient.SANDBOXSTATE_STARTING))
-	startWait(t, newEventTestSandboxWithID(client, idB, apiclient.SANDBOXSTATE_STARTING))
-	require.Eventually(t, func() bool {
-		return srv.subscribedTo(idA) && srv.subscribedTo(idB) && client.subscriptionManager.IsConnected()
-	}, 10*time.Second, 10*time.Millisecond)
-	startWait(t, newEventTestSandboxWithID(client, idC, apiclient.SANDBOXSTATE_STARTING))
-	require.Eventually(t, func() bool { return srv.getsFor(idC) == 1 }, 10*time.Second, 10*time.Millisecond)
-
-	cancelA()
-	require.Eventually(t, func() bool { return srv.hasEvent("unsubscribe:" + idA) }, 10*time.Second, 10*time.Millisecond)
-	assert.False(t, client.eventDispatcher.IsServed(idC), "an unserved id is not promoted")
-
-	startWait(t, newEventTestSandboxWithID(client, idD, apiclient.SANDBOXSTATE_STARTING))
-	require.Eventually(t, func() bool { return srv.subscribedTo(idD) }, 10*time.Second, 10*time.Millisecond)
-	assert.True(t, client.subscriptionManager.IsEventBacked(idD))
-	assert.False(t, srv.subscribedTo(idC))
-	assert.False(t, srv.hasEvent("unsubscribe:"+idC))
-}
-
 func TestStopReadsFirstWhenStateEventArrivesWhileSubscribing(t *testing.T) {
 	stubNoScheduledPolls(t)
 	srv := newEventTestServer(t, apiclient.SANDBOXSTATE_STOPPED)
@@ -1159,6 +1039,9 @@ func TestResizeWithoutStateInResponseWaitsForTheResize(t *testing.T) {
 
 const overloadedAck = `{"ok":false,"error":"OVERLOADED","message":"shedding"}`
 
+// limitExceededAck is the server's answer past its per-socket limit.
+const limitExceededAck = `{"ok":false,"error":"SUBSCRIPTION_LIMIT_EXCEEDED","message":"limit reached"}`
+
 func TestRejectedSubscriptionMakesTheWaitReadAtOnceAndPollAtTheFallbackCadence(t *testing.T) {
 	var mu sync.Mutex
 	var modes []waitPollMode
@@ -1181,7 +1064,7 @@ func TestRejectedSubscriptionMakesTheWaitReadAtOnceAndPollAtTheFallbackCadence(t
 	srv.mu.Lock()
 	srv.subscribeAck = func(ids []string) string {
 		if slices.Contains(ids, eventTestSandboxID) {
-			return overloadedAck
+			return limitExceededAck
 		}
 		return `{"ok":true}`
 	}

@@ -23,7 +23,7 @@ from daytona_api_client_async import Sandbox as AsyncSandboxDto
 
 from .conftest import make_sandbox_dto
 from .test_event_dispatcher import FakeAsyncClient, FakeSyncClient
-from .test_subscription_cap import (
+from .test_subscriptions import (
     STATE_EVENT,
     _async_wait_until,
     _connected_async_dispatcher,
@@ -34,11 +34,13 @@ from .test_subscription_cap import (
 )
 
 REJECTED = {"ok": False, "error": "OVERLOADED", "message": "The gateway is overloaded"}
+# The server's answer past its per-socket limit: handled like any other rejection.
+LIMIT_EXCEEDED = {"ok": False, "error": "SUBSCRIPTION_LIMIT_EXCEEDED", "message": "Too many subscriptions"}
+REJECTIONS = pytest.mark.parametrize("rejection", [REJECTED, LIMIT_EXCEEDED], ids=["overloaded", "limit-exceeded"])
 
 
 @pytest.fixture(autouse=True)
-def _cap_of_two(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(event_dispatcher_module, "MAX_SUBSCRIPTIONS_PER_CONNECTION", 2)
+def _stub_jitter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(wait_poll, "random_unit", lambda: 0.5)
 
 
@@ -72,11 +74,6 @@ class _Recorder:
         self.events.append((event_name, data))
 
 
-def test_the_per_connection_limit_is_ten_thousand(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.undo()  # the autouse fixture lowers it for the other tests
-    assert event_dispatcher_module.MAX_SUBSCRIPTIONS_PER_CONNECTION == 10_000
-
-
 class TestAsyncSubscribeAcks:
     async def test_subscribe_asks_for_an_ack_and_unsubscribe_does_not(self, async_sio, monkeypatch):
         dispatcher = await _connected_async_dispatcher(monkeypatch)
@@ -90,8 +87,9 @@ class TestAsyncSubscribeAcks:
         assert sio.sent_callbacks[0] is not None and sio.sent_callbacks[1] is None
         await dispatcher.disconnect()
 
+    @REJECTIONS
     async def test_rejected_id_is_unserved_frees_its_slot_and_stays_out_of_the_reconnect_set(
-        self, async_sio, monkeypatch
+        self, async_sio, monkeypatch, rejection
     ):
         dispatcher = await _connected_async_dispatcher(monkeypatch)
         manager = AsyncEventSubscriptionManager(dispatcher)
@@ -102,12 +100,12 @@ class TestAsyncSubscribeAcks:
         sio = async_sio.instances[0]
         assert manager.is_event_backed("sb-1")
 
-        await sio.ack(_subscribe_index(sio, "sb-1"), REJECTED)
+        await sio.ack(_subscribe_index(sio, "sb-1"), rejection)
 
         assert not dispatcher.is_served("sb-1") and dispatcher.is_rejected("sb-1")
         assert not manager.is_event_backed("sb-1")
         assert handler.events == [
-            (SUBSCRIPTION_REJECTED_EVENT, {"error": "OVERLOADED", "message": "The gateway is overloaded"})
+            (SUBSCRIPTION_REJECTED_EVENT, {"error": rejection["error"], "message": rejection["message"]})
         ]
         # The slot is free again: the next new id is served.
         _ = manager.subscribe("sb-3", _Recorder(), [STATE_EVENT])
@@ -240,7 +238,10 @@ class TestSyncSubscribeAcks:
         assert sio.sent_callbacks[0] is not None and sio.sent_callbacks[1] is None
         dispatcher.disconnect()
 
-    def test_rejected_id_is_unserved_frees_its_slot_and_stays_out_of_the_reconnect_set(self, sync_sio, monkeypatch):
+    @REJECTIONS
+    def test_rejected_id_is_unserved_frees_its_slot_and_stays_out_of_the_reconnect_set(
+        self, sync_sio, monkeypatch, rejection
+    ):
         dispatcher = _connected_sync_dispatcher(monkeypatch)
         manager = SyncEventSubscriptionManager(dispatcher)
         handler = _Recorder()
@@ -250,14 +251,14 @@ class TestSyncSubscribeAcks:
         assert manager.is_event_backed("sb-1")
 
         # Acks run on the socket's thread.
-        acker = threading.Thread(target=sio.ack, args=(_subscribe_index(sio, "sb-1"), REJECTED))
+        acker = threading.Thread(target=sio.ack, args=(_subscribe_index(sio, "sb-1"), rejection))
         acker.start()
         acker.join()
 
         assert not dispatcher.is_served("sb-1") and dispatcher.is_rejected("sb-1")
         assert not manager.is_event_backed("sb-1")
         assert handler.events == [
-            (SUBSCRIPTION_REJECTED_EVENT, {"error": "OVERLOADED", "message": "The gateway is overloaded"})
+            (SUBSCRIPTION_REJECTED_EVENT, {"error": rejection["error"], "message": rejection["message"]})
         ]
         _ = manager.subscribe("sb-3", _Recorder(), [STATE_EVENT])
         assert dispatcher.is_served("sb-3")
@@ -350,8 +351,9 @@ class TestSyncSubscribeAcks:
 
 
 class TestAsyncWaitOnARejectedSubscription:
+    @REJECTIONS
     async def test_a_skipping_wait_reads_at_once_then_falls_back(
-        self, async_sio, monkeypatch, mock_async_toolbox_api_client
+        self, async_sio, monkeypatch, mock_async_toolbox_api_client, rejection
     ):
         from daytona._async import sandbox as sandbox_module
 
@@ -391,7 +393,7 @@ class TestAsyncWaitOnARejectedSubscription:
         assert intervals == [pytest.approx(5.0)]  # event-backed: skipped its first read
         sandbox_api.get_sandbox.assert_not_called()
 
-        await sio.ack(_subscribe_index(sio, "test-sandbox-id"), REJECTED)
+        await sio.ack(_subscribe_index(sio, "test-sandbox-id"), rejection)
         await real_wait_for(task, timeout=2)
 
         # Woken by the rejection: one read at once, then the fallback backoff from 1 s.
@@ -403,7 +405,10 @@ class TestAsyncWaitOnARejectedSubscription:
 
 
 class TestSyncWaitOnARejectedSubscription:
-    def test_a_skipping_wait_reads_at_once_then_falls_back(self, sync_sio, monkeypatch, mock_toolbox_api_client):
+    @REJECTIONS
+    def test_a_skipping_wait_reads_at_once_then_falls_back(
+        self, sync_sio, monkeypatch, mock_toolbox_api_client, rejection
+    ):
         from daytona._sync import sandbox as sandbox_module
 
         intervals: list[float] = []
@@ -446,7 +451,7 @@ class TestSyncWaitOnARejectedSubscription:
         assert intervals == [pytest.approx(5.0)]  # event-backed: skipped its first read
         sandbox_api.get_sandbox.assert_not_called()
 
-        acker = threading.Thread(target=sio.ack, args=(_subscribe_index(sio, "test-sandbox-id"), REJECTED))
+        acker = threading.Thread(target=sio.ack, args=(_subscribe_index(sio, "test-sandbox-id"), rejection))
         acker.start()
         acker.join()
         waiter.join(timeout=4)

@@ -2076,7 +2076,7 @@ RSpec.describe Daytona::Sandbox do
     end
   end
 
-  describe 'the per-connection subscription cap' do
+  describe 'a subscription rejected past the server limit' do
     let(:dispatcher) { Daytona::EventDispatcher.new(api_url: 'https://api.example.com/api', token: 'token') }
     let(:manager) { Daytona::EventSubscriptionManager.new(dispatcher) }
     let(:emit_lock) { Mutex.new }
@@ -2084,9 +2084,9 @@ RSpec.describe Daytona::Sandbox do
     let(:states) { Hash.new('pending').merge('sandbox-c' => 'stopped') }
     let(:cancelled) { Class.new(StandardError) }
     let(:waits) { [] }
+    let(:limit_exceeded) { { 'ok' => false, 'error' => 'SUBSCRIPTION_LIMIT_EXCEEDED', 'message' => 'limit reached' } }
 
     before do
-      stub_const('Daytona::EventDispatcher::MAX_SUBSCRIPTIONS_PER_CONNECTION', 2)
       allow(Daytona::SocketIOClient).to receive(:new) do
         double('SocketIOClient', connect: nil, close: nil).tap do |client|
           allow(client).to receive(:emit) { |name, data|
@@ -2094,10 +2094,13 @@ RSpec.describe Daytona::Sandbox do
               emitted << [name, data[:sandboxIds]]
             }
           }
-          allow(client).to receive(:emit_with_ack) { |name, data|
+          # The server is past its per-socket limit for sandbox-c only; it answers on its own thread.
+          allow(client).to receive(:emit_with_ack) { |name, data, &on_ack|
             emit_lock.synchronize {
               emitted << [name, data[:sandboxIds]]
             }
+            ack = data[:sandboxIds].include?('sandbox-c') ? limit_exceeded : { 'ok' => true }
+            Thread.new { on_ack.call(ack) }
           }
         end
       end
@@ -2132,12 +2135,6 @@ RSpec.describe Daytona::Sandbox do
       thread
     end
 
-    def cancel_wait(thread)
-      waits.delete(thread)
-      thread.raise(cancelled)
-      thread.join
-    end
-
     def emitted_events = emit_lock.synchronize { emitted.dup }
 
     def subscribed?(sandbox_id) = emitted_events.any? { |name, ids| name == 'subscribe' && ids.include?(sandbox_id) }
@@ -2157,11 +2154,12 @@ RSpec.describe Daytona::Sandbox do
       sandbox.send(:next_poll_interval, subscription: { id: 'held' }, fast_poll_interval: 0.1)
     end
 
-    it 'makes the wait beyond the cap read first and poll every second; the served ones stay event-backed' do
+    it 'makes the rejected wait read at once and fall back; the served ones stay event-backed' do
       start_wait('sandbox-a')
       start_wait('sandbox-b')
       eventually { subscribed?('sandbox-a') && subscribed?('sandbox-b') && manager.connected? }
       sandbox_c = sandbox_for('sandbox-c', 'started')
+      allow(sandbox_c).to receive(:poll_jitter_random).and_return(0.5)
       allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(id: 'sandbox-c', state: 'stopping'))
 
       elapsed = Benchmark.realtime { sandbox_c.stop(5) }
@@ -2169,26 +2167,9 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_c.state).to eq('stopped')
       expect(sandbox_api).to have_received(:get_sandbox).with('sandbox-c').once
       expect(elapsed).to be < 2.5
-      expect(subscribed?('sandbox-c')).to be(false)
-      expect(interval_for(sandbox_c)).to eq(1.0)
+      expect(subscribed?('sandbox-c')).to be(true)
+      expect(manager.event_backed?('sandbox-a')).to be(true)
       expect(interval_for(sandbox_for('sandbox-a'))).to eq(5.0)
-    end
-
-    it 'gives a freed slot to the next new id, not to the unserved one' do
-      wait_a = start_wait('sandbox-a')
-      start_wait('sandbox-b')
-      eventually { subscribed?('sandbox-a') && subscribed?('sandbox-b') && manager.connected? }
-      start_wait('sandbox-c')
-      eventually { dispatcher.instance_variable_get(:@listeners).key?('sandbox-c') }
-
-      cancel_wait(wait_a)
-      eventually { emitted_events.include?(['unsubscribe', ['sandbox-a']]) }
-      expect(dispatcher.served?('sandbox-c')).to be(false)
-
-      start_wait('sandbox-d')
-      eventually { subscribed?('sandbox-d') }
-      expect(manager.event_backed?('sandbox-d')).to be(true)
-      expect(subscribed?('sandbox-c')).to be(false)
     end
   end
 

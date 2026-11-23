@@ -22,10 +22,6 @@ AsyncEventHandler = Callable[[str, Any], Awaitable[None] | None]
 
 # The server accepts at most this many ids per subscribe/unsubscribe message.
 _SUBSCRIBE_CHUNK_SIZE = 100
-# The gateway's wire contract lets one connection hold at most this many subscribed ids. A server with
-# a lower limit rejects a subscribe past it with SUBSCRIPTION_LIMIT_EXCEEDED in its acknowledgement,
-# which marks the ids rejected. Module-level so tests can lower it.
-MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000
 # Delivered to an id's handlers by the dispatcher itself, never by the server, when the server rejects
 # the id's subscribe: its waits read now and fall back to polling.
 SUBSCRIPTION_REJECTED_EVENT = "daytona:subscription-rejected"
@@ -82,9 +78,11 @@ class AsyncEventDispatcher:
         self._closed = False
         self._listeners = {}
         # Ids the server holds, or will hold after the next connect, with the token each was served
-        # under: at most MAX_SUBSCRIPTIONS_PER_CONNECTION. Insertion-ordered, so connects re-send them
-        # in order. An acknowledgement only acts on the tokens it was sent with, so a late rejection of
-        # an id's earlier subscribe leaves a newer subscription of the same id alone.
+        # under. The server enforces its per-socket limit and rejects the excess in its acknowledgement
+        # (SUBSCRIPTION_LIMIT_EXCEEDED), which moves those ids to _rejected. Insertion-ordered, so
+        # connects re-send them in order. An acknowledgement only acts on the tokens it was sent with,
+        # so a late rejection of an id's earlier subscribe leaves a newer subscription of the same id
+        # alone.
         self._served: dict[str, int] = {}
         self._serve_seq: int = 0
         # Ids whose subscribe the server rejected; unserved until their last listener goes.
@@ -252,12 +250,9 @@ class AsyncEventDispatcher:
 
         if resource_id not in self._listeners:
             self._listeners[resource_id] = []
-            # Past the cap the server would reject the id, so it is not sent and stays unserved
-            # until its last listener goes: its waits fall back to polling.
-            if len(self._served) < MAX_SUBSCRIPTIONS_PER_CONNECTION:
-                self._serve_seq += 1
-                self._served[resource_id] = self._serve_seq
-                self._emit("subscribe", resource_id)
+            self._serve_seq += 1
+            self._served[resource_id] = self._serve_seq
+            self._emit("subscribe", resource_id)
         self._listeners[resource_id].append(handler)
 
         def unsubscribe() -> None:
@@ -678,12 +673,9 @@ class SyncEventDispatcher:
             self._disconnect_generation += 1
             if resource_id not in self._listeners:
                 self._listeners[resource_id] = []
-                # Past the cap the server would reject the id, so it is not sent and stays unserved
-                # until its last listener goes: its waits fall back to polling.
-                if len(self._served) < MAX_SUBSCRIPTIONS_PER_CONNECTION:
-                    self._serve_seq += 1
-                    self._served[resource_id] = self._serve_seq
-                    self._emit_locked("subscribe", resource_id)
+                self._serve_seq += 1
+                self._served[resource_id] = self._serve_seq
+                self._emit_locked("subscribe", resource_id)
             self._listeners[resource_id].append(handler)
 
         self.ensure_connected()

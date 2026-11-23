@@ -16,8 +16,8 @@ from typing import Any, Callable
 # Events are flowing, so the poll only guards against a missed event.
 EVENT_BACKED_POLL_INTERVAL = 5.0
 # Subscribed but not event-backed (the connection is connecting, reconnecting or failed, or the server
-# rejected the id or it is past the connection's subscription limit): poll from 1 s, backing off x1.5
-# per poll up to 10 s, so many such waits do not spend the request budget or run into rate limits.
+# rejected the id, including past its per-socket limit): poll from 1 s, backing off x1.5 per poll up to
+# 10 s, so many such waits do not spend the request budget or run into rate limits.
 FALLBACK_POLL_INTERVAL = 1.0
 FALLBACK_POLL_GROWTH = 1.5
 FALLBACK_POLL_MAX_INTERVAL = 10.0

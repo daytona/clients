@@ -346,65 +346,6 @@ func TestEventDispatcherResendsWholeSetInChunksAfterReconnect(t *testing.T) {
 	assert.ElementsMatch(t, expected, ids, "the resent set must be exactly the current set, each id once")
 }
 
-func lowerSubscriptionCap(t *testing.T, limit int) {
-	t.Helper()
-	original := MaxSubscriptionsPerConnection
-	MaxSubscriptionsPerConnection = limit
-	t.Cleanup(func() { MaxSubscriptionsPerConnection = original })
-}
-
-func TestEventDispatcherServesAtMostTheCap(t *testing.T) {
-	lowerSubscriptionCap(t, 2)
-	f := newFakeSocketIOServer(t)
-	es := newTestDispatcher(t, f)
-	manager := NewEventSubscriptionManager(es)
-	idA, idB, idC, idD := testSandboxID(1), testSandboxID(2), testSandboxID(3), testSandboxID(4)
-
-	unsubscribeA := es.Subscribe(idA, noopHandler, stateEvents)
-	require.Eventually(t, func() bool { return es.IsConnected() && len(f.events()) == 1 }, 5*time.Second, 10*time.Millisecond)
-	unsubscribeB := es.Subscribe(idB, noopHandler, stateEvents)
-	defer unsubscribeB()
-	require.Eventually(t, func() bool { return len(f.events()) == 2 }, 5*time.Second, 10*time.Millisecond)
-	unsubscribeC := es.Subscribe(idC, noopHandler, stateEvents)
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, []receivedEvent{{"subscribe", []string{idA}}, {"subscribe", []string{idB}}}, f.events(), "nothing is sent beyond the cap")
-	assert.True(t, manager.IsEventBacked(idA))
-	assert.False(t, es.IsServed(idC))
-	assert.False(t, manager.IsEventBacked(idC))
-
-	// A freed slot goes to the next new id, not to the waiting one.
-	unsubscribeA()
-	unsubscribeD := es.Subscribe(idD, noopHandler, stateEvents)
-	defer unsubscribeD()
-	require.Eventually(t, func() bool { return len(f.events()) == 4 }, 5*time.Second, 10*time.Millisecond)
-	assert.Equal(t, receivedEvent{"unsubscribe", []string{idA}}, f.events()[2])
-	assert.Equal(t, receivedEvent{"subscribe", []string{idD}}, f.events()[3])
-	assert.False(t, es.IsServed(idC))
-
-	// The last listener of an unserved id goes without a message.
-	unsubscribeC()
-	time.Sleep(100 * time.Millisecond)
-	assert.Len(t, f.events(), 4)
-}
-
-func TestEventDispatcherResendsOnlyServedIDsAfterReconnect(t *testing.T) {
-	lowerSubscriptionCap(t, 2)
-	f := newFakeSocketIOServer(t)
-	es := newTestDispatcher(t, f)
-	idA, idB, idC := testSandboxID(1), testSandboxID(2), testSandboxID(3)
-	for _, id := range []string{idA, idB, idC} {
-		defer es.Subscribe(id, noopHandler, stateEvents)()
-	}
-	require.Eventually(t, func() bool { return es.IsConnected() && len(f.events()) >= 1 }, 5*time.Second, 10*time.Millisecond)
-	time.Sleep(100 * time.Millisecond)
-	before := len(f.events())
-
-	f.dropConnections()
-	require.Eventually(t, func() bool { return f.connectionCount() == 2 && len(f.events()) > before }, 10*time.Second, 20*time.Millisecond)
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, []receivedEvent{{"subscribe", []string{idA, idB}}}, f.events()[before:])
-}
-
 func TestEventDispatcherReconnectsAfterFailedSubscriptionWrite(t *testing.T) {
 	f := newFakeSocketIOServer(t)
 	// Keep server sockets open when their read side ends, so only the client's
@@ -643,25 +584,6 @@ func TestHandleEventParsesSlimAndFullStatePayloads(t *testing.T) {
 	assert.Equal(t, apiclient.SANDBOXDESIREDSTATE_STOPPED, got[2].DesiredStateEvent.NewDesiredState)
 }
 
-func TestEventDispatcherClampsTheSubscriptionLimitToTheGateways(t *testing.T) {
-	for _, configured := range []int{gatewaySubscriptionLimit + 1, 50000, 0, -1} {
-		lowerSubscriptionCap(t, configured)
-		if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != gatewaySubscriptionLimit {
-			t.Fatalf("configured %d: maxSubscriptions = %d, want %d", configured, got, gatewaySubscriptionLimit)
-		}
-	}
-
-	lowerSubscriptionCap(t, 10000)
-	if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != 10000 {
-		t.Fatalf("the limit is 10000: maxSubscriptions = %d", got)
-	}
-
-	lowerSubscriptionCap(t, 2)
-	if got := NewEventDispatcher("http://example.test", "token", "", "", "").maxSubscriptions; got != 2 {
-		t.Fatalf("a lowered limit must be kept: maxSubscriptions = %d, want 2", got)
-	}
-}
-
 func TestHandleEventDeliversTransitionsWhenTheSandboxDoesNotDecode(t *testing.T) {
 	es := NewEventDispatcher("http://127.0.0.1:1", "test-token", "", "sdk-go", "0.0.0-test")
 	t.Cleanup(es.Disconnect)
@@ -761,27 +683,28 @@ func TestSocketIOClientDropsPendingAcksOnDisconnect(t *testing.T) {
 	}
 }
 
-// ackRejecting answers subscribes that carry one of ids with an OVERLOADED
-// rejection, and every other subscribe with ok.
-func ackRejecting(ids ...string) func(receivedEvent) string {
+// ackRejecting answers subscribes that carry one of ids with a rejection
+// carrying code, and every other subscribe with ok.
+func ackRejecting(code string, ids ...string) func(receivedEvent) string {
 	return func(event receivedEvent) string {
 		if event.Name != "subscribe" {
 			return ""
 		}
 		for _, id := range event.SandboxIDs {
 			if slices.Contains(ids, id) {
-				return `{"ok":false,"error":"OVERLOADED","message":"shedding"}`
+				return `{"ok":false,"error":"` + code + `","message":"rejected"}`
 			}
 		}
 		return `{"ok":true}`
 	}
 }
 
-func TestEventDispatcherUnservesRejectedSubscriptions(t *testing.T) {
-	lowerSubscriptionCap(t, 2)
+// The server enforces its per-socket limit and rejects the excess; the SDK
+// treats that like any rejection.
+func TestEventDispatcherUnservesSubscriptionsRejectedPastTheServerLimit(t *testing.T) {
 	f := newFakeSocketIOServer(t)
 	idA, idB, idC := testSandboxID(1), testSandboxID(2), testSandboxID(3)
-	f.setAckReply(ackRejecting(idB))
+	f.setAckReply(ackRejecting("SUBSCRIPTION_LIMIT_EXCEEDED", idB))
 	es := newTestDispatcher(t, f)
 	manager := NewEventSubscriptionManager(es)
 
@@ -817,7 +740,7 @@ func TestEventDispatcherUnservesRejectedSubscriptions(t *testing.T) {
 		assert.NotEmpty(t, ackID, "every subscribe asks for an acknowledgement")
 	}
 
-	// The rejected id's slot is free again.
+	// Later ids are still served.
 	defer es.Subscribe(idC, handlerFor(idC), stateEvents)()
 	require.Eventually(t, func() bool { return len(f.events()) == 3 }, 5*time.Second, 10*time.Millisecond)
 	assert.Equal(t, receivedEvent{"subscribe", []string{idC}}, f.events()[2])
@@ -889,4 +812,28 @@ func TestEventDispatcherIgnoresAStaleRejectionAfterResubscribing(t *testing.T) {
 	assert.True(t, es.IsServed(id))
 	assert.True(t, manager.IsEventBacked(id))
 	assert.False(t, rejected.Load())
+}
+
+func TestEventDispatcherHasNoClientSideSubscriptionLimit(t *testing.T) {
+	f := newFakeSocketIOServer(t)
+	es := newTestDispatcher(t, f)
+	const total = 10001
+	for i := 0; i < total; i++ {
+		defer es.Subscribe(testSandboxID(i), noopHandler, stateEvents)()
+	}
+	sentIDs := func() map[string]bool {
+		sent := map[string]bool{}
+		for _, event := range f.events() {
+			if event.Name == "subscribe" {
+				for _, id := range event.SandboxIDs {
+					sent[id] = true
+				}
+			}
+		}
+		return sent
+	}
+	require.Eventually(t, func() bool { return len(sentIDs()) >= total }, 30*time.Second, 50*time.Millisecond,
+		"every id is subscribed: the server, not the SDK, enforces a per-socket limit")
+	assert.Len(t, sentIDs(), total)
+	assert.True(t, es.IsServed(testSandboxID(total-1)))
 }

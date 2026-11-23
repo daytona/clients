@@ -50,17 +50,6 @@ type SandboxEventHandler func(event SandboxEvent)
 // subscribe or unsubscribe message.
 const maxSubscriptionIDsPerMessage = 100
 
-// gatewaySubscriptionLimit is the most resource ids the SDK subscribes to on one
-// connection. A server with a lower limit rejects the subscribes beyond it
-// with SUBSCRIPTION_LIMIT_EXCEEDED in their acknowledgement, and those ids
-// fall back to polling.
-const gatewaySubscriptionLimit = 10000
-
-// MaxSubscriptionsPerConnection is the most resource ids one event connection
-// subscribes to. It may only be lowered (tests do): each dispatcher reads it
-// once, when created, and clamps it to gatewaySubscriptionLimit.
-var MaxSubscriptionsPerConnection = gatewaySubscriptionLimit
-
 // subscriptionMessage is the payload of the subscribe and unsubscribe client
 // events.
 type subscriptionMessage struct {
@@ -92,14 +81,13 @@ type EventDispatcher struct {
 	listeners map[string]map[int]SandboxEventHandler
 	nextSubID int
 	// served holds the ids the server serves, or will after the next connect:
-	// at most maxSubscriptions of the ids with listeners. An id that found no
-	// room, or whose subscribe the server rejected, stays unserved until its
+	// every id with listeners, except one whose subscribe the server rejected
+	// (including past its per-socket limit), which stays unserved until its
 	// last listener goes.
 	served map[string]uint64
 	// serveToken numbers each time an id is served, so a late rejection of an
 	// earlier subscribe of the same id cannot unserve a newer one.
-	serveToken       uint64
-	maxSubscriptions int
+	serveToken uint64
 
 	registeredEvents map[string]bool
 
@@ -113,14 +101,6 @@ type EventDispatcher struct {
 	closeCh          chan struct{}
 }
 
-// subscriptionLimit clamps a configured per-connection limit to (0, gateway limit].
-func subscriptionLimit(configured int) int {
-	if configured <= 0 || configured > gatewaySubscriptionLimit {
-		return gatewaySubscriptionLimit
-	}
-	return configured
-}
-
 func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string) *EventDispatcher {
 	return &EventDispatcher{
 		apiURL:           apiURL,
@@ -130,7 +110,6 @@ func NewEventDispatcher(apiURL, token, organizationID, source, sdkVersion string
 		sdkVersion:       sdkVersion,
 		listeners:        make(map[string]map[int]SandboxEventHandler),
 		served:           make(map[string]uint64),
-		maxSubscriptions: subscriptionLimit(MaxSubscriptionsPerConnection),
 		registeredEvents: make(map[string]bool),
 		maxReconnects:    100,
 		closeCh:          make(chan struct{}),
@@ -262,13 +241,11 @@ func (es *EventDispatcher) Subscribe(resourceID string, handler SandboxEventHand
 	if es.listeners[resourceID] == nil {
 		es.listeners[resourceID] = make(map[int]SandboxEventHandler)
 		// First listener for this id. While disconnected the next connect
-		// sends the whole set instead. Beyond the cap nothing is sent: the
-		// server would reject it, and the id's waits poll instead.
-		if len(es.served) < es.maxSubscriptions {
-			es.serveToken++
-			es.served[resourceID] = es.serveToken
-			es.emitSubscribeLocked([]string{resourceID})
-		}
+		// sends the whole set instead. The server enforces its per-socket
+		// limit and rejects the excess in the acknowledgement.
+		es.serveToken++
+		es.served[resourceID] = es.serveToken
+		es.emitSubscribeLocked([]string{resourceID})
 	}
 	es.listeners[resourceID][subID] = handler
 	// Mark events as registered under lock to prevent drops
@@ -398,7 +375,7 @@ func (es *EventDispatcher) IsEventBacked(resourceID string) bool {
 }
 
 // IsServed reports whether the server is asked to send events for resourceID:
-// it has listeners and was within the per-connection cap when it got its first.
+// it has listeners and the server has not rejected its subscribe.
 func (es *EventDispatcher) IsServed(resourceID string) bool {
 	es.mu.RLock()
 	defer es.mu.RUnlock()

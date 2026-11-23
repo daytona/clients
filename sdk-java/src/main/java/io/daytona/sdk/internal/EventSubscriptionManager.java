@@ -104,7 +104,7 @@ public class EventSubscriptionManager {
 
     /**
      * Whether events for this id arrive now: the manager is open, the connection is up and it
-     * serves the id (within its subscription cap).
+     * serves the id (the server did not reject it).
      */
     public boolean isEventBacked(String resourceId) {
         return !closed && dispatcher != null && dispatcher.isEventBacked(resourceId);

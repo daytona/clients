@@ -173,40 +173,6 @@ RSpec.describe Daytona::EventDispatcher do
     expect(Daytona::EventSubscriptionManager.new(dispatcher).connection_epoch).to eq(2)
   end
 
-  context 'with the per-connection subscription cap lowered to 2' do
-    before { stub_const('Daytona::EventDispatcher::MAX_SUBSCRIPTIONS_PER_CONNECTION', 2) }
-
-    it 'serves at most the cap, gives a freed slot to the next new id and stays silent for unserved ids' do
-      unsubscribe_a = subscribe_and_connect('sandbox-a')
-      dispatcher.subscribe('sandbox-b', events:, &noop)
-      unsubscribe_c = dispatcher.subscribe('sandbox-c', events:, &noop)
-      expect(emitted).to eq([['subscribe', { sandboxIds: ['sandbox-a'] }],
-                             ['subscribe', { sandboxIds: ['sandbox-b'] }]])
-      expect(dispatcher.served?('sandbox-c')).to be(false)
-
-      unsubscribe_a.call
-      dispatcher.subscribe('sandbox-d', events:, &noop)
-      expect(emitted.drop(2)).to eq([['unsubscribe', { sandboxIds: ['sandbox-a'] }],
-                                     ['subscribe', { sandboxIds: ['sandbox-d'] }]])
-      expect(dispatcher.served?('sandbox-c')).to be(false)
-      expect(dispatcher.served?('sandbox-d')).to be(true)
-
-      unsubscribe_c.call
-      expect(emitted.size).to eq(4)
-    end
-
-    it 'sends only the served ids again after reconnecting' do
-      subscribe_and_connect('sandbox-a')
-      dispatcher.subscribe('sandbox-b', events:, &noop)
-      dispatcher.subscribe('sandbox-c', events:, &noop)
-
-      clients.first.options[:on_disconnect].call
-
-      await_reconnect(sent: 1)
-      expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: %w[sandbox-a sandbox-b] }]])
-    end
-  end
-
   it 'is not event-backed for an id that stays served while the connection is down' do
     subscribe_and_connect('sandbox-1')
     expect(dispatcher.event_backed?('sandbox-1')).to be(true)
@@ -221,42 +187,46 @@ RSpec.describe Daytona::EventDispatcher do
     expect(Daytona::EventSubscriptionManager.new(dispatcher).event_backed?('sandbox-1')).to be(false)
   end
 
-  it 'subscribes to at most 10,000 ids per connection' do
-    expect(described_class::MAX_SUBSCRIPTIONS_PER_CONNECTION).to eq(10_000)
+  it 'subscribes to every id, past 10,000 on one connection: the server enforces its own limit' do
+    subscribe_and_connect('sandbox-0')
+    ids = Array.new(10_000) { |i| format('sandbox-%05d', i + 1) }
+    ids.each { |id| dispatcher.subscribe(id, events:, &noop) }
+
+    sent = emitted.flat_map { |name, data| name == 'subscribe' ? data[:sandboxIds] : [] }
+    expect(sent.size).to eq(10_001)
+    expect(sent.uniq.size).to eq(10_001)
+    expect(dispatcher.served?(ids.last)).to be(true)
   end
 
   describe 'subscribe acknowledgements' do
     let(:overloaded) { { 'ok' => false, 'error' => 'OVERLOADED', 'message' => 'shedding' } }
+    let(:limit_exceeded) { { 'ok' => false, 'error' => 'SUBSCRIPTION_LIMIT_EXCEEDED', 'message' => 'limit reached' } }
     let(:notices) { [] }
 
     def recording(resource_id)
       proc { |event_name, _data| notices << [resource_id, event_name] }
     end
 
-    context 'with the per-connection subscription cap lowered to 2' do
-      before { stub_const('Daytona::EventDispatcher::MAX_SUBSCRIPTIONS_PER_CONNECTION', 2) }
+    it 'unserves an id rejected past the server limit, tells its handlers and leaves it out of the reconnect' do
+      subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
+      dispatcher.subscribe('sandbox-b', events:, &recording('sandbox-b'))
+      expect(wait_until { emitted.size == 2 }).to be(true)
 
-      it 'unserves a rejected id, tells its handlers, frees its slot and leaves it out of the reconnect' do
-        subscribe_and_connect('sandbox-a', &recording('sandbox-a'))
-        dispatcher.subscribe('sandbox-b', events:, &recording('sandbox-b'))
-        expect(wait_until { emitted.size == 2 }).to be(true)
+      clients.last.acknowledge(1, limit_exceeded)
+      clients.last.acknowledge(0, { 'ok' => true })
 
-        clients.last.acknowledge(1, overloaded)
-        clients.last.acknowledge(0, { 'ok' => true })
+      expect(notices).to eq([['sandbox-b', Daytona::EventDispatcher::SUBSCRIPTION_REJECTED_EVENT]])
+      expect(dispatcher.served?('sandbox-b')).to be(false)
+      expect(dispatcher.event_backed?('sandbox-b')).to be(false)
+      expect(dispatcher.event_backed?('sandbox-a')).to be(true)
 
-        expect(notices).to eq([['sandbox-b', Daytona::EventDispatcher::SUBSCRIPTION_REJECTED_EVENT]])
-        expect(dispatcher.served?('sandbox-b')).to be(false)
-        expect(dispatcher.event_backed?('sandbox-b')).to be(false)
-        expect(dispatcher.event_backed?('sandbox-a')).to be(true)
+      dispatcher.subscribe('sandbox-c', events:, &noop)
+      expect(emitted.last).to eq(['subscribe', { sandboxIds: ['sandbox-c'] }])
 
-        dispatcher.subscribe('sandbox-c', events:, &noop)
-        expect(emitted.last).to eq(['subscribe', { sandboxIds: ['sandbox-c'] }])
-
-        clients.first.options[:on_disconnect].call
-        await_reconnect(sent: 1)
-        expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: %w[sandbox-a sandbox-c] }]])
-        expect(dispatcher.served?('sandbox-b')).to be(false)
-      end
+      clients.first.options[:on_disconnect].call
+      await_reconnect(sent: 1)
+      expect(clients.last.emitted_events).to eq([['subscribe', { sandboxIds: %w[sandbox-a sandbox-c] }]])
+      expect(dispatcher.served?('sandbox-b')).to be(false)
     end
 
     it 'keeps the id served while its subscribe is not acknowledged' do

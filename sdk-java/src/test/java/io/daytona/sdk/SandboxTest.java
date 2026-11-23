@@ -1055,8 +1055,9 @@ class SandboxTest {
                 1000L, 1500L, 2250L, 3375L, 5063L, 7594L, 10_000L, 10_000L, 5000L, 5000L, 1000L, 1500L);
     }
 
-    @Test
-    void aRejectedSubscriptionMakesItsWaitReadAtOnceThenPollAtTheFallbackCadence() throws Exception {
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"OVERLOADED", "SUBSCRIPTION_LIMIT_EXCEEDED"})
+    void aRejectedSubscriptionMakesItsWaitReadAtOnceThenPollAtTheFallbackCadence(String code) throws Exception {
         try (FakeEventGateway gateway = new FakeEventGateway()) {
             EventDispatcher dispatcher = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "test");
             EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
@@ -1085,13 +1086,20 @@ class SandboxTest {
                 awaitCondition(() -> decisions.contains("true:5000"));
                 verify(sandboxApi, never()).getSandbox("sb-r", null, null);
 
-                gateway.ack(subscribe, "{\"ok\":false,\"error\":\"OVERLOADED\",\"message\":\"shedding\"}");
+                gateway.ack(subscribe, "{\"ok\":false,\"error\":\"" + code + "\",\"message\":\"no\"}");
 
                 verify(sandboxApi, timeout(2000)).getSandbox("sb-r", null, null);
                 awaitCondition(() -> decisions.size() >= 3);
                 assertThat(decisions.subList(0, 3)).containsExactly("true:5000", "false:1000", "false:1500");
                 assertThat(dispatcher.isRejected("sb-r")).isTrue();
                 assertThat(manager.isEventBacked("sb-r")).isFalse();
+
+                // A reconnect does not ask for the rejected id again.
+                long epoch = manager.connectionEpoch();
+                gateway.dropConnection();
+                awaitCondition(() -> manager.connectionEpoch() > epoch);
+                assertThat(gateway.takeEmitted(400)).isNull();
+                assertThat(dispatcher.isRejected("sb-r")).isTrue();
 
                 stopped.set(true);
                 worker.join(5000);
@@ -1585,147 +1593,6 @@ class SandboxTest {
 
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2500);
         verify(sandboxApi, times(1)).getSandbox("sb-s", null, null);
-    }
-
-    @Test
-    void anOverflowWaitReadsFirstAndPollsAtTheSubscribedCadence() throws Exception {
-        withCappedGateway((gateway, manager) -> {
-            List<String> eventBacked = new CopyOnWriteArrayList<>();
-            List<String> notEventBacked = new CopyOnWriteArrayList<>();
-            Thread a = startStop(manager, "sb-a", eventBacked, notEventBacked);
-            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-a");
-            Thread b = startStop(manager, "sb-b", eventBacked, notEventBacked);
-            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-b");
-            Thread c = startStop(manager, "sb-c", eventBacked, notEventBacked);
-
-            verify(sandboxApi, timeout(5000).atLeast(2)).getSandbox("sb-c", null, null);
-            awaitCondition(() -> eventBacked.size() >= 2 && notEventBacked.contains("sb-c"));
-            assertThat(gateway.takeEmitted(400)).isNull();
-            assertThat(manager.isEventBacked("sb-c")).isFalse();
-            assertThat(eventBacked).containsExactlyInAnyOrder("sb-a", "sb-b");
-            assertThat(notEventBacked).containsOnly("sb-c");
-            assertReadFirst("sb-c");
-            // Not event-backed is the fallback cadence: 1 s x jitter first.
-            assertThat(new Sandbox.WaitPollCadence(() -> 1.0).millis(true, false)).isEqualTo(1200);
-            verify(sandboxApi, never()).getSandbox("sb-a", null, null);
-            verify(sandboxApi, never()).getSandbox("sb-b", null, null);
-
-            // The gateway sends nothing for an unserved id: sb-c ends through its poll.
-            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-a"));
-            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-b"));
-            stoppedIds.add("sb-c");
-            for (Thread t : List.of(a, b, c)) {
-                t.join(5000);
-                assertThat(t.isAlive()).isFalse();
-            }
-            assertThat(stopError.get()).isNull();
-        });
-    }
-
-    @Test
-    void aFreedSlotGoesToTheNextNewWaitNotToTheOverflowWait() throws Exception {
-        withCappedGateway((gateway, manager) -> {
-            List<String> eventBacked = new CopyOnWriteArrayList<>();
-            List<String> notEventBacked = new CopyOnWriteArrayList<>();
-            Thread a = startStop(manager, "sb-a", eventBacked, notEventBacked);
-            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-a");
-            Thread b = startStop(manager, "sb-b", eventBacked, notEventBacked);
-            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-b");
-            Thread c = startStop(manager, "sb-c", eventBacked, notEventBacked);
-            verify(sandboxApi, timeout(5000)).getSandbox("sb-c", null, null);
-            awaitCondition(() -> notEventBacked.contains("sb-c"));
-            assertReadFirst("sb-c");
-
-            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-a"));
-            a.join(5000);
-            assertThat(a.isAlive()).isFalse();
-            assertSubscribed(gateway.takeEmitted(5000), "unsubscribe", "sb-a");
-            assertThat(manager.isEventBacked("sb-c")).isFalse();
-
-            Thread d = startStop(manager, "sb-d", eventBacked, notEventBacked);
-            assertSubscribed(gateway.takeEmitted(5000), "subscribe", "sb-d");
-            awaitCondition(() -> eventBacked.contains("sb-d"));
-            verify(sandboxApi, never()).getSandbox("sb-d", null, null);
-            assertThat(manager.isEventBacked("sb-c")).isFalse();
-
-            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-b"));
-            gateway.sendEvent("sandbox.state.updated", stoppedEvent("sb-d"));
-            stoppedIds.add("sb-c");
-            for (Thread t : List.of(b, c, d)) {
-                t.join(5000);
-                assertThat(t.isAlive()).isFalse();
-            }
-            // sb-c was never served, so its release sends no unsubscribe.
-            List<String> unsubscribed = new ArrayList<>();
-            for (int i = 0; i < 2; i++) {
-                FakeEventGateway.Emitted message = gateway.takeEmitted(5000);
-                assertThat(message).isNotNull();
-                assertThat(message.event).isEqualTo("unsubscribe");
-                unsubscribed.add(message.payload.path("sandboxIds").get(0).asText());
-            }
-            assertThat(unsubscribed).containsExactlyInAnyOrder("sb-b", "sb-d");
-            assertThat(gateway.takeEmitted(400)).isNull();
-            assertThat(stopError.get()).isNull();
-        });
-    }
-
-    private interface CappedGatewayTest {
-        void run(FakeEventGateway gateway, EventSubscriptionManager manager) throws Exception;
-    }
-
-    private static void withCappedGateway(CappedGatewayTest test) throws Exception {
-        try (FakeEventGateway gateway = new FakeEventGateway()) {
-            EventDispatcher dispatcher = new EventDispatcher(gateway.apiUrl(), "test-token", null, "sdk-java", "test", 2);
-            EventSubscriptionManager manager = new EventSubscriptionManager(dispatcher);
-            try {
-                dispatcher.ensureConnected();
-                awaitCondition(dispatcher::isConnected);
-                test.run(gateway, manager);
-            } finally {
-                manager.shutdown();
-                dispatcher.shutdown();
-            }
-        }
-    }
-
-    // First failure of a stop started by startStop; JUnit creates a fresh instance per test.
-    private final AtomicReference<Throwable> stopError = new AtomicReference<>();
-    // Ids whose reads answer stopped from now on; the others answer stopping.
-    private final Set<String> stoppedIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    // Threads on which each wait picked a poll delay.
-    private final Map<String, List<String>> pollDelayThreads = new java.util.concurrent.ConcurrentHashMap<>();
-
-    /**
-     * A wait that reads first schedules its first poll at once and picks every later delay after a read,
-     * on the refresh thread. One that skips the read picks its first delay up front, on the caller's thread.
-     */
-    private void assertReadFirst(String id) {
-        assertThat(pollDelayThreads.get(id)).isNotEmpty().allMatch(name -> name.startsWith("daytona-sandbox-refresh"));
-    }
-
-    /**
-     * Stops {@code id} on a new thread; its stop request answers {@code stopping}, and so do its reads
-     * until the id is in {@link #stoppedIds}. Event-backed waits poll an hour apart, so they can only end
-     * on an event; the others poll every 20 ms, as an unserved wait ends through its poll.
-     */
-    private Thread startStop(EventSubscriptionManager manager, String id,
-                             List<String> eventBacked, List<String> notEventBacked) {
-        lenient().when(sandboxApi.stopSandbox(id, null, null)).thenReturn(TestSupport.mainSandbox(id, SandboxState.STOPPING));
-        lenient().when(sandboxApi.getSandbox(id, null, null)).thenAnswer(inv ->
-                TestSupport.mainSandbox(id, stoppedIds.contains(id) ? SandboxState.STOPPED : SandboxState.STOPPING));
-        Sandbox sb = new Sandbox(sandboxApi, TestSupport.config(), TestSupport.mainSandbox(id, SandboxState.STARTED), () -> null, manager);
-        sb.pollScheduleHook = (decided, subscribed, isEventBacked) -> {
-            (isEventBacked ? eventBacked : notEventBacked).add(id);
-            pollDelayThreads.computeIfAbsent(id, k -> new CopyOnWriteArrayList<>()).add(Thread.currentThread().getName());
-            return isEventBacked ? TimeUnit.HOURS.toMillis(1) : 20;
-        };
-        Thread worker = new Thread(() -> runCapturing(() -> sb.stop(60), stopError));
-        worker.start();
-        return worker;
-    }
-
-    private static String stoppedEvent(String id) {
-        return "{\"sandbox\":{\"id\":\"" + id + "\",\"state\":\"stopped\"},\"newState\":\"stopped\"}";
     }
 
     private static void assertSubscribed(FakeEventGateway.Emitted message, String event, String id) {

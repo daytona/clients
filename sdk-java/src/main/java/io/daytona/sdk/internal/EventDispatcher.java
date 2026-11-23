@@ -55,12 +55,6 @@ public class EventDispatcher {
     static final String SUBSCRIPTION_MODE = "explicit";
     static final int MAX_IDS_PER_MESSAGE = 100;
     /**
-     * Most sandbox ids one connection subscribes to. A gateway with a lower limit rejects the excess
-     * with {@code SUBSCRIPTION_LIMIT_EXCEEDED} in the subscribe acknowledgement, which marks those ids
-     * rejected.
-     */
-    public static final int MAX_SUBSCRIPTIONS_PER_CONNECTION = 10_000;
-    /**
      * How long the first acknowledged subscribe of a connection waits before the connection counts as
      * one whose server never acknowledges. Silence never changes an id's state.
      */
@@ -78,7 +72,6 @@ public class EventDispatcher {
     private final String organizationId;
     private final String source;
     private final String sdkVersion;
-    private final int maxSubscriptions;
 
     private volatile Socket socket;
     private final Object lock = new Object();
@@ -86,9 +79,10 @@ public class EventDispatcher {
     private final AtomicInteger nextSubId = new AtomicInteger(0);
     private final Set<String> registeredEvents = ConcurrentHashMap.newKeySet();
     private final Set<String> socketBoundEvents = new HashSet<>();
-    // Ids the server holds, or will hold after the next connect; at most maxSubscriptions. Guarded by lock.
-    // Each served id maps to the token it was served under, so a late rejection of an earlier
-    // subscription cannot unserve a newer one of the same id.
+    // Ids the server holds, or will hold after the next connect. Guarded by lock. Each served id maps to the
+    // token it was served under, so a late rejection of an earlier subscription cannot unserve a newer one of
+    // the same id. The server enforces its per-socket limit by rejecting the excess
+    // (SUBSCRIPTION_LIMIT_EXCEEDED), which unserves those ids.
     private final Map<String, Long> served = new java.util.LinkedHashMap<>();
     private long serveToken;
     // Ids whose subscribe the gateway rejected; unserved until their last listener goes. Guarded by lock.
@@ -124,19 +118,6 @@ public class EventDispatcher {
     }
 
     public EventDispatcher(String apiUrl, String token, String organizationId, String source, String sdkVersion) {
-        this(apiUrl, token, organizationId, source, sdkVersion, MAX_SUBSCRIPTIONS_PER_CONNECTION);
-    }
-
-    /**
-     * @param maxSubscriptions most ids this connection subscribes to; tests lower it. The gateway never
-     *                         accepts more than {@link #MAX_SUBSCRIPTIONS_PER_CONNECTION}, so a larger or
-     *                         non-positive value means that default.
-     */
-    public EventDispatcher(String apiUrl, String token, String organizationId, String source, String sdkVersion,
-                           int maxSubscriptions) {
-        this.maxSubscriptions = maxSubscriptions > 0 && maxSubscriptions <= MAX_SUBSCRIPTIONS_PER_CONNECTION
-                ? maxSubscriptions
-                : MAX_SUBSCRIPTIONS_PER_CONNECTION;
         this.apiUrl = apiUrl;
         this.token = token;
         this.organizationId = organizationId;
@@ -335,8 +316,7 @@ public class EventDispatcher {
             // Register and bind events before subscribing to prevent first-event drops
             registerEvents(events);
 
-            // Over the cap the id stays unserved until its last listener goes; its waits keep polling.
-            if (firstListener && served.size() < maxSubscriptions) {
+            if (firstListener) {
                 served.put(resourceId, ++serveToken);
                 emitIdsLocked(socket, SUBSCRIBE_EVENT, Collections.singletonList(resourceId));
             }

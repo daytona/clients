@@ -35,7 +35,7 @@ export class EventSubscriptionManager {
     return !this._closed && !!this.dispatcher?.isConnected
   }
 
-  /** Whether events for this id arrive now: connected, and the connection serves the id (within its cap). */
+  /** Whether events for this id arrive now: connected, and the connection serves the id (not rejected). */
   isEventBacked(resourceId: string): boolean {
     return this.isConnected && !!this.dispatcher?.isServed(resourceId)
   }

@@ -97,8 +97,8 @@ public class Sandbox {
     private static final long POLL_ONLY_INTERVAL_MILLIS = 250;
     // State events drive waits; polling is only a safety net, so keep it sparse while events flow.
     private static final long EVENT_BACKED_POLL_INTERVAL_MILLIS = 5000;
-    // Subscribed but no events arrive (connection down, subscription rejected or over the connection's
-    // limit): start at 1 s and back off, so thousands of such waits do not exhaust the request budget.
+    // Subscribed but no events arrive (connection down, or the subscription rejected by the server, including
+    // past its per-socket limit): start at 1 s and back off, so thousands of such waits do not exhaust the request budget.
     static final long FALLBACK_POLL_INTERVAL_MILLIS = 1000;
     static final double FALLBACK_POLL_GROWTH = 1.5;
     static final long FALLBACK_POLL_MAX_INTERVAL_MILLIS = 10_000;
