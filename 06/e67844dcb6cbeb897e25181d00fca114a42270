@@ -1,0 +1,36 @@
+sdk-python/tests/test_core.py
+  s_3ac9ef5b5afa62::t_d550109cefd0db 12278-12298
+  s_605415530150b2::t_99b025ee5d1fbe 11,12277
+changelog.d/python-http1-only.fixed.md
+  s_605415530150b2::t_66a21ba3bbc722 1-7
+sdk-python/pyproject.toml
+  s_605415530150b2::t_05be24f0949d01 61-62
+sdk-python/src/daytona/v2/_transport.py
+  s_605415530150b2::t_616ce6ed404b28 54-60,243,663
+sdk-python/uv.lock
+  s_605415530150b2::t_df489387a5db2b 264,280,326-347,376-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06e67844dcb6cbeb897e25181d00fca114a42270",
+  "prompts": {},
+  "sessions": {
+    "s_3ac9ef5b5afa62": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df6ed666fffe2Uwo7Lsy5fmCSO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_605415530150b2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df6f29eebffediTBIlAwPb9Y2h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
