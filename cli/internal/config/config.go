@@ -78,7 +78,12 @@ type Store struct {
 // Dir resolves the config directory.
 func Dir(getenv func(string) string) (string, error) {
 	if d := getenv("DAYTONA_CONFIG_DIR"); d != "" {
-		return d, nil
+		// A relative value names a directory under the working directory.
+		abs, err := filepath.Abs(d)
+		if err != nil {
+			return "", fmt.Errorf("resolve DAYTONA_CONFIG_DIR: %w", err)
+		}
+		return abs, nil
 	}
 	if x := getenv("XDG_CONFIG_HOME"); x != "" {
 		return filepath.Join(x, "daytona"), nil

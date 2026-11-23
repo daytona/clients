@@ -59,6 +59,13 @@ func TestHintFor_invitationRequiredHasNoCredentialHint(t *testing.T) {
 	}
 }
 
+func TestHintFor_emailAccessDeniedPointsToSupport(t *testing.T) {
+	// EMAIL_ACCESS_DENIED refuses the account, not the credential; the
+	// generic 403 hint would send the person to API-key permissions.
+	h := hintFor(&APIError{Status: http.StatusForbidden, Code: CodeEmailAccessDenied, Method: "GET", Path: "/orgs"})
+	require.Equal(t, "this account's email could not be validated — contact support@daytona.io", h)
+}
+
 func TestHintForLimitExceededNamesWhatFreesTheLimit(t *testing.T) {
 	cases := []struct {
 		limit, remedy string

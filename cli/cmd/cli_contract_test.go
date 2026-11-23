@@ -301,6 +301,17 @@ func TestProcessExitStatusPassesThroughWithSourceProcess(t *testing.T) {
 	require.Equal(t, "PROCESS", obj["source"])
 }
 
+// The JSON error keeps `<`, `>` and `&` literal, so hints such as
+// `<sandbox-id>` read as written.
+func TestErrorJSONDoesNotEscapeHTML(t *testing.T) {
+	var buf bytes.Buffer
+	printErrorJSON(&buf, cerr.New(cerr.ExitUsage, "missing <sandbox-id> & name").WithHint("pass <sandbox-id>"))
+	require.Contains(t, buf.String(), `"message":"missing <sandbox-id> & name"`)
+	require.Contains(t, buf.String(), `"hint":"pass <sandbox-id>"`)
+	obj := errorObject(t, buf.String())
+	require.Equal(t, "missing <sandbox-id> & name", obj["message"])
+}
+
 func reasonPtr(r tbgen.Reason) *tbgen.Reason { return &r }
 
 func int32Ptr(v int32) *int32 { return &v }

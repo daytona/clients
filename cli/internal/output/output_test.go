@@ -32,6 +32,17 @@ func TestListJSONEnvelope(t *testing.T) {
 	}
 }
 
+// JSON output keeps `<`, `>` and `&` literal instead of `\u003c`-style escapes.
+func TestJSONDoesNotEscapeHTML(t *testing.T) {
+	var buf bytes.Buffer
+	if err := (Printer{W: &buf, Format: FormatJSON}).Raw("", map[string]string{"value": "<a> & <b>"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `"value": "<a> & <b>"`) {
+		t.Fatalf("%s", buf.String())
+	}
+}
+
 func TestListTablePlain(t *testing.T) {
 	var buf bytes.Buffer
 	l := List[item]{Items: []item{{"a", "x"}, {"bb", "yyy"}}, NextCursor: "n"}

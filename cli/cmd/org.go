@@ -183,9 +183,9 @@ func newOrgCmd() *cobra.Command {
 	c.AddCommand(&cobra.Command{
 		Use: "limits [id|name]", Short: "Show the organization's limits and current usage (default: the selected one)", Args: cobra.MaximumNArgs(1),
 		Long: `Show the organization's limits — sandboxes, image
-builds, Mac reservations, members, images, snapshots, secrets and API keys —
-each with the current usage it is checked against; "unlimited" means no limit
-applies. A request refused by one of them — a Mac reservation purchase
+builds, Mac reservations, members, images, snapshots, volumes, secrets and API
+keys — each with the current usage it is checked against; "unlimited" means no
+limit applies. A request refused by one of them — a Mac reservation purchase
 included (reservation create or renew, or a sandbox create-macos or start
 that buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
 maximum. Requires read:organization, or read:limits with an API key. An API
@@ -585,6 +585,7 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 		rows = append(rows,
 			[2]string{"Images", usageLimitString(l.Storage.Images)},
 			[2]string{"Snapshots", usageLimitString(l.Storage.Snapshots)},
+			[2]string{"Volumes", usageLimitString(l.Storage.Volumes)},
 		)
 	}
 	if m := l.MacReservations; m != nil {

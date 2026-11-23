@@ -36,6 +36,11 @@ func TestSSH_appliesCLIFlagsAndForwardsSSHFlags_whenSeparatedBySandboxID(t *test
 			_, _ = io.WriteString(w, `{"id":"99999999-9999-9999-9999-999999999999","name":"fixture","created_at":"2026-09-13T00:00:00Z","project_id":"22222222-2222-2222-2222-222222222222","project_permissions":[],"sync_to_v0":false,"context":{"org_id":"11111111-1111-1111-1111-111111111111","org_name":"fixture-org","project_name":"fixture-project"}}`)
 			return
 		}
+		if r.URL.Path == "/sandboxes/sbx/access-token" {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"access_token":"sandbox-ssh-token"}`)
+			return
+		}
 		assert.Equal(t, "/sandboxes/sbx", r.URL.Path)
 		_, _ = io.WriteString(w, `{"id":"sbx","class":"linux","status":"running","toolbox_proxy_url":"https://toolbox.example","ssh_gateway_host":"ssh.example","ssh_gateway_port":2222}`)
 	}))
