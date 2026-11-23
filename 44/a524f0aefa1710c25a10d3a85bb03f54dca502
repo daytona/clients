@@ -1,0 +1,14 @@
+README.md
+  h_e7759ddd73fa65 1,4-6,19-20,23-24,114,121-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "44a524f0aefa1710c25a10d3a85bb03f54dca502",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
