@@ -178,9 +178,8 @@ all of them reusable while idle; `d.v0` keeps its own default unless you set it)
 Every call, streams and watches included, holds one connection of its pool
 until it returns or closes, long `exec` runs and waits too; build-log follows
 use connections of their own. A call beyond the cap waits for a free
-connection, and one whose timeout runs out first (`request_timeout`, or the
-call's own timeout for waits, holds and transfers) raises
-`ClientTimeoutError`, so raise the cap when you keep more calls than that open
+connection and fails with its usual timeout error if its timeout runs out
+first, so raise the cap when you keep more calls than that open
 at once. Set `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
 The extra brings only `opentelemetry-api`; spans are exported only once your
 application configures an OpenTelemetry SDK tracer provider (and exporter) —
