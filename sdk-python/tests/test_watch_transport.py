@@ -21,7 +21,7 @@ import pytest
 
 from daytona.v2._core import RequestSpec
 from daytona.v2._transport import AsyncTransport
-from daytona.v2.errors import ConnectionError
+from daytona.v2.errors import BadRequestError, ConnectionError, FileAccessDeniedError
 from daytona.v2.filesystem import AsyncFileSystemService
 from daytona.v2.types import FilesystemEvent
 
@@ -71,6 +71,17 @@ class _Handler(BaseHTTPRequestHandler):
         if case == "brotli":
             self.send_header("Content-Encoding", "br")
         self.end_headers()
+        if case.startswith("error-"):
+            start = "" if case.startswith("error-before") else "event: start\ndata: {}\n\n"
+            message = 123 if "malformed" in case else "access denied"
+            envelope = json.dumps(
+                {"code": "FILE_ACCESS_DENIED", "message": message, "source": "DAYTONA_DAEMON"}
+            )
+            self.wfile.write(
+                (start + f"event: error\ndata: {envelope}\n\n" + _fs_frame("after-error")).encode()
+            )
+            self.close_connection = True
+            return
         if case in ("gzip-cut", "gzip-cut-logs"):
             # A complete HTTP message (the server closes the connection after
             # it) whose gzip data stops before its end: the last 4 bytes of
@@ -189,6 +200,69 @@ def base() -> Iterator[str]:
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.mark.anyio
+async def test_watch_ends_with_typed_error_when_server_sends_error_after_start(base: str) -> None:
+    # Given
+    transport = AsyncTransport(f"{base}/error-after")
+    seen: list[FilesystemEvent] = []
+    exits: list[Optional[Exception]] = []
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir("/", seen.append, on_exit=exits.append)
+        # When
+        error = await handle.wait_for_exit()
+        await handle.stop()
+        # Then
+        assert isinstance(error, FileAccessDeniedError)
+        assert (error.code, str(error), error.source) == (
+            "FILE_ACCESS_DENIED", "access denied", "DAYTONA_DAEMON"
+        )
+        assert handle.exit_error is error
+        assert exits == [error]
+        assert seen == []
+    finally:
+        await transport.close()
+
+
+@pytest.mark.anyio
+async def test_watch_start_fails_with_typed_error_when_server_sends_error_before_start(base: str) -> None:
+    # Given
+    transport = AsyncTransport(f"{base}/error-before")
+    exits: list[Optional[Exception]] = []
+    try:
+        # When
+        with pytest.raises(FileAccessDeniedError) as caught:
+            await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None, on_exit=exits.append)
+        # Then
+        error = caught.value
+        assert (error.code, str(error), error.source) == (
+            "FILE_ACCESS_DENIED", "access denied", "DAYTONA_DAEMON"
+        )
+        assert exits == []
+    finally:
+        await transport.close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("phase", ["before", "after"])
+async def test_watch_reports_malformed_response_when_error_message_is_not_string(base: str, phase: str) -> None:
+    # Given
+    transport = AsyncTransport(f"{base}/error-{phase}-malformed")
+    try:
+        # When
+        if phase == "before":
+            with pytest.raises(BadRequestError) as caught:
+                await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None)
+            error = caught.value
+        else:
+            handle = await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None)
+            error = await handle.wait_for_exit()
+        # Then
+        assert isinstance(error, BadRequestError)
+        assert (error.code, error.source) == ("BAD_REQUEST", "SDK")
+    finally:
+        await transport.close()
 
 
 @pytest.mark.anyio

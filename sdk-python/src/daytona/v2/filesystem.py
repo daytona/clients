@@ -42,7 +42,6 @@ from ._core import (
     file_bulk_upload_spec,
     file_download_spec,
     file_upload_spec,
-    finite_number,
     list_shape,
     parse_bulk_read_result,
     parse_bulk_write_result,
@@ -54,6 +53,15 @@ from ._core import (
     stream_event_too_large,
 )
 from ._filesystem_inputs import buffer_bytes, path_sequence, sandbox_path
+from ._filesystem_watch_events import (
+    check_overflow_event as _check_overflow_event,
+)
+from ._filesystem_watch_events import (
+    parse_filesystem_event as _parse_filesystem_event,
+)
+from ._filesystem_watch_events import (
+    parse_watch_error,
+)
 from ._timestamps import parse_timestamp
 from ._transport import AsyncTransport
 from .errors import ConnectionError, DaytonaError, TransferCancelledError, create_error
@@ -64,7 +72,6 @@ from .types import (
     FileMatch,
     FileSearchResult,
     FilesystemEvent,
-    JsonObject,
     JsonValue,
     ListResult,
     ReplaceResult,
@@ -120,43 +127,6 @@ def _watch_spec(path: str, *, recursive: bool) -> RequestSpec:
     )
 
 
-_OVERFLOW_EVENT: Final = "filesystem watch overflow event"
-
-
-def _check_overflow_event(data: str) -> None:
-    """An ``overflow`` event carries ``{"dropped": <boolean>}``; anything else
-    is the malformed-response error, whether or not a callback handles it (as
-    TypeScript's ``checkOverflowEvent``)."""
-    dropped = sse_json("overflow", data, _OVERFLOW_EVENT).get("dropped")
-    if not isinstance(dropped, bool):
-        problem = "is required" if dropped is None else "must be a boolean"
-        raise create_error(f"expected {_OVERFLOW_EVENT}: dropped {problem}", 400, "BAD_REQUEST", "SDK")
-
-
-def _parse_filesystem_event(payload: JsonObject) -> FilesystemEvent:
-    def field(name: str, kind: type[_T], expected: str) -> _T:
-        value = payload.get(name)
-        # An int a double cannot carry is refused, as JSON.parse reads it as
-        # Infinity.
-        if (
-            not isinstance(value, kind)
-            or (kind is int and isinstance(value, bool))
-            or (kind is int and not finite_number(value))
-        ):
-            problem = "is required" if value is None else f"must be {expected}"
-            raise create_error(
-                f"expected filesystem watch event: {name} {problem}", 400, "BAD_REQUEST", "SDK"
-            )
-        return value
-
-    return FilesystemEvent(
-        type=field("type", str, "a string"),
-        name=field("name", str, "a string"),
-        is_dir=field("isDir", bool, "a boolean"),
-        timestamp_ms=field("timestamp", int, "an integer"),
-    )
-
-
 # The delivery a watch callback (or ``on_exit``) runs in: set for exactly
 # that call and inherited by the tasks it starts, so a ``stop()`` /
 # ``wait_for_exit()`` the callback makes, directly or from a child task, is
@@ -182,6 +152,8 @@ class AsyncWatchHandle:
     Callbacks run one at a time, in order, and are awaited. A failing event or
     overflow callback ends the watch: that error becomes :attr:`exit_error`
     and is passed to ``on_exit``. Never constructed directly.
+    A server ``error`` event (for example, a macOS access denial) ends the
+    watch with the typed error carried by that event.
 
     To stop a watch from an event, signal the code that holds the handle (an
     ``asyncio.Event``, or a ``threading.Event`` with the synchronous client)
@@ -728,8 +700,10 @@ class AsyncFileSystemService:
         time, in order.
         A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
-        when the watch ends, and its own failure is ignored. A failure before
-        the watch starts is raised from this call and does not call ``on_exit``;
+        when the watch ends, and its own failure is ignored. A server ``error``
+        event (for example, a macOS access denial) ends the watch with its typed
+        error. A failure before ``start``, including a server ``error`` event,
+        is raised from this call and does not call ``on_exit``;
         a stream that sends more than 4096 events, or more than 1 MiB, before
         ``start`` is one (``BadRequestError``). After ``start`` an event larger
         than the client's ``max_response_bytes`` ends the watch with
@@ -802,6 +776,8 @@ class AsyncFileSystemService:
                 ):
                     if handle._stopped:
                         break
+                    if event_name == "error":
+                        raise parse_watch_error(data)
                     callback: Callable[[], None | Awaitable[None]] | None = None
                     if event_name in ("fs", "overflow") and not started:
                         # Every listed event before start counts toward the
