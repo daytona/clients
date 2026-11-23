@@ -1,0 +1,18 @@
+changelog.d/708.changed.md
+  h_e7759ddd73fa65 1,3-6
+sdk-python/README.md
+  h_e7759ddd73fa65 177
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 1160-1163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3af09ffff82818dada8173da677af0d5d1e49e8f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
