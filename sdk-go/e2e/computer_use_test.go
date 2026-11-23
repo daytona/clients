@@ -8,6 +8,7 @@ package e2e_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	daytona "go.daytona.com/sdk/v2"
 
@@ -70,8 +71,12 @@ func TestComputerUseDesktop(t *testing.T) {
 		recording, recordErr := desktop.Recordings().Start(ctx, nil)
 		require.NoError(t, recordErr)
 		t.Cleanup(func() { require.NoError(t, desktop.Recordings().Delete(ctx, recording.ID)) })
-		_, stopErr := desktop.Recordings().Stop(ctx, recording.ID)
+		// A recording stopped within its first moments has no file: the
+		// daemon reports it failed and its download is 404 (seen live).
+		time.Sleep(2 * time.Second)
+		stopped, stopErr := desktop.Recordings().Stop(ctx, recording.ID)
 		require.NoError(t, stopErr)
+		require.Equal(t, "completed", stopped.Status)
 		data, downloadErr := desktop.Recordings().Download(ctx, recording.ID, nil)
 		require.NoError(t, downloadErr)
 		require.NotEmpty(t, data)
