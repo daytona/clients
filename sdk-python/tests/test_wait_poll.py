@@ -127,7 +127,10 @@ class TestRetryAfter:
     def test_missing_or_unusable_is_absent(self, headers):
         assert wait_poll.retry_after_seconds(headers) is None
 
-    @pytest.mark.parametrize(("value", "expected"), [("0", 0.0), ("60", 60.0), ("61", 60.0), ("1000000000", 60.0)])
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [("0", 0.0), ("60", 60.0), ("61", 60.0), ("1000000000", 60.0), ("0000001", 1.0), ("0000000", 0.0)],
+    )
     def test_capped_at_sixty_seconds(self, value, expected):
         assert wait_poll.retry_after_seconds({"Retry-After": value}) == expected
 

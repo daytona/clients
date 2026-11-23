@@ -85,7 +85,8 @@ def retry_after_seconds(headers: Mapping[str, Any] | None, now: datetime | None 
     # Delay-seconds is a whole number (RFC 9110); anything else that isn't an HTTP date is unusable.
     if text.isascii() and text.isdigit():
         # Long digit strings are far past the cap; skip converting them.
-        seconds = float(int(text)) if len(text) <= 6 else MAX_RETRY_AFTER
+        digits = text.lstrip("0") or "0"
+        seconds = float(int(digits)) if len(digits) <= 6 else MAX_RETRY_AFTER
     else:
         try:
             retry_at = parsedate_to_datetime(text)

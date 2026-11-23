@@ -94,7 +94,7 @@ module Daytona
 
     # @param resource_id [String]
     # @return [Boolean] Whether state events for +resource_id+ can arrive now: the manager is open, the
-    #   connection is up and the server has not rejected +resource_id+'s subscribe
+    #   connection is up, and +resource_id+ is currently subscribed (served), so not rejected by the server
     def event_backed?(resource_id)
       return false if @dispatcher.nil? || @mutex.synchronize { @closed }
 

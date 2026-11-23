@@ -1935,6 +1935,9 @@ describe('retryAfterMs', () => {
     ['99999999999999999999', 60_000],
     ['60', 60_000],
     ['59', 59_000],
+    // Leading zeros are still decimal seconds.
+    ['0000001', 1000],
+    ['0000000', 0],
   ])('caps %s seconds at 60 s', (value, expected) => {
     expect(retryAfterMs(rateLimited({ 'retry-after': value }))).toBe(expected)
   })

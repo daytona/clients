@@ -1008,7 +1008,7 @@ class SandboxTest {
 
     @ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"3, 3000", "59, 59000", "60, 60000", "120, 60000",
-            "99999999999999999999, 60000"})
+            "99999999999999999999, 60000", "0000001, 1000", "0000000, 0"})
     void retryAfterReadsSecondsCappedAtSixtySeconds(String value, long expected) {
         DaytonaException limited = new DaytonaException(429, "slow down", Map.of("Retry-After", value));
         assertThat(Sandbox.retryAfterMillis(limited, 0)).isEqualTo(expected);

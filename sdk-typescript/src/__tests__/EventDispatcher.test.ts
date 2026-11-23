@@ -408,9 +408,10 @@ describe('EventDispatcher', () => {
     socket.serverAccepts()
     for (let i = 1; i < count; i++) dispatcher.subscribe(uuid(i), noop, SANDBOX_EVENTS)
 
+    const expected = new Set(Array.from({ length: count }, (_, i) => uuid(i)))
     const sent = socket.sent.mock.calls.flatMap(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
     expect(sent).toHaveLength(count)
-    expect(new Set(sent).size).toBe(count)
+    expect(new Set(sent)).toEqual(expected)
     expect(dispatcher.isServed(uuid(count - 1))).toBe(true)
     expect(manager.isEventBacked(uuid(count - 1))).toBe(true)
 
@@ -420,6 +421,7 @@ describe('EventDispatcher', () => {
     socket.serverAccepts()
     const chunks = socket.sent.mock.calls.map(([, payload]) => (payload as { sandboxIds: string[] }).sandboxIds)
     expect(chunks.flat()).toHaveLength(count)
+    expect(new Set(chunks.flat())).toEqual(expected)
     expect(Math.max(...chunks.map((chunk) => chunk.length))).toBe(100)
   })
 

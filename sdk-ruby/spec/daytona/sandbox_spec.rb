@@ -1563,7 +1563,8 @@ RSpec.describe Daytona::Sandbox do
     describe 'retry_after_seconds' do
       it 'reads whole seconds and HTTP dates, caps at 60 s, and treats the rest as absent' do
         table = {
-          nil => 0.0, '3' => 3.0, ' 7 ' => 7.0, '60' => 60.0, '61' => 60.0, '99999999999999999999' => 60.0,
+          nil => 0.0, '3' => 3.0, '0000001' => 1.0, '00000000000000000000003' => 3.0, ' 7 ' => 7.0,
+          '60' => 60.0, '61' => 60.0, '99999999999999999999' => 60.0,
           '0' => 0.0, '-5' => 0.0, 'inf' => 0.0, '-inf' => 0.0, 'Infinity' => 0.0, 'nan' => 0.0, '1.5' => 0.0,
           'soon' => 0.0, (Time.now + 7200).httpdate => 60.0, (Time.now - 3600).httpdate => 0.0
         }
@@ -1628,17 +1629,18 @@ RSpec.describe Daytona::Sandbox do
       allow(sandbox_api).to receive(:get_sandbox)
     end
 
-    def state_event(new_state)
-      handler.last.call('sandbox.state.updated', { 'sandbox' => { 'id' => 'sandbox-123', 'state' => new_state } })
+    def state_event(new_state, resource_id: 'sandbox-123')
+      handler.last.call('sandbox.state.updated', { 'sandbox' => { 'id' => resource_id, 'state' => new_state } })
     end
 
-    # Sends a state event once the wait blocks between polls, from another thread as the event connection does.
-    def emit_when_waiting(new_state)
+    # Sends a state event for +resource_id+ once the wait blocks between polls, from another thread as the event
+    # connection does.
+    def emit_when_waiting(new_state, resource_id: 'sandbox-123')
       sent = false
       allow(ConditionVariable).to receive(:new).and_wrap_original do |original|
         original.call.tap do |cv|
           allow(cv).to receive(:wait).and_wrap_original do |wait, mutex, seconds|
-            Thread.new { state_event(new_state) } unless sent
+            Thread.new { state_event(new_state, resource_id:) } unless sent
             sent = true
             wait.call(mutex, seconds)
           end
@@ -1881,7 +1883,7 @@ RSpec.describe Daytona::Sandbox do
                                                            .and_return(double('ToolboxProxyUrl', url: 'https://proxy.example.com'))
       allow(sandbox_api).to receive(:get_sandbox).with('fork-1')
                                                  .and_return(build_sandbox_dto(id: 'fork-1', state: 'starting'))
-      emit_when_waiting('started')
+      emit_when_waiting('started', resource_id: 'fork-1')
 
       forked = started_sandbox.fork(timeout: 5)
 
@@ -2031,7 +2033,7 @@ RSpec.describe Daytona::Sandbox do
 
     it 'fork: skips the first read when the new sandbox subscription is live' do
       stub_fork('starting')
-      emit_when_waiting('started')
+      emit_when_waiting('started', resource_id: 'fork-1')
 
       forked = started_sandbox.fork(timeout: 5)
 
@@ -2081,26 +2083,35 @@ RSpec.describe Daytona::Sandbox do
     let(:manager) { Daytona::EventSubscriptionManager.new(dispatcher) }
     let(:emit_lock) { Mutex.new }
     let(:emitted) { [] }
+    # The ids the fake server serves on the current connection, and that connection's event callback.
+    let(:served) { Set.new }
+    let(:on_event) { [] }
     let(:states) { Hash.new('pending').merge('sandbox-c' => 'stopped') }
     let(:cancelled) { Class.new(StandardError) }
     let(:waits) { [] }
     let(:limit_exceeded) { { 'ok' => false, 'error' => 'SUBSCRIPTION_LIMIT_EXCEEDED', 'message' => 'limit reached' } }
 
     before do
-      allow(Daytona::SocketIOClient).to receive(:new) do
+      allow(Daytona::SocketIOClient).to receive(:new) do |**options|
+        emit_lock.synchronize do
+          served.clear
+          on_event.replace([options[:on_event]])
+        end
         double('SocketIOClient', connect: nil, close: nil).tap do |client|
           allow(client).to receive(:emit) { |name, data|
             emit_lock.synchronize {
               emitted << [name, data[:sandboxIds]]
+              served.subtract(data[:sandboxIds]) if name == 'unsubscribe'
             }
           }
           # The server is past its per-socket limit for sandbox-c only; it answers on its own thread.
           allow(client).to receive(:emit_with_ack) { |name, data, &on_ack|
+            rejected = data[:sandboxIds].include?('sandbox-c')
             emit_lock.synchronize {
               emitted << [name, data[:sandboxIds]]
+              served.merge(data[:sandboxIds]) unless rejected
             }
-            ack = data[:sandboxIds].include?('sandbox-c') ? limit_exceeded : { 'ok' => true }
-            Thread.new { on_ack.call(ack) }
+            Thread.new { on_ack.call(rejected ? limit_exceeded : { 'ok' => true }) }
           }
         end
       end
@@ -2123,9 +2134,8 @@ RSpec.describe Daytona::Sandbox do
                           subscription_manager: manager)
     end
 
-    # A stand-alone start wait on +sandbox_id+, running until the example ends or #cancel_wait.
-    def start_wait(sandbox_id)
-      sandbox = sandbox_for(sandbox_id)
+    # A stand-alone start wait on +sandbox+, running until it ends or the example ends.
+    def start_wait(sandbox)
       thread = Thread.new do
         sandbox.wait_for_sandbox_start(60)
       rescue cancelled
@@ -2135,9 +2145,15 @@ RSpec.describe Daytona::Sandbox do
       thread
     end
 
+    # Sends a state event the way the server does: only for an id it serves on the current connection.
+    def deliver(sandbox_id, state)
+      callback = emit_lock.synchronize { on_event.first if served.include?(sandbox_id) }
+      callback&.call('sandbox.state.updated', { 'sandbox' => { 'id' => sandbox_id, 'state' => state } })
+    end
+
     def emitted_events = emit_lock.synchronize { emitted.dup }
 
-    def subscribed?(sandbox_id) = emitted_events.any? { |name, ids| name == 'subscribe' && ids.include?(sandbox_id) }
+    def sent?(name, sandbox_id) = emitted_events.any? { |n, ids| n == name && ids.include?(sandbox_id) }
 
     def eventually(timeout: 5)
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
@@ -2149,15 +2165,12 @@ RSpec.describe Daytona::Sandbox do
       raise RSpec::Expectations::ExpectationNotMetError, "condition not met within #{timeout} s"
     end
 
-    def interval_for(sandbox)
-      allow(sandbox).to receive(:poll_jitter_random).and_return(0.5)
-      sandbox.send(:next_poll_interval, subscription: { id: 'held' }, fast_poll_interval: 0.1)
-    end
-
-    it 'makes the rejected wait read at once and fall back; the served ones stay event-backed' do
-      start_wait('sandbox-a')
-      start_wait('sandbox-b')
-      eventually { subscribed?('sandbox-a') && subscribed?('sandbox-b') && manager.connected? }
+    it 'makes the rejected wait finish by polling, while the served waits finish from events' do
+      sandbox_a = sandbox_for('sandbox-a')
+      sandbox_b = sandbox_for('sandbox-b')
+      wait_a = start_wait(sandbox_a)
+      wait_b = start_wait(sandbox_b)
+      eventually { emit_lock.synchronize { served.superset?(Set['sandbox-a', 'sandbox-b']) } && manager.connected? }
       sandbox_c = sandbox_for('sandbox-c', 'started')
       allow(sandbox_c).to receive(:poll_jitter_random).and_return(0.5)
       allow(sandbox_api).to receive(:stop_sandbox).and_return(build_sandbox_dto(id: 'sandbox-c', state: 'stopping'))
@@ -2167,9 +2180,17 @@ RSpec.describe Daytona::Sandbox do
       expect(sandbox_c.state).to eq('stopped')
       expect(sandbox_api).to have_received(:get_sandbox).with('sandbox-c').once
       expect(elapsed).to be < 2.5
-      expect(subscribed?('sandbox-c')).to be(true)
+      expect(sent?('subscribe', 'sandbox-c')).to be(true)
+      expect(manager.event_backed?('sandbox-c')).to be(false)
+      expect(sent?('unsubscribe', 'sandbox-c')).to be(false)
+
       expect(manager.event_backed?('sandbox-a')).to be(true)
-      expect(interval_for(sandbox_for('sandbox-a'))).to eq(5.0)
+      deliver('sandbox-a', 'started')
+      deliver('sandbox-b', 'started')
+      expect([wait_a.join(2), wait_b.join(2)]).to all(be_a(Thread))
+      expect([sandbox_a.state, sandbox_b.state]).to eq(%w[started started])
+      expect(sandbox_api).to have_received(:get_sandbox).with('sandbox-a').once
+      expect(sandbox_api).to have_received(:get_sandbox).with('sandbox-b').once
     end
   end
 

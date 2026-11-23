@@ -229,7 +229,13 @@ class EventDispatcherTest {
             sent.addAll(ids(message));
         }
         assertThat(gateway.takeEmitted(QUIET_MILLIS)).isNull();
-        assertThat(sent).hasSize(count).doesNotHaveDuplicates();
+        Set<String> expected = new HashSet<>();
+        for (int i = 0; i < count; i++) {
+            expected.add("sb-" + i);
+        }
+        // Exactly sb-0..sb-10100, each once.
+        assertThat(sent).hasSize(count);
+        assertThat(new HashSet<>(sent)).isEqualTo(expected);
         assertThat(dispatcher.isServed("sb-" + (count - 1))).isTrue();
     }
 
