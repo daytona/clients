@@ -1,0 +1,64 @@
+sdk-go/pkg/common/event_dispatcher.go
+  h_e7759ddd73fa65 84-85,90,244-248,378
+sdk-go/pkg/common/event_dispatcher_test.go
+  h_e7759ddd73fa65 686-688,695,702-704,707,743,816-839
+sdk-go/pkg/common/event_subscription_manager.go
+  h_e7759ddd73fa65 126-127
+sdk-go/pkg/daytona/event_subscriptions_test.go
+  h_e7759ddd73fa65 1042-1044,1067
+sdk-go/pkg/daytona/sandbox.go
+  h_e7759ddd73fa65 183-185
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  h_e7759ddd73fa65 100-101
+sdk-java/src/main/java/io/daytona/sdk/internal/EventDispatcher.java
+  h_e7759ddd73fa65 82-85,319
+sdk-java/src/main/java/io/daytona/sdk/internal/EventSubscriptionManager.java
+  h_e7759ddd73fa65 107
+sdk-java/src/test/java/io/daytona/sdk/SandboxTest.java
+  h_e7759ddd73fa65 1058-1060,1089,1097-1103
+sdk-java/src/test/java/io/daytona/sdk/internal/EventDispatcherTest.java
+  h_e7759ddd73fa65 212-229,231-233,249-253,256,259,263,266-268,270,273,275
+sdk-python/src/daytona/_async/sandbox.py
+  h_e7759ddd73fa65 1879-1880,1942-1943
+sdk-python/src/daytona/_sync/sandbox.py
+  h_e7759ddd73fa65 1886-1887,1954-1955
+sdk-python/src/daytona/internal/event_dispatcher.py
+  h_e7759ddd73fa65 81-85,253-255,676-678
+sdk-python/src/daytona/internal/wait_poll.py
+  h_e7759ddd73fa65 19-20
+sdk-python/tests/test_subscription_acks.py
+  h_e7759ddd73fa65 26,37-39,43,90,92,103,108,241-244,254,261,354,356,396,408-411,454
+sdk-python/tests/test_subscriptions.py
+  h_e7759ddd73fa65 4,29-30,94-95,98-102,104-105,108-110,112-116,120-124,127,130-132,134-136,144,147,161,164
+sdk-ruby/lib/daytona/common/event_dispatcher.rb
+  h_e7759ddd73fa65 43-46,173,223-224
+sdk-ruby/lib/daytona/common/event_subscription_manager.rb
+  h_e7759ddd73fa65 97
+sdk-ruby/lib/daytona/sandbox.rb
+  h_e7759ddd73fa65 1742-1743
+sdk-ruby/spec/daytona/event_dispatcher_spec.rb
+  h_e7759ddd73fa65 190-198,203,210-213,215-216,218-221,223-224,226-229
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  h_e7759ddd73fa65 2079,2087,2097-2098,2102-2103,2157,2162,2170-2171
+sdk-typescript/src/__tests__/EventDispatcher.test.ts
+  h_e7759ddd73fa65 239-267,402-409,411-415,417-424,426-430,432-433,435-437
+sdk-typescript/src/__tests__/Sandbox.test.ts
+  h_e7759ddd73fa65 2223,2249,2262,2274,2287-2292
+sdk-typescript/src/utils/EventDispatcher.ts
+  h_e7759ddd73fa65 67-69,100,325-326
+sdk-typescript/src/utils/EventSubscriptionManager.ts
+  h_e7759ddd73fa65 38
+sdk-typescript/src/utils/WaitPolling.ts
+  h_e7759ddd73fa65 10-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ba8bce32097294923212bdf3ef703a972dc22e5",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
