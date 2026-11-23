@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from daytona.v2._gen.api.models.image_reference import ImageReference
+from daytona.v2._gen.api.models.lifecycle_policy import LifecyclePolicy
 from typing import Optional, Set
 from typing import FrozenSet
 from typing_extensions import Self
@@ -78,13 +79,14 @@ class SandboxCreateOperation(BaseModel):
     create_timeout_at: Optional[datetime] = Field(default=None, description="Create deadline, or null after the sandbox reaches its target status.")
     id: StrictStr = Field(description="The sandbox ID.")
     image: Optional[ImageReference] = None
+    lifecycle_policy: Optional[LifecyclePolicy] = None
     name: StrictStr = Field(description="Sandbox name (caller-provided or the generated `sandbox-<short-id>`).")
     reservation_id: Optional[StrictStr] = Field(default=None, description="The Mac reservation that the sandbox runs on; null until the sandbox reaches a Mac.")
     status: StrictStr = Field(description="Initial lifecycle status — `pending`, or the sandbox's current status on an idempotent replay.")
     toolbox_proxy_url: StrictStr = Field(description="The sandbox’s toolbox base URL, also returned by `GET /sandboxes/{id}`. Use this URL for sandbox operations.")
     wait_cap_seconds: Annotated[int, Field(strict=True, ge=0)] = Field(description="Maximum server-side create wait in seconds. `0` when the server skipped the hold because the organization already has its limit of held creates; wait for the rest of `wait_seconds` client-side.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["access_token", "access_token_expires_at", "create_timeout_at", "id", "image", "name", "reservation_id", "status", "toolbox_proxy_url", "wait_cap_seconds"]
+    __properties: ClassVar[List[str]] = ["access_token", "access_token_expires_at", "create_timeout_at", "id", "image", "lifecycle_policy", "name", "reservation_id", "status", "toolbox_proxy_url", "wait_cap_seconds"]
     _daytona_redacted_fields: ClassVar[FrozenSet[str]] = frozenset(["access_token", ])
 
     model_config = ConfigDict(
@@ -143,6 +145,9 @@ class SandboxCreateOperation(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of image
         if self.image:
             _dict['image'] = self.image.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of lifecycle_policy
+        if self.lifecycle_policy:
+            _dict['lifecycle_policy'] = self.lifecycle_policy.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -168,6 +173,11 @@ class SandboxCreateOperation(BaseModel):
         if self.image is None and "image" in self.model_fields_set:
             _dict['image'] = None
 
+        # set to None if lifecycle_policy (nullable) is None
+        # and model_fields_set contains the field
+        if self.lifecycle_policy is None and "lifecycle_policy" in self.model_fields_set:
+            _dict['lifecycle_policy'] = None
+
         # set to None if reservation_id (nullable) is None
         # and model_fields_set contains the field
         if self.reservation_id is None and "reservation_id" in self.model_fields_set:
@@ -190,6 +200,7 @@ class SandboxCreateOperation(BaseModel):
             **({"create_timeout_at": obj["create_timeout_at"]} if "create_timeout_at" in obj else {}),
             "id": obj.get("id"),
             **({"image": ImageReference.from_dict(obj["image"]) if obj["image"] is not None else None} if "image" in obj else {}),
+            **({"lifecycle_policy": LifecyclePolicy.from_dict(obj["lifecycle_policy"]) if obj["lifecycle_policy"] is not None else None} if "lifecycle_policy" in obj else {}),
             "name": obj.get("name"),
             **({"reservation_id": obj["reservation_id"]} if "reservation_id" in obj else {}),
             "status": obj.get("status"),

@@ -67,15 +67,13 @@
         }
       },
       "Limit": {
-        "description": "Maximum number of items to return, 1\u2013200 (default 100)",
+        "description": "Maximum number of items to return, 1\u2013200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.",
         "in": "query",
         "name": "limit",
         "required": false,
         "schema": {
           "default": 100,
           "format": "int64",
-          "maximum": 200,
-          "minimum": 1,
           "type": "integer"
         }
       },
@@ -460,6 +458,7 @@
           "BUCKET_NOT_EMPTY",
           "ORIGIN_IMPORT_ONLY",
           "READ_ONLY_UNSUPPORTED",
+          "VOLUME_NOT_FOUND",
           "WORKLOAD_PLANE_ELSEWHERE",
           "MANAGEMENT_PLANE_ELSEWHERE",
           "NOT_SUPPORTED_FOR_CLASS",
@@ -5835,6 +5834,7 @@
         "type": "object"
       },
       "OrganizationLimits": {
+        "description": "An organization's limits and current usage. Some organization limits are not returned. Daytona determines them for each organization to keep the platform available for everyone. A create that reaches one is refused with `LIMIT_EXCEEDED`; contact support to request a higher limit.",
         "properties": {
           "api_keys_per_organization": {
             "$ref": "#/components/schemas/UsageLimit",
@@ -5874,7 +5874,7 @@
           },
           "storage": {
             "$ref": "#/components/schemas/StorageLimits",
-            "description": "Volume, image, and snapshot count limits."
+            "description": "Volume, image, and snapshot counts. Their organization limits are not returned."
           }
         },
         "required": [
@@ -7351,6 +7351,19 @@
         ],
         "type": "object"
       },
+      "ProjectImageBuildLimits": {
+        "description": "The project's concurrent image-build limit and current usage.",
+        "properties": {
+          "concurrent": {
+            "$ref": "#/components/schemas/UsageLimit",
+            "description": "The project's concurrent image-build limit and current usage."
+          }
+        },
+        "required": [
+          "concurrent"
+        ],
+        "type": "object"
+      },
       "ProjectLifecycleDefaults": {
         "properties": {
           "ephemeral": {
@@ -7381,15 +7394,20 @@
         "type": "object"
       },
       "ProjectLimits": {
-        "description": "The project's own sandbox limits, each with the project's current usage\nagainst it.",
+        "description": "The project's own limits on sandboxes and image builds, each with the\nproject's current usage against it.",
         "properties": {
+          "image_builds": {
+            "$ref": "#/components/schemas/ProjectImageBuildLimits",
+            "description": "The project's image-build limits."
+          },
           "sandboxes": {
             "$ref": "#/components/schemas/ProjectSandboxLimits",
-            "description": "The project's sandbox count limits. A stored limit is always returned,\nand takes effect only while limit enforcement is turned on."
+            "description": "The project's sandbox counts. Only the concurrent count can carry a\nproject limit."
           }
         },
         "required": [
-          "sandboxes"
+          "sandboxes",
+          "image_builds"
         ],
         "type": "object"
       },
@@ -7493,7 +7511,7 @@
         "type": "object"
       },
       "ProjectSandboxLimits": {
-        "description": "The three sandbox counts a project can be limited on, each with its\nlimit and current usage.",
+        "description": "The project's sandbox counts, each with its current usage. Only the\nconcurrent count can carry a project limit.",
         "properties": {
           "concurrent": {
             "$ref": "#/components/schemas/UsageLimit",
@@ -7501,11 +7519,13 @@
           },
           "persistent": {
             "$ref": "#/components/schemas/UsageLimit",
-            "description": "The project's persistent sandbox limit and current usage. Stopped and\npaused persistent sandboxes count."
+            "deprecated": true,
+            "description": "The project's persistent sandbox count. Stopped and paused persistent\nsandboxes count. Projects have no persistent sandbox limit of their\nown, so `limit` is always `null`."
           },
           "total": {
             "$ref": "#/components/schemas/UsageLimit",
-            "description": "The project's total sandbox limit and current usage."
+            "deprecated": true,
+            "description": "The project's total sandbox count. Projects have no total sandbox\nlimit of their own, so `limit` is always `null`."
           }
         },
         "required": [
@@ -8625,6 +8645,17 @@
               }
             ]
           },
+          "lifecycle_policy": {
+            "description": "Automatic timeout and idle-expiry behavior: the object\n`GET /sandboxes/{id}` returns, as the create set it (on an idempotent\nreplay, as the sandbox has it now). Starting the sandbox restarts\n`timeout_at` and `idle_timeout_at`, so after a start, even one `status`\nalready reports as `running`, `GET /sandboxes/{id}` returns the new\ndeadlines. Null when the policy could not be read.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LifecyclePolicy"
+              }
+            ]
+          },
           "name": {
             "description": "Sandbox name (caller-provided or the generated `sandbox-<short-id>`).",
             "type": "string"
@@ -8735,7 +8766,8 @@
           },
           "total": {
             "$ref": "#/components/schemas/UsageLimit",
-            "description": "The total sandbox limit and current usage."
+            "deprecated": true,
+            "description": "The total sandbox count. Its organization limit is not returned, so `limit` is always `null`."
           }
         },
         "required": [
@@ -9255,6 +9287,69 @@
           "secrets"
         ],
         "type": "object"
+      },
+      "SecretSearchListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Secret"
+          },
+          {
+            "properties": {
+              "cursor": {
+                "description": "Opaque cursor for this item.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "cursor"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SecretSearchPage": {
+        "description": "A page of matching secrets.",
+        "properties": {
+          "next_cursor": {
+            "description": "Continuation token; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "secrets": {
+            "description": "Matching secrets in this page.",
+            "items": {
+              "$ref": "#/components/schemas/SecretSearchListItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "Number of matching secrets, exact when `total_relation` is `eq`.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_relation": {
+            "$ref": "#/components/schemas/SearchTotalRelation",
+            "description": "Whether total is exact (`eq`) or a lower bound (`gte`)."
+          }
+        },
+        "required": [
+          "secrets",
+          "total",
+          "total_relation"
+        ],
+        "type": "object"
+      },
+      "SecretSearchSort": {
+        "enum": [
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
       },
       "SetAutomaticTopUpRequest": {
         "properties": {
@@ -9929,15 +10024,18 @@
         "properties": {
           "images": {
             "$ref": "#/components/schemas/UsageLimit",
-            "description": "The image limit and current usage. Captured, built, and imported images count; failed images do not."
+            "deprecated": true,
+            "description": "The image count. Captured, built, and imported images count; failed images do not. Its organization limit is not returned, so `limit` is always `null`."
           },
           "snapshots": {
             "$ref": "#/components/schemas/UsageLimit",
-            "description": "The snapshot limit and current usage. Failed snapshots do not count."
+            "deprecated": true,
+            "description": "The snapshot count. Failed snapshots do not count. Its organization limit is not returned, so `limit` is always `null`."
           },
           "volumes": {
             "$ref": "#/components/schemas/UsageLimit",
-            "description": "The volume limit and current usage. Deleted volumes do not count."
+            "deprecated": true,
+            "description": "The volume count. Deleted volumes do not count. Its organization limit is not returned, so `limit` is always `null`."
           }
         },
         "required": [
@@ -10197,6 +10295,14 @@
         "additionalProperties": false,
         "description": "The limits to change. Each one is optional: a missing limit keeps the\nstored value, `null` removes it, and an integer sets it. Unknown fields\nare refused.",
         "properties": {
+          "max_concurrent_builds": {
+            "description": "The most image builds the project may run at once, or null for no\nproject limit.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "max_concurrent_vms": {
             "description": "The most sandboxes the project may run at once, or null for no project\nlimit.",
             "format": "int64",
@@ -10206,7 +10312,8 @@
             ]
           },
           "max_persistent_vms": {
-            "description": "The most persistent sandboxes the project may have, or null for no\nproject limit.",
+            "deprecated": true,
+            "description": "Cannot be set on a project: projects do not limit their persistent sandbox count. Send null\nor omit it; an integer is refused.",
             "format": "int64",
             "type": [
               "integer",
@@ -10214,7 +10321,8 @@
             ]
           },
           "max_total_vms": {
-            "description": "The most sandboxes the project may have, resting ones included, or null\nfor no project limit.",
+            "deprecated": true,
+            "description": "Cannot be set on a project: projects do not limit their total sandbox count. Send null or\nomit it; an integer is refused.",
             "format": "int64",
             "type": [
               "integer",
@@ -10387,7 +10495,7 @@
       "UsageLimit": {
         "properties": {
           "limit": {
-            "description": "The effective cap; `null` means no limit. A ceiling, not a\nreservation: reaching it refuses new work, but nothing is set aside.",
+            "description": "The effective cap; `null` means no limit, except on a count whose\nlimit is not returned. A ceiling, not a reservation: reaching it\nrefuses new work, but nothing is set aside.",
             "format": "int64",
             "type": [
               "integer",
@@ -10963,6 +11071,15 @@
         ],
         "type": "object"
       },
+      "VolumeBucketOrigin": {
+        "enum": [
+          "platform",
+          "external",
+          "claimed"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "VolumeMount": {
         "description": "A volume attachment as requested on `POST /sandboxes`.",
         "properties": {
@@ -10986,7 +11103,7 @@
             ]
           },
           "volume": {
-            "description": "The volume name or a `vol_` id.",
+            "description": "The volume name or a `vol_` id. A sandbox can mount a volume once.",
             "type": "string"
           }
         },
@@ -11018,6 +11135,81 @@
           "volumes"
         ],
         "type": "object"
+      },
+      "VolumeSearchListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Volume"
+          },
+          {
+            "properties": {
+              "cursor": {
+                "description": "Opaque cursor for this item.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "cursor"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "VolumeSearchPage": {
+        "description": "A page of matching volumes.",
+        "properties": {
+          "next_cursor": {
+            "description": "Continuation token; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total": {
+            "description": "Number of matching volumes, exact when `total_relation` is `eq`.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_relation": {
+            "$ref": "#/components/schemas/SearchTotalRelation",
+            "description": "Whether total is exact (`eq`) or a lower bound (`gte`)."
+          },
+          "volumes": {
+            "description": "Matching volumes in this page.",
+            "items": {
+              "$ref": "#/components/schemas/VolumeSearchListItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "volumes",
+          "total",
+          "total_relation"
+        ],
+        "type": "object"
+      },
+      "VolumeSearchSort": {
+        "enum": [
+          "created_at",
+          "updated_at",
+          "name",
+          "used_bytes",
+          "last_used_at",
+          "size_gib"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "VolumeSearchStatus": {
+        "enum": [
+          "ready",
+          "deleting",
+          "error"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
       },
       "VolumeStatus": {
         "enum": [
@@ -15474,7 +15666,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of balances to return (default 25, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -15617,7 +15818,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of charges to return (default 25, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -16356,7 +16566,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of invoices to return (default 25, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -17038,7 +17257,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of payment methods to return (default 20, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -18074,7 +18302,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of usage periods to return (default 12, maximum 60)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 60,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -18712,7 +18949,7 @@
     },
     "/orgs/{org_id}/limits": {
       "get": {
-        "description": "Returns effective limits and current usage. A null limit means unlimited.",
+        "description": "Returns effective limits and current usage. A null limit means unlimited, except on a count whose limit is not returned.",
         "operationId": "get_org_limits",
         "parameters": [
           {
@@ -19881,7 +20118,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -20480,7 +20726,16 @@
             "$ref": "#/components/parameters/OrganizationRegionId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -20906,7 +21161,16 @@
             "$ref": "#/components/parameters/OrganizationRegionId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -21210,7 +21474,16 @@
             "$ref": "#/components/parameters/OrganizationRegionId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -24130,7 +24403,7 @@
         ]
       },
       "patch": {
-        "description": "A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox that limit counts; the sandboxes it already has keep running, and lowering a limit never stops one.",
+        "description": "A missing limit keeps the stored value, null removes the project's limit, and an integer from 0 to 2147483647 sets it. A limit of 0 stops the project creating any sandbox or image build that limit counts; what it already has keeps running, and lowering a limit never stops anything. `max_total_vms` and `max_persistent_vms` cannot be set on a project: send null or omit them.",
         "operationId": "update_project_limits",
         "parameters": [
           {
@@ -24171,7 +24444,7 @@
                 }
               }
             },
-            "description": "A limit is outside the accepted range, or the body carries an unknown field (`BAD_REQUEST`)",
+            "description": "A limit is outside the accepted range, a limit that cannot be set on a project is given a value, or the body carries an unknown field (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -29802,7 +30075,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`)",
+            "description": "The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -30303,6 +30576,201 @@
           }
         ],
         "summary": "List project secrets",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
+    "/secrets/search": {
+      "get": {
+        "description": "Searches the project's secrets using the supplied filters. Results may be briefly stale after a change.",
+        "operationId": "search_secrets",
+        "parameters": [
+          {
+            "description": "Free text over the secret name (any substring, case-insensitive) and description.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match this exact secret name.",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match names starting with this case-sensitive prefix.",
+            "in": "query",
+            "name": "name_prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match an allowed domain exactly.",
+            "in": "query",
+            "name": "allowed_domain",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on creation time.",
+            "in": "query",
+            "name": "created_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on creation time.",
+            "in": "query",
+            "name": "created_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-modified time.",
+            "in": "query",
+            "name": "updated_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-modified time.",
+            "in": "query",
+            "name": "updated_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort field. Defaults to `name`.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SecretSearchSort"
+            }
+          },
+          {
+            "description": "Sort order. Defaults to `asc`.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretSearchPage"
+                }
+              }
+            },
+            "description": "The page of matching secrets",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is not enabled (`SEARCH_NOT_CONFIGURED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "read:secrets"
+            ]
+          },
+          {
+            "platform_token": [
+              "read:secrets"
+            ]
+          }
+        ],
+        "summary": "Search secrets",
         "tags": [
           "secrets"
         ]
@@ -31469,6 +31937,263 @@
         ]
       }
     },
+    "/volumes/search": {
+      "get": {
+        "description": "Searches the project's volumes using the supplied filters. Results may be briefly stale after a change.",
+        "operationId": "search_volumes",
+        "parameters": [
+          {
+            "description": "Free text over the volume name (any substring, case-insensitive); a volume ID matches exactly.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match this exact volume name.",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match names starting with this case-sensitive prefix.",
+            "in": "query",
+            "name": "name_prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated volume types.",
+            "explode": false,
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeType"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated non-deleted volume statuses.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeSearchStatus"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated bucket origins. Only bucket volumes match.",
+            "explode": false,
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeBucketOrigin"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "True returns imported volumes, false returns native volumes, absent returns both.",
+            "in": "query",
+            "name": "imported",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on creation time.",
+            "in": "query",
+            "name": "created_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on creation time.",
+            "in": "query",
+            "name": "created_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-modified time.",
+            "in": "query",
+            "name": "updated_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-modified time.",
+            "in": "query",
+            "name": "updated_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-used time.",
+            "in": "query",
+            "name": "last_used_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-used time.",
+            "in": "query",
+            "name": "last_used_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort field. Defaults to `created_at`.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/VolumeSearchSort"
+            }
+          },
+          {
+            "description": "Sort order. Defaults to `desc`.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeSearchPage"
+                }
+              }
+            },
+            "description": "The page of matching volumes",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is not enabled (`SEARCH_NOT_CONFIGURED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "read:volumes"
+            ]
+          },
+          {
+            "platform_token": [
+              "read:volumes"
+            ]
+          }
+        ],
+        "summary": "Search volumes",
+        "tags": [
+          "volumes"
+        ]
+      }
+    },
     "/volumes/{id}": {
       "delete": {
         "description": "Deletion is asynchronous. Repeating the request after the deletion\ncompletes confirms it without starting another.",
@@ -32324,6 +33049,11 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 409
+    },
+    "VOLUME_NOT_FOUND": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 404
     },
     "WORKLOAD_PLANE_ELSEWHERE": {
       "extras": [],

@@ -33,7 +33,7 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class ProjectSandboxLimits(BaseModel):
     """
-    The three sandbox counts a project can be limited on, each with its limit and current usage.
+    The project's sandbox counts, each with its current usage. Only the concurrent count can carry a project limit.
     """ # noqa: E501
     concurrent: UsageLimit
     persistent: UsageLimit
