@@ -1,0 +1,22 @@
+changelog.d/708.fixed.md
+  h_e7759ddd73fa65 7-8
+sdk-python/README.md
+  h_e7759ddd73fa65 175-179
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 246,491,493-494,662,1160-1168
+sdk-python/tests/test_bridge.py
+  h_e7759ddd73fa65 545,548-549
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 12278,12293-12294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4fc6f3ae2e1be0673fe4170eb1bfffb3f06f54d7",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
