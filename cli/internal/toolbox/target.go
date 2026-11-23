@@ -123,6 +123,28 @@ func ResolveSSHGateway(ctx context.Context, apiClient *api.Client, target *Targe
 	return nil
 }
 
+// MintSSHAccessToken mints a fresh sandbox access token limited to SSH,
+// with no preview ports and a five-minute lifetime.
+func MintSSHAccessToken(ctx context.Context, apiClient *api.Client, sandboxID string) (string, error) {
+	ttl := int64(300)
+	body := genapi.MintSandboxAccessTokenRequest{
+		Operations: &[]string{"ssh"},
+		Ports:      &[]int32{},
+		TtlSeconds: &ttl,
+	}
+	if id := strings.TrimSpace(sandboxID); id == "" || id == "." || id == ".." {
+		return "", cerr.New(cerr.ExitFailure, "invalid sandbox id %q", sandboxID)
+	}
+	var token genapi.SandboxAccessToken
+	if err := apiClient.Do(ctx, http.MethodPost, "/sandboxes/"+strictPathSegment(sandboxID)+"/access-token", nil, body, &token); err != nil {
+		return "", err
+	}
+	if token.AccessToken == "" {
+		return "", cerr.New(cerr.ExitFailure, "sandbox SSH access token response has an empty access_token")
+	}
+	return token.AccessToken, nil
+}
+
 func resolveSSHGateway(detail genapi.Sandbox) (string, int) {
 	if detail.SshGatewayHost == nil || strings.TrimSpace(*detail.SshGatewayHost) == "" || detail.SshGatewayPort == nil || *detail.SshGatewayPort <= 0 {
 		return "", 0
