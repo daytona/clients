@@ -61,11 +61,13 @@ func New(baseURL, credential, version string) *Client {
 	}
 }
 
-// CredentialProblem says why cred cannot be sent as `Authorization: Bearer
-// <cred>`, or "" when it can: a bearer is printable ASCII, so a control
+// CredentialProblem says why cred breaks the CLI's bearer rule, or "" when
+// it does not: a credential sent as `Authorization: Bearer <cred>` must be
+// printable ASCII (spaces allowed), as every Daytona credential is. A control
 // character (a line break or tab left over from a file) or a non-ASCII
-// character is refused before any request. The answer never contains the
-// credential.
+// character is refused before any request; Go's HTTP client would send a tab
+// or non-ASCII bytes, and fail on a line break as a network error. The answer
+// never contains the credential.
 func CredentialProblem(cred string) string {
 	for i := 0; i < len(cred); i++ {
 		switch b := cred[i]; {
@@ -79,15 +81,13 @@ func CredentialProblem(cred string) string {
 }
 
 // credentialError is the backstop for a bearer no caller checked (one the
-// server minted): a usage error naming the problem, never the value, instead
-// of the HTTP client's "invalid header field value" reported as a network
-// failure.
+// server minted): a usage error naming the problem, never the value.
 func credentialError(cred string) error {
 	problem := CredentialProblem(cred)
 	if problem == "" {
 		return nil
 	}
-	return cerr.Usage("the request credential contains %s, which an HTTP header cannot carry", problem).
+	return cerr.Usage("the request credential contains %s; a credential must be printable ASCII", problem).
 		WithHint("check --api-key / DAYTONA_API_KEY, or sign in again with `daytona login`")
 }
 

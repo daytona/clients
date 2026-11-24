@@ -149,15 +149,16 @@ func TestWithTimeoutAtLeast_onlyLengthensABoundedTimeout(t *testing.T) {
 // A bearer no header can carry (one the server minted, which no caller
 // checked) is refused before the request as a usage error that does not
 // contain it, instead of the HTTP client's error reported as a network
-// failure with "check the API URL".
+// failure with "check the API URL". Neither the message nor the hint holds it.
 func TestDoRefusesACredentialAHeaderCannotCarry(t *testing.T) {
 	var requests int
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }))
 	defer srv.Close()
 	for _, cred := range []string{"tok-secret\n", "tok-secret\x00", "tok-secreté"} {
 		err := New(srv.URL, cred, "test").Do(context.Background(), "GET", "/x", nil, nil, nil)
-		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "the request credential contains") ||
-			strings.Contains(err.Error(), "tok-secret") || strings.Contains(cerr.DetailsOf(err).Hint, "network") {
+		hint := cerr.DetailsOf(err).Hint
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "must be printable ASCII") ||
+			strings.Contains(err.Error(), "tok-secret") || strings.Contains(hint, "tok-secret") || strings.Contains(hint, "network") {
 			t.Fatalf("%q: %v (hint %q)", cred, err, cerr.DetailsOf(err).Hint)
 		}
 	}

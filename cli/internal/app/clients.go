@@ -74,9 +74,9 @@ func (a *App) Credential(ctx context.Context) (string, error) {
 	return cred, nil
 }
 
-// checkCredential refuses a credential no HTTP header can carry before any
-// request, naming where it came from but never its value. A static
-// credential is otherwise sent exactly as given.
+// checkCredential refuses a credential that is not printable ASCII
+// (api.CredentialProblem) before any request, naming where it came from but
+// never its value. A static credential is otherwise sent exactly as given.
 func (a *App) checkCredential(cred string) error {
 	problem := api.CredentialProblem(cred)
 	if problem == "" {
