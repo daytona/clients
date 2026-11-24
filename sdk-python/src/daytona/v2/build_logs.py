@@ -224,9 +224,11 @@ class _ProtocolError(Exception):
 
 
 class _Retry(Exception):
-    def __init__(self, message: str, retry_after: float = 0) -> None:
+    def __init__(self, message: str, retry_after: float = 0, error: DaytonaError | None = None) -> None:
         super().__init__(message)
         self.retry_after = retry_after
+        # The response's typed error, kept as the cause once retries end.
+        self.error = error
 
 
 class _CallbackError(Exception):
@@ -682,6 +684,27 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
     return parse_error_payload(status, payload)
 
 
+# Catalog codes a 429 / 5xx response can carry that name a state a retry
+# cannot change (a limit, or a feature the deployment does not configure). A
+# response with one of them is the caller's answer; every other 429 / 5xx,
+# SERVICE_UNAVAILABLE included, is retried within the reconnect budget.
+_PERMANENT_CODES = frozenset(
+    {
+        "BILLING_DISABLED",
+        "LIMIT_EXCEEDED",
+        "MANAGEMENT_PLANE_ELSEWHERE",
+        "SEARCH_NOT_CONFIGURED",
+        "V0_BACKUP_REGISTRY_UNCONFIGURED",
+        "WORKLOAD_PLANE_ELSEWHERE",
+    }
+)
+
+
+def _retryable_http(error: DaytonaError) -> bool:
+    status = error.status_code
+    return status is not None and (status == 429 or status >= 500) and error.code not in _PERMANENT_CODES
+
+
 def _budget(deadline: float | None) -> float | None:
     return None if deadline is None else deadline - _clock.monotonic()
 
@@ -723,9 +746,13 @@ async def _discover(
     stream = await api.open_exclusive_stream(RequestSpec("GET", discovery_path, timeout=timeout))
     try:
         if not 200 <= stream.status_code < 300:
-            if retry and (stream.status_code == 429 or stream.status_code >= 500):
-                raise _Retry(f"build log discovery HTTP {stream.status_code}", _retry_after(stream.headers))
-            raise await _finite_http_error(stream, deadline)
+            # Decoded first: the typed error decides the retry and survives it.
+            error = await _finite_http_error(stream, deadline)
+            if retry and _retryable_http(error):
+                raise _Retry(
+                    f"build log discovery HTTP {stream.status_code}", _retry_after(stream.headers), error
+                )
+            raise error
         budget = _budget(deadline)
         if budget is not None and budget <= 0:
             raise ClientTimeoutError("build log discovery timed out")
@@ -885,9 +912,12 @@ async def follow_build_logs(
                         )
                     )
                     if not 200 <= stream.status_code < 300:
-                        if stream.status_code == 429 or stream.status_code >= 500:
-                            raise _Retry(f"build log HTTP {stream.status_code}", _retry_after(stream.headers))
-                        raise await _finite_http_error(stream, request_deadline)
+                        error = await _finite_http_error(stream, request_deadline)
+                        if _retryable_http(error):
+                            raise _Retry(
+                                f"build log HTTP {stream.status_code}", _retry_after(stream.headers), error
+                            )
+                        raise error
                     if (
                         stream.headers.get("content-type", "").split(";")[0].strip().lower()
                         != "text/event-stream"
@@ -913,10 +943,12 @@ async def follow_build_logs(
                     if healthy and _clock.monotonic() - started >= 10:
                         failures = 0
                     if failures >= 5:
+                        # The last response's typed error (status, code,
+                        # message, trace ID) is the cause.
                         raise BuildLogInterruptedError(
                             "build log reconnect budget exhausted",
                             cursor=state.cursor,
-                        ) from exc
+                        ) from (exc.error if isinstance(exc, _Retry) and exc.error is not None else exc)
                     delay = (0.25, 0.5, 1, 2, 5)[failures] * random.uniform(0.8, 1.0)
                     failures += 1
                     if isinstance(exc, _Retry):
