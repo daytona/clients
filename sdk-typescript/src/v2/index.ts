@@ -79,6 +79,7 @@ export type { PullVolumeOptions, PullVolumeResult } from './SandboxVolumes.js'
 export type { ListVolumesOptions, Volume, GetVolumeOptions, CreateVolumeOptions, DeleteVolumeOptions } from './Volume.js'
 export type { ListSecretsOptions, Secret, SetSecretOptions } from './Secret.js'
 export type { BuildContext } from './contextUpload.js'
+export type { DesktopConfig, DesktopEnvironment, DesktopSettings, DesktopResolution } from './desktop.js'
 export { DISABLED } from './types.js'
 export * as codes from './codes.js'
 export {

@@ -8,6 +8,15 @@ from typing import TYPE_CHECKING
 # ruff: noqa: I001, RUF022
 
 from . import codes
+from .desktop import (
+    DesktopConfig,
+    DesktopEnvironment,
+    DesktopResolution,
+    DesktopResolutionConfig,
+    DesktopResolutionJSON,
+    DesktopSettings,
+    DesktopSettingsJSON,
+)
 from .build_logs import (
     BuildLogChunkEvent,
     BuildLogDoneEvent,
@@ -383,6 +392,13 @@ VolumeMountV2 = VolumeMount
 # would count as exported. test_v2_all_matches_root_exports pins it to
 # _exports.ROOT_EXPORTS.
 __all__ = [
+    "DesktopConfig",
+    "DesktopEnvironment",
+    "DesktopResolution",
+    "DesktopResolutionConfig",
+    "DesktopResolutionJSON",
+    "DesktopSettings",
+    "DesktopSettingsJSON",
     "PullVolumeResult",
     "PullVolumeStatus",
     "AsyncSandboxVolumesService",

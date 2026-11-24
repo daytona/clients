@@ -22,6 +22,7 @@ import type { PreparedSandboxCreate } from './clientCreateRequests.js'
 import type { SandboxClientContext } from './clientSandboxes.js'
 import type { CreateFromBuildOptions, CreateSandboxOptions, CreateSandboxResponse } from './types.js'
 import { WAIT_READ_SLACK_MS } from './ProcessWire.js'
+import { parseDesktop } from './desktop.js'
 
 /** @internal */
 export async function createSandbox(context: SandboxClientContext, request: PreparedSandboxCreate): Promise<Sandbox> {
@@ -61,8 +62,8 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   }
   // The sandbox exists once its id came back: a missing or non-string status
   // reads as `unknown`, never an error (as `wait_cap_seconds`).
-  // Every other field is read the same way: a missing or mistyped one is
-  // absent, as in Python.
+  // Legacy scalar/connection fields treat missing or mistyped values as absent.
+  // Structured desktop metadata is validated before the handle receives it.
   const text = (from: unknown, key: string): string | undefined => {
     const value: unknown = typeof from === 'object' && from !== null ? Reflect.get(from, key) : undefined
     return typeof value === 'string' ? value : undefined
@@ -86,6 +87,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   // absent fields known.
   const booted: unknown = Reflect.get(created, 'image')
   const bootedId = text(booted, 'id')
+  const desktop = parseDesktop(Reflect.get(created, 'desktop'))
   const sandbox = context.buildSandbox({
     sandboxId: created.id,
     toolboxProxyUrl: scopedProxyToolboxUrl(text(created, 'toolbox_proxy_url'), created.id),
@@ -100,6 +102,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     sandboxClass: metadata.sandboxClass,
     rawSandboxClass: metadata.sandboxClass,
     reservationId: text(created, 'reservation_id'),
+    desktop,
   }, connectOptions)
   sandbox.learnEventDestination(createdEventDestination)
   const waitCap = typeof created.wait_cap_seconds === 'number' && Number.isFinite(created.wait_cap_seconds) ? Math.max(0, created.wait_cap_seconds) : 0
