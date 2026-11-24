@@ -2905,7 +2905,8 @@ describe('V2 model', () => {
     try {
       const error = await sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (caught: unknown) => caught)
       expect(error).toBeInstanceOf(RequestTimeoutError)
-      expect(error).toMatchObject({ message: 'sandbox failed to reach the requested state before timeout', source: 'SDK', cause: cut })
+      expect(error).toMatchObject({ message: 'sandbox failed to reach the requested state before timeout', source: 'SDK' })
+      expect((error as RequestTimeoutError).cause).toBe(cut)
     } finally {
       get.mockRestore()
       now.mockRestore()
@@ -12607,7 +12608,8 @@ describe('sandbox.docker', () => {
     const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
     // The read that ran out of time is the cause, as Python chains it.
-    await expect(failure).rejects.toMatchObject({ status: { state: 'starting' }, cause: read })
+    await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
+    expect(await failure.catch((caught: unknown) => (caught as publicSdk.DockerWaitTimeoutError).cause)).toBe(read)
   })
 
   it('waitUntilReady() rethrows a transport timeout that happens before the deadline', async () => {

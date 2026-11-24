@@ -469,7 +469,7 @@ async function httpError(response: Response, deadline: number | undefined): Prom
   } catch (error) {
     // A denied request stays denied even if its explanatory JSON stalls. Do
     // not turn a known 401/403/etc into an automatically retried timeout.
-    if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
+    if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status, undefined, undefined, { cause: error })
     throw error
   }
 }

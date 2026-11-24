@@ -64,6 +64,9 @@ const MESSAGES: ReadonlyArray<readonly [string, number, string, string | undefin
   ['an envelope without prose', 400, '{}', JSON_TYPE, 'HTTP 400'],
   ['an envelope with an empty message', 400, '{"message":""}', JSON_TYPE, 'HTTP 400'],
   ['an empty message and an error', 400, '{"message":"","error":"bad input"}', JSON_TYPE, 'bad input'],
+  ['a blank message', 400, '{"message":"   "}', JSON_TYPE, 'HTTP 400'],
+  ['a blank message and a blank error', 400, '{"message":" ","error":"\\t"}', JSON_TYPE, 'HTTP 400'],
+  ['a blank message and an error', 400, '{"message":"  ","error":"bad input"}', JSON_TYPE, 'bad input'],
   ['an envelope message', 404, '{"message":"no such sandbox","code":"NOT_FOUND"}', JSON_TYPE, 'no such sandbox'],
   ['a text body', 400, 'plain words', TEXT_TYPE, 'plain words'],
 ]
@@ -85,6 +88,7 @@ describe('error response messages', () => {
     forceFetchAdapterForTests(true)
     try {
       const error = await new HttpTransport(server.url, KEY, 5_000).get('/x').then(() => undefined, (caught: unknown) => caught)
+      expect(error).toBeInstanceOf(DaytonaError)
       expect(error).toMatchObject({ message, statusCode: status })
     } finally {
       forceFetchAdapterForTests(false)
@@ -96,6 +100,7 @@ describe('error response messages', () => {
     const server = await serve({ status, body, type })
     try {
       const error = await new HttpTransport(server.url, KEY, 5_000).fetch('/x').then(() => undefined, (caught: unknown) => caught)
+      expect(error).toBeInstanceOf(DaytonaError)
       expect(error).toMatchObject({ message, statusCode: status })
     } finally {
       await server.close()
