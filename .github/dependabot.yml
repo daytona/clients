@@ -320,5 +320,8 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+      # Same --help format hold as the 2.x /cli entry (cobra pulls pflag).
+      - dependency-name: "github.com/spf13/pflag"
+        versions: ["1.1.x"]
     commit-message:
       prefix: "chore(deps)"
