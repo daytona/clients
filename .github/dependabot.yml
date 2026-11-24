@@ -180,6 +180,15 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # 1.1.x renders every boolean flag in --help as `--name[=true|false]`,
+      # changing the CLI's public help output (#552, #652, #714, #726).
+      - dependency-name: "github.com/spf13/pflag"
+        versions: ["1.1.x"]
+      # 0.10+ breaks charmbracelet/x/cellbuf v0.0.13 (via lipgloss 1.1.0); move
+      # it together with lipgloss / cellbuf / colorprofile in one change.
+      - dependency-name: "github.com/charmbracelet/x/ansi"
+        versions: [">= 0.10.0"]
     commit-message:
       prefix: "chore(deps)"
 
