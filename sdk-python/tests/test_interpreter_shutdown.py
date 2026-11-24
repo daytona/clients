@@ -32,8 +32,13 @@ from daytona.v2._shutdown import (
 from daytona.v2.errors import ClientClosedError
 
 ROOT = Path(__file__).resolve().parents[1]
-# The subprocesses read no ambient Daytona configuration.
-_ENV = {name: value for name, value in os.environ.items() if not name.startswith("DAYTONA_")}
+# The subprocesses read no ambient Daytona configuration, and their requests
+# to the local servers go through no proxy.
+_ENV = {
+    name: value
+    for name, value in os.environ.items()
+    if not name.startswith("DAYTONA_") and not name.lower().endswith("_proxy")
+}
 
 # Both local servers below are quiet and joined: a client the SDK abandons
 # mid-request (a refused upload) must not make a handler thread write to
