@@ -269,6 +269,103 @@ class TestAsyncEventDispatcherDisconnect:
         )
         _raise_test_or_cleanup_error(test_error, cleanup_errors)
 
+    async def test_disconnect_wait_stops_when_engineio_publishes_websocket_before_namespace_connect(self, monkeypatch):
+        """Disconnect must stop waiting at Engine.IO publication, not at Socket.IO connection."""
+        websocket_prepared = asyncio.Event()
+        allow_open = asyncio.Event()
+        namespace_connect_received = asyncio.Event()
+        publication_wait_started = asyncio.Event()
+        publication_wait_finished = asyncio.Event()
+        allow_disconnect_cleanup = asyncio.Event()
+
+        async def socketio_handler(request: web.Request) -> web.WebSocketResponse:
+            websocket = web.WebSocketResponse()
+            await websocket.prepare(request)
+            websocket_prepared.set()
+            await allow_open.wait()
+
+            if not websocket.closed:
+                await websocket.send_str(_ENGINEIO_OPEN)
+
+            async for message in websocket:
+                if message.type is WSMsgType.TEXT and message.data.startswith("40"):
+                    # Deliberately withhold the Socket.IO namespace connection response.
+                    namespace_connect_received.set()
+                elif message.type is WSMsgType.TEXT and message.data == "2":
+                    await websocket.send_str("3")
+            return websocket
+
+        runner, port = await _start_socketio_server(socketio_handler)
+        dispatcher = AsyncEventDispatcher(f"http://127.0.0.1:{port}/api", "test-token")
+        dispatcher._CLOSE_TIMEOUT = 2
+        dispatcher.ensure_connected()
+        disconnect_task: asyncio.Task[None] | None = None
+        provisional_websocket: aiohttp.ClientWebSocketResponse | None = None
+
+        test_error: BaseException | None = None
+        try:
+            await asyncio.wait_for(websocket_prepared.wait(), timeout=2)
+            sio = _tracked_client(dispatcher)
+            tracker = sio.websocket_tracker
+            await asyncio.wait_for(tracker.upgraded.wait(), timeout=2)
+            websocket = tracker.websocket
+            assert websocket is not None
+            provisional_websocket = websocket
+            connection = websocket._conn
+            assert connection is not None
+            sock = websocket.get_extra_info("socket")
+            assert sock is not None
+            connect_task = dispatcher._connect_task
+            assert connect_task is not None
+
+            original_wait = dispatcher._wait_for_websocket_publication
+
+            async def tracked_wait(
+                connect_task_arg: asyncio.Task[None], tracker_arg: _WebSocketConnectionTracker
+            ) -> None:
+                publication_wait_started.set()
+                await original_wait(connect_task_arg, tracker_arg)
+                publication_wait_finished.set()
+                # Keep disconnect from cancelling the connection task until the test has observed
+                # the published WebSocket and the still-pending namespace handshake.
+                await allow_disconnect_cleanup.wait()
+
+            monkeypatch.setattr(dispatcher, "_wait_for_websocket_publication", tracked_wait)
+
+            disconnect_task = asyncio.create_task(dispatcher.disconnect())
+            await asyncio.wait_for(publication_wait_started.wait(), timeout=2)
+            assert sio.eio.ws is None
+            assert not allow_open.is_set()
+
+            allow_open.set()
+            await asyncio.wait_for(publication_wait_finished.wait(), timeout=0.5)
+            await asyncio.wait_for(tracker.published.wait(), timeout=0.5)
+            await asyncio.wait_for(namespace_connect_received.wait(), timeout=0.5)
+
+            assert sio.eio.ws is websocket
+            assert not connect_task.done()
+
+            started = asyncio.get_running_loop().time()
+            allow_disconnect_cleanup.set()
+            await asyncio.wait_for(disconnect_task, timeout=0.5)
+            elapsed = asyncio.get_running_loop().time() - started
+
+            assert elapsed < 0.5
+            assert websocket.closed
+            assert connection._protocol is None
+            assert sock.fileno() == -1
+        except BaseException as error:
+            test_error = error
+
+        cleanup_errors = await _cleanup_real_stack_test(
+            dispatcher,
+            runner,
+            (allow_open, allow_disconnect_cleanup),
+            disconnect_task,
+            (provisional_websocket,) if provisional_websocket is not None else (),
+        )
+        _raise_test_or_cleanup_error(test_error, cleanup_errors)
+
     async def test_disconnect_before_websocket_upgrade_returns_promptly(self):
         request_received = asyncio.Event()
         release_request = asyncio.Event()
