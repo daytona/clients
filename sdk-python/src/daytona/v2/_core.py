@@ -1268,28 +1268,6 @@ def process_create_spec(
     )
 
 
-def process_command(command: object) -> str:
-    """A shell command string, refused before any request otherwise."""
-    if not isinstance(command, str):
-        raise create_error("command must be a string", 400, "BAD_REQUEST", "SDK")
-    return command
-
-
-def interpreter_code(code: object) -> str:
-    """Interpreter source code: a string (empty is allowed)."""
-    if not isinstance(code, str):
-        raise create_error("code must be a string", 400, "BAD_REQUEST", "SDK")
-    return code
-
-
-def interpreter_language(language: object) -> str:
-    """An interpreter language: any non-empty string (the sandbox decides
-    which languages it supports)."""
-    if not isinstance(language, str) or not language:
-        raise create_error("language must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-    return language
-
-
 def bare_signal(signal: Optional[str]) -> Optional[str]:
     """The SDK spells signals without the wire's ``SIG`` prefix."""
     if signal is not None and signal.startswith("SIG"):
@@ -1383,6 +1361,28 @@ _PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
 # (``timeoutMs`` 1-60000), in seconds.
 KILL_ALL_DEFAULT_TIMEOUT_SECONDS: Final = 10
 KILL_ALL_MAX_TIMEOUT_SECONDS: Final = 60
+
+
+def process_command(command: object) -> str:
+    """A shell command string, refused before any request otherwise."""
+    if not isinstance(command, str):
+        raise create_error("command must be a string", 400, "BAD_REQUEST", "SDK")
+    return command
+
+
+def interpreter_code(code: object) -> str:
+    """Interpreter source code: a string (empty is allowed)."""
+    if not isinstance(code, str):
+        raise create_error("code must be a string", 400, "BAD_REQUEST", "SDK")
+    return code
+
+
+def interpreter_language(language: object) -> str:
+    """An interpreter language: any non-empty string (the sandbox decides
+    which languages it supports)."""
+    if not isinstance(language, str) or not language:
+        raise create_error("language must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    return language
 
 
 def process_tag(value: object) -> str:
