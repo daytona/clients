@@ -594,7 +594,8 @@ skipping exist only in the TypeScript tool).
   browser, the in-memory reads (under their cap) and a pre-signed download
   URL (`presignedDownloadUrl`), which the browser fetches directly, are the
   options.
-  A per-call timeout (a wait's budget plus its slack; a create POST that
+  A per-call timeout (a wait's budget plus its slack, for a process wait
+  its round's hold plus the slack; a create POST that
   asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
   healthy hold is never cut, with no bound when the request timeout is `0`
   or the hold is above the timer maximum, while a create with no hold stays
@@ -756,8 +757,9 @@ skipping exist only in the TypeScript tool).
   Python sync, async and TypeScript; `root.v2` after `root.close()` builds a
   fresh client. A shared events hub is not closed by one of its clients.
 - **Process waits hold at most 30 s per request** (the server hold; reads
-  are bounded at 35 s). Go runs with `Stdout` / `Stderr` writers are the
-  exception: they follow one log stream for the whole run. The create hold of
+  are bounded at the round's hold plus 5 s, at most 35 s). Go runs with
+  `Stdout` / `Stderr` writers are the exception: they follow one log stream
+  for the whole run. The create hold of
   `run()` / `session.run()` (`waitMs`) and every `/wait` round (`timeoutMs`)
   are capped at one round (Python `PROCESS_WAIT_ROUND_SECONDS`, TS
   `PROCESS_WAIT_ROUND_MS`, Go `processWaitRound`), each read bounded by its

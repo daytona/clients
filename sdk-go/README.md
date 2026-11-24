@@ -210,7 +210,8 @@ Every duration is a `time.Duration`:
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
   `FileSystem.Move` takes `&daytona.MoveOptions{Timeout: ...}` to replace it
-  for one move (`daytona.NoTimeout` for no limit): a move to another file
+  for one move: zero keeps the request timeout, and `daytona.NoTimeout` or a
+  duration above 2,147,483.647 seconds means no limit. A move to another file
   system is a copy in the sandbox. A move that timed out or failed is not
   retried (only a 401, refused before anything moves, is re-sent once with a
   fresh token), and a timeout ends the call, not the move; check the destination
@@ -218,8 +219,8 @@ Every duration is a `time.Duration`:
 - Process runs without `Stdout` / `Stderr` writers (`Exec`, `Run`, `RunArgs`,
   `Session.Run`) and `ProcessHandle.Wait` wait in rounds: the sandbox holds
   each request for at most 30 seconds (its read is bounded at 35 seconds),
-  whatever the `Timeout` (or `WaitForever`), so a dropped quiet connection
-  costs one retried round, not the whole wait. A run with `Stdout` or
+  whatever the `Timeout` (or `WaitForever` / `daytona.NoTimeout`), so a
+  dropped quiet connection costs one retried round, not the whole wait. A run with `Stdout` or
   `Stderr` set follows its output on one log stream for the whole run,
   bounded only by `Timeout` and the context. The request that starts a
   process is never retried.
