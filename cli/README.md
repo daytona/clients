@@ -675,7 +675,8 @@ it may do, with one exception: the commands whose API routes admit only a login
 session — `billing`, `invite`, `key`, `member`, `org-key`, `project`,
 `service-account`, and `org` except `org limits` — refuse a static credential
 (`--api-key`, `DAYTONA_API_KEY`, `login --token`) before choosing an
-organization or sending a request (exit 3), because the server would answer
+organization or sending a request (exit 3; a credential saved for another API
+URL is refused first, exit 2, as below), because the server would answer
 every API key there, valid or not, with the same 401. A bearer shaped like a
 JWT (a login's access token) is still sent; a 401 on these commands says
 they need a `daytona login` session. Precedence: `--api-key` >
