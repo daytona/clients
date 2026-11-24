@@ -10,7 +10,6 @@ from typing import AsyncIterator, List, Optional, Sequence, Union
 from . import _clock
 from . import _codes as codes
 from ._core import (
-    WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     delete_process_spec,
     enum_str,
@@ -28,6 +27,7 @@ from ._core import (
     process_create_spec,
     process_kill_spec,
     process_list_spec,
+    process_record_read_timeout,
     process_wait_hold,
     refuse_dot_segment,
     resize_spec,
@@ -285,7 +285,8 @@ class AsyncProcessHandle:
         ``timeout`` is the caller wait budget in seconds; omitted or ``0``
         waits until the process ends. The wait is a series of requests that
         each hold for at most 30 seconds, so no single request stays open for
-        the whole budget; a dropped or stalled round is retried.
+        the whole budget; a dropped or stalled round is retried within the
+        budget.
         """
         timeout = wait_budget(timeout)
         deadline = None if timeout is None or timeout == 0 else _clock.monotonic() + timeout
@@ -305,18 +306,19 @@ class AsyncProcessHandle:
                 )
                 if result.reason != "timed_out":
                     return result
-                if deadline is not None and _clock.monotonic() >= deadline:
-                    return WaitResult(reason="timed_out")
-                # Budget left: `timed_out` is either an expired long-poll or
-                # a command its own deadline stopped, and the record says which.
+                # `timed_out` is either an expired long-poll or a command its
+                # own deadline stopped, and the record says which. It is read
+                # after the round that spends the budget too, so a process that
+                # ended with that round is reported, not `timed_out`. The read
+                # is bounded like a round, never by the whole budget.
                 record = expect_process_dto(
                     await self._send(
                         RequestSpec(
                             "GET",
                             f"/processes/{path_segment(self.id, 'process id')}",
-                            timeout=None
-                            if deadline is None
-                            else deadline - _clock.monotonic() + WAIT_READ_SLACK_SECONDS,
+                            timeout=process_record_read_timeout(
+                                None if deadline is None else deadline - _clock.monotonic()
+                            ),
                         )
                     )
                 )
@@ -333,6 +335,8 @@ class AsyncProcessHandle:
             parse_process(record)
             if enum_str(record.state) == "terminal":
                 return parse_wait(record)
+            if deadline is not None and _clock.monotonic() >= deadline:
+                return WaitResult(reason="timed_out")
 
     async def logs(
         self,

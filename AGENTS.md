@@ -598,7 +598,8 @@ skipping exist only in the TypeScript tool).
   asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
   healthy hold is never cut, with no bound when the request timeout is `0`
   or the hold is above the timer maximum, while a create with no hold stays
-  an ordinary request; a git remote call, the
+  an ordinary request; a git remote call, `fs.move()`'s `timeout` /
+  `timeoutSeconds` (Go `MoveOptions.Timeout`), the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same
@@ -760,7 +761,10 @@ skipping exist only in the TypeScript tool).
   `PROCESS_WAIT_ROUND_MS`, Go `processWaitRound`), each read bounded by its
   hold plus the wait slack; a longer or unlimited caller budget is waited out
   in rounds, and a dropped round is retried within the wait's transport retry
-  limit. The create request is never retried.
+  limit. The process-record read after a `timed_out` round is bounded the same
+  way (one round plus slack, never the whole budget or the client's request
+  timeout) and also follows the round that spends the budget, so a process
+  that ended with it is reported. The create request is never retried.
 - **Blocking runs refuse `stdin="open"`**; `start()` / `session.start()` send
   `keep_logs` `on_exit_ttl` when none is given; an execution timeout of `0` is
   omitted (no deadline); PTYs get `TERM=xterm-256color` unless `env` sets it.

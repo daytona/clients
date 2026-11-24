@@ -8731,15 +8731,19 @@ async def test_process_stdin_allows_exec_and_unknown_handles_to_call_the_wire() 
 async def test_process_wait_computed_exhaustion_returns_timed_out_without_forwarding_zero(monkeypatch):
     now = iter([0.0, 0.0, 0.001, 0.001])
     monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(now, 0.001))
-    transport = RecordingTransport([{"reason": "timed_out"}])
+    transport = RecordingTransport([{"reason": "timed_out"}, _process_payload("proc", "exec", "running")])
 
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert await handle.wait(timeout=0.001) == WaitResult(reason="timed_out")
+    # The round that spends the budget is followed by one record read (the
+    # process may have ended with it), bounded by the slack alone.
     assert [(spec.path, spec.params, spec.unbounded_read) for spec in transport.specs] == [
-        ("/processes/proc/wait", {"timeoutMs": 1}, False)
+        ("/processes/proc/wait", {"timeoutMs": 1}, False),
+        ("/processes/proc", {}, False),
     ]
     assert transport.specs[0].timeout == pytest.approx(0.001 + WAIT_READ_SLACK_SECONDS)
+    assert transport.specs[1].timeout == pytest.approx(WAIT_READ_SLACK_SECONDS)
 
 
 @pytest.mark.anyio

@@ -12,7 +12,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { ConnectionError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
-  processWaitHoldMs, remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
+  processRecordReadTimeoutMs, processWaitHoldMs, remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
   WAIT_READ_SLACK_MS, WAIT_TRANSPORT_RETRY_LIMIT,
 } from './ProcessWire.js'
 import type { LogFrameWire, LogsWire } from './ProcessWire.js'
@@ -145,7 +145,7 @@ export class ProcessHandle {
    * `{ reason: 'timed_out' }` and the process keeps running. The wait is a
    * series of requests that each hold for at most 30 seconds, so no single
    * request stays open for the whole budget; a dropped or stalled round is
-   * retried.
+   * retried within the budget.
    */
   public async wait(options: WaitProcessOptions = {}): Promise<WaitResult> {
     assertKnownOptions('WaitProcessOptions', options, WAIT_OPTION_KEYS)
@@ -166,17 +166,20 @@ export class ProcessHandle {
         // read; the failure streak resets only when both succeed.
         const result = waitResult(data)
         if (result.reason !== 'timed_out') return result
-        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return deepFrozen({ reason: 'timed_out' })
-        // Budget left: `timed_out` is either an expired long-poll or a command
-        // its own deadline stopped, and the record says which.
+        // `timed_out` is either an expired long-poll or a command its own
+        // deadline stopped, and the record says which. It is read after the
+        // round that spends the budget too, so a process that ended with that
+        // round is reported, not `timed_out`. The read is bounded like a
+        // round, never by the whole budget.
         const record = await this.transport.get<toolbox.ProcessDto>(
           `/processes/${pathSegment(this.id, 'process id')}`,
-          deadline === undefined ? undefined : { timeout: remainingWaitBudgetMs(deadline) + WAIT_READ_SLACK_MS },
+          { timeout: processRecordReadTimeoutMs(deadline === undefined ? undefined : remainingWaitBudgetMs(deadline)) },
         )
         consecutiveTransportFailures = 0
         // Checked in full, as everywhere a process record is read: a record
         // without `state` is malformed, never "still running".
         if (processFromWire(record).state === 'terminal') return waitResult(record)
+        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return deepFrozen({ reason: 'timed_out' })
       } catch (error) {
         if (!(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         consecutiveTransportFailures += 1

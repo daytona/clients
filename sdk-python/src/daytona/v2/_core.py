@@ -1133,8 +1133,9 @@ WAIT_READ_SLACK_SECONDS = 5.0
 # Longest server hold of one process wait request: the create hold of
 # ``run()`` and every ``/wait`` round. A longer caller budget, or none, is
 # waited out in rounds, so no request stays open (and quiet) for the whole
-# wait; a connection an intermediary drops then costs one round, which the
-# wait retries, not the whole wait.
+# wait. A ``/wait`` round (or the record read after it) that an intermediary
+# drops costs one round, which the wait retries; the create request is never
+# retried.
 PROCESS_WAIT_ROUND_SECONDS = 30.0
 
 
@@ -1144,6 +1145,13 @@ def process_wait_hold(remaining: Optional[float]) -> float:
     if remaining is None:
         return PROCESS_WAIT_ROUND_SECONDS
     return min(remaining, PROCESS_WAIT_ROUND_SECONDS)
+
+
+def process_record_read_timeout(remaining: Optional[float]) -> float:
+    """The read bound of the record read that follows a ``timed_out`` wait
+    round: one round's hold (never below zero, the budget may be spent) plus
+    slack, so it cannot hold the wait longer than a round either."""
+    return max(0.0, process_wait_hold(remaining)) + WAIT_READ_SLACK_SECONDS
 
 
 def bounded_request_timeout(timeout: Optional[float]) -> Optional[float]:
@@ -1252,22 +1260,20 @@ def process_create_spec(
             timeout=bounded_request_timeout(request_timeout),
             unbounded_read=request_timeout == 0,
         )
-    # waitMs holds the request for one wait round (``run()`` caps it at
-    # PROCESS_WAIT_ROUND_SECONDS). The HTTP read must outlive that hold
-    # (hold + slack) so the server's expiry answers first, but the hold still
-    # bounds it, so a stalled request cannot hold the caller indefinitely.
-    # waitMs=0 = unbounded read.
+    # waitMs (positive, at most one wait round: ``run()`` caps it at
+    # PROCESS_WAIT_ROUND_SECONDS) holds the request. The HTTP read must
+    # outlive that hold (hold + slack) so the server's expiry answers first,
+    # but the hold still bounds it, so a stalled request cannot hold the
+    # caller indefinitely.
     params: Dict[str, JsonValue] = {"waitMs": wait_ms}
     if inline_logs:
         params["logs"] = "text"
-    bounded = None if wait_ms == 0 else wait_ms / 1000 + WAIT_READ_SLACK_SECONDS
     return RequestSpec(
         "POST",
         "/processes",
         params=params,
         json_body=body,
-        timeout=bounded,
-        unbounded_read=bounded is None,
+        timeout=wait_ms / 1000 + WAIT_READ_SLACK_SECONDS,
     )
 
 

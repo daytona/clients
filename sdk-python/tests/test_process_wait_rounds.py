@@ -127,6 +127,7 @@ async def test_run_keeps_the_caller_deadline_across_rounds(clock: list[float]) -
             {"reason": "timed_out"},
             _process("running"),
             {"reason": "timed_out"},
+            _process("running"),
             _eof_page(),
         ],
         clock,
@@ -184,6 +185,49 @@ async def test_a_round_dropped_by_the_network_is_retried_within_the_budget(clock
 
     assert (result.reason, result.exit_code) == ("exited", 0)
     assert len(_waits(transport)) == 3
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("timeout", [None, 600])
+async def test_a_stalled_record_read_is_bounded_like_a_round_and_retried(
+    clock: list[float], timeout: Optional[float]
+) -> None:
+    # After a `timed_out` round the wait reads the record; a dropped read
+    # costs one round (35 s), never the rest of the budget, and the wait
+    # goes on to the exit.
+    transport = HoldingTransport(
+        [{"reason": "timed_out"}, ClientTimeoutError(), {"reason": "exited", "exitCode": 0}],
+        clock,
+    )
+    handle = AsyncProcessService("sbx", transport).connect("proc")  # type: ignore[arg-type]
+
+    result = await handle.wait(timeout=timeout)
+
+    assert (result.reason, result.exit_code) == ("exited", 0)
+    record_read = transport.specs[1]
+    assert (record_read.method, record_read.path) == ("GET", "/processes/proc")
+    assert record_read.timeout == pytest.approx(30 + WAIT_READ_SLACK_SECONDS)
+    assert clock[0] == pytest.approx(30 + 35)
+
+
+@pytest.mark.anyio
+async def test_a_process_that_ends_with_the_last_round_is_reported(clock: list[float]) -> None:
+    # The round that spends the budget answers `timed_out`; the record read
+    # after it finds the process ended (here by its own execution deadline),
+    # and that result is returned rather than the wait's `timed_out`.
+    transport = HoldingTransport(
+        [
+            {"reason": "timed_out"},
+            _process("terminal", reason="timed_out", exitCode=124, signal="SIGTERM"),
+        ],
+        clock,
+    )
+    handle = AsyncProcessService("sbx", transport).connect("proc")  # type: ignore[arg-type]
+
+    result = await handle.wait(timeout=10)
+
+    assert (result.reason, result.exit_code, result.signal) == ("timed_out", 124, "TERM")
+    assert transport.specs[1].timeout == pytest.approx(WAIT_READ_SLACK_SECONDS)
 
 
 @pytest.mark.anyio

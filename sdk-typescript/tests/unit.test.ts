@@ -5116,14 +5116,20 @@ describe('toolbox service request shaping', () => {
     const now = jest.spyOn(Date, 'now')
     try {
       now.mockReturnValueOnce(0)
-      transport.get.mockResolvedValueOnce({ reason: 'timed_out' })
+      transport.get
+        .mockResolvedValueOnce({ reason: 'timed_out' })
+        .mockResolvedValueOnce(createdWire({ id: 'proc', state: 'running' }))
       now.mockReturnValueOnce(0)
-      now.mockReturnValueOnce(1)
-      now.mockReturnValueOnce(1)
+      now.mockReturnValue(1)
       const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
 
       await expect(handle.wait({ timeoutSeconds: 0.001 })).resolves.toEqual({ reason: 'timed_out' })
-      expect(transport.get.mock.calls).toEqual([['/processes/proc/wait?timeoutMs=1', { timeout: 1 + WAIT_READ_SLACK_MS }]])
+      // The round that spends the budget is followed by one record read (the
+      // process may have ended with it), bounded by the slack alone.
+      expect(transport.get.mock.calls).toEqual([
+        ['/processes/proc/wait?timeoutMs=1', { timeout: 1 + WAIT_READ_SLACK_MS }],
+        ['/processes/proc', { timeout: WAIT_READ_SLACK_MS }],
+      ])
     } finally {
       now.mockRestore()
     }
@@ -5894,6 +5900,7 @@ describe('toolbox service request shaping', () => {
         jest.advanceTimersByTime(10)
         return { reason: 'timed_out' }
       })
+      .mockResolvedValueOnce(createdWire({ id: 'p', state: 'running' }))
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 130 })
       .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
     const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
@@ -5903,6 +5910,7 @@ describe('toolbox service request shaping', () => {
     expect(transport.post.mock.calls[1]?.[0]).toBe('/processes/p/signals')
     expect(transport.get.mock.calls.map((call) => call[0])).toEqual([
       '/processes/p/wait?timeoutMs=10',
+      '/processes/p',
       '/processes/p/wait?timeoutMs=250',
       '/processes/p/logs',
     ])
@@ -9066,6 +9074,7 @@ describe('toolbox service request shaping', () => {
         jest.advanceTimersByTime(10)
         return { reason: 'timed_out' }
       }
+      if (path === '/processes/proc') return createdWire({ id: 'proc', kind: 'exec', state: 'running' })
       const cursor = Number(new URL(`http://x${path}`).searchParams.get('cursor') ?? '0')
       return { frames: [{ cursor: String(cursor), channel: 'stdout', data: `p${cursor}`, timestamp: 1 }], nextCursor: String(cursor + 1), truncatedHead: false, eof: false }
     })

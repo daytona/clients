@@ -131,7 +131,8 @@ class ProcessHandle:
         ``timeout`` is the caller wait budget in seconds; omitted or ``0``
         waits until the process ends. The wait is a series of requests that
         each hold for at most 30 seconds, so no single request stays open for
-        the whole budget; a dropped or stalled round is retried.
+        the whole budget; a dropped or stalled round is retried within the
+        budget.
         """
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
 

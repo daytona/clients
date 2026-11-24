@@ -96,6 +96,7 @@ describe('process wait rounds', () => {
       { reason: 'timed_out' },
       processWire('running'),
       { reason: 'timed_out' },
+      processWire('running'),
       eofPage(),
     ])
     const result = await new ProcessService(INTERNAL, transport, 'sbx').run('sleep 600', { timeoutSeconds: 70 })
@@ -127,6 +128,34 @@ describe('process wait rounds', () => {
     const handle = new ProcessService(INTERNAL, transport, 'sbx').connect('proc')
     await expect(handle.wait()).resolves.toMatchObject({ reason: 'exited', exitCode: 0 })
     expect(waits(calls)).toHaveLength(3)
+  })
+
+  it.each([undefined, 600])('bounds a stalled record read like a round and retries it (timeoutSeconds %p)', async (timeoutSeconds) => {
+    // After a `timed_out` round the wait reads the record; a dropped read
+    // costs one round (35 s), never the rest of the budget, and the wait goes
+    // on to the exit.
+    const { transport, calls, now } = holdingTransport([
+      { reason: 'timed_out' },
+      new ClientTimeoutError(),
+      { reason: 'exited', exitCode: 0 },
+    ])
+    const handle = new ProcessService(INTERNAL, transport, 'sbx').connect('proc')
+    await expect(handle.wait(timeoutSeconds === undefined ? {} : { timeoutSeconds })).resolves.toMatchObject({ reason: 'exited', exitCode: 0 })
+    expect(calls[1]).toEqual({ method: 'GET', path: '/processes/proc', timeout: ROUND + WAIT_READ_SLACK_MS })
+    expect(now()).toBe(ROUND + ROUND + WAIT_READ_SLACK_MS)
+  })
+
+  it('reports a process that ended with the round that spends the budget', async () => {
+    // The last round answers `timed_out`; the record read after it finds the
+    // process ended (here by its own execution deadline), and that result is
+    // returned rather than the wait's `timed_out`.
+    const { transport, calls } = holdingTransport([
+      { reason: 'timed_out' },
+      processWire('terminal', { reason: 'timed_out', exitCode: 124, signal: 'SIGTERM' }),
+    ])
+    const handle = new ProcessService(INTERNAL, transport, 'sbx').connect('proc')
+    await expect(handle.wait({ timeoutSeconds: 10 })).resolves.toMatchObject({ reason: 'timed_out', exitCode: 124, signal: 'TERM' })
+    expect(calls[1]).toEqual({ method: 'GET', path: '/processes/proc', timeout: WAIT_READ_SLACK_MS })
   })
 
   it.each([new ConnectionError('connection reset'), new ClientTimeoutError()])('never retries the start request of run() (%p)', async (failure) => {
