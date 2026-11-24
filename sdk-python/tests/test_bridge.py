@@ -542,12 +542,11 @@ def test_streaming_release_reaches_the_server(bridge: SyncBridge) -> None:
 
 
 def test_async_stream_close_does_not_tear_down_the_shared_connection() -> None:
-    """Closing one async stream must preserve other streams on the connection.
+    """Closing one async stream must not shut down the shared client's socket.
 
     The sync stream shuts the TCP socket down to wake a thread parked in
-    recv(); on a negotiated HTTP/2 link that also kills sibling streams. The
-    async path must never do this — one sandbox ending its log stream would
-    disconnect every other sandbox multiplexed onto the shared client.
+    recv(). The async path has no parked thread and must not do this: releasing
+    the response is enough, and the connection stays usable.
     """
     shutdown_calls: list[int] = []
 
