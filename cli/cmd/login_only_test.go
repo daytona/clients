@@ -400,3 +400,28 @@ func TestLoginOnlyRefusalComesAfterTheSavedCredentialURLCheck(t *testing.T) {
 	require.Equal(t, cerr.ExitAuth, code, errb)
 	require.Contains(t, errb, "needs a `daytona login` session")
 }
+
+// With no credential at all, a login-only command's hint names only
+// `daytona login` (it would refuse an API key), keeping the 0.x pointer;
+// other commands still offer an API key.
+func TestLoginOnlyNotLoggedInHintOffersOnlyALogin(t *testing.T) {
+	d := cfgDir(t)
+	for _, args := range [][]string{{"billing", "wallet", "--org", testOrgA}, {"org", "list"}, {"project", "list", "--org", testOrgA}} {
+		_, errb, code := run(t, d, nil, append(args, "--api-url", "http://127.0.0.1:1")...)
+		require.Equal(t, cerr.ExitAuth, code, errb)
+		require.Contains(t, errb, "not logged in")
+		require.Contains(t, errb, loginOnlyNotLoggedInHint, args)
+		require.NotContains(t, errb, "--api-key", args)
+		require.NotContains(t, errb, "DAYTONA_API_KEY", args)
+	}
+	for _, args := range [][]string{{"org", "limits", testOrgA}, {"sandbox", "list"}} {
+		_, errb, code := run(t, d, nil, append(args, "--api-url", "http://127.0.0.1:1")...)
+		require.Equal(t, cerr.ExitAuth, code, errb)
+		require.Contains(t, errb, "--api-key", args)
+	}
+	writeLegacyConfig(t, d)
+	_, errb, code := run(t, d, nil, "org", "list", "--api-url", "http://127.0.0.1:1")
+	require.Equal(t, cerr.ExitAuth, code, errb)
+	require.Contains(t, errb, loginOnlyNotLoggedInHint)
+	require.Contains(t, errb, "daytona-v0")
+}

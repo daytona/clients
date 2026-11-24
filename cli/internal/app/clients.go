@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -57,14 +58,22 @@ func (a *App) HasExplicitCredential() bool {
 	return a.CredentialSource == "flag" || a.CredentialSource == "env"
 }
 
+// ErrNotLoggedIn is wrapped by the error for an invocation with no
+// credential at all, so a command can tailor its hint.
+var ErrNotLoggedIn = errors.New("not logged in")
+
 // notLoggedIn is the error for an invocation with no credential at all. When
 // the only configuration is the 0.x CLI's, the hint says so.
 func (a *App) notLoggedIn() error {
-	hint := "run `daytona login`, or pass --api-key / set DAYTONA_API_KEY"
+	return &cerr.Error{Code: cerr.ExitAuth, Msg: "not logged in", Err: ErrNotLoggedIn, Hint: a.WithLegacyConfigHint("run `daytona login`, or pass --api-key / set DAYTONA_API_KEY")}
+}
+
+// WithLegacyConfigHint appends LegacyConfigHint to hint when there is one.
+func (a *App) WithLegacyConfigHint(hint string) string {
 	if legacy := a.LegacyConfigHint(); legacy != "" {
-		hint += "; " + legacy
+		return hint + "; " + legacy
 	}
-	return cerr.New(cerr.ExitAuth, "not logged in").WithHint("%s", hint)
+	return hint
 }
 
 // LegacyConfigHint points at the 0.x CLI when this CLI has no saved profile

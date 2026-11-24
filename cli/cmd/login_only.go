@@ -46,8 +46,8 @@ func isLoginOnly(cmd *cobra.Command) bool {
 const loginOnlyRejectedHint = "this command needs a `daytona login` session, and the server refused the one sent: run `daytona login` (an API key is not accepted here)"
 
 // documentLoginOnly adds loginOnlyHelp to the help of every login-only
-// command, and of every group whose commands are all login-only, and gives
-// a 401 from a login-only command loginOnlyRejectedHint.
+// command, and of every group whose commands are all login-only, and wraps
+// each login-only command's errors in withLoginOnlyHints.
 func documentLoginOnly(c *cobra.Command) bool {
 	all := true
 	for _, sub := range c.Commands() {
@@ -67,7 +67,7 @@ func documentLoginOnly(c *cobra.Command) bool {
 		return false
 	} else if run := c.RunE; run != nil {
 		c.RunE = func(cmd *cobra.Command, args []string) error {
-			return withLoginOnlyRejectedHint(run(cmd, args))
+			return withLoginOnlyHints(FromContext(cmd.Context()), run(cmd, args))
 		}
 	}
 	long := strings.TrimSpace(c.Long)
@@ -131,12 +131,23 @@ func looksLikeJWT(s string) bool {
 	return true
 }
 
-// withLoginOnlyRejectedHint gives a 401 from the API loginOnlyRejectedHint.
-func withLoginOnlyRejectedHint(err error) error {
+// loginOnlyNotLoggedInHint replaces the "not logged in" hint on a login-only
+// command, which would otherwise suggest an API key the command refuses.
+const loginOnlyNotLoggedInHint = "run `daytona login`; this command needs a login session and does not accept an API key"
+
+// withLoginOnlyHints gives a 401 from the API loginOnlyRejectedHint, and the
+// error for a missing credential loginOnlyNotLoggedInHint.
+func withLoginOnlyHints(a *app.App, err error) error {
 	var ce *cerr.Error
+	if !errors.As(err, &ce) {
+		return err
+	}
 	var ae *api.APIError
-	if errors.As(err, &ce) && errors.As(err, &ae) && ae.Status == http.StatusUnauthorized {
+	switch {
+	case errors.As(err, &ae) && ae.Status == http.StatusUnauthorized:
 		ce.Hint = loginOnlyRejectedHint
+	case errors.Is(err, app.ErrNotLoggedIn) && a != nil:
+		ce.Hint = a.WithLegacyConfigHint(loginOnlyNotLoggedInHint)
 	}
 	return err
 }
