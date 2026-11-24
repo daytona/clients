@@ -7,6 +7,7 @@ import { assertKnownOptions, badRequest, optionKeys, optionalSeconds, waitDeadli
 import type { AxiosInstance } from 'axios'
 import { sleep } from './http.js'
 import { ClientTimeoutError, RequestTimeoutError } from './errors/DaytonaError.js'
+import { ReadRetry } from './readRetry.js'
 
 export interface GetArtifactOptions {
   readonly wait?: 'ready'
@@ -15,7 +16,10 @@ export interface GetArtifactOptions {
    * response, until the artifact settles (`ready`, `failed` or `error`), which
    * is returned for the caller to check; a budget above the timer maximum
    * waits without a deadline. A budget that runs out first throws
-   * `RequestTimeoutError`. Omitted or zero sends one hold of the server's
+   * `RequestTimeoutError`. A hold that fails transiently (no response, a
+   * stalled read, HTTP 429 or a 5xx other than 501) is retried with back-off
+   * within the budget; the timeout then carries the last failure as its
+   * `cause`. Omitted or zero sends one hold of the server's
    * default length and returns what the server reports. */
   readonly timeoutSeconds?: number
 }
@@ -40,7 +44,8 @@ function describe(value: unknown): string {
  * are, and a budget that runs out before the artifact settles throws
  * `RequestTimeoutError` (source `SDK`), as `images.pull()` and `sandbox.wait()`
  * do: never an unsettled observation. A budget above the timer maximum repeats
- * holds without a deadline.
+ * holds without a deadline. Transient read failures are retried within the
+ * budget (readRetry.ts).
  * @internal
  */
 export async function getArtifact<T extends { readonly status: string }>(http: AxiosInstance, path: string, options: GetArtifactOptions, parse: (data: unknown) => T): Promise<T> {
@@ -52,10 +57,11 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
   if (seconds === undefined || seconds === 0) return parse((await http.get<unknown>(path, { params: { wait: options.wait, timeout_ms: undefined }, timeout: 0 })).data)
   // Above the timer maximum (about 24.8 days): holds repeat with no deadline.
   const deadline = waitDeadline(seconds)
-  const timedOut = () => new RequestTimeoutError('artifact did not become ready before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+  const timedOut = (cause?: unknown) => new RequestTimeoutError('artifact did not become ready before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause })
+  const retry = new ReadRetry()
   for (;;) {
     const remaining = deadline === undefined ? undefined : deadline - Date.now()
-    if (remaining !== undefined && remaining <= 0) throw timedOut()
+    if (remaining !== undefined && remaining <= 0) throw timedOut(retry.lastError)
     const started = Date.now()
     // A long poll is governed by the wait budget, not the request timeout:
     // each hold is the smaller of the remaining budget and the server's 60 s
@@ -71,11 +77,14 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
       artifact = parse(data)
     } catch (error) {
       // Only expiry of this wait's own cap is the wait running out.
-      if (error instanceof ClientTimeoutError && deadline !== undefined && (deadlineOwnsTimeout || Date.now() >= deadline)) throw timedOut()
-      throw error
+      if (error instanceof ClientTimeoutError && deadline !== undefined && (deadlineOwnsTimeout || Date.now() >= deadline)) throw timedOut(error)
+      if (!retry.note(error)) throw error
+      await retry.pause(deadline)
+      continue
     }
+    retry.succeeded()
     if (artifact.status === 'ready' || artifact.status === 'failed' || artifact.status === 'error') return artifact
-    if (deadline !== undefined && Date.now() >= deadline) throw timedOut()
+    if (deadline !== undefined && Date.now() >= deadline) throw timedOut(retry.lastError)
     const pause = Math.min(1000 - (Date.now() - started), deadline === undefined ? Infinity : deadline - Date.now())
     if (pause > 0) await sleep(pause)
   }

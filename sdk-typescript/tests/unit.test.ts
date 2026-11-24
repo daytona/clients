@@ -2993,8 +2993,8 @@ describe('V2 model', () => {
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
     const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    // The final read in the wait's reserve fails: the wait's own timeout stands.
-    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
+    // The final read in the wait's reserve fails for good: the wait's own timeout stands.
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new BadRequestError('refused', { statusCode: 400, code: 'BAD_REQUEST', source: 'DAYTONA_API' }))
 
     try {
       await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toMatchObject({ constructor: RequestTimeoutError, source: 'SDK' })
@@ -12579,11 +12579,21 @@ describe('sandbox.docker', () => {
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
   })
 
-  it('waitUntilReady() rethrows a transport timeout that happens before the deadline', async () => {
+  it('waitUntilReady() retries a transport timeout that happens before the deadline', async () => {
     const transport = transportStub()
     const stalled = new publicSdk.ClientTimeoutError()
-    transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
-    await expect(new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
+    transport.get
+      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
+      .mockResolvedValueOnce({ state: 'ready', owner: 'daemon' })
+    jest.useFakeTimers({ now: 0 })
+    try {
+      const ready = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })
+      await jest.advanceTimersByTimeAsync(1_000)
+      await expect(ready).resolves.toMatchObject({ state: 'ready' })
+      expect(transport.get).toHaveBeenCalledTimes(2)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('waitUntilReady() against a stalling server ends near the deadline with DockerWaitTimeoutError', async () => {

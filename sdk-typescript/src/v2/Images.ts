@@ -27,6 +27,7 @@ import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
 import { MAX_TIMER_DELAY_MS, assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions, waitDeadline } from './options.js'
 import { getArtifact } from './artifactOptions.js'
+import { ReadRetry } from './readRetry.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
@@ -250,7 +251,9 @@ export class ImagesService {
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
     // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
     const deadline = waitDeadline(timeoutSeconds)
-    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    // A readiness hold that fails transiently is retried within the budget.
+    const retry = new ReadRetry()
+    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: retry.lastError })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let activeRequestUsesDeadline = false
@@ -294,10 +297,19 @@ export class ImagesService {
         // in whole milliseconds, and the read allows the hold plus slack.
         const hold = deadline === undefined ? undefined : Math.max(1, Math.min(Math.ceil(deadline - Date.now()), IMAGE_LONGPOLL_MAX_MS))
         const config = requestOptions(hold === undefined ? 0 : hold + IMAGE_HOLD_READ_SLACK_MS)
-        const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(image.id)}`, {
-          ...config,
-          params: { wait: 'ready', timeout_ms: hold },
-        })
+        let data: api.ImageListItem
+        try {
+          ({ data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(image.id)}`, {
+            ...config,
+            params: { wait: 'ready', timeout_ms: hold },
+          }))
+        } catch (error) {
+          // A read the pull's deadline cut is the pull running out (below).
+          if (controller.signal.aborted || (activeRequestUsesDeadline && isRequestBudgetTimeout(error)) || !retry.note(error)) throw error
+          await retry.pause(deadline)
+          continue
+        }
+        retry.succeeded()
         checkDeadline()
         image = new Image(INTERNAL, data)
       }

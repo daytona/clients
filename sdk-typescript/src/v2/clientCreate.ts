@@ -171,7 +171,7 @@ async function waitForBuiltImage(images: ImagesService, initial: Image, deadline
       // deadline running out: the wait shares it.
       const waitRanOut = !(error instanceof ClientTimeoutError) || (deadline !== undefined && Date.now() >= deadline)
       if (error instanceof DaytonaError && error.source === 'SDK' && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && waitRanOut) {
-        throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: error })
       }
       throw error
     }

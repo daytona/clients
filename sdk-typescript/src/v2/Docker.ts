@@ -13,6 +13,7 @@ import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
 import type { DockerOwner, DockerState, DockerStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, optionKeys, optionalSeconds, waitDeadline } from './options.js'
+import { ReadRetry, withCause } from './readRetry.js'
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 
@@ -108,6 +109,10 @@ export class DockerService {
    * including when a status request is still unanswered at
    * the deadline. No request runs more than a fraction of a second past the
    * deadline. `timeoutSeconds: 0`, or a value above about 24.8 days, waits without a deadline.
+   * A status read that fails transiently (no response, a stalled read, HTTP
+   * 429 or a 5xx other than 501) is retried with back-off within the budget;
+   * the timeout then carries the last failure as its `cause`. Other failures
+   * are thrown at once.
    */
   public async waitUntilReady(options: DockerWaitOptions = {}): Promise<DockerStatus> {
     assertKnownOptions('DockerWaitOptions', options, DOCKER_WAIT_KEYS)
@@ -115,9 +120,10 @@ export class DockerService {
     // 0, or above the timer maximum (about 24.8 days), is no deadline.
     const deadline = waitDeadline(timeoutSeconds)
     let last: DockerStatus | undefined
+    const retry = new ReadRetry()
     for (;;) {
       const remaining = deadline === undefined ? undefined : Math.ceil(deadline - Date.now())
-      if (remaining !== undefined && remaining <= 0) throw new DockerWaitTimeoutError(last)
+      if (remaining !== undefined && remaining <= 0) throw withCause(new DockerWaitTimeoutError(last), retry.lastError)
       const waitMs = remaining === undefined ? DOCKER_STATUS_MAX_WAIT_MS : Math.min(DOCKER_STATUS_MAX_WAIT_MS, remaining)
       // Allow response slack without running far past the caller's deadline.
       const requestTimeout = remaining === undefined ? waitMs + WAIT_READ_SLACK_MS : Math.min(waitMs + WAIT_READ_SLACK_MS, remaining + DOCKER_WAIT_DEADLINE_GRACE_MS)
@@ -125,9 +131,12 @@ export class DockerService {
       try {
         last = dockerStatusFromWire(await this.transport.get<toolbox.DockerStatus>(`/docker/status${encodeQuery({ waitMs })}`, { timeout: requestTimeout }))
       } catch (error) {
-        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw new DockerWaitTimeoutError(last)
-        throw error
+        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw withCause(new DockerWaitTimeoutError(last), error)
+        if (!retry.note(error)) throw error
+        await retry.pause(deadline)
+        continue
       }
+      retry.succeeded()
       if (last.state === 'ready') return last
       if (isTerminalDockerStatus(last)) throw new DockerNotReadyError(last)
       // `starting`, `deferred`, or a state this SDK does not know yet: keep polling.

@@ -9,6 +9,7 @@ import { targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
 import { MAX_TIMER_DELAY_MS, optionalSeconds, waitDeadline } from './options.js'
+import { ReadRetry } from './readRetry.js'
 import type { SandboxState, SandboxWaitState } from './types.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
@@ -43,8 +44,8 @@ export interface SandboxStateWaitOptions {
   readonly missingIsDestroyed?: boolean
 }
 
-function timeoutError(): RequestTimeoutError {
-  return new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+function timeoutError(cause?: unknown): RequestTimeoutError {
+  return new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause })
 }
 
 export function waitQueryState(state: SandboxWaitState | undefined): string | undefined {
@@ -118,8 +119,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     return new SandboxTerminalStateError(context.id, error.state, { rawState: error.rawState ?? (seen.rawState || undefined), reason: seen.reason })
   }
 
+  // One back-off and last failure for every read of this wait: the events
+  // fallback, the hub's probes and the final reserve (readRetry.ts).
+  const retry = new ReadRetry()
+
   // Long-poll reads until a target or terminal state. `lastReadEnd` is when
   // the wait's previous read ended; the first read keeps the minimum spacing.
+  // A read that fails transiently is retried with back-off under the same
+  // deadline; a spent deadline throws the wait's timeout with the last failed
+  // read as its cause.
   const pollForState = async (lastReadEnd?: number): Promise<void> => {
     if (lastReadEnd !== undefined) {
       const pause = WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastReadEnd)
@@ -129,9 +137,20 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     }
     for (;;) {
       const budget = remaining()
-      if (budget !== undefined && budget <= 0) throw timeoutError()
+      if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const pollStarted = Date.now()
-      const outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      let outcome: SandboxReadOutcome
+      try {
+        outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      } catch (error) {
+        if (retry.note(error)) {
+          await retry.pause(deadline)
+          continue
+        }
+        if (retry.lastError !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') throw timeoutError(retry.lastError)
+        throw error
+      }
+      retry.succeeded()
       if (states.some((target) => target === outcome.state)) return
       if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
       const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - pollStarted), remaining() ?? Infinity)
@@ -155,7 +174,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (budget !== undefined && budget <= 0) throw timeoutError()
       const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
       // The read itself (its slack included) ends with the hub's share.
-      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
+      let result: SandboxReadOutcome
+      try {
+        result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
+      } catch (error) {
+        // A failed probe is the wait's timeout cause if nothing later fails.
+        retry.remember(error)
+        throw error
+      }
+      retry.succeeded()
       lastPollEnd = Date.now()
       refreshedByPoll = true
       return result
@@ -166,6 +193,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         regionHint: context.region !== undefined && strip(context.region).toLowerCase() === 'local' ? undefined : context.region,
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
+        readRetry: retry,
       })
       context.observe(resolved)
       if (!refreshedByPoll && resolved.state !== 'destroyed') {
