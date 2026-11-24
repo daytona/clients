@@ -138,6 +138,7 @@ const (
 	V0MIGRATIONDEFAULTPROJECTONLY       ApiErrorCode = "V0_MIGRATION_DEFAULT_PROJECT_ONLY"
 	V0SANDBOXNOTFOUND                   ApiErrorCode = "V0_SANDBOX_NOT_FOUND"
 	V0SANDBOXNOTIMPORTABLE              ApiErrorCode = "V0_SANDBOX_NOT_IMPORTABLE"
+	VOLUMENOTFOUND                      ApiErrorCode = "VOLUME_NOT_FOUND"
 	WORKLOADPLANEELSEWHERE              ApiErrorCode = "WORKLOAD_PLANE_ELSEWHERE"
 )
 
@@ -393,6 +394,8 @@ func (e ApiErrorCode) Valid() bool {
 	case V0SANDBOXNOTFOUND:
 		return true
 	case V0SANDBOXNOTIMPORTABLE:
+		return true
+	case VOLUMENOTFOUND:
 		return true
 	case WORKLOADPLANEELSEWHERE:
 		return true
@@ -5892,6 +5895,14 @@ type SandboxCreateOperation struct {
 	// platform default image; omitted for a sandbox restored from a snapshot.
 	Image *ImageReference `json:"image,omitempty"`
 
+	// LifecyclePolicy Automatic timeout and idle-expiry behavior: the object
+	// `GET /sandboxes/{id}` returns, as the create set it (on an idempotent
+	// replay, as the sandbox has it now). Starting the sandbox restarts
+	// `timeout_at` and `idle_timeout_at`, so after a start, even one `status`
+	// already reports as `running`, `GET /sandboxes/{id}` returns the new
+	// deadlines. Null when the policy could not be read.
+	LifecyclePolicy *LifecyclePolicy `json:"lifecycle_policy,omitempty"`
+
 	// Name Sandbox name (caller-provided or the generated `sandbox-<short-id>`).
 	Name string `json:"name"`
 
@@ -7177,7 +7188,7 @@ type VolumeMount struct {
 	// no empty or `..` segments and no control characters.
 	Subpath *string `json:"subpath,omitempty"`
 
-	// Volume The volume name or a `vol_` id.
+	// Volume The volume name or a `vol_` id. A sandbox can mount a volume once.
 	Volume string `json:"volume"`
 }
 

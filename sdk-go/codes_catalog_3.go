@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeRegionNotEmpty is REGION_NOT_EMPTY (API).
+const CodeRegionNotEmpty = "REGION_NOT_EMPTY"
+
+// ErrRegionNotEmpty matches code REGION_NOT_EMPTY, independently of its source.
+var ErrRegionNotEmpty = codeSentinel{"REGION_NOT_EMPTY", 409}
+
 // CodeRegionNotFound is REGION_NOT_FOUND (API).
 const CodeRegionNotFound = "REGION_NOT_FOUND"
 
@@ -118,14 +124,12 @@ const CodeBadResolution = "BAD_RESOLUTION"
 // ErrBadResolution matches code BAD_RESOLUTION, independently of its source.
 var ErrBadResolution = codeSentinel{"BAD_RESOLUTION", 400}
 
-// CodeBillingForbidden is BILLING_FORBIDDEN (API).
-const CodeBillingForbidden = "BILLING_FORBIDDEN"
-
-// ErrBillingForbidden matches code BILLING_FORBIDDEN, independently of its source.
-var ErrBillingForbidden = codeSentinel{"BILLING_FORBIDDEN", 502}
-
 func catalogStatus3(source, code string) int {
 	switch code {
+	case "REGION_NOT_EMPTY":
+		if source == "DAYTONA_API" {
+			return 409
+		}
 	case "REGION_NOT_FOUND":
 		if source == "DAYTONA_API" {
 			return 404
@@ -201,10 +205,6 @@ func catalogStatus3(source, code string) int {
 	case "BAD_RESOLUTION":
 		if source == "DAYTONA_API" {
 			return 400
-		}
-	case "BILLING_FORBIDDEN":
-		if source == "DAYTONA_API" {
-			return 502
 		}
 	}
 	return 0
