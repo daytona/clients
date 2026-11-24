@@ -9,7 +9,7 @@ import { pathSegment, usablePathId } from './pathSegment.js'
 import type { ResponseFields } from './responseFields.js'
 import { isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
-import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL, assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { followBuildLogs, readBuildLogs } from './BuildLogs.js'
@@ -429,6 +429,7 @@ export class Sandbox {
       ? scopedToolboxUrl(sandboxToolboxUrl, this.id, this.explicitToolboxUrl)
       : serializedScopedToolboxUrl ?? scopedToolboxUrl(sandboxToolboxUrl, this.id, undefined)
     if (this.toolboxProxyUrl) this.toolboxTransport = this.createToolboxTransport(this.toolboxProxyUrl)
+    concealFields(this, ['apiKey'])
     credentialSafeDiagnostics(this, () => ({ type: 'Sandbox', id: this.id }))
   }
 

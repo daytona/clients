@@ -15,7 +15,7 @@ import { BodyTooLarge, DEFAULT_MAX_RESPONSE_BYTES, declaresMoreThan, IdleWatchdo
 import { boundedAdapter } from './boundedAdapter.js'
 import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
 import { SDK_VERSION } from '../version.js'
-import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 
 /** `X-Daytona-Source` value for TypeScript SDK requests. */
 export const SDK_SOURCE = 'sdk-typescript'
@@ -928,6 +928,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
     this.requestTimeout = options.requestTimeout
     this.otelEnabled = options.otelEnabled
     this.otelApi = options.otelApi
+    concealFields(this, ['jwtToken', 'cachedToken', 'inFlight'])
     credentialSafeDiagnostics(this, () => ({ type: 'PlatformTokenProvider', projectId: this.projectId }))
   }
 
@@ -1058,12 +1059,12 @@ class PlatformTokenProvider implements HttpAuthProvider {
       }
       const { accessToken, expiresIn } = exchange
       finalize(response.status)
-      return credentialSafeDiagnostics({
+      return credentialSafeDiagnostics(concealFields({
         accessToken,
         expiresAtMs: nowMs() + (expiresIn * 1000),
         // Short token lifetimes (<= 30 s) would otherwise re-exchange on every request.
         refreshWindowMs: Math.min(TOKEN_REFRESH_WINDOW_MS, (expiresIn * 1000) / 2),
-      }, () => ({ type: 'PlatformToken' }))
+      }, ['accessToken']), () => ({ type: 'PlatformToken' }))
     } catch (error) {
       if (error instanceof DaytonaError) {
         finalize(error.statusCode, error)
@@ -1270,7 +1271,9 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
     timeout: boundedTimerDelay(requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS),
-    headers: authHeaders(apiKey),
+    // The bearer is added per request (below), never stored in the instance
+    // defaults, where any walker of the instance would find it.
+    headers: authHeaders(undefined),
     fetchOptions: fetchCacheModeOptions(),
     // The SDK's buffered-body cap (axios' own field; -1 = none), enforced by
     // boundedAdapter before buffering in every runtime.
@@ -1293,6 +1296,9 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
   instance.interceptors.request.use(async (config) => {
     options?.ensureOpen?.()
     const daytonaConfig = config as DaytonaAxiosRequestConfig
+    if (apiKey && getAxiosHeader(daytonaConfig, 'Authorization') === undefined) {
+      setAxiosHeader(daytonaConfig, 'Authorization', `Bearer ${apiKey}`)
+    }
     // No responseType: the SDK reads the bytes and decodes them itself (kept
     // on a retry, whose config already says arraybuffer).
     if (daytonaConfig.responseType === undefined || daytonaConfig.daytonaDecodesBody === true) {
@@ -1546,6 +1552,7 @@ export class HttpTransport {
     this.requestTimeout = requestTimeout
     this.options = options
     this.http = createConfiguredHttpClient(this.baseUrl, apiKey, requestTimeout, options)
+    concealFields(this, ['apiKey'])
     credentialSafeDiagnostics(this, () => ({ type: 'HttpTransport' }))
   }
 

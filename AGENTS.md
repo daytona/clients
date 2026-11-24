@@ -327,7 +327,17 @@ major version; Go uses its module path's `/v2` suffix instead:
   truthiness); an explicitly empty `api_key` / `jwt_token` / `project_id`
   (`apiKey` / `jwtToken` / `projectId`) is a `BadRequestError` (400,
   `BAD_REQUEST`, source `SDK`), like every invalid-configuration error,
-  including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. Missing
+  including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. The
+  API key or JWT the v2 client resolves (explicit, or ambient after trimming)
+  follows the header rule (`header_text` / `headerText`, Go `headerText`);
+  otherwise it is that error, naming the field or variable, never the value.
+  Python redacts a header the HTTP client refuses from every error text it
+  raises or chains (`_transport_errors.py`, spans included). In TypeScript,
+  credentials and the fields holding them are non-enumerable
+  (`concealFields` in `src/diagnostics.ts`), and SDK-built axios instances
+  add the bearer per request instead of keeping it in `defaults.headers`; a
+  test walks every enumerable property of the clients, handles, transports and
+  auth providers for a credential. Missing
   credentials are `AuthenticationError` (401, `UNAUTHORIZED`, `SDK`). The
   TS root validates the copy it keeps: every enumerable key (own or
   inherited) must be known, each known key and the nested `events` are read
