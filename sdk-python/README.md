@@ -1010,7 +1010,10 @@ id).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
-set `atomic=True` to write through a temp file + rename. `download_file()`
+set `atomic=True` to write through a temp file + rename. An `asyncio.Event` or
+a `threading.Event` stops an upload or download as soon as it is set, even
+while the transfer waits on the network; any other object is checked every
+50 ms while it waits. `download_file()`
 streams to a unique temp file in the destination directory, renames it on
 success, reports progress with `Content-Length` when the server sends it, and
 removes that temp file on error or cancellation. `write_bytes()`,

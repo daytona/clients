@@ -66,8 +66,11 @@ class FileSystemService:
         renames it over ``local_path`` on success; on an error or a
         cancellation that temporary file is removed. ``on_progress(bytes,
         total)`` reports progress (``total`` from ``Content-Length`` when the
-        sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
-        between chunks, and raises ``TransferCancelledError``.
+        sandbox sends it); ``cancel`` is any object with ``is_set()`` and
+        raises ``TransferCancelledError``: an ``asyncio.Event`` or a
+        ``threading.Event`` stops a stalled transfer as soon as it is set, and
+        any other object is checked every 50 ms while the transfer waits on
+        the network.
         """
         return self._bridge.call(
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
@@ -187,7 +190,11 @@ class FileSystemService:
         cancel: TransferCancelSignal | None = None,
         atomic: bool = False,
     ) -> None:
-        """Stream a local file into the sandbox without buffering it whole in memory."""
+        """Stream a local file into the sandbox without buffering it whole in memory.
+
+        ``cancel`` is any object with ``is_set()`` and raises
+        ``TransferCancelledError``, as for :meth:`download_file`.
+        """
         return self._bridge.call(
             lambda: self._impl.upload_file(
                 local_path, remote_path, on_progress=on_progress, cancel=cancel, atomic=atomic
