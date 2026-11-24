@@ -72,6 +72,12 @@ daytona login --token dtn_… # a project API key
 The CLI connects to the Daytona API (`https://api.daytona.com`), the same
 default as the SDKs.
 
+The 0.x CLI keeps its own configuration (`config.json`), which this CLI does
+not read: sign in again with `daytona login`, or keep using the 0.x CLI as
+`daytona-v0` (Homebrew `daytonaio/cli/daytona@0`). Until this CLI has a saved
+profile, its "not logged in" error and `whoami` mention it when they find the
+0.x file.
+
 A browser or device login selects your personal organization and its default
 project the first time and remembers your last choice afterwards. Switch with
 `daytona org use <name>` and `daytona project use <name>`; override for one

@@ -6,10 +6,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/config"
 )
 
 func staticCred(k string) func(context.Context) (string, error) {
@@ -55,14 +57,41 @@ func (a *App) HasExplicitCredential() bool {
 	return a.CredentialSource == "flag" || a.CredentialSource == "env"
 }
 
+// notLoggedIn is the error for an invocation with no credential at all. When
+// the only configuration is the 0.x CLI's, the hint says so.
+func (a *App) notLoggedIn() error {
+	hint := "run `daytona login`, or pass --api-key / set DAYTONA_API_KEY"
+	if legacy := a.LegacyConfigHint(); legacy != "" {
+		hint += "; " + legacy
+	}
+	return cerr.New(cerr.ExitAuth, "not logged in").WithHint("%s", hint)
+}
+
+// LegacyConfigHint points at the 0.x CLI when this CLI has no saved profile
+// and the 0.x CLI's config.json exists, and is empty otherwise. Profile
+// selection does not change: the 0.x file is never read.
+func (a *App) LegacyConfigHint() string {
+	if a.Config == nil || len(a.Config.Profiles) > 0 {
+		return ""
+	}
+	getenv := a.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	path, ok := config.LegacyConfigFile(getenv)
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("found the 0.x CLI's configuration (%s), which this CLI does not read; the 0.x CLI is available as `daytona-v0` (Homebrew: `brew install daytonaio/cli/daytona@0`)", path)
+}
+
 // Credential returns the bearer for this invocation.
 func (a *App) Credential(ctx context.Context) (string, error) {
 	if err := a.credentialURLError(); err != nil {
 		return "", err
 	}
 	if a.credentialFn == nil {
-		return "", cerr.New(cerr.ExitAuth, "not logged in").
-			WithHint("run `daytona login`, or pass --api-key / set DAYTONA_API_KEY")
+		return "", a.notLoggedIn()
 	}
 	return a.credentialFn(ctx)
 }
@@ -112,7 +141,7 @@ func (a *App) WorkloadClient(ctx context.Context, pick func(ctx context.Context)
 	// report it (exit 3) before asking for a project (exit 2), so an agent
 	// gets the actionable diagnosis first.
 	if a.CredentialSource == "" || a.WorkloadCredentialFn == nil {
-		return nil, "", cerr.New(cerr.ExitAuth, "not logged in").WithHint("run `daytona login`, or pass --api-key / set DAYTONA_API_KEY")
+		return nil, "", a.notLoggedIn()
 	}
 	project, err := a.RequireProject(ctx, pick)
 	if err != nil {

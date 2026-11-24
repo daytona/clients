@@ -110,6 +110,8 @@ name could not be resolved to an ID.`,
 			}
 			if a.CredentialSource != "" { // omitted with no credential
 				out["credential_source"] = a.CredentialSource
+			} else if legacy := a.LegacyConfigHint(); legacy != "" {
+				a.Info("note: %s; run `daytona login` to sign in with this CLI", legacy)
 			}
 			if scope.orgID != "" {
 				out["org_id"] = scope.orgID
