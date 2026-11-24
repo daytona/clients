@@ -9,14 +9,16 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 
-const reqPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-esbuild-cjs-isolated-')), 'requirements.txt')
-fs.writeFileSync(reqPath, 'requests==2.31.0\n')
-
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-esbuild-cjs-isolated-'))
 let message = ''
 try {
+  const reqPath = path.join(dir, 'requirements.txt')
+  fs.writeFileSync(reqPath, 'requests==2.31.0\n')
   Image.debianSlim('3.12').pipInstallFromRequirements(reqPath)
 } catch (e) {
   message = e instanceof Error ? e.message : String(e)
+} finally {
+  fs.rmSync(dir, { recursive: true, force: true })
 }
 
 if (!message.includes("Cannot find module 'expand-tilde'") || message.includes('file URL')) {

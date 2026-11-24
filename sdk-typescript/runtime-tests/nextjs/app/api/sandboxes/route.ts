@@ -38,6 +38,7 @@ export async function GET() {
   const listOk = typeof (iter as any)[Symbol.asyncIterator] === 'function' && typeof (await iter.next()) === 'object'
   const imageFiles = checkImageFiles()
   return Response.json({
+    cwd: process.cwd(),
     imageOk: image.dockerfile.includes('FROM alpine'),
     imageFilesOk: imageFiles === true,
     imageFilesError: imageFiles === true ? undefined : imageFiles,

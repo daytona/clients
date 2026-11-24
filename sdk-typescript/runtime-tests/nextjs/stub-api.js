@@ -4,10 +4,11 @@
 // Local stand-in for the parts of the Daytona API and object storage that creating a
 // sandbox from a Dockerfile context touches. It records the uploaded contexts and rejects
 // the create request itself, so the test can check that the upload ran end to end.
+// Reading /uploads returns the uploads recorded since the previous read and clears them.
 const http = require('http')
 
 const port = Number(process.argv[2])
-const uploads = []
+let uploads = []
 
 http
   .createServer((req, res) => {
@@ -18,7 +19,9 @@ http
       const body = Buffer.concat(chunks)
       if (url.pathname === '/uploads') {
         res.setHeader('content-type', 'application/json')
-        return res.end(JSON.stringify(uploads))
+        const recorded = uploads
+        uploads = []
+        return res.end(JSON.stringify(recorded))
       }
       if (url.pathname.startsWith('/s3/')) {
         if (req.method === 'GET') {

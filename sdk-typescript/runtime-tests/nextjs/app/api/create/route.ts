@@ -14,11 +14,14 @@ export async function GET() {
   const stubUrl = process.env.DAYTONA_STUB_API_URL
   if (!stubUrl) return Response.json({ createOk: false, error: 'DAYTONA_STUB_API_URL is not set' })
 
+  // Reading /uploads drains it, so this request only sees the uploads it makes itself.
+  await fetch(`${stubUrl}/uploads`)
+
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-nextjs-create-'))
   let error = 'create did not fail at the stub'
   try {
     fs.mkdirSync(path.join(dir, 'src'))
-    fs.writeFileSync(path.join(dir, 'src', 'a.txt'), 'a')
+    fs.writeFileSync(path.join(dir, 'src', 'a.txt'), `${process.pid}-${Date.now()}-${Math.random()}`)
     fs.writeFileSync(path.join(dir, 'Dockerfile'), 'FROM alpine\nCOPY src/*.txt /app/\n')
     const daytona = new Daytona({ apiKey: 'stub', apiUrl: `${stubUrl}/api` })
     try {
