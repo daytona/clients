@@ -26,6 +26,17 @@ func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 
 // Resume resumes a paused sandbox and waits for started (default 60 seconds).
 // Returning to stopped is a *SandboxTerminalStateError. NoWait skips waiting.
+//
+// Whether the sandbox can resume is the API's decision; a refusal returns its
+// typed error. A sandbox that is not paused, or whose saved state is
+// unavailable, returns ErrConflict with CodeConflict, and a sandbox class that
+// cannot resume ErrNotSupportedForClass. A paused macOS sandbox whose Mac
+// reservation is ending returns ErrNoActiveReservation (409): its memory is on
+// that Mac, so another reservation cannot take it over. The sandbox is stopped
+// with its disk when the reservation ends, and Start can then start it under
+// another reservation. A suspended organization returns ErrOrgSuspended, a
+// project at its monthly budget ErrProjectBudgetExceeded, and a resume the
+// platform cannot take now ErrServiceUnavailable.
 func (s *Sandbox) Resume(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{
 		action: "resume", target: SandboxStateStarted, failure: SandboxStateStopped,
