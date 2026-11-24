@@ -185,3 +185,42 @@ func TestResolveSSHGateway_noGatewayPublishedIsConflict(t *testing.T) {
 
 func int32Ptr(v int32) *int32 { return &v }
 func strPtr(v string) *string { return &v }
+
+func TestMintSSHAccessToken_rejectsDotSegmentIDs(t *testing.T) {
+	for _, id := range []string{"", " ", ".", ".."} {
+		t.Run(id, func(t *testing.T) {
+			// Given an API that must not be reached.
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+			}))
+			defer server.Close()
+
+			// When minting for an id that is not a single path segment.
+			_, err := MintSSHAccessToken(t.Context(), api.New(server.URL, "key", "test"), id)
+
+			// Then the id is refused before any request.
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitFailure, cerr.ExitCode(err))
+		})
+	}
+}
+
+func TestMintSSHAccessToken_encodesTheIDLikeOtherSandboxPaths(t *testing.T) {
+	// Given an id with characters url.PathEscape would keep.
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"access_token":"tok"}`))
+	}))
+	defer server.Close()
+
+	// When minting.
+	tok, err := MintSSHAccessToken(t.Context(), api.New(server.URL, "key", "test"), "a:b@c")
+
+	// Then the id is strictly percent-encoded.
+	require.NoError(t, err)
+	require.Equal(t, "tok", tok)
+	require.Equal(t, "/sandboxes/a%3Ab%40c/access-token", got)
+}

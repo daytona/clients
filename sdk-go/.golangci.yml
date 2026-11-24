@@ -1,0 +1,140 @@
+version: "2"
+
+run:
+  timeout: 5m
+  # Several worktrees of this repository lint at once on one machine.
+  allow-parallel-runners: true
+  tests: true
+  # Lint the live e2e tests too.
+  build-tags:
+    - e2e
+
+linters:
+  default: none
+  enable:
+    # Correctness
+    - govet
+    - staticcheck
+    - errcheck
+    - errorlint
+    - nilerr
+    - nilnil
+    - bodyclose
+    - contextcheck
+    - fatcontext
+    - copyloopvar
+    - intrange
+    - usetesting
+    - testifylint
+    - forcetypeassert
+    # Readability
+    - whitespace
+    - misspell
+    - unconvert
+    - unparam
+    - ineffassign
+    - dupword
+    - revive
+    - unused
+    # Size and complexity
+    - gocognit
+    - gocyclo
+    - funlen
+    - lll
+    - nestif
+    # Exhaustiveness
+    - exhaustive
+    # Security
+    - gosec
+    # Logging
+    - sloglint
+    # Performance
+    - perfsprint
+    - prealloc
+    - makezero
+    - nolintlint
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    govet:
+      enable-all: true
+      disable:
+        # Public option and model structs are ordered for readers, not for
+        # memory layout.
+        - fieldalignment
+      settings:
+        shadow:
+          strict: true
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gocognit:
+      min-complexity: 25
+    gocyclo:
+      min-complexity: 15
+    funlen:
+      lines: 90
+      statements: 60
+      ignore-comments: true
+    lll:
+      line-length: 120
+      tab-width: 4
+    nestif:
+      min-complexity: 5
+    exhaustive:
+      default-signifies-exhaustive: false
+    gosec:
+      excludes:
+        - G104 # handled by errcheck
+        - G304 # paths are caller input by design (file transfers)
+    sloglint:
+      no-mixed-args: true
+      attr-only: true
+      context: scope
+      static-msg: true
+      no-raw-keys: true
+      key-naming-case: snake
+    revive:
+      rules:
+        - name: var-naming
+        - name: package-comments
+        - name: exported
+        - name: error-return
+        - name: error-naming
+        - name: errorf
+        - name: if-return
+        - name: indent-error-flow
+        - name: range-val-in-closure
+        - name: redefines-builtin-id
+        - name: superfluous-else
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: strict
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - lll
+          - gosec
+          - forcetypeassert
+          - gocognit
+          - gocyclo
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - go.daytona.com/sdk/v2
+  exclusions:
+    generated: strict

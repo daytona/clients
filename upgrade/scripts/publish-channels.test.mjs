@@ -48,10 +48,17 @@ function executable(path, body) {
   chmodSync(path, 0o755);
 }
 
+// The Go SDK target's variables, as GitHub defines them when it is not
+// requested: every `env:` entry exists, empty. The Go paths are tested by
+// scripts/sdk-go-publish_test.sh.
+const goTargetOff = {
+  PUBLISH_GO: 'false', GO_VERSION: '', GO_TAG: '', GO_MODULE: '', GO_BUILD: 'skipped', GO_PUBLISH: '',
+};
+
 function run(root, script, env) {
   return spawnSync('bash', ['-c', script], {
     cwd: root, encoding: 'utf8',
-    env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`, GITHUB_REPOSITORY: 'daytona/clients', ...env },
+    env: { ...process.env, PATH: `${root}/bin:${process.env.PATH}`, GITHUB_REPOSITORY: 'daytona/clients', ...goTargetOff, ...env },
   });
 }
 
