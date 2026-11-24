@@ -1,0 +1,71 @@
+changelog.d/cli-readme-cursors.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-if-match.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-readme-ci-output.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-readme-lifecycle-deadlines.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-python-asyncio.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-computer-use-availability.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-create-timeout-range.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-persistence-lifecycle.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-account.added.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-pty-close-stdin.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-readme-units.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-fs-list-depth.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/upgrade-guide-stable.changed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-reservations-get.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-help-get-id-or-name.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-volume-ids.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-help-volume-create-name.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-search-ordering.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-kill-interactive-shell.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-docker-off.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-image-regions.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-fs-upload-atomic.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-help-search.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/cli-help-cp.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-default-image.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-build-context-region.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+changelog.d/docs-fs-glob.fixed.md
+  s_e26152c3e6ca81::t_a69e7532ffc0de 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9cada3fba88e7f83a65f8121cf8b5f9d19461008",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
