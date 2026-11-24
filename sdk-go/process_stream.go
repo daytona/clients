@@ -10,13 +10,27 @@ import (
 	"io"
 	"iter"
 	"net/http"
+	"time"
 )
+
+// errProcessLogIdle ends a follow stream that delivered no bytes for its idle
+// bound: on a path that drops quiet connections without closing them, a read
+// would otherwise block until the caller's deadline.
+var errProcessLogIdle = errors.New("process log stream idle")
 
 // StreamLogs follows the log through an explicit EOF event. Missing EOF is
 // ErrConnection, never a silently complete log. Every event is bounded by the
 // client's max response size. Resume with the last event's cursor after failure.
 // Breaking iteration closes the response; ctx and Client.Close cancel blocked reads.
 func (h *ProcessHandle) StreamLogs(ctx context.Context, opts *ProcessLogsOptions) iter.Seq2[ProcessLogEvent, error] {
+	return h.streamLogs(ctx, opts, 0)
+}
+
+// streamLogs is StreamLogs with an idle bound: a stream that delivers no bytes
+// for idle (zero: no bound) ends with errProcessLogIdle.
+func (h *ProcessHandle) streamLogs(
+	ctx context.Context, opts *ProcessLogsOptions, idle time.Duration,
+) iter.Seq2[ProcessLogEvent, error] {
 	var copied ProcessLogsOptions
 	if opts != nil {
 		copied = *opts
@@ -42,6 +56,7 @@ func (h *ProcessHandle) StreamLogs(ctx context.Context, opts *ProcessLogsOptions
 			request:  toolboxRequest{Path: "/processes/" + segment + "/logs", Query: query, Headers: headers},
 			encoding: processLogEncoding(&copied),
 			limit:    h.sandbox.client.config.maxResponseBytes,
+			idle:     idle,
 		}
 		stopped, err := stream.consume(ctx, yield)
 		if !stopped && err != nil {
@@ -55,20 +70,46 @@ type processLogStream struct {
 	request  toolboxRequest
 	encoding LogEncoding
 	limit    int64
+	idle     time.Duration
+}
+
+// idleBody kicks the stream's idle timer whenever bytes arrive.
+type idleBody struct {
+	io.Reader
+	kick func()
+}
+
+func (b idleBody) Read(p []byte) (int, error) {
+	n, err := b.Reader.Read(p)
+	if n > 0 {
+		b.kick()
+	}
+	return n, err
 }
 
 func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEvent, error) bool) (
 	stopped bool, failure error,
 ) {
-	response, openErr := s.toolbox.stream(ctx, s.request)
+	streamCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	response, openErr := s.toolbox.stream(streamCtx, s.request)
 	if openErr != nil {
 		return false, openErr
 	}
 	defer closeResponse(ctx, response, &failure)
-	reader := newProcessSSEReader(response.Body, s.limit)
+	var body io.Reader = response.Body
+	if s.idle > 0 {
+		timer := time.AfterFunc(s.idle, func() { cancel(errProcessLogIdle) })
+		defer timer.Stop()
+		body = idleBody{Reader: response.Body, kick: func() { timer.Reset(s.idle) }}
+	}
+	reader := newProcessSSEReader(body, s.limit)
 	for {
 		message, err := reader.next()
 		if err != nil {
+			if ctx.Err() == nil && errors.Is(context.Cause(streamCtx), errProcessLogIdle) {
+				return false, errProcessLogIdle
+			}
 			if errors.Is(err, io.EOF) {
 				return false, wrapError(transportError(ctx, io.ErrUnexpectedEOF), "process log stream ended before eof")
 			}

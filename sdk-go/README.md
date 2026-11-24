@@ -213,6 +213,12 @@ Every duration is a `time.Duration`:
   which work over a large tree can outlast: zero keeps the request timeout,
   and `daytona.NoTimeout` or a duration above 2,147,483.647 seconds means no
   limit. A timeout ends the call, not the work in the sandbox.
+- `Exec`, `Run`, `RunArgs` and `Session.Run` with `Stdout` or `Stderr`
+  writers follow the output on a log stream. A stream that delivers nothing
+  for 45 seconds is treated as dropped and resumed after the last event, so a
+  network path that drops quiet connections does not hold the run until its
+  `Timeout`. When the `Timeout` ends, a process that already ended reports
+  how it ended rather than `timed_out`.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
 
