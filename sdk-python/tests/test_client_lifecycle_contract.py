@@ -441,16 +441,36 @@ async def test_lifecycle_requests_reach_the_server_whatever_the_class() -> None:
         assert api.specs[0].path == f"/sandboxes/mac/{verb}"
 
 
+_TRANSIENT_READ_FAILURES = pytest.mark.parametrize(
+    "failure",
+    [
+        create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"),
+        create_error("busy", 429, "RATE_LIMITED", "DAYTONA_API"),
+        ClientTimeoutError(),
+        ConnectionError("connection reset", source="SDK"),
+    ],
+    ids=["server-500", "rate-limited", "client-timeout", "connection"],
+)
+
+
+class _RepeatingApi(_Api):
+    """Answers with its last response once the others are used up."""
+
+    async def send(self, spec: RequestSpec) -> object:
+        if len(self.responses) == 1:
+            self.responses.append(self.responses[0])
+        return await super().send(spec)
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "failure",
     [
         create_error("upstream timed out", 408, "REQUEST_TIMEOUT", "DAYTONA_API"),
-        create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"),
-        ClientTimeoutError(),
-        ConnectionError("connection reset", source="SDK"),
+        create_error("not implemented", 501, "NOT_IMPLEMENTED", "DAYTONA_API"),
+        create_error("limit", 429, "LIMIT_EXCEEDED", "DAYTONA_API"),
     ],
-    ids=["server-408", "server-500", "client-timeout", "connection"],
+    ids=["server-408", "server-501", "limit-exceeded"],
 )
 async def test_a_failed_read_after_a_successful_create_or_fork_returns_the_handle(failure: Exception) -> None:
     # The create (or fork) request succeeded, so the sandbox exists: a failed
@@ -467,6 +487,43 @@ async def test_a_failed_read_after_a_successful_create_or_fork_returns_the_handl
     )
     fork = await source.fork(wait_seconds=5)
     assert (fork.id, fork.state) == ("f", "creating")
+
+
+@pytest.mark.anyio
+@_TRANSIENT_READ_FAILURES
+async def test_a_transient_read_failure_in_a_create_or_fork_wait_is_retried(failure: Exception) -> None:
+    client = _client()
+    api = _Api([{"id": "sbx", "status": "pending", "wait_cap_seconds": 0}, failure, _detail("sbx", "running")])
+    client._api = api  # type: ignore[assignment]
+    sandbox = await client.create("python:3.12", wait_seconds=5)
+    assert (sandbox.id, sandbox.state) == ("sbx", "started")
+    assert [spec.method for spec in api.specs] == ["POST", "GET", "GET"]
+
+    source = lazy_sandbox(_client(), "src")
+    source._update(sandbox_class="macos")
+    source._api = _Api(  # type: ignore[attr-defined]
+        [
+            _detail("src", "running", **{"class": "macos"}),
+            _fork_response("f"),
+            _detail("f", "pending"),
+            failure,
+            _detail("f", "running"),
+        ]
+    )
+    fork = await source.fork(wait_seconds=5)
+    assert (fork.id, fork.state) == ("f", "started")
+
+
+@pytest.mark.anyio
+async def test_a_read_that_keeps_failing_returns_the_create_handle_when_the_budget_ends() -> None:
+    failure = create_error("busy", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")
+    client = _client()
+    api = _RepeatingApi([{"id": "sbx", "status": "pending", "wait_cap_seconds": 0}, failure])
+    client._api = api  # type: ignore[assignment]
+    sandbox = await client.create("python:3.12", wait_seconds=1)
+    assert (sandbox.id, sandbox.state) == ("sbx", "creating")
+    # Retried with back-off (0.2 s, 0.4 s, ...) until the budget ran out.
+    assert 3 <= sum(spec.method == "GET" for spec in api.specs) <= 5
 
 
 @pytest.mark.anyio

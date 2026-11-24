@@ -1133,6 +1133,14 @@ the observed public state as `error.state` and the wire status as
 `error.raw_state`. When the server explains that state, the explanation is
 `error.reason` and ends the error message.
 
+Every wait that reads the server (sandbox waits, `docker.wait_until_ready()`,
+`images.get()` / `snapshots.get()` with `wait="ready"`, `images.pull()`)
+retries a read that fails transiently (no response, a stalled read, HTTP 429
+or a 5xx other than 501) with backoff (0.2 s doubling to 5 s, or the server's
+`Retry-After` when longer) within the same budget. When the budget runs out,
+its timeout error carries the last failed read as `__cause__`. Any other
+failure, such as an authentication error, is raised at once.
+
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
 (seconds) with the same default and unbounded form. They wait for
 completion: `stop()` returns at `stopped`, and `delete()` returns at

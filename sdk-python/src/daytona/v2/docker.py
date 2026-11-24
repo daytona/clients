@@ -18,8 +18,9 @@ from typing import Final, Optional
 
 from . import _clock
 from ._core import WAIT_READ_SLACK_SECONDS, RequestSpec, expect_docker_status, wait_budget_seconds
+from ._read_retry import ReadRetry
 from ._transport import AsyncTransport
-from .errors import ClientTimeoutError, DockerNotReadyError, DockerWaitTimeoutError
+from .errors import ClientTimeoutError, DaytonaError, DockerNotReadyError, DockerWaitTimeoutError
 from .types import DockerStatus
 
 #: Default ``wait_until_ready()`` budget in seconds.
@@ -68,17 +69,22 @@ class AsyncDockerService:
         :class:`DockerWaitTimeoutError` when the budget runs out while Docker
         is still ``starting`` or ``deferred`` — including
         when a status request is still unanswered at the deadline. No request
-        runs more than a fraction of a second past the deadline.
+        runs more than a fraction of a second past the deadline. A status read
+        that fails transiently (no response, a stalled read, HTTP 429 or a 5xx
+        other than 501) is retried with back-off within the budget; the
+        timeout then carries the last failure as its cause. Other failures are
+        raised at once.
         """
         # 0, or above the timer maximum (an integer too large for a float
         # included), waits without a deadline.
         budget = wait_budget_seconds(timeout)
         deadline = None if budget == 0 else _clock.monotonic() + budget
         last: Optional[DockerStatus] = None
+        retry = ReadRetry()
         while True:
             remaining = None if deadline is None else deadline - _clock.monotonic()
             if remaining is not None and remaining <= 0:
-                raise DockerWaitTimeoutError(last)
+                raise DockerWaitTimeoutError(last) from retry.last_error
             wait_ms = (
                 DOCKER_STATUS_MAX_WAIT_MS
                 if remaining is None
@@ -94,10 +100,18 @@ class AsyncDockerService:
                 payload = await self._transport.send(
                     RequestSpec("GET", "/docker/status", params={"waitMs": wait_ms}, timeout=request_timeout)
                 )
-            except ClientTimeoutError as exc:
-                if deadline is not None and _clock.monotonic() >= deadline:
+            except DaytonaError as exc:
+                if (
+                    isinstance(exc, ClientTimeoutError)
+                    and deadline is not None
+                    and _clock.monotonic() >= deadline
+                ):
                     raise DockerWaitTimeoutError(last) from exc
-                raise
+                if not retry.note(exc):
+                    raise
+                await retry.pause(deadline)
+                continue
+            retry.succeeded()
             last = expect_docker_status(payload)
             state = last.state
             if state == "ready":

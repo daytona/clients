@@ -525,7 +525,11 @@ class Sandbox:
         ``destroyed``. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
-        for the other lifecycle waits and the create and fork waits.
+        for the other lifecycle waits and the create and fork waits. A read
+        that fails transiently (no response, a stalled read, HTTP 429 or a 5xx
+        other than 501) is retried with back-off within the budget, and the
+        timeout then carries the last failure as its cause; any other failed
+        read is raised at once.
         """
         self._bridge.call(lambda: self._impl.wait(until=until, timeout=timeout))
         return self

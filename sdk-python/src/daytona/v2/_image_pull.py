@@ -12,8 +12,9 @@ import anyio
 from . import _clock
 from ._api_core import expect_create_image_resp, expect_image
 from ._core import RequestSpec, TransportPayload, path_segment, timeout_millis_from_seconds
+from ._read_retry import ReadRetry
 from ._transport import AsyncTransport
-from .errors import ClientTimeoutError, ImageBuildFailedError, RequestTimeoutError, create_error
+from .errors import ClientTimeoutError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, create_error
 from .types import Image, JsonObject
 
 _POLL_MIN_INTERVAL_S = 1.0
@@ -28,6 +29,8 @@ class ImagePull:
         timeout_millis_from_seconds(self.timeout)
         budget = self.timeout or None
         deadline = None if budget is None else _clock.monotonic() + budget
+        # A readiness hold that fails transiently is retried within the budget.
+        retry = ReadRetry()
         with anyio.move_on_after(self._remaining(deadline)) as scope:
             try:
                 created = expect_create_image_resp(await self._send(submission, deadline))
@@ -53,26 +56,35 @@ class ImagePull:
                         poll_millis = max(1, min(millis or 0, 60_000))
                         params["timeout_ms"] = poll_millis
                         poll_timeout = poll_millis / 1000 + 5
-                    image = expect_image(
-                        await self._send(
-                            RequestSpec(
-                                "GET",
-                                path,
-                                params=params,
-                                timeout=poll_timeout,
-                                unbounded_read=deadline is None,
-                            ),
-                            deadline,
+                    try:
+                        image = expect_image(
+                            await self._send(
+                                RequestSpec(
+                                    "GET",
+                                    path,
+                                    params=params,
+                                    timeout=poll_timeout,
+                                    unbounded_read=deadline is None,
+                                ),
+                                deadline,
+                            )
                         )
-                    )
+                    except DaytonaError as error:
+                        if not retry.note(error):
+                            raise
+                        await retry.pause(deadline)
+                        continue
+                    retry.succeeded()
             except (ClientTimeoutError, RequestTimeoutError) as error:
                 if deadline is not None and _clock.monotonic() >= deadline:
                     raise create_error(
                         "image pull did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK"
-                    ) from error
+                    ) from (retry.last_error or error)
                 raise
         if scope.cancelled_caught:
-            raise create_error("image pull did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK")
+            raise create_error(
+                "image pull did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK"
+            ) from retry.last_error
         self._remaining(deadline)
         if wait and image.status in ("failed", "error"):
             raise ImageBuildFailedError(
