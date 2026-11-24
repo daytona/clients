@@ -3,10 +3,13 @@
 
 """Race a file transfer's network waits against its cancel signal.
 
-A transfer with no signal awaits the network directly. An ``asyncio.Event``
-or a ``threading.Event`` wakes the transfer when it is set, with no periodic
-wake-ups. Any other object with ``is_set()`` cannot notify anyone, so it is
-checked every ``POLL_SECONDS`` while the transfer waits, and only then.
+A transfer with no signal awaits the network directly. A ``threading.Event``
+wakes the transfer when it is set, from any thread, with no periodic
+wake-ups. An ``asyncio.Event`` wakes it when set on the loop running the
+transfer; ``asyncio.Event.set()`` is not thread-safe and does not wake a loop
+it is called off, so the signal is also checked every ``POLL_SECONDS``. Any
+other object with ``is_set()`` cannot notify anyone and is checked every
+``POLL_SECONDS``. Checks happen only while the transfer waits.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import contextlib
+import sys
 import threading
 from types import TracebackType
 from typing import Awaitable, Callable, Final, Optional, Type, TypeVar
@@ -26,6 +30,10 @@ from .types import TransferCancelSignal
 _T = TypeVar("_T")
 
 POLL_SECONDS: Final[float] = 0.05
+# The newest CPython whose ``threading.Event`` / ``Condition`` internals the
+# notification path was checked against (3.10 through 3.15). Later versions
+# poll until someone checks them again.
+_THREAD_EVENT_CHECKED_THROUGH: Final[tuple[int, int]] = (3, 15)
 
 
 def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal], *, operation: str) -> None:
@@ -35,20 +43,39 @@ def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal], *, opera
         )
 
 
-async def _first_done(task: asyncio.Task[_T], notified: asyncio.Future[object]) -> None:
-    woken: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+async def _first_done(
+    task: asyncio.Task[_T], notified: asyncio.Future[object], timeout: Optional[float]
+) -> None:
+    """Return once ``task`` or ``notified`` is done, or after ``timeout`` seconds."""
+    loop = asyncio.get_running_loop()
+    woken: asyncio.Future[None] = loop.create_future()
 
-    def wake(_: object) -> None:
+    def wake(_: object = None) -> None:
         if not woken.done():
             woken.set_result(None)
 
     task.add_done_callback(wake)
     notified.add_done_callback(wake)
+    timer = None if timeout is None else loop.call_later(timeout, wake)
     try:
         await woken
     finally:
+        if timer is not None:
+            timer.cancel()
         task.remove_done_callback(wake)
         notified.remove_done_callback(wake)
+
+
+async def _settle(future: asyncio.Future[object]) -> None:
+    """Wait for ``future`` to finish and consume its outcome.
+
+    ``asyncio.wait`` raises neither the future's error nor its own
+    cancellation, but a cancellation of the calling task still propagates.
+    """
+    if not future.done():
+        await asyncio.wait({future})
+    if not future.cancelled():
+        future.exception()
 
 
 class _ThreadEventWatch:
@@ -78,7 +105,7 @@ class _ThreadEventWatch:
         ``Condition.wait()`` does. An event built any other way gets None
         here and is polled.
         """
-        if type(event) is not threading.Event:
+        if type(event) is not threading.Event or sys.version_info[:2] > _THREAD_EVENT_CHECKED_THROUGH:
             return None
         condition = getattr(event, "_cond", None)
         if not isinstance(condition, threading.Condition):
@@ -88,12 +115,14 @@ class _ThreadEventWatch:
         return condition
 
     def start(self, event: threading.Event) -> None:
+        # The thread first: if it cannot start, nothing is left queued on the
+        # caller's event.
+        self.thread.start()
         with self._condition:
             if event.is_set():
                 self._wake.release()
             else:
                 self._condition._waiters.append(self._wake)  # type: ignore[attr-defined]
-        self.thread.start()
 
     def _run(self) -> None:
         self._wake.acquire()
@@ -121,11 +150,19 @@ class TransferCancelWatch:
         self._notifier: Optional[asyncio.Future[object]] = None
         self._notified: Optional[asyncio.Future[object]] = None
         self._thread_watch: Optional[_ThreadEventWatch] = None
+        # An asyncio.Event set off the transfer's loop resolves its waiter
+        # without waking the loop: keep checking it.
+        self._backstop = isinstance(cancel, asyncio.Event)
+
+    @property
+    def notifies(self) -> bool:
+        """Whether setting the signal wakes a wait on the network."""
+        return self._notified is not None
 
     @property
     def polling(self) -> bool:
         """Whether a wait on the network wakes every ``POLL_SECONDS`` to check the signal."""
-        return self.cancel is not None and self._notified is None
+        return self.cancel is not None and (self._notified is None or self._backstop)
 
     async def __aenter__(self) -> Self:
         cancel = self.cancel
@@ -163,11 +200,9 @@ class TransferCancelWatch:
         thread_watch, self._thread_watch = self._thread_watch, None
         if thread_watch is not None:
             thread_watch.close()
-        if notified is not None and not notified.done():
-            notified.cancel()
         if notified is not None:
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await notified
+            notified.cancel()
+            await _settle(notified)
 
     async def run(self, step: Awaitable[_T], *, operation: str) -> _T:
         """Await ``step``; once the signal is set, cancel it and raise ``TransferCancelledError``."""
@@ -180,7 +215,7 @@ class TransferCancelWatch:
                 if notified is None:
                     await asyncio.wait({task}, timeout=POLL_SECONDS)
                 else:
-                    await _first_done(task, notified)
+                    await _first_done(task, notified, POLL_SECONDS if self._backstop else None)
                 if task.done():
                     return task.result()
                 raise_if_transfer_cancelled(self.cancel, operation=operation)
@@ -190,8 +225,6 @@ class TransferCancelWatch:
                     # by polling from here on.
                     self._notified = None
         except BaseException:
-            if not task.done():
-                task.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await task
+            task.cancel()
+            await _settle(task)
             raise
