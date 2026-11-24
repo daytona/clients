@@ -1042,12 +1042,12 @@ class AsyncSandbox(SandboxDto):
 
         Example:
             ```python
-            daytona = AsyncDaytona()
-            sandbox = await daytona.create()
-            # ... use sandbox ...
-            await sandbox.delete()  # Returns once the deletion request is accepted
-            # Or, to return once the Sandbox is destroyed:
-            # await sandbox.delete(wait=True)
+            async with AsyncDaytona() as daytona:
+                sandbox = await daytona.create()
+                # ... use sandbox ...
+                await sandbox.delete()  # Returns once the deletion request is accepted
+                # Or, to return once the Sandbox is destroyed:
+                # await sandbox.delete(wait=True)
             ```
         """
         subscription: wait_poll.WaitSubscription | None = None
