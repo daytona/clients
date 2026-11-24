@@ -1,0 +1,52 @@
+sdk-typescript/src/v2/pathSegment.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 8
+sdk-typescript/src/v2/pageParams.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 7
+sdk-typescript/src/v2/contextPath.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 6
+sdk-python/src/daytona/v2/services.py
+  s_f5de312c07bd15::t_0a8434bdbbc2da 783
+changelog.d/find-by-name-region-filter.fixed.md
+  s_f5de312c07bd15::t_c853988bef1376 4-7
+sdk-typescript/src/v2/builderText.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 6
+sdk-typescript/src/v2/options.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 7
+sdk-typescript/src/v2/pyText.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 39-55
+sdk-typescript/src/v2/Volume.ts
+  s_f5de312c07bd15::t_0a8434bdbbc2da 171
+sdk-typescript/tests/service-correctness.test.ts
+  s_f5de312c07bd15::t_0d99ff50743949 150-157
+sdk-python/tests/test_service_correctness.py
+  s_f5de312c07bd15::t_0d99ff50743949 11,260-272,380-388,391
+changelog.d/python-current-api-key-sync-flag.fixed.md
+  s_f5de312c07bd15::t_c853988bef1376 1,4-6
+changelog.d/label-unicode-checks.fixed.md
+  s_f5de312c07bd15::t_c853988bef1376 2-7,9
+changelog.d/volume-get-or-create-race.fixed.md
+  s_f5de312c07bd15::t_c853988bef1376 5-6
+sdk-typescript/src/v2/Sandbox.ts
+  s_f5de312c07bd15::t_14e77adf3b6736 10
+  s_f5de312c07bd15::t_23767fccbcb23f 8
+sdk-go/service_correctness_test.go
+  s_f5de312c07bd15::t_0472f1eaf11272 267-271,277,282-283,285
+sdk-typescript/src/v2/clientCreateNames.ts
+  s_f5de312c07bd15::t_23767fccbcb23f 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5f74cb7e7a49dc53718d152cde6a5d97ace0afe",
+  "prompts": {},
+  "sessions": {
+    "s_f5de312c07bd15": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10bfb12ffeoB4c7hWnTUt2q8",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
