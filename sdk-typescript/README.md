@@ -1108,9 +1108,10 @@ in the Python SDK: `BadRequestError`, `AuthenticationError` (401),
 `RequestTimeoutError` (408), `ClientTimeoutError` (the client's own request
 timeout), `ConnectionError`, … They also expose `traceId` (v0 errors carry
 none), and the status-level bases have code-specific subclasses so you can
-catch as broadly or narrowly as you need. `error.name` is the class name
-(`'NotFoundError'`), also in minified production bundles; your own
-subclasses keep theirs. A call into a sandbox that is not
+catch as broadly or narrowly as you need. The error name of a root or
+`@daytona/sdk/v2` class is its class name (`'NotFoundError'`), also in
+minified production bundles; your own subclasses keep theirs (errors from
+`daytona.v0` are the 0.x SDK's, named as in 0.x). A call into a sandbox that is not
 running (a stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git`
 or the other in-sandbox namespaces, throws `SandboxNotRunningError` (409,
 `SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview URLs
