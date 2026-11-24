@@ -1138,8 +1138,9 @@ Every wait that reads the server (sandbox waits, `docker.wait_until_ready()`,
 `timeout`, the readiness waits of `images.pull()` and `create_from_build()`)
 retries a read that fails transiently (no response, a stalled read, HTTP 429
 other than `LIMIT_EXCEEDED`, or a 5xx other than 501) with backoff (0.2 s
-doubling to 5 s, or the server's `Retry-After` when longer) within the same
-budget. When the budget runs out, its timeout error carries the last failed
+doubling to 5 s, or the server's retry hint when longer: the error's
+`retry_after_ms` / `retry_after_seconds`, else the `Retry-After` header)
+within the same budget. When the budget runs out, its timeout error carries the last failed
 read as `__cause__`; a wait without a deadline keeps retrying until the server
 answers or the caller cancels. Any other failure, such as an authentication
 error, is raised at once, with one exception: while the events stream is live,

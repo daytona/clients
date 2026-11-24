@@ -518,8 +518,13 @@ async def test_create_from_build_retries_a_transient_readiness_read(build_timeou
     )
     assert sandbox.id == "sbx"
     assert [spec.method for spec in transport.specs] == ["POST", "GET", "GET", "GET", "POST"]
-    # The default budget repeats holds without a deadline instead of one hold.
-    assert "timeout_ms" in transport.specs[3].params
+    retried = transport.specs[3]
+    if not build_timeout:
+        # The default budget repeats full holds with no deadline (the read gets
+        # the hold plus its 5 s slack), never the single unbounded hold.
+        assert (retried.params["timeout_ms"], retried.timeout) == (60_000, 65.0)
+    else:
+        assert retried.timeout is not None and retried.timeout <= 60
 
 
 class _ProbingHub:

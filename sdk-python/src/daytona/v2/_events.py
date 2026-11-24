@@ -727,7 +727,9 @@ class WaitHub:
         ``sandbox_poll_fn`` — if provided — is used as the fallback poller
         instead of the hub's own HTTP client, so callers can supply the
         sandbox's own transport-aware ``refresh_data`` as the poll source.
-        ``read_retry`` retries its transient failures (:mod:`._read_retry`).
+        ``read_retry`` lets the fallback poll loop retry ``sandbox_poll_fn``'s
+        transient failures (:mod:`._read_retry`); the hub's own fallback
+        (without ``sandbox_poll_fn``) does not use it.
         """
         deadline = None if (timeout is None or timeout == 0) else _clock.monotonic() + timeout
 
