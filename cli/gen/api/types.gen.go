@@ -4057,8 +4057,9 @@ type MacosSettings struct {
 
 // MemberLimits defines model for MemberLimits.
 type MemberLimits struct {
-	// Limit The effective cap; `null` means no limit. A ceiling, not a
-	// reservation: reaching it refuses new work, but nothing is set aside.
+	// Limit The effective cap; `null` means no limit, except on a count whose
+	// limit is not returned. A ceiling, not a reservation: reaching it
+	// refuses new work, but nothing is set aside.
 	Limit *int64 `json:"limit"`
 
 	// PendingInvitations Invitations that reserve a member slot until accepted or declined.
@@ -4416,7 +4417,7 @@ type OrganizationFeatureFlags struct {
 	Flags map[string]bool `json:"flags"`
 }
 
-// OrganizationLimits defines model for OrganizationLimits.
+// OrganizationLimits An organization's limits and current usage. Some organization limits are not returned. Daytona determines them for each organization to keep the platform available for everyone. A create that reaches one is refused with `LIMIT_EXCEEDED`; contact support to request a higher limit.
 type OrganizationLimits struct {
 	// ApiKeysPerOrganization The organization's live API-key limit and current usage.
 	ApiKeysPerOrganization UsageLimit `json:"api_keys_per_organization"`
@@ -4445,7 +4446,7 @@ type OrganizationLimits struct {
 	// SecretsPerProject The maximum number of secrets in any one project and the highest current usage.
 	SecretsPerProject UsageLimit `json:"secrets_per_project"`
 
-	// Storage Volume, image, and snapshot count limits.
+	// Storage Volume, image, and snapshot counts. Their organization limits are not returned.
 	Storage StorageLimits `json:"storage"`
 }
 
@@ -5255,6 +5256,12 @@ type ProjectBudget struct {
 	UpdatedAt *time.Time `json:"updated_at"`
 }
 
+// ProjectImageBuildLimits The project's concurrent image-build limit and current usage.
+type ProjectImageBuildLimits struct {
+	// Concurrent The project's concurrent image-build limit and current usage.
+	Concurrent UsageLimit `json:"concurrent"`
+}
+
 // ProjectLifecycleDefaults defines model for ProjectLifecycleDefaults.
 type ProjectLifecycleDefaults struct {
 	// Ephemeral Defaults for ephemeral sandboxes.
@@ -5270,11 +5277,14 @@ type ProjectLifecyclePolicy struct {
 	Policy ProjectLifecycleDefaults `json:"policy"`
 }
 
-// ProjectLimits The project's own sandbox limits, each with the project's current usage
-// against it.
+// ProjectLimits The project's own limits on sandboxes and image builds, each with the
+// project's current usage against it.
 type ProjectLimits struct {
-	// Sandboxes The project's sandbox count limits. A stored limit is always returned,
-	// and takes effect only while limit enforcement is turned on.
+	// ImageBuilds The project's image-build limits.
+	ImageBuilds ProjectImageBuildLimits `json:"image_builds"`
+
+	// Sandboxes The project's sandbox counts. Only the concurrent count can carry a
+	// project limit.
 	Sandboxes ProjectSandboxLimits `json:"sandboxes"`
 }
 
@@ -5320,17 +5330,21 @@ type ProjectPage struct {
 	Projects []Project `json:"projects"`
 }
 
-// ProjectSandboxLimits The three sandbox counts a project can be limited on, each with its
-// limit and current usage.
+// ProjectSandboxLimits The project's sandbox counts, each with its current usage. Only the
+// concurrent count can carry a project limit.
 type ProjectSandboxLimits struct {
 	// Concurrent The project's concurrent sandbox limit and current usage.
 	Concurrent UsageLimit `json:"concurrent"`
 
-	// Persistent The project's persistent sandbox limit and current usage. Stopped and
-	// paused persistent sandboxes count.
+	// Persistent The project's persistent sandbox count. Stopped and paused persistent
+	// sandboxes count. Projects have no persistent sandbox limit of their
+	// own, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Persistent UsageLimit `json:"persistent"`
 
-	// Total The project's total sandbox limit and current usage.
+	// Total The project's total sandbox count. Projects have no total sandbox
+	// limit of their own, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Total UsageLimit `json:"total"`
 }
 
@@ -5933,7 +5947,8 @@ type SandboxLimits struct {
 	// Concurrent The concurrent sandbox limit and current usage.
 	Concurrent UsageLimit `json:"concurrent"`
 
-	// Total The total sandbox limit and current usage.
+	// Total The total sandbox count. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Total UsageLimit `json:"total"`
 }
 
@@ -6634,13 +6649,16 @@ type SsoSetupLink struct {
 
 // StorageLimits defines model for StorageLimits.
 type StorageLimits struct {
-	// Images The image limit and current usage. Captured, built, and imported images count; failed images do not.
+	// Images The image count. Captured, built, and imported images count; failed images do not. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Images UsageLimit `json:"images"`
 
-	// Snapshots The snapshot limit and current usage. Failed snapshots do not count.
+	// Snapshots The snapshot count. Failed snapshots do not count. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Snapshots UsageLimit `json:"snapshots"`
 
-	// Volumes The volume limit and current usage. Deleted volumes do not count.
+	// Volumes The volume count. Deleted volumes do not count. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Volumes UsageLimit `json:"volumes"`
 }
 
@@ -6771,16 +6789,22 @@ type UpdateProjectLifecyclePolicyRequest struct {
 // stored value, `null` removes it, and an integer sets it. Unknown fields
 // are refused.
 type UpdateProjectLimitsRequest struct {
+	// MaxConcurrentBuilds The most image builds the project may run at once, or null for no
+	// project limit.
+	MaxConcurrentBuilds *int64 `json:"max_concurrent_builds,omitempty"`
+
 	// MaxConcurrentVms The most sandboxes the project may run at once, or null for no project
 	// limit.
 	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
 
-	// MaxPersistentVms The most persistent sandboxes the project may have, or null for no
-	// project limit.
+	// MaxPersistentVms Cannot be set on a project: projects do not limit their persistent sandbox count. Send null
+	// or omit it; an integer is refused.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
 
-	// MaxTotalVms The most sandboxes the project may have, resting ones included, or null
-	// for no project limit.
+	// MaxTotalVms Cannot be set on a project: projects do not limit their total sandbox count. Send null or
+	// omit it; an integer is refused.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`
 }
 
@@ -6851,8 +6875,9 @@ type UsageHistoryResolution string
 
 // UsageLimit defines model for UsageLimit.
 type UsageLimit struct {
-	// Limit The effective cap; `null` means no limit. A ceiling, not a
-	// reservation: reaching it refuses new work, but nothing is set aside.
+	// Limit The effective cap; `null` means no limit, except on a count whose
+	// limit is not returned. A ceiling, not a reservation: reaching it
+	// refuses new work, but nothing is set aside.
 	Limit *int64 `json:"limit"`
 
 	// Usage The current usage counted against the limit.
