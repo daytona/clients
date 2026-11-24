@@ -102,6 +102,18 @@ class DaytonaError(_shared.DaytonaError):
         self.request_id = request_id
         self.retry_after_ms = retry_after_ms
 
+    def __reduce__(self) -> tuple[object, ...]:
+        # Rebuilt without calling __init__: several subclasses take arguments
+        # other than the message (SandboxTerminalStateError(sandbox_id, state),
+        # ...), so replaying ``args`` into them, as BaseException does, fails or
+        # corrupts their fields. pickle and copy restore the attributes after.
+        return (_rebuild_error, (type(self), self.args), self.__dict__)
+
+
+def _rebuild_error(cls: Type[DaytonaError], args: tuple[object, ...]) -> DaytonaError:
+    """An instance of ``cls`` with ``args`` and no state yet (internal; see ``DaytonaError.__reduce__``)."""
+    return cls.__new__(cls, *args)
+
 
 class ClientClosedError(DaytonaError):
     """A request was started on a closed client; no HTTP status applies."""
