@@ -82,6 +82,12 @@ const CodeUnsupportedVolumeType = "UNSUPPORTED_VOLUME_TYPE"
 // ErrUnsupportedVolumeType matches code UNSUPPORTED_VOLUME_TYPE, independently of its source.
 var ErrUnsupportedVolumeType = codeSentinel{"UNSUPPORTED_VOLUME_TYPE", 400}
 
+// CodeVolumeNotFound is VOLUME_NOT_FOUND (API).
+const CodeVolumeNotFound = "VOLUME_NOT_FOUND"
+
+// ErrVolumeNotFound matches code VOLUME_NOT_FOUND, independently of its source.
+var ErrVolumeNotFound = codeSentinel{"VOLUME_NOT_FOUND", 404}
+
 // CodeCreateBodyTooLarge is CREATE_BODY_TOO_LARGE (API, ROUTER).
 const CodeCreateBodyTooLarge = "CREATE_BODY_TOO_LARGE"
 
@@ -117,12 +123,6 @@ const CodeRegionLimitReached = "REGION_LIMIT_REACHED"
 
 // ErrRegionLimitReached matches code REGION_LIMIT_REACHED, independently of its source.
 var ErrRegionLimitReached = codeSentinel{"REGION_LIMIT_REACHED", 409}
-
-// CodeRegionNotEmpty is REGION_NOT_EMPTY (API).
-const CodeRegionNotEmpty = "REGION_NOT_EMPTY"
-
-// ErrRegionNotEmpty matches code REGION_NOT_EMPTY, independently of its source.
-var ErrRegionNotEmpty = codeSentinel{"REGION_NOT_EMPTY", 409}
 
 func catalogStatus2(source, code string) int {
 	switch code {
@@ -178,6 +178,10 @@ func catalogStatus2(source, code string) int {
 		if source == "DAYTONA_API" {
 			return 400
 		}
+	case "VOLUME_NOT_FOUND":
+		if source == "DAYTONA_API" {
+			return 404
+		}
 	case "CREATE_BODY_TOO_LARGE":
 		if source == "DAYTONA_API" || source == "DAYTONA_ROUTER" {
 			return 413
@@ -199,10 +203,6 @@ func catalogStatus2(source, code string) int {
 			return 400
 		}
 	case "REGION_LIMIT_REACHED":
-		if source == "DAYTONA_API" {
-			return 409
-		}
-	case "REGION_NOT_EMPTY":
 		if source == "DAYTONA_API" {
 			return 409
 		}

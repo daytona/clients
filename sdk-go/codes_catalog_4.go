@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeBillingForbidden is BILLING_FORBIDDEN (API).
+const CodeBillingForbidden = "BILLING_FORBIDDEN"
+
+// ErrBillingForbidden matches code BILLING_FORBIDDEN, independently of its source.
+var ErrBillingForbidden = codeSentinel{"BILLING_FORBIDDEN", 502}
+
 // CodeBillingError is BILLING_ERROR (API).
 const CodeBillingError = "BILLING_ERROR"
 
@@ -118,14 +124,12 @@ const CodeIdleOutOfRange = "IDLE_OUT_OF_RANGE"
 // ErrIdleOutOfRange matches code IDLE_OUT_OF_RANGE, independently of its source.
 var ErrIdleOutOfRange = codeSentinel{"IDLE_OUT_OF_RANGE", 400}
 
-// CodeCreateTTLOutOfRange is CREATE_TTL_OUT_OF_RANGE (API).
-const CodeCreateTTLOutOfRange = "CREATE_TTL_OUT_OF_RANGE"
-
-// ErrCreateTTLOutOfRange matches code CREATE_TTL_OUT_OF_RANGE, independently of its source.
-var ErrCreateTTLOutOfRange = codeSentinel{"CREATE_TTL_OUT_OF_RANGE", 400}
-
 func catalogStatus4(source, code string) int {
 	switch code {
+	case "BILLING_FORBIDDEN":
+		if source == "DAYTONA_API" {
+			return 502
+		}
 	case "BILLING_ERROR":
 		if source == "DAYTONA_API" {
 			return 502
@@ -199,10 +203,6 @@ func catalogStatus4(source, code string) int {
 			return 409
 		}
 	case "IDLE_OUT_OF_RANGE":
-		if source == "DAYTONA_API" {
-			return 400
-		}
-	case "CREATE_TTL_OUT_OF_RANGE":
 		if source == "DAYTONA_API" {
 			return 400
 		}

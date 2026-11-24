@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeCreateTTLOutOfRange is CREATE_TTL_OUT_OF_RANGE (API).
+const CodeCreateTTLOutOfRange = "CREATE_TTL_OUT_OF_RANGE"
+
+// ErrCreateTTLOutOfRange matches code CREATE_TTL_OUT_OF_RANGE, independently of its source.
+var ErrCreateTTLOutOfRange = codeSentinel{"CREATE_TTL_OUT_OF_RANGE", 400}
+
 // CodeSnapshotNotFound is SNAPSHOT_NOT_FOUND (API).
 const CodeSnapshotNotFound = "SNAPSHOT_NOT_FOUND"
 
@@ -118,14 +124,12 @@ const CodeUserSuspended = "USER_SUSPENDED"
 // ErrUserSuspended matches code USER_SUSPENDED, independently of its source.
 var ErrUserSuspended = codeSentinel{"USER_SUSPENDED", 403}
 
-// CodeWorkloadPlaneElsewhere is WORKLOAD_PLANE_ELSEWHERE (API).
-const CodeWorkloadPlaneElsewhere = "WORKLOAD_PLANE_ELSEWHERE"
-
-// ErrWorkloadPlaneElsewhere matches code WORKLOAD_PLANE_ELSEWHERE, independently of its source.
-var ErrWorkloadPlaneElsewhere = codeSentinel{"WORKLOAD_PLANE_ELSEWHERE", 501}
-
 func catalogStatus5(source, code string) int {
 	switch code {
+	case "CREATE_TTL_OUT_OF_RANGE":
+		if source == "DAYTONA_API" {
+			return 400
+		}
 	case "SNAPSHOT_NOT_FOUND":
 		if source == "DAYTONA_API" {
 			return 404
@@ -201,10 +205,6 @@ func catalogStatus5(source, code string) int {
 	case "USER_SUSPENDED":
 		if source == "DAYTONA_API" {
 			return 403
-		}
-	case "WORKLOAD_PLANE_ELSEWHERE":
-		if source == "DAYTONA_API" {
-			return 501
 		}
 	}
 	return 0
