@@ -64,7 +64,37 @@ func (a *App) Credential(ctx context.Context) (string, error) {
 		return "", cerr.New(cerr.ExitAuth, "not logged in").
 			WithHint("run `daytona login`, or pass --api-key / set DAYTONA_API_KEY")
 	}
-	return a.credentialFn(ctx)
+	cred, err := a.credentialFn(ctx)
+	if err != nil {
+		return "", err
+	}
+	if err := a.checkCredential(cred); err != nil {
+		return "", err
+	}
+	return cred, nil
+}
+
+// checkCredential refuses a credential no HTTP header can carry before any
+// request, naming where it came from but never its value. A static
+// credential is otherwise sent exactly as given.
+func (a *App) checkCredential(cred string) error {
+	problem := api.CredentialProblem(cred)
+	if problem == "" {
+		return nil
+	}
+	switch a.CredentialSource {
+	case "flag":
+		return cerr.Usage("--api-key contains %s", problem).
+			WithHint("pass the credential without it (the value is never printed)")
+	case "env":
+		return cerr.Usage("DAYTONA_API_KEY contains %s", problem).
+			WithHint("check how DAYTONA_API_KEY is set: a value read from a file can keep its line break (the value is never printed)")
+	case "profile-token":
+		return cerr.Usage("profile %q's saved credential contains %s", a.Profile.Name, problem).
+			WithHint("save it again with `daytona login --token`, or sign in with `daytona login`")
+	}
+	return cerr.Usage("the login's access token contains %s", problem).
+		WithHint("sign in again with `daytona login`")
 }
 
 // Client returns an authenticated API client against the profile's base URL.

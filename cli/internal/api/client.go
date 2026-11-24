@@ -61,6 +61,41 @@ func New(baseURL, credential, version string) *Client {
 	}
 }
 
+// CredentialProblem says why cred cannot be sent as `Authorization: Bearer
+// <cred>`, or "" when it can: a bearer is printable ASCII, so a control
+// character (a line break or tab left over from a file) or a non-ASCII
+// character is refused before any request. The answer never contains the
+// credential.
+func CredentialProblem(cred string) string {
+	for i := 0; i < len(cred); i++ {
+		switch b := cred[i]; {
+		case b >= 0x80:
+			return "a non-ASCII character"
+		case b < 0x20 || b == 0x7f:
+			return "a control character (such as a line break or a tab)"
+		}
+	}
+	return ""
+}
+
+// credentialError is the backstop for a bearer no caller checked (one the
+// server minted): a usage error naming the problem, never the value, instead
+// of the HTTP client's "invalid header field value" reported as a network
+// failure.
+func credentialError(cred string) error {
+	problem := CredentialProblem(cred)
+	if problem == "" {
+		return nil
+	}
+	return cerr.Usage("the request credential contains %s, which an HTTP header cannot carry", problem).
+		WithHint("check --api-key / DAYTONA_API_KEY, or sign in again with `daytona login`")
+}
+
+// CheckCredential returns credentialError for c's bearer.
+func (c *Client) CheckCredential() error {
+	return credentialError(c.Credential)
+}
+
 // SetIdentityHeaders stamps the client-identity triple onto req.
 func (c *Client) SetIdentityHeaders(req *http.Request) {
 	req.Header.Set("User-Agent", c.UserAgent)
@@ -173,6 +208,9 @@ func (c *Client) StreamNoTimeout(ctx context.Context, method, path string, query
 }
 
 func (c *Client) raw(ctx context.Context, method, path string, query url.Values, headers http.Header, body io.Reader, contentType string, noClientTimeout bool) (*http.Response, error) {
+	if err := c.CheckCredential(); err != nil {
+		return nil, err
+	}
 	u := c.BaseURL + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()

@@ -7,6 +7,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/config"
@@ -79,6 +80,9 @@ Examples:
 }
 
 func loginToken(ctx context.Context, a *app.App, token string) error {
+	if problem := api.CredentialProblem(token); problem != "" {
+		return cerr.Usage("--token contains %s", problem).WithHint("pass the credential without it (the value is never printed)")
+	}
 	base, name := a.APIURL(), a.Profile.Name
 	err := a.Store.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
 		p := config.Profile{Name: name, APIURL: base, Credential: "token"}

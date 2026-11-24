@@ -145,3 +145,26 @@ func TestWithTimeoutAtLeast_onlyLengthensABoundedTimeout(t *testing.T) {
 		t.Fatalf("unbounded timeout became %v", got)
 	}
 }
+
+// A bearer no header can carry (one the server minted, which no caller
+// checked) is refused before the request as a usage error that does not
+// contain it, instead of the HTTP client's error reported as a network
+// failure with "check the API URL".
+func TestDoRefusesACredentialAHeaderCannotCarry(t *testing.T) {
+	var requests int
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }))
+	defer srv.Close()
+	for _, cred := range []string{"tok-secret\n", "tok-secret\x00", "tok-secreté"} {
+		err := New(srv.URL, cred, "test").Do(context.Background(), "GET", "/x", nil, nil, nil)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "the request credential contains") ||
+			strings.Contains(err.Error(), "tok-secret") || strings.Contains(cerr.DetailsOf(err).Hint, "network") {
+			t.Fatalf("%q: %v (hint %q)", cred, err, cerr.DetailsOf(err).Hint)
+		}
+	}
+	if requests != 0 {
+		t.Fatalf("%d requests sent", requests)
+	}
+	if got := CredentialProblem("dtn_abc DEF~"); got != "" {
+		t.Fatalf("printable ASCII refused: %q", got)
+	}
+}
