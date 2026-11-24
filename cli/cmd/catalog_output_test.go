@@ -113,4 +113,10 @@ func TestSandboxUsageHistoryTableShowsThePeriods(t *testing.T) {
 	stdout, _, err = runCLIWithOutput(t, "table", []string{"sandbox", "usage", id, "--history"}, []expectedRequest{detail, unavailable})
 	require.NoError(t, err)
 	require.Equal(t, "Usage history is not available for sandbox "+id+".\n", stdout)
+
+	empty := history
+	empty.response = `{"available":true,"resolution":"hour","sandbox_id":"` + id + `","periods":[]}`
+	stdout, _, err = runCLIWithOutput(t, "table", []string{"sandbox", "usage", id, "--history"}, []expectedRequest{detail, empty})
+	require.NoError(t, err)
+	require.Equal(t, "Resolution: one row per hour\n\nNo results.\n", stdout)
 }
