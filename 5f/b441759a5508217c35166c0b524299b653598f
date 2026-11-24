@@ -1,0 +1,30 @@
+changelog.d/python-transfer-cancel-wakeups.fixed.md
+  s_24803b7d9359b3::t_d79b202d31cf54 6-7
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  s_24803b7d9359b3::t_ff4f404213d112 10-14,54-55
+  s_24803b7d9359b3::t_e5969c1e179dad 59,177,200,206-208,238,243-244
+sdk-python/src/daytona/v2/filesystem.py
+  s_24803b7d9359b3::t_d79b202d31cf54 491-492
+sdk-python/tests/test_transfer_cancel.py
+  s_24803b7d9359b3::t_c11fa567d3605e 6-9,101,104,106,175-176,178,218-222,240-244,309,313,326,334,592-593,595,598,604,626-667
+sdk-python/README.md
+  s_24803b7d9359b3::t_d79b202d31cf54 1037-1038
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_24803b7d9359b3::t_d79b202d31cf54 73-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5fb441759a5508217c35166c0b524299b653598f",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
