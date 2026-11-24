@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Requests made while the interpreter shuts down (an ``atexit`` handler, a
-thread still running after the program ended) get a typed
-``ClientClosedError`` instead of a bare ``RuntimeError``, and are refused
-before anything is sent when they run in an ``atexit`` handler. A thread that
+thread still running after the program ended or while Python stops its
+thread pools) get a typed ``ClientClosedError`` instead of a bare
+``RuntimeError``, from the sync and the async client, and are refused before
+anything is sent when they run in an ``atexit`` handler. A thread that
 outlives the program keeps working while the pools it needs still run."""
 
 from __future__ import annotations
@@ -13,6 +14,8 @@ import json
 import subprocess
 import sys
 import textwrap
+import threading
+import types
 from pathlib import Path
 from typing import Dict, List
 
@@ -197,6 +200,122 @@ def test_a_request_that_needs_a_stopped_pool_after_the_program_ended_is_typed() 
     assert report["message"] == SHUTDOWN_REFUSAL
     assert report["cause"] == "RuntimeError"
     assert report["hits"] == ["GET /sandboxes/sbx-1"]
+
+
+def _assert_mapped(report: Dict[str, object], hits: List[str]) -> None:
+    assert report["error"] == "ClientClosedError"
+    assert report["code"] == "CLIENT_CLOSED"
+    assert report["message"] == SHUTDOWN_REFUSAL
+    assert report["cause"] == "RuntimeError"
+    assert report["hits"] == hits
+
+
+def test_a_first_request_after_the_program_ended_is_typed() -> None:
+    # The process's first DNS lookup creates its first thread pool, which
+    # Python refuses to register once shutdown began.
+    (report,) = _run(
+        """
+        from daytona import Daytona, DaytonaConfig
+        client = Daytona(DaytonaConfig(api_key="k"))
+
+        def worker():
+            deadline = time.monotonic() + 30
+            while threading.main_thread().is_alive() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            try:
+                client.v2.get("sbx-2")
+            except Exception as error:
+                report("worker", error)
+            else:
+                report("worker")
+
+        threading.Thread(target=worker).start()
+        """
+    )
+    _assert_mapped(report, [])
+
+
+def test_the_async_client_after_the_program_ended_is_typed() -> None:
+    (report,) = _run(
+        """
+        from daytona import AsyncDaytona, DaytonaConfig
+
+        async def get():
+            async with AsyncDaytona(DaytonaConfig(api_key="k")) as client:
+                await client.v2.get("sbx-2")
+
+        def worker():
+            deadline = time.monotonic() + 30
+            while threading.main_thread().is_alive() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            try:
+                asyncio.run(get())
+            except Exception as error:
+                report("worker", error)
+            else:
+                report("worker")
+
+        threading.Thread(target=worker).start()
+        """
+    )
+    _assert_mapped(report, [])
+
+
+def test_a_request_while_python_stops_its_thread_pools_is_typed() -> None:
+    # Python joins the thread pools' workers before it marks the main thread
+    # finished: an executor job still running at exit holds that window open.
+    (report,) = _run(
+        """
+        import concurrent.futures
+        import concurrent.futures.thread as pools
+        from daytona import Daytona, DaytonaConfig
+        client = Daytona(DaytonaConfig(api_key="k"))
+        try:
+            client.v2.get("sbx-1")
+        except Exception:
+            pass
+        concurrent.futures.ThreadPoolExecutor().submit(time.sleep, 3)
+
+        def worker():
+            deadline = time.monotonic() + 30
+            while not pools._shutdown and time.monotonic() < deadline:
+                time.sleep(0.005)
+            alive = threading.main_thread().is_alive()
+            try:
+                client.v2.get("sbx-2")
+            except Exception as error:
+                report("main_alive=%s" % alive, error)
+            else:
+                report("main_alive=%s" % alive)
+
+        threading.Thread(target=worker).start()
+        """
+    )
+    assert report["label"] == "main_alive=True"
+    _assert_mapped(report, ["GET /sandboxes/sbx-1"])
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "cannot schedule new futures after interpreter shutdown",
+        "cannot schedule new futures after shutdown",
+        "can't create new thread at interpreter shutdown",
+        "can't register atexit after shutdown",
+    ],
+)
+@pytest.mark.parametrize("flag", ["threading", "concurrent.futures"])
+def test_a_stopped_pool_error_maps_once_python_began_stopping_its_pools(
+    flag: str, message: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert shutdown_refusal_for(RuntimeError(message)) is None
+    if flag == "threading":
+        monkeypatch.setattr(threading, "_SHUTTING_DOWN", True, raising=False)
+    else:
+        monkeypatch.setitem(sys.modules, "concurrent.futures.thread", types.SimpleNamespace(_shutdown=True))
+    assert isinstance(shutdown_refusal_for(RuntimeError(message)), ClientClosedError)
+    assert shutdown_refusal_for(RuntimeError("some other failure")) is None
+    assert interpreter_shutting_down() is False, "the program's own requests are not refused"
 
 
 def test_requests_are_allowed_while_the_program_runs() -> None:

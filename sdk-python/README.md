@@ -80,19 +80,21 @@ sandboxes it created. Clean up sandboxes while the program still runs, for
 example in a `try`/`finally` around the code that uses them:
 
 ```python
-sandbox = d.v2.create()
-try:
-    sandbox.process.run("echo hello")
-finally:
-    sandbox.delete()
+with Daytona() as d:
+    sandbox = d.v2.create()
+    try:
+        sandbox.process.run("echo hello")
+    finally:
+        sandbox.delete()
 ```
 
 Requests cannot run once the interpreter is shutting down, so cleanup
-registered with `atexit` (or run from a finalizer) does not work: the SDK
+registered with `atexit` (or run from a finalizer) never works: the SDK
 refuses a request made from an `atexit` handler with `ClientClosedError`
-before sending it, and a request from a thread still running after the program
-ended raises the same error when it needs one of the thread pools Python has
-already stopped.
+before sending it, with the sync or the async client. A request from another
+thread still running after the program ended (or while Python stops its
+thread pools at exit) raises the same error when it needs a thread pool
+Python has already stopped, such as for a DNS lookup.
 
 `d.v2` on the sync `Daytona` runs the async implementation on a private
 background event loop and blocks the calling thread. Calling it from inside a

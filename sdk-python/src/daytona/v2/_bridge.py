@@ -161,6 +161,8 @@ class SyncBridge:
                 future = self._portal_locked().start_task_soon(run_and_signal)
             return future.result()
         except RuntimeError as error:
+            # Starting the bridge's loop thread, or the loop's own work, needs
+            # threads shutdown may have stopped.
             refusal = shutdown_refusal_for(error)
             if refusal is None:
                 raise

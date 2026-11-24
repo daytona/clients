@@ -12,17 +12,25 @@ be reusable. The SDK refuses such a request before sending it, with a
 
 Shutdown is detected on the main thread, where ``atexit`` handlers run, once
 it has finished the program (``threading.main_thread().is_alive()`` is false
-from then on), and anywhere once the interpreter is finalizing. A non-daemon
-thread the interpreter is still waiting for keeps working; when one of its
-requests fails because a thread pool has stopped, that failure gets the same
-``ClientClosedError`` instead of the bare ``RuntimeError``.
+from then on), and anywhere once the interpreter is finalizing. Another
+thread still running after the program ended keeps working; when one of its
+requests fails because a thread pool has stopped (or cannot be started any
+more), the sync and async clients raise the same ``ClientClosedError``
+instead of the bare ``RuntimeError``.
+
+Python stops its thread pools in ``threading._shutdown()`` before it marks
+the main thread finished, so a failure is also mapped once that has begun:
+``threading._SHUTTING_DOWN`` or ``concurrent.futures.thread._shutdown`` is
+set. Both are private, so they are read with a fallback; the error message
+must match a stopped pool too.
 """
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import threading
-from typing import Optional
+from typing import Iterator, Optional
 
 from .errors import ClientClosedError
 
@@ -37,6 +45,8 @@ SHUTDOWN_REFUSAL = (
 _STOPPED_POOL_MESSAGES = (
     "cannot schedule new futures after",
     "can't create new thread at interpreter shutdown",
+    # The first thread pool of the process, created after shutdown began.
+    "can't register atexit after shutdown",
 )
 
 
@@ -52,10 +62,31 @@ def refuse_during_interpreter_shutdown() -> None:
         raise ClientClosedError(SHUTDOWN_REFUSAL)
 
 
+def _shutdown_began() -> bool:
+    if sys.is_finalizing() or not threading.main_thread().is_alive():
+        return True
+    if getattr(threading, "_SHUTTING_DOWN", False) is True:
+        return True
+    pools = sys.modules.get("concurrent.futures.thread")
+    return getattr(pools, "_shutdown", False) is True
+
+
 def shutdown_refusal_for(error: RuntimeError) -> Optional[ClientClosedError]:
     """The refusal to raise for ``error``, when shutdown stopped a pool it needed; else None."""
-    if not (sys.is_finalizing() or not threading.main_thread().is_alive()):
-        return None
     if not any(message in str(error) for message in _STOPPED_POOL_MESSAGES):
         return None
+    if not _shutdown_began():
+        return None
     return ClientClosedError(SHUTDOWN_REFUSAL)
+
+
+@contextlib.contextmanager
+def refusing_stopped_pools() -> Iterator[None]:
+    """Raise :func:`shutdown_refusal_for`'s error in place of a stopped pool's ``RuntimeError``."""
+    try:
+        yield
+    except RuntimeError as error:
+        refusal = shutdown_refusal_for(error)
+        if refusal is None:
+            raise
+        raise refusal from error

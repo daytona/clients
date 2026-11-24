@@ -48,7 +48,7 @@ from ._core import (
     parse_json_bytes,
 )
 from ._otel import OpenTelemetrySupport
-from ._shutdown import refuse_during_interpreter_shutdown
+from ._shutdown import refuse_during_interpreter_shutdown, refusing_stopped_pools
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
@@ -717,7 +717,7 @@ class AsyncTransport:
     async def send(self, spec: RequestSpec) -> Union[JsonValue, bytes]:
         # One total deadline for the whole call: resolving the bearer (a token
         # exchange), the request, a 401 refresh and its retry share it.
-        with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
+        with refusing_stopped_pools(), _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
             with self._credential_deadline(spec.transfer, spec.timeout):
                 token = await self._request_token()
             try:
@@ -841,7 +841,10 @@ class AsyncTransport:
         # opening the stream (the bearer, the request, a 401 refresh and its
         # retry, until the response headers arrive), never the stream itself;
         # a transfer has no total bound (it is idle-bounded per phase).
-        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+        with (
+            refusing_stopped_pools(),
+            _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)),
+        ):
             with self._credential_deadline(spec.transfer, spec.timeout):
                 token = await self._request_token()
             try:
@@ -928,7 +931,10 @@ class AsyncTransport:
         self._stream_owners.ensure_open()
         # One deadline for opening it, as for ``open_stream``: the bearer, the
         # request, a 401 refresh and its retry, until the response headers.
-        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+        with (
+            refusing_stopped_pools(),
+            _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)),
+        ):
             token = await self._request_token()
             stream = await self._open_exclusive_once(spec, token)
             if stream.status_code != 401:
@@ -1053,7 +1059,7 @@ class AsyncTransport:
         if content_factory is not None:
             kwargs["content"] = content_factory(0)
         # One total deadline for the bearer, the request, a 401 refresh and its retry.
-        with _request_deadline(total):
+        with refusing_stopped_pools(), _request_deadline(total):
             with self._credential_deadline(transfer, transfer_timeout):
                 token = await self._request_token()
             try:
