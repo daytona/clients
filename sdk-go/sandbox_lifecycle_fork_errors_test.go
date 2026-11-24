@@ -31,7 +31,7 @@ func TestForkRequiresUsableResponseID(t *testing.T) {
 }
 
 func TestForkReturnsAcceptedHandleAfterReadFailure(t *testing.T) {
-	for _, status := range []int{403, 408, 500} {
+	for _, status := range []int{403, 408, 501} {
 		for _, failFirst := range []bool{false, true} {
 			t.Run(http.StatusText(status)+map[bool]string{false: "/wait", true: "/detail"}[failFirst], func(t *testing.T) {
 				// Given
