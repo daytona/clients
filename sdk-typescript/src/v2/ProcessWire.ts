@@ -106,7 +106,10 @@ export function remainingWaitBudgetMs(deadline: number): number {
   return Math.max(0, Math.ceil(deadline - Date.now()))
 }
 
-export const PROCESS_SIGNALS: readonly ProcessSignal[] = ['TERM', 'KILL', 'INT', 'HUP', 'QUIT', 'USR1', 'USR2']
+// Keyed by ProcessSignal, so a signal added to the type fails to compile here until it is listed.
+const SIGNAL_NAMES: { readonly [S in ProcessSignal]: true } = { TERM: true, KILL: true, INT: true, HUP: true, QUIT: true, USR1: true, USR2: true }
+// SAFETY: the keys of SIGNAL_NAMES are exactly ProcessSignal, as its mapped type requires.
+export const PROCESS_SIGNALS = Object.keys(SIGNAL_NAMES) as readonly ProcessSignal[]
 
 /**
  * A signal as the wire spells it (`SIGTERM`). The SDK takes bare names

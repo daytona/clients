@@ -107,6 +107,7 @@ from .types import (
     NamedImageSource,
     ProcessInfo,
     ProcessKind,
+    ProcessSignal,
     ProcessStateFilter,
     RegistryImageSource,
     ReplaceResult,
@@ -1875,7 +1876,7 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/stdin", json_body=body)
 
 
-PROCESS_SIGNALS: Final = ("TERM", "KILL", "INT", "HUP", "QUIT", "USR1", "USR2")
+PROCESS_SIGNALS: Final[tuple[str, ...]] = get_args(ProcessSignal)
 
 # The longest escalation delay the toolbox takes (``escalateAfterMs``).
 ESCALATE_AFTER_MAX_MS: Final = 600_000

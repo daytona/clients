@@ -20,7 +20,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 	if signal == "" {
 		signal = ProcessSignalTerminate
 	}
-	wire, err := processSignalWire(signal)
+	wire, err := processSignalWire(signal, "Signal")
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 		if target == "" {
 			target = ProcessSignalKill
 		}
-		body.EscalateTo, err = processSignalWire(target)
+		body.EscalateTo, err = processSignalWire(target, "EscalateTo")
 		if err != nil {
 			return err
 		}
@@ -56,11 +56,11 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 
 // processSignalWire spells a bare signal name (matched case-insensitively) as
 // the wire does, with the SIG prefix.
-func processSignalWire(signal ProcessSignal) (string, error) {
+func processSignalWire(signal ProcessSignal, field string) (string, error) {
 	// ASCII only: Unicode case mapping would read "kıll" as KILL.
 	name := asciiUpper(string(signal))
 	if processSignal(name) == ProcessSignalUnknown || name == "" {
-		return "", badRequest("Signal must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
+		return "", badRequest(field + " must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
 	}
 	return "SIG" + name, nil
 }

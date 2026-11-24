@@ -49,3 +49,32 @@ func TestKillNormalizesSignalCase(t *testing.T) {
 	// Then the wire gets the upper-case, prefixed names.
 	require.JSONEq(t, `{"signal":"SIGINT","escalateAfterMs":600000,"escalateTo":"SIGKILL"}`, string(fake.requests()[0].Body))
 }
+
+func TestKillNamesTheEscalationTargetWhenItIsInvalid(t *testing.T) {
+	// Given a process handle.
+	sandbox, fake := processTestSandbox(t, map[string]http.HandlerFunc{})
+	handle, err := sandbox.Process().Connect("p")
+	require.NoError(t, err)
+	delay := time.Second
+	// When the escalation target is prefixed.
+	err = handle.Kill(t.Context(), &KillProcessOptions{EscalateAfter: &delay, EscalateTo: "SIGKILL"})
+	// Then the error names EscalateTo, not Signal, and nothing is sent.
+	require.ErrorIs(t, err, ErrBadRequest)
+	require.ErrorContains(t, err, "EscalateTo must be TERM")
+	require.Empty(t, fake.requests())
+}
+
+func TestCreateContextRefusesAnEmptyLanguageBeforeAnyRequest(t *testing.T) {
+	// Given an interpreter whose server would accept any request.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"POST /sessions": jsonHandler(t, map[string]any{"id": "ctx", "kernel": ""}),
+	})
+	service := interpreterTestSandbox(t, fake).Interpreter()
+	// When creating a context with an empty language.
+	result, err := service.CreateContext(t.Context(), "", nil)
+	// Then the SDK refuses it and sends nothing.
+	require.Nil(t, result)
+	require.ErrorIs(t, err, ErrBadRequest)
+	require.ErrorContains(t, err, "language must be a non-empty string")
+	require.Empty(t, fake.requests())
+}
