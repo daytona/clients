@@ -49,11 +49,11 @@ class CreateSandboxRequest(BaseModel):
     idempotency_key: Optional[StrictStr] = Field(default=None, description="Key used to replay the same create operation safely.")
     image: Optional[StrictStr] = Field(default=None, description="Image name or `img_…` id. Omit to boot the platform default image.")
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="User-defined labels.")
-    lifecycle_policy: Optional[UpdateSandboxLifecyclePolicyRequest] = None
+    lifecycle_policy: Optional[UpdateSandboxLifecyclePolicyRequest] = Field(default=None, description="Automatic timeout and idle-expiry behavior.")
     memory_max_mib: Optional[StrictInt] = Field(default=None, description="Per-sandbox memory limit in MiB; same semantics as `cores_max`.")
     memory_mib: Optional[StrictInt] = Field(default=None, description="Reserved memory in MiB.")
     name: Optional[StrictStr] = Field(default=None, description="Sandbox name. A name is generated when omitted.")
-    network_policy: Optional[SetSandboxNetworkPolicyRequest] = None
+    network_policy: Optional[SetSandboxNetworkPolicyRequest] = Field(default=None, description="Outbound network rules applied to the sandbox.")
     ports: Optional[List[PortMapping]] = Field(default=None, description="Ports exposed when the sandbox starts.")
     region_id: Optional[StrictStr] = Field(default=None, description="The region to create the sandbox in. Any listed region, including `earth` (anywhere). When omitted: the project's default region, then the organization's, then `earth`.")
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Secret names made available to the sandbox.")

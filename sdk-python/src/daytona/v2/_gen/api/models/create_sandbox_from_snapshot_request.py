@@ -39,7 +39,7 @@ class CreateSandboxFromSnapshotRequest(BaseModel):
     create_timeout_seconds: Optional[StrictInt] = Field(default=None, description="Seconds allowed for the sandbox to reach `running`. Defaults to 3600; `-1` uses the maximum.")
     idempotency_key: Optional[StrictStr] = Field(default=None, description="Key used to replay the same create operation safely.")
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="User-defined labels.")
-    lifecycle_policy: Optional[UpdateSandboxLifecyclePolicyRequest] = None
+    lifecycle_policy: Optional[UpdateSandboxLifecyclePolicyRequest] = Field(default=None, description="Automatic timeout and idle-expiry behavior.")
     name: Optional[StrictStr] = Field(default=None, description="Sandbox name. A name is generated when omitted.")
     ports: Optional[List[PortMapping]] = Field(default=None, description="Ports exposed when the sandbox starts.")
     region_id: Optional[StrictStr] = Field(default=None, description="The region to create the sandbox in. When omitted, the snapshot's region.")
