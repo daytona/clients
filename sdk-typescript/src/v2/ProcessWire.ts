@@ -106,8 +106,20 @@ export function remainingWaitBudgetMs(deadline: number): number {
   return Math.max(0, Math.ceil(deadline - Date.now()))
 }
 
-export function signalWire(signal: ProcessSignal | undefined): string | undefined {
-  return signal ? `SIG${signal}` : undefined
+export const PROCESS_SIGNALS: readonly ProcessSignal[] = ['TERM', 'KILL', 'INT', 'HUP', 'QUIT', 'USR1', 'USR2']
+
+/**
+ * A signal as the wire spells it (`SIGTERM`). The SDK takes bare names
+ * (`TERM`, not `SIGTERM`), matched case-insensitively.
+ */
+export function signalWire(value: unknown, name: 'signal' | 'escalateTo'): string {
+  const upper = typeof value === 'string' ? value.toUpperCase() : undefined
+  const signal = PROCESS_SIGNALS.find((candidate) => candidate === upper)
+  if (signal === undefined) {
+    const shown = typeof value === 'string' ? `'${value}'` : String(value)
+    throw badRequest(`${name} must be one of ${PROCESS_SIGNALS.join(', ')} (a bare name, without the SIG prefix), got ${shown}`)
+  }
+  return `SIG${signal}`
 }
 
 /** The SDK spells signals without the wire's `SIG` prefix. */
@@ -152,9 +164,9 @@ export function startedProcessKind(started: toolbox.ProcessDto, body: toolbox.Cr
   }
 }
 
-export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessInfo['kind']): UnsupportedOperationError {
+export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessInfo['kind'], namespace: 'process' | 'pty' = 'process'): UnsupportedOperationError {
   return new UnsupportedOperationError(
-    `process.${verb}() is only supported for pty handles; handle kind is ${kind}`,
+    `${namespace}.${verb}() is only supported for pty handles; handle kind is ${kind}`,
     { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
   )
 }
@@ -174,15 +186,35 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
   if (typeof command === 'string') return { cmd: command }
   if (typeof command !== 'object' || command === null) throw badRequest('command must be a string, { cmd } or { argv }')
   assertKnownOptions('ProcessCommand', command, COMMAND_KEYS)
-  if ('argv' in command && command.argv !== undefined) {
-    if (command.cmd !== undefined) throw badRequest('command takes exactly one of cmd or argv')
+  const hasArgv = 'argv' in command && command.argv !== undefined
+  if (hasArgv === (command.cmd !== undefined)) throw badRequest('command takes exactly one of cmd or argv')
+  if (hasArgv) {
     const argv: unknown = command.argv
     if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string')) {
       throw badRequest('argv must be a non-empty array of strings')
     }
     return { argv: [...argv] as string[] }
   }
+  if (typeof command.cmd !== 'string') throw badRequest('command.cmd must be a string')
   return { cmd: command.cmd }
+}
+
+/** A shell command string, refused before any request otherwise. */
+export function shellCommand(command: unknown): string {
+  if (typeof command !== 'string') throw badRequest('command must be a string')
+  return command
+}
+
+/** Interpreter source code: a string (empty is allowed). */
+export function interpreterCode(code: unknown): string {
+  if (typeof code !== 'string') throw badRequest('code must be a string')
+  return code
+}
+
+/** An interpreter language: any non-empty string (the sandbox decides which it supports). */
+export function interpreterLanguage(language: unknown): string {
+  if (typeof language !== 'string' || language === '') throw badRequest('language must be a non-empty string')
+  return language
 }
 
 
@@ -225,12 +257,15 @@ export function runKeepLogs(keepLogs: RunKeepLogs | undefined): RunKeepLogs {
 }
 
 export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
-  const hasShell = typeof spec.cmd === 'string'
+  if (spec.cmd !== undefined) shellCommand(spec.cmd)
+  if (spec.code !== undefined) interpreterCode(spec.code)
+  if (spec.language !== undefined) interpreterLanguage(spec.language)
+  const hasShell = spec.cmd !== undefined
   const hasArgv = Array.isArray(spec.argv)
-  const hasCode = typeof spec.code === 'string'
+  const hasCode = spec.code !== undefined
   const sourceCount = [hasShell, hasArgv, hasCode].filter(Boolean).length
   if (!((spec.kind === 'pty' || spec.kind === 'session') && sourceCount === 0) && sourceCount !== 1) {
-    throw badRequest('exactly one of cmd, argv, or code is required')
+    throw badRequest(hasCode ? 'provide exactly one of command, argv, or code' : 'provide exactly one of command or argv')
   }
   if (hasCode && spec.user !== undefined) {
     throw new UnsupportedOperationError(

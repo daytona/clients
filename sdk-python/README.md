@@ -855,8 +855,9 @@ caller wait budget **(seconds)**, and `timeout=0` means wait unbounded.
 With `encoding="base64"`, `logs()` and `stream_logs()` return each frame's
 `data` as standard padded base64, which `base64.b64decode()` decodes.
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
-runs that support one (omitted or `0`: no deadline); `kill(escalate_after=)` is in seconds too. Signals are
-bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
+runs that support one (omitted or `0`: no deadline); `kill(escalate_after=)` is in seconds too, at most
+600, and `escalate_to=` needs it. Signals are bare names (`"TERM"`, not `"SIGTERM"`; `kill()` matches them
+case-insensitively), in `kill()` and in what `wait()` and `get()` report.
 
 Handles come from the SDK, never from a constructor: `handle.to_json()` returns
 a `ProcessHandleJSON` (the sandbox and process ids, plus the process `kind`

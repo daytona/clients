@@ -1165,11 +1165,11 @@ export interface WaitProcessOptions {
 }
 
 export interface KillOptions {
-  /** Default `'TERM'`. */
+  /** Default `'TERM'`. A bare name, matched case-insensitively. */
   readonly signal?: ProcessSignal
-  /** Send `escalateTo` if the process is still running this many seconds later. */
+  /** Send `escalateTo` if the process is still running this many seconds later (at most 600). */
   readonly escalateAfterSeconds?: number
-  /** Default `'KILL'`. */
+  /** Default `'KILL'`; only with `escalateAfterSeconds`. */
   readonly escalateTo?: ProcessSignal
 }
 
