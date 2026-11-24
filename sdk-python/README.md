@@ -144,7 +144,10 @@ environment when the fields are omitted. Both credentials serve `d.v0` and
 `d.v2`. Environment values are trimmed, and a blank one counts as unset;
 values you pass in `DaytonaConfig` are used as given, and an empty one
 (`api_key=""`, …) raises `BadRequestError` instead of falling back to the
-environment. `Daytona(config)` copies the config when it is built: changing
+environment. The API key or JWT, from the config or the environment, must be
+printable ASCII with no leading or trailing whitespace: `d.v2` raises
+`BadRequestError` otherwise, before any request, and the message never
+contains the value. `Daytona(config)` copies the config when it is built: changing
 the object afterwards has no effect on the client. Additional env vars:
 
 - `DAYTONA_ORGANIZATION_ID` — scopes a JWT for the v0 namespace.

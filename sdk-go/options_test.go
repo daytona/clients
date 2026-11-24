@@ -30,7 +30,8 @@ func TestNew_whenCredentialConfigurationVaries(t *testing.T) {
 		{name: "empty jwt", options: []Option{WithJWTToken("")}, want: ErrBadRequest},
 		{name: "empty project", key: "key", project: "p", options: []Option{WithProjectID("")}, want: ErrBadRequest},
 		{name: "jwt missing project", jwt: "jwt", want: ErrBadRequest},
-		{name: "explicit untrimmed", options: []Option{WithAPIKey(" key ")}, wantKey: " key "},
+		{name: "explicit untrimmed", options: []Option{WithAPIKey(" key ")}, want: ErrBadRequest},
+		{name: "explicit internal space", options: []Option{WithAPIKey("k ey")}, wantKey: "k ey"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -57,6 +58,49 @@ func TestNew_whenCredentialConfigurationVaries(t *testing.T) {
 			if test.wantJWT != "" {
 				require.Equal(t, test.wantJWT, *client.config.jwtToken)
 			}
+		})
+	}
+}
+
+func TestNew_whenCredentialIsMalformed(t *testing.T) {
+	const secret = "dtn_config_secret"
+	malformed := []string{secret + "\n", " " + secret, secret + " ", "   ", "\t", secret + "\u00e9", secret + "\x00x"}
+	for _, value := range malformed {
+		for _, test := range []struct {
+			option  Option
+			message string
+		}{
+			{WithAPIKey(value), "WithAPIKey must be printable ASCII with no leading or trailing whitespace"},
+			{WithJWTToken(value), "WithJWTToken must be printable ASCII with no leading or trailing whitespace"},
+		} {
+			t.Run(test.message[:12]+"/"+value, func(t *testing.T) {
+				// Given
+				t.Setenv("DAYTONA_API_KEY", "")
+				t.Setenv("DAYTONA_JWT_TOKEN", "")
+				// When
+				_, err := New(test.option, WithProjectID("project"))
+				// Then
+				require.ErrorIs(t, err, ErrBadRequest)
+				var detail *Error
+				require.ErrorAs(t, err, &detail)
+				require.Equal(t, test.message, detail.Message)
+				require.Equal(t, SourceSDK, detail.Source)
+				require.NotContains(t, err.Error(), secret)
+			})
+		}
+	}
+	for _, variable := range []string{"DAYTONA_API_KEY", "DAYTONA_JWT_TOKEN"} {
+		t.Run(variable, func(t *testing.T) {
+			// Given: trimmed, then still not a header value
+			t.Setenv("DAYTONA_API_KEY", "")
+			t.Setenv("DAYTONA_JWT_TOKEN", "")
+			t.Setenv(variable, "  "+secret+"\r\nX-Injected: 1\n")
+			// When
+			_, err := New(WithProjectID("project"))
+			// Then
+			require.ErrorIs(t, err, ErrBadRequest)
+			require.Contains(t, err.Error(), variable+" must be printable ASCII")
+			require.NotContains(t, err.Error(), secret)
 		})
 	}
 }

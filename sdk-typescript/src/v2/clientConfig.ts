@@ -6,7 +6,7 @@
 import { AuthenticationError, BadRequestError } from './errors/DaytonaError.js'
 import { createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS } from './http.js'
 import type { HttpClientOptions } from './http.js'
-import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
+import { assertKnownOptions, badRequest, boundedTimerDelay, headerText, optionalSeconds, snapshotOptions } from './options.js'
 import { SANDBOX_EVENTS_CONFIG_KEYS, V2_CONFIG_KEYS } from './types.js'
 import type { DaytonaConfig, SandboxEventsConfig } from './types.js'
 import { DEFAULT_MAX_RESPONSE_BYTES, maxResponseBytesOption } from './bodyLimit.js'
@@ -43,6 +43,17 @@ function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', va
   if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
     throw new BadRequestError(`${name} must be a non-empty string when provided`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+}
+
+/**
+ * A credential is sent as `Authorization: Bearer <credential>`, so it follows
+ * the header rule (printable ASCII, no leading or trailing whitespace), checked
+ * before any request with a message that never contains the value. An explicit
+ * value is checked as given; an ambient one after trimming, under its variable's name.
+ */
+function credential(explicitName: 'apiKey' | 'jwtToken', explicit: string | undefined, envName: string, ambient: string | undefined): string | undefined {
+  if (explicit !== undefined) return headerText(explicit, explicitName)
+  return ambient === undefined ? undefined : headerText(ambient, envName)
 }
 
 function connectionPoolMaxsize(value: number | undefined): number | undefined {
@@ -111,8 +122,8 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   assertPresentStringOption('apiKey', config.apiKey)
   assertPresentStringOption('jwtToken', config.jwtToken)
   assertPresentStringOption('projectId', config.projectId)
-  const apiKey = config.apiKey ?? (config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
-  const jwtToken = config.jwtToken ?? (config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
+  const apiKey = credential('apiKey', config.apiKey, 'DAYTONA_API_KEY', config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
+  const jwtToken = credential('jwtToken', config.jwtToken, 'DAYTONA_JWT_TOKEN', config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
   const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
   const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
   // Above the timer maximum (about 24.8 days) means no bound, like 0.

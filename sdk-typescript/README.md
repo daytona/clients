@@ -37,9 +37,9 @@ import of `isomorphic-ws`.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona({
-  apiKey: 'dtn_…', // a project API key, minted in the dashboard
+  apiKey: 'dtn_...', // a project API key, minted in the dashboard
   requestTimeoutSeconds: 30, // total time per ordinary request (default 60)
-  // jwtToken: 'eyJ…',   // optional alternative to apiKey
+  // jwtToken: 'eyJ...',   // optional alternative to apiKey
   // projectId: '00000000-0000-0000-0000-000000000000',
   // organizationId: 'org-id', // v0 only
   // target: 'eu', // deprecated, v0 only: pass `target` per d.v0 create instead
@@ -100,7 +100,10 @@ The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_OTEL_ENABLED` from the environment when a field is omitted.
 Environment values are trimmed, and a blank one counts as unset; values you
 pass in the config are used as given, and an empty one (`apiKey: ''`, …)
-throws `BadRequestError` instead of falling back to the environment.
+throws `BadRequestError` instead of falling back to the environment. The API
+key or JWT, from the config or the environment, must be printable ASCII with
+no leading or trailing whitespace: `daytona.v2` throws `BadRequestError`
+otherwise, before any request, and the message never contains the value.
 `DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint, as
 `daytona region list` in the CLI shows them, or a test environment);
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`
@@ -147,7 +150,7 @@ root client for shared credentials:
 ```ts
 import { Daytona } from '@daytona/sdk'
 
-const daytona = new Daytona({ apiKey: 'dtn_…' })
+const daytona = new Daytona({ apiKey: 'dtn_...' })
 for await (const sandbox of daytona.v0.list()) console.log(sandbox.id)
 await daytona.v2.images.pull('python:3.12', { name: 'py312' })
 await daytona.v2.create('py312')

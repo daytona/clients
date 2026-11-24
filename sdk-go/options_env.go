@@ -35,6 +35,9 @@ func (c *clientConfig) resolveEnvironment() error {
 	if c.projectID == nil {
 		c.projectID = nonBlankEnv("DAYTONA_PROJECT_ID")
 	}
+	if err := c.checkCredentials(explicitKey, explicitJWT); err != nil {
+		return err
+	}
 	switch {
 	case c.apiKey == nil && c.jwtToken == nil:
 		return newSDKError("UNAUTHORIZED", 401,
@@ -51,6 +54,32 @@ func (c *clientConfig) resolveEnvironment() error {
 	}
 	_, err := parseHTTPBase(c.baseURL)
 	return err
+}
+
+// checkCredentials refuses a credential no header can carry, before any
+// request and in a message without its value: it is sent as
+// "Authorization: Bearer <credential>".
+func (c *clientConfig) checkCredentials(explicitKey, explicitJWT bool) error {
+	for _, credential := range []struct {
+		value       *string
+		explicit    bool
+		option, env string
+	}{
+		{c.apiKey, explicitKey, "WithAPIKey", "DAYTONA_API_KEY"},
+		{c.jwtToken, explicitJWT, "WithJWTToken", "DAYTONA_JWT_TOKEN"},
+	} {
+		if credential.value == nil {
+			continue
+		}
+		name := credential.env
+		if credential.explicit {
+			name = credential.option
+		}
+		if err := headerText(*credential.value, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func nonBlankEnv(name string) *string {

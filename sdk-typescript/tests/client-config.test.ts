@@ -220,6 +220,32 @@ describe('environment', () => {
     expectBadRequest(() => new DaytonaV2({ jwtToken: 'jwt-token' }), 'projectId is required')
   })
 
+  // Values an HTTP header cannot carry, refused before any request with a
+  // message that never contains them (sdk-python/tests/test_client_config.py).
+  const SECRET = 'dtn_config_secret'
+  const MALFORMED = [`${SECRET}\n`, ` ${SECRET}`, `${SECRET} `, '   ', '\t', `${SECRET}\u00e9`, `${SECRET}\u0000x`]
+
+  it.each(MALFORMED.flatMap((value) => [['apiKey', value], ['jwtToken', value]] as const))(
+    'rejects a malformed explicit %s (%j) without its value',
+    (name, value) => {
+      const config = name === 'apiKey' ? { apiKey: value } : { jwtToken: value, projectId: 'project' }
+      expectBadRequest(() => new DaytonaV2(config), new RegExp(`^${name} must be printable ASCII with no leading or trailing whitespace$`))
+      expectBadRequest(() => new Daytona(config).v2, new RegExp(`^${name} must be printable ASCII`))
+    },
+  )
+
+  it.each([
+    ['DAYTONA_API_KEY', `${SECRET}\u00e9`],
+    ['DAYTONA_API_KEY', `dtn_\u0001${SECRET}`],
+    ['DAYTONA_JWT_TOKEN', `${SECRET}\r\nX-Injected: 1`],
+  ])('rejects a malformed ambient %s after trimming, naming the variable', (variable, value) => {
+    process.env[variable] = `  ${value}\n`
+    process.env.DAYTONA_PROJECT_ID = 'project'
+    expectBadRequest(() => new DaytonaV2({}), new RegExp(`^${variable} must be printable ASCII with no leading or trailing whitespace$`))
+    // The ambient value an explicit credential suppresses is never read.
+    expect(() => new DaytonaV2(variable === 'DAYTONA_API_KEY' ? { jwtToken: 'jwt', projectId: 'p' } : { apiKey: 'k' })).not.toThrow()
+  })
+
   it('rejects an explicitly empty projectId', () => {
     process.env.DAYTONA_PROJECT_ID = 'project-from-env'
     expectBadRequest(() => new DaytonaV2({ apiKey: 'k', projectId: '' }), 'projectId must be a non-empty string')

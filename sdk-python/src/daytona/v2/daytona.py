@@ -1442,15 +1442,17 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
         value: object = getattr(config, name)
         if value is not None and (not isinstance(value, str) or value == ""):
             raise create_error(f"{name} must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
-    api_key = (
-        config.api_key
-        if config.api_key is not None
-        else (None if config.jwt_token is not None else _ambient("DAYTONA_API_KEY"))
+    api_key = _credential(
+        "api_key",
+        config.api_key,
+        "DAYTONA_API_KEY",
+        None if config.jwt_token is not None else _ambient("DAYTONA_API_KEY"),
     )
-    jwt_token = (
-        config.jwt_token
-        if config.jwt_token is not None
-        else (None if config.api_key is not None else _ambient("DAYTONA_JWT_TOKEN"))
+    jwt_token = _credential(
+        "jwt_token",
+        config.jwt_token,
+        "DAYTONA_JWT_TOKEN",
+        None if config.api_key is not None else _ambient("DAYTONA_JWT_TOKEN"),
     )
     if api_key and jwt_token:
         raise create_error(
@@ -1481,6 +1483,19 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
         else validated_max_response_bytes("max_response_bytes", config.max_response_bytes),
         request_timeout=_resolve_request_timeout(config.request_timeout),
     )
+
+
+def _credential(name: str, explicit: Optional[str], env_var: str, ambient: Optional[str]) -> Optional[str]:
+    """The credential the client sends as ``Authorization: Bearer <credential>``.
+
+    It follows the header rule (printable ASCII, no leading or trailing
+    whitespace), checked before any request with a message that never contains
+    the value, as TypeScript checks it. An explicit value is checked as given;
+    an ambient one after trimming, under its variable's name.
+    """
+    if explicit is not None:
+        return header_text(explicit, name)
+    return None if ambient is None else header_text(ambient, env_var)
 
 
 def _ambient(env_var: str) -> Optional[str]:
