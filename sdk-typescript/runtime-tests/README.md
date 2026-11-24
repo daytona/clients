@@ -37,12 +37,12 @@ The orchestrator iterates every subdirectory that contains a `run.sh`, packs the
 | `deno` | `deno run test.ts` | Deno (real interpreter) |
 | `vite-ssr` | `vite build --ssr` then `node` executes the bundle | Node.js |
 | `vite-browser` | `vite build` + `vite preview` + Playwright drives **headless Chromium** to load the bundle and assert | Real browser |
-| `nextjs` | `next build` (Turbopack) + `next start`, then `next build --webpack` with `output: 'standalone'` + the standalone `server.js` run from a copy outside the project; `curl` hits the API route, which also exercises `Image.fromDockerfile` with a COPY glob | Production Next.js server |
+| `nextjs` | `next build` (Turbopack) + `next start`, then `next build --webpack` with `output: 'standalone'` + the standalone `server.js` run from a copy outside the project; `curl` hits the API routes, which also exercise `Image.fromDockerfile` with a COPY glob, `create` from that image against a local stub API that records the context upload, and `otelEnabled` | Production Next.js server |
 | `nuxt` | `nuxt build` + `node .output/server/index.mjs` + `curl` | Production Nitro server |
 | `remix` | `remix vite:build` + `remix-serve` + `curl` | Production Remix server |
 | `cloudflare-workers` | `wrangler dev --local` + `curl` | Real `workerd` (Cloudflare's actual Workers runtime) |
 | `aws-lambda` | `esbuild` bundle + [`lambda-local`](https://github.com/ashiina/lambda-local) (real Lambda event/context shapes, env vars, timeout) | Lambda emulator |
-| `esbuild-cjs` | `esbuild` bundle (`--platform=node --format=cjs`) + `node` runs the bundle and exercises `dynamicRequire` | Node.js |
+| `esbuild-cjs` | `esbuild` bundle (`--platform=node --format=cjs`) + `node` runs the bundle and exercises `dynamicRequire`, then runs a second bundle from a directory without `node_modules` and checks it reports the missing module | Node.js |
 | `webpack-cjs` | `webpack --mode production --target node` bundles a CommonJS `require` entry and an ESM `import` entry + `node` runs both bundles (the CommonJS one also from a directory without `node_modules`) and exercises `Image.fromDockerfile` with a COPY glob | Node.js |
 | `azure-functions` | `func start` (Azure Functions Core Tools host) + `curl` | Real Functions host |
 

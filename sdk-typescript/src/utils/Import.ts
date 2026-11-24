@@ -16,9 +16,9 @@ const loaderMap = {
   stream: async () => require('stream'),
   tar: async () => require('tar'),
   'expand-tilde': async () => require('expand-tilde'),
-  // Stored in a variable + /* @vite-ignore */ so Vite/Rollup don't statically
-  // chunk this; otherwise apps bundling the SDK source (e.g. the dashboard)
-  // would pull @aws-sdk transitively. Node consumers resolve at runtime.
+  // Fallback only: Node loads ObjectStorage through NodeLoaders. Stored in a variable +
+  // /* @vite-ignore */ so Vite/Rollup don't statically chunk this and pull @aws-sdk into
+  // non-Node bundles.
   ObjectStorage: () => {
     const path = '../ObjectStorage.js'
     return import(/* @vite-ignore */ path)
