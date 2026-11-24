@@ -105,37 +105,37 @@ func TestFilesystem(t *testing.T) {
 		options := &daytona.PresignedFileURLOptions{ExpiresIn: time.Minute}
 		uploadURL, signErr := fs.PresignedUploadURL(ctx, root+"/signed", options)
 		require.NoError(t, signErr)
-		var body bytes.Buffer
-		form := multipart.NewWriter(&body)
-		part, partErr := form.CreateFormFile("file", "signed")
-		require.NoError(t, partErr)
-		_, writeErr := io.WriteString(part, "signed data")
-		require.NoError(t, writeErr)
-		require.NoError(t, form.Close())
-		request, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, &body)
-		require.NoError(t, requestErr)
-		request.Header.Set("Content-Type", form.FormDataContentType())
 		httpClient := &http.Client{Timeout: time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		}}
+		upload := func() (int, []byte) {
+			var body bytes.Buffer
+			form := multipart.NewWriter(&body)
+			part, partErr := form.CreateFormFile("file", "signed")
+			require.NoError(t, partErr)
+			_, writeErr := io.WriteString(part, "signed data")
+			require.NoError(t, writeErr)
+			require.NoError(t, form.Close())
+			request, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, &body)
+			require.NoError(t, requestErr)
+			request.Header.Set("Content-Type", form.FormDataContentType())
+			return sendSigned(t, httpClient, request)
+		}
 		// When
-		response, sendErr := httpClient.Do(request)
-		require.NoError(t, sendErr)
-		require.NoError(t, response.Body.Close())
-		skipIfSignatureRefused(t, response.StatusCode)
-		require.Less(t, response.StatusCode, 300)
+		status, _ := upload()
+		skipIfSignatureRefused(t, status, upload)
+		require.Less(t, status, 300)
 		downloadURL, downloadSignErr := fs.PresignedDownloadURL(ctx, root+"/signed", options)
 		require.NoError(t, downloadSignErr)
-		download, downloadRequestErr := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
-		require.NoError(t, downloadRequestErr)
-		readResponse, downloadErr := httpClient.Do(download)
-		require.NoError(t, downloadErr)
-		defer func() { require.NoError(t, readResponse.Body.Close()) }()
-		data, readErr := io.ReadAll(io.LimitReader(readResponse.Body, 1024))
-		require.NoError(t, readErr)
-		skipIfSignatureRefused(t, readResponse.StatusCode)
+		download := func() (int, []byte) {
+			request, requestErr := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+			require.NoError(t, requestErr)
+			return sendSigned(t, httpClient, request)
+		}
+		readStatus, data := download()
+		skipIfSignatureRefused(t, readStatus, download)
 		// Then
-		require.Equal(t, http.StatusOK, readResponse.StatusCode)
+		require.Equal(t, http.StatusOK, readStatus)
 		require.Equal(t, "signed data", string(data))
 	})
 
@@ -163,13 +163,33 @@ func TestFilesystem(t *testing.T) {
 	require.NoError(t, fs.Remove(ctx, root, &daytona.RemoveFileOptions{Recursive: true}))
 }
 
-// skipIfSignatureRefused skips when the deployment's proxy refuses a freshly
-// minted, unexpired signature. The SDK built the URL the API returned; a 401
-// here is a deployment problem the SDK cannot fix, so the test reports it
-// instead of failing. Any other status is still checked by the caller.
-func skipIfSignatureRefused(t *testing.T, status int) {
+// sendSigned sends one request to a signed URL and returns its status and
+// the start of its body.
+func sendSigned(t *testing.T, client *http.Client, request *http.Request) (int, []byte) {
 	t.Helper()
-	if status == http.StatusUnauthorized {
-		t.Skip("this deployment's proxy refused a freshly signed file URL (HTTP 401)")
+	response, err := client.Do(request)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, response.Body.Close()) }()
+	data, err := io.ReadAll(io.LimitReader(response.Body, 1024))
+	require.NoError(t, err)
+	return response.StatusCode, data
+}
+
+// skipIfSignatureRefused tells a deployment that intermittently refuses valid
+// signatures apart from a signed URL the SDK built wrongly. On a 401 it sends
+// the same signed request again: if any attempt is accepted, the URL is valid
+// and the refusal came from the deployment, so the test skips. If every
+// attempt is refused, the URL itself is wrong and the test fails. Any other
+// status is checked by the caller.
+func skipIfSignatureRefused(t *testing.T, status int, send func() (int, []byte)) {
+	t.Helper()
+	if status != http.StatusUnauthorized {
+		return
 	}
+	for range 5 {
+		if again, _ := send(); again != http.StatusUnauthorized {
+			t.Skip("this deployment intermittently refused a valid signed file URL (HTTP 401)")
+		}
+	}
+	t.Fatal("every request with the signed URL was refused (HTTP 401): the URL is not valid")
 }
