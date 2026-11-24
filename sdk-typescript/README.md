@@ -249,8 +249,9 @@ is rejected. The get-or-create rules are:
 `findByName(name, { region })` returns **all** sandboxes carrying that exact
 `name` label, newest first, as an array (names are not unique);
 `destroyed`/`destroying` ones are left out. This is the explicit exception to
-the SDK's one-page pagination rule. It searches in the same region as a create
-with that `region`. A new sandbox becomes searchable shortly after its create, so a lookup right after a
+the SDK's one-page pagination rule. A named `region` returns only the
+sandboxes in that region (the region a create with that `region` lands in);
+omitting it, or `'local'`, searches every region. A new sandbox becomes searchable shortly after its create, so a lookup right after a
 create can miss it — the get-or-create below stays safe, because the repeat
 create derives the same key and returns the same sandbox. A deployment
 without search raises `SearchNotConfiguredError` (501). Together:

@@ -454,10 +454,12 @@ class Daytona:
         ``destroying`` are left out. A deployment without search raises
         :class:`SearchNotConfiguredError` (501).
 
-        ``region`` scopes the read the way it scopes a create: it is sent as
-        the same ``x-daytona-region`` selector ``create*()`` sends, and
-        ``"local"`` (or omitting it) means the default region — so the
-        lookup uses the same regional API endpoint as the named create.
+        ``region`` selects a region the way it selects one for a create: a
+        named region returns only sandboxes in that region (sent as the
+        search's ``region_ids`` filter, alongside the same
+        ``x-daytona-region`` selector ``create*()`` sends; an unknown region
+        is the API's 400). ``"local"``, a blank value or omitting it applies no
+        region filter: every region is searched, as before.
         """
         from .sandbox import Sandbox
 

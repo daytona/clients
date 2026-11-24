@@ -6,6 +6,7 @@
 import { createDaytonaError } from './errors/DaytonaError.js'
 import { runtimeUniqueId } from './http.js'
 import { assertLabels, badRequest } from './options.js'
+import { hasLoneSurrogate } from './pathSegment.js'
 import { isBlank, strip } from './pyText.js'
 
 /** The label every named create stamps and findByName reads back. */
@@ -71,6 +72,8 @@ function namedCreate(name: unknown): string | undefined {
   if (name === undefined || name === null) return undefined
   if (typeof name !== 'string') throw badRequest('name must be a string')
   if (isBlank(name)) throw badRequest('name must be a non-empty string when given')
+  // It is stamped as the name label too, so it follows the label rule.
+  if (hasLoneSurrogate(name)) throw badRequest('name must not contain a lone surrogate')
   return name
 }
 

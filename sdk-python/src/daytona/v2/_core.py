@@ -1875,10 +1875,17 @@ def preview_port(port: object) -> int:
     return port
 
 
-def check_label_keys(labels: Mapping[str, str]) -> None:
-    """Refuse an empty label key before any request: the API refuses it."""
+def check_labels(labels: Mapping[str, str]) -> None:
+    """Refuse labels the API cannot read, before any request, with the
+    messages of TypeScript's ``assertLabelKeys``: an empty key, then a key or
+    a value with a surrogate code point (no UTF-8 form), in label order."""
     if "" in labels:
         raise create_error("label keys must not be empty", 400, "BAD_REQUEST", "SDK")
+    for key, value in labels.items():
+        if has_surrogate(key):
+            raise create_error("label keys must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+        if has_surrogate(value):
+            raise create_error("label values must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
 
 
 # The largest terminal dimension the sandbox takes (an unsigned 16-bit value).
@@ -2214,6 +2221,12 @@ def _comma_list(name: str, value: object) -> str:
     return ",".join(texts)
 
 
+def region_filter(region: str) -> str:
+    """One selected region as the search ``region_ids`` filter (as TypeScript's
+    ``regionFilter``): a comma would name several regions, so it is refused."""
+    return _comma_list("region", region)
+
+
 def has_surrogate(value: str) -> bool:
     """Whether ``value`` holds a surrogate code point, which has no UTF-8 form
     (the HTTP client would raise ``UnicodeEncodeError`` encoding it)."""
@@ -2343,7 +2356,7 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
                 raise create_error("labels must be a mapping of string to string", 400, "BAD_REQUEST", "SDK")
             if not value:
                 raise create_error("labels must name at least one pair", 400, "BAD_REQUEST", "SDK")
-            check_label_keys(value)
+            check_labels(value)
             params[wire] = json.dumps(dict(value), separators=(",", ":"))
         elif f.name in _SEARCH_TIMESTAMP_FIELDS:
             params[wire] = query_text(search_timestamp(value), f.name)

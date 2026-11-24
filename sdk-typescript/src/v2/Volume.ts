@@ -5,6 +5,8 @@
 
 import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
+import { sleep } from './http.js'
+import { ConflictError } from './errors/DaytonaError.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -134,7 +136,15 @@ export class VolumesService {
     }
   }
 
-  /** Get a volume by id or name; optionally create it when absent. */
+  /**
+   * Get a volume by id or name; optionally create it when absent.
+   *
+   * `create: true` creates the volume named `nameOrId` when none is found.
+   * When another caller creates that name first (the create answers 409
+   * `CONFLICT`), the volume is read again by name, a few times over about a
+   * second, and returned; the conflict is thrown if it never becomes
+   * readable. Any other error is thrown as it is.
+   */
   public async get(nameOrId: string, options: GetVolumeOptions = {}): Promise<Volume> {
     // The id first, then the options, as Python checks them.
     const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
@@ -152,10 +162,23 @@ export class VolumesService {
       const { data } = await this.api.get<api.Volume>(path, refConfig(options))
       return mapVolume(data)
     } catch (e) {
-      if (options.create && !options.idOnly && e instanceof NotFoundError) {
-        return this.create({ name: nameOrId })
+      if (!options.create || options.idOnly || !(e instanceof NotFoundError)) throw e
+    }
+    try {
+      return await this.create({ name: nameOrId })
+    } catch (conflict) {
+      // Only the name conflict a racing create causes; any other 409 is thrown.
+      if (!(conflict instanceof ConflictError) || conflict.code !== 'CONFLICT') throw conflict
+      for (const delayMs of VOLUME_CONFLICT_REREAD_DELAYS_MS) {
+        await sleep(delayMs)
+        try {
+          const { data } = await this.api.get<api.Volume>(path)
+          return mapVolume(data)
+        } catch (reread) {
+          if (!(reread instanceof NotFoundError)) throw reread
+        }
       }
-      throw e
+      throw conflict
     }
   }
 
@@ -190,3 +213,7 @@ export class VolumesService {
     await this.api.delete(path, refConfig(options))
   }
 }
+
+// The pauses before each read of a volume another caller created first (as
+// Python's _VOLUME_CONFLICT_REREAD_DELAYS, in milliseconds).
+const VOLUME_CONFLICT_REREAD_DELAYS_MS: readonly number[] = [0, 50, 100, 200, 400]

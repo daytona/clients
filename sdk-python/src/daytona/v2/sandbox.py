@@ -49,11 +49,12 @@ from ._core import (
     TransportPayload,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
-    check_label_keys,
+    check_labels,
     enum_str,
     expect_object,
     expect_system_metrics,
     finite_number,
+    has_surrogate,
     header_text,
     image_options_body,
     lifecycle_body,
@@ -1420,6 +1421,8 @@ class AsyncSandbox:
         waits = budget is None or budget > 0
         if name is not None and (not isinstance(name, str) or not name.strip()):
             raise create_error("fork name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
+        if name is not None and has_surrogate(name):
+            raise create_error("fork name must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
         if memory is not None and not isinstance(memory, bool):
             raise create_error("fork memory must be a boolean", 400, "BAD_REQUEST", "SDK")
         class_known = self.sandbox_class is not None
@@ -2288,7 +2291,7 @@ def _validated_labels(labels: object) -> Dict[str, str]:
                 "labels must be a mapping of string keys to string values", 400, "BAD_REQUEST", "SDK"
             )
         validated[key] = value
-    check_label_keys(validated)
+    check_labels(validated)
     return validated
 
 
