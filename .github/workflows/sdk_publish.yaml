@@ -108,7 +108,7 @@ jobs:
             echo
             echo "| Leg | Version | Goes to |"
             echo "|---|---|---|"
-            if [ -n "$NPM_TAG" ]; then npm_dest="dist-tag \`${NPM_TAG}\` (\`@daytonaio/*\`: \`${NPM_LEGACY_TAG}\`)"; else npm_dest=":x: **will fail** — \`npm_tag\` is empty"; fi
+            if [ -n "$NPM_TAG" ]; then npm_dest="dist-tag \`${NPM_TAG}\` (\`@daytonaio/sdk\`, \`@daytonaio/api-client\`, \`@daytonaio/toolbox-api-client\`: \`${NPM_LEGACY_TAG}\`)"; else npm_dest=":x: **will fail** — \`npm_tag\` is empty"; fi
             target "TypeScript SDK" "$NPM_PKG_VERSION" "npm \`@daytona/sdk\` and deprecated \`@daytonaio/sdk\`, after the api-client, toolbox-api-client and analytics-api-client packages; ${npm_dest}"
             target "Python SDK" "$PYPI_PKG_VERSION" "PyPI \`daytona\` and \`daytona_sdk\`"
             target "Ruby SDK" "$RUBYGEMS_PKG_VERSION" "RubyGems \`daytona\`, after its three API-client gems"
