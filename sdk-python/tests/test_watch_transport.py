@@ -62,7 +62,7 @@ class _Handler(BaseHTTPRequestHandler):
         case = self.path.split("/")[1]
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
-        if case == "truncated":
+        if case in ("truncated", "gone-truncated"):
             self.send_header("Content-Length", "100000")
         if case.startswith("gzip-"):
             self.send_header("Content-Encoding", "gzip")
@@ -174,7 +174,21 @@ class _Handler(BaseHTTPRequestHandler):
             with contextlib.suppress(OSError):
                 self.rfile.read(1)
             return
-        self.wfile.write(f"event: start\ndata: {{}}\n\nevent: fs\ndata: {_EVENT}\n\n".encode())
+        frames = f"event: start\ndata: {{}}\n\nevent: fs\ndata: {_EVENT}\n\n"
+        if case.startswith(("gone", "file-gone")):
+            # The watched directory's own removal after the first event
+            # (file-gone: the same name, not a directory), then per case one
+            # more event, and the end of the stream.
+            removal = json.dumps(
+                {"type": "remove", "name": "", "isDir": case != "file-gone", "timestamp": 2},
+                separators=(",", ":"),
+            )
+            frames += f"event: fs\ndata: {removal}\n\n"
+            if case == "gone-then-event":
+                frames += _fs_frame("late")
+            if case == "gone-then-overflow":
+                frames += 'event: overflow\ndata: {"dropped":true}\n\n'
+        self.wfile.write(frames.encode())
         self.wfile.flush()
         self.close_connection = True
 
@@ -274,6 +288,41 @@ async def test_a_watch_whose_stream_drops_ends_with_a_connection_error(
     assert error.source == "SDK"
     if message is not None:
         assert str(error) == message
+
+
+@pytest.mark.anyio
+async def test_a_watch_ends_without_an_error_after_its_directory_is_removed(base: str) -> None:
+    transport = AsyncTransport(f"{base}/gone")
+    seen: list[FilesystemEvent] = []
+    exits: list[Optional[Exception]] = []
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir("/", seen.append, on_exit=exits.append)
+        error = await asyncio.wait_for(handle.wait_for_exit(), timeout=5)
+    finally:
+        await transport.close()
+
+    # The removal is delivered like any event, and is the last one.
+    assert [(event.type, event.name, event.is_dir) for event in seen] == [
+        ("create", "a", False),
+        ("remove", "", True),
+    ]
+    assert error is None
+    assert handle.exit_error is None
+    assert exits == [None]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["gone-then-event", "gone-then-overflow", "gone-truncated", "file-gone"])
+async def test_only_a_stream_that_ends_right_after_the_removal_is_a_clean_exit(base: str, case: str) -> None:
+    transport = AsyncTransport(f"{base}/{case}")
+    try:
+        handle = await AsyncFileSystemService(transport).watch_dir("/", lambda _event: None)
+        error = await asyncio.wait_for(handle.wait_for_exit(), timeout=5)
+    finally:
+        await transport.close()
+
+    assert isinstance(error, ConnectionError)
+    assert error.source == "SDK"
 
 
 def _refused_url() -> str:
