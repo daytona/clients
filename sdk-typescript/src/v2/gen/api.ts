@@ -2717,6 +2717,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/secrets/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search secrets
+         * @description Searches the project's secrets using the supplied filters. Results may be briefly stale after a change.
+         */
+        get: operations["search_secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/secrets/{name}": {
         parameters: {
             query?: never;
@@ -2849,6 +2869,26 @@ export interface paths {
         put?: never;
         /** Create a volume */
         post: operations["create_volume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/volumes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search volumes
+         * @description Searches the project's volumes using the supplied filters. Results may be briefly stale after a change.
+         */
+        get: operations["search_volumes"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7121,6 +7161,25 @@ export interface components {
             /** @description The secrets in this page. */
             secrets: components["schemas"]["Secret"][];
         };
+        SecretSearchListItem: components["schemas"]["Secret"] & {
+            /** @description Opaque cursor for this item. */
+            cursor: string;
+        };
+        /** @description A page of matching secrets. */
+        SecretSearchPage: {
+            /** @description Continuation token; null on the last page. */
+            next_cursor?: string | null;
+            /** @description Matching secrets in this page. */
+            secrets: components["schemas"]["SecretSearchListItem"][];
+            /**
+             * Format: int64
+             * @description Number of matching secrets, exact when `total_relation` is `eq`.
+             */
+            total: number;
+            /** @description Whether total is exact (`eq`) or a lower bound (`gte`). */
+            total_relation: components["schemas"]["SearchTotalRelation"];
+        };
+        SecretSearchSort: ("name" | "created_at" | "updated_at") | (string & {});
         SetAutomaticTopUpRequest: {
             /**
              * Format: int64
@@ -8042,6 +8101,7 @@ export interface components {
              */
             used_bytes_at?: string | null;
         };
+        VolumeBucketOrigin: ("platform" | "external" | "claimed") | (string & {});
         /** @description A volume attachment as requested on `POST /sandboxes`. */
         VolumeMount: {
             /**
@@ -8072,6 +8132,26 @@ export interface components {
             /** @description The volumes in this page. */
             volumes: components["schemas"]["Volume"][];
         };
+        VolumeSearchListItem: components["schemas"]["Volume"] & {
+            /** @description Opaque cursor for this item. */
+            cursor: string;
+        };
+        /** @description A page of matching volumes. */
+        VolumeSearchPage: {
+            /** @description Continuation token; null on the last page. */
+            next_cursor?: string | null;
+            /**
+             * Format: int64
+             * @description Number of matching volumes, exact when `total_relation` is `eq`.
+             */
+            total: number;
+            /** @description Whether total is exact (`eq`) or a lower bound (`gte`). */
+            total_relation: components["schemas"]["SearchTotalRelation"];
+            /** @description Matching volumes in this page. */
+            volumes: components["schemas"]["VolumeSearchListItem"][];
+        };
+        VolumeSearchSort: ("created_at" | "updated_at" | "name" | "used_bytes" | "last_used_at" | "size_gib") | (string & {});
+        VolumeSearchStatus: ("ready" | "deleting" | "error") | (string & {});
         VolumeStatus: ("ready" | "deleting" | "deleted" | "error") | (string & {});
         VolumeType: ("disk" | "bucket") | (string & {});
         Wallet: {
@@ -8172,7 +8252,7 @@ export interface components {
         ImageIdOrName: string;
         /** @description The invoice ID */
         InvoiceId: string;
-        /** @description Maximum number of items to return, 1–200 (default 100) */
+        /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
         Limit: number;
         /** @description The organization ID */
         OrganizationId: string;
@@ -8641,7 +8721,7 @@ export interface operations {
     list_images: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -8814,7 +8894,7 @@ export interface operations {
                 sort?: components["schemas"]["ImageSearchSort"];
                 /** @description Sort order. Defaults to `desc`. */
                 order?: components["schemas"]["SortOrder"];
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -9489,7 +9569,7 @@ export interface operations {
     list_v0_sandboxes: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -9681,7 +9761,7 @@ export interface operations {
     list_orgs: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -9885,7 +9965,7 @@ export interface operations {
     list_org_api_keys: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -10097,7 +10177,7 @@ export interface operations {
     list_audit_logs: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -10765,8 +10845,8 @@ export interface operations {
     list_balances: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description The maximum number of balances to return (default 25, maximum 100) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -10857,8 +10937,8 @@ export interface operations {
     list_charges: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description The maximum number of charges to return (default 25, maximum 100) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -11319,8 +11399,8 @@ export interface operations {
     list_invoices: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description The maximum number of invoices to return (default 25, maximum 100) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
                 /** @description Whether to return only unpaid invoices (default false) */
@@ -11747,8 +11827,8 @@ export interface operations {
     list_payment_methods: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description The maximum number of payment methods to return (default 20, maximum 100) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -12396,8 +12476,8 @@ export interface operations {
     list_usage_periods: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description The maximum number of usage periods to return (default 12, maximum 60) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -12637,7 +12717,7 @@ export interface operations {
     list_org_invitations: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -12917,7 +12997,7 @@ export interface operations {
     list_members: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -13382,7 +13462,7 @@ export interface operations {
     list_projects: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -13494,8 +13574,8 @@ export interface operations {
     list_organization_regions: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description Maximum number of items to return (1–100, default 50) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -13845,8 +13925,8 @@ export interface operations {
     list_region_proxy_tokens: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description Maximum number of items to return (1–100, default 50) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -14096,8 +14176,8 @@ export interface operations {
     list_region_registration_tokens: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description Maximum number of items to return (1–100, default 50) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -14272,8 +14352,8 @@ export interface operations {
     list_region_runners: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
-                limit?: components["parameters"]["Limit"];
+                /** @description Maximum number of items to return (1–100, default 50) */
+                limit?: number;
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -14881,7 +14961,7 @@ export interface operations {
     list_service_accounts: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -15191,7 +15271,7 @@ export interface operations {
     list_sso_connections: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -15539,7 +15619,7 @@ export interface operations {
     list_project_api_keys: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -16119,7 +16199,7 @@ export interface operations {
     list_project_members: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -16296,7 +16376,7 @@ export interface operations {
     list_project_service_accounts: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -16506,7 +16586,7 @@ export interface operations {
     list_registries: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -16716,7 +16796,7 @@ export interface operations {
     list_reservations: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -17173,7 +17253,7 @@ export interface operations {
     list_sandboxes: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -17633,7 +17713,7 @@ export interface operations {
                 sort?: components["schemas"]["SandboxSearchSort"];
                 /** @description Sort order. Defaults to `desc`. */
                 order?: components["schemas"]["SortOrder"];
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -18515,7 +18595,7 @@ export interface operations {
     list_sandbox_ports: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -19538,7 +19618,7 @@ export interface operations {
     list_secrets: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -19571,6 +19651,85 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    search_secrets: {
+        parameters: {
+            query?: {
+                /** @description Free text over the secret name (any substring, case-insensitive) and description. */
+                q?: string;
+                /** @description Match this exact secret name. */
+                name?: string;
+                /** @description Match names starting with this case-sensitive prefix. */
+                name_prefix?: string;
+                /** @description Match an allowed domain exactly. */
+                allowed_domain?: string;
+                /** @description Inclusive lower bound on creation time. */
+                created_start_at?: string;
+                /** @description Exclusive upper bound on creation time. */
+                created_end_at?: string;
+                /** @description Inclusive lower bound on last-modified time. */
+                updated_start_at?: string;
+                /** @description Exclusive upper bound on last-modified time. */
+                updated_end_at?: string;
+                /** @description Sort field. Defaults to `name`. */
+                sort?: components["schemas"]["SecretSearchSort"];
+                /** @description Sort order. Defaults to `asc`. */
+                order?: components["schemas"]["SortOrder"];
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque continuation token returned as `next_cursor` by a previous request */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of matching secrets */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretSearchPage"];
+                };
+            };
+            /** @description A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Search is not enabled (`SEARCH_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     get_secret: {
@@ -19741,7 +19900,7 @@ export interface operations {
     list_snapshots: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -19828,7 +19987,7 @@ export interface operations {
                 sort?: components["schemas"]["SnapshotSearchSort"];
                 /** @description Sort order. Defaults to `desc`. */
                 order?: components["schemas"]["SortOrder"];
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -20070,7 +20229,7 @@ export interface operations {
     list_volumes: {
         parameters: {
             query?: {
-                /** @description Maximum number of items to return, 1–200 (default 100) */
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
                 limit?: components["parameters"]["Limit"];
                 /** @description Opaque continuation token returned as `next_cursor` by a previous request */
                 cursor?: components["parameters"]["Cursor"];
@@ -20171,6 +20330,95 @@ export interface operations {
                 };
             };
             /** @description Bucket volumes are temporarily unavailable (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    search_volumes: {
+        parameters: {
+            query?: {
+                /** @description Free text over the volume name (any substring, case-insensitive); a volume ID matches exactly. */
+                q?: string;
+                /** @description Match this exact volume name. */
+                name?: string;
+                /** @description Match names starting with this case-sensitive prefix. */
+                name_prefix?: string;
+                /** @description Comma-separated volume types. */
+                type?: components["schemas"]["VolumeType"][];
+                /** @description Comma-separated non-deleted volume statuses. */
+                status?: components["schemas"]["VolumeSearchStatus"][];
+                /** @description Comma-separated bucket origins. Only bucket volumes match. */
+                origin?: components["schemas"]["VolumeBucketOrigin"][];
+                /** @description True returns imported volumes, false returns native volumes, absent returns both. */
+                imported?: boolean;
+                /** @description Inclusive lower bound on creation time. */
+                created_start_at?: string;
+                /** @description Exclusive upper bound on creation time. */
+                created_end_at?: string;
+                /** @description Inclusive lower bound on last-modified time. */
+                updated_start_at?: string;
+                /** @description Exclusive upper bound on last-modified time. */
+                updated_end_at?: string;
+                /** @description Inclusive lower bound on last-used time. */
+                last_used_start_at?: string;
+                /** @description Exclusive upper bound on last-used time. */
+                last_used_end_at?: string;
+                /** @description Sort field. Defaults to `created_at`. */
+                sort?: components["schemas"]["VolumeSearchSort"];
+                /** @description Sort order. Defaults to `desc`. */
+                order?: components["schemas"]["SortOrder"];
+                /** @description Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque continuation token returned as `next_cursor` by a previous request */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of matching volumes */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VolumeSearchPage"];
+                };
+            };
+            /** @description A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Search is not enabled (`SEARCH_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
             503: {
                 headers: {
                     "Retry-After": components["headers"]["Retry-After"];

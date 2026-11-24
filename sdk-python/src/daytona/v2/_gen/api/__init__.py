@@ -265,6 +265,9 @@ from daytona.v2._gen.api.models.sandbox_usage_sample import SandboxUsageSample a
 from daytona.v2._gen.api.models.search_total_relation import SearchTotalRelation as SearchTotalRelation
 from daytona.v2._gen.api.models.secret import Secret as Secret
 from daytona.v2._gen.api.models.secret_page import SecretPage as SecretPage
+from daytona.v2._gen.api.models.secret_search_list_item import SecretSearchListItem as SecretSearchListItem
+from daytona.v2._gen.api.models.secret_search_page import SecretSearchPage as SecretSearchPage
+from daytona.v2._gen.api.models.secret_search_sort import SecretSearchSort as SecretSearchSort
 from daytona.v2._gen.api.models.set_automatic_top_up_request import SetAutomaticTopUpRequest as SetAutomaticTopUpRequest
 from daytona.v2._gen.api.models.set_balance_notification_request import SetBalanceNotificationRequest as SetBalanceNotificationRequest
 from daytona.v2._gen.api.models.set_billing_contact_request import SetBillingContactRequest as SetBillingContactRequest
@@ -330,8 +333,13 @@ from daytona.v2._gen.api.models.v0_sandbox import V0Sandbox as V0Sandbox
 from daytona.v2._gen.api.models.v0_sandbox_import import V0SandboxImport as V0SandboxImport
 from daytona.v2._gen.api.models.v0_sandbox_page import V0SandboxPage as V0SandboxPage
 from daytona.v2._gen.api.models.volume import Volume as Volume
+from daytona.v2._gen.api.models.volume_bucket_origin import VolumeBucketOrigin as VolumeBucketOrigin
 from daytona.v2._gen.api.models.volume_mount import VolumeMount as VolumeMount
 from daytona.v2._gen.api.models.volume_page import VolumePage as VolumePage
+from daytona.v2._gen.api.models.volume_search_list_item import VolumeSearchListItem as VolumeSearchListItem
+from daytona.v2._gen.api.models.volume_search_page import VolumeSearchPage as VolumeSearchPage
+from daytona.v2._gen.api.models.volume_search_sort import VolumeSearchSort as VolumeSearchSort
+from daytona.v2._gen.api.models.volume_search_status import VolumeSearchStatus as VolumeSearchStatus
 from daytona.v2._gen.api.models.volume_status import VolumeStatus as VolumeStatus
 from daytona.v2._gen.api.models.volume_type import VolumeType as VolumeType
 from daytona.v2._gen.api.models.wallet import Wallet as Wallet
