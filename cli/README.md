@@ -645,16 +645,18 @@ status apart from the CLI's own:
 
 `--file PATH` (or `--file -` for stdin) takes one JSON object (an array or
 another JSON value is refused, exit 2); explicit flags override its fields. A
-field of the wrong JSON type is refused (exit 2), naming the field (and the
-key or index of a wrong entry inside a map or an array); a number an integer
-field cannot hold says whether it is not whole or out of range. Keys name the
-API's request fields exactly, at any depth, as the API does: an unknown key,
-including one that differs from a field only in case (`Name`, `CORES_MAX`), is
-refused (exit 2). Keys of map values such as `env` and `labels` are names of
-your own and are sent as given. A field whose value is one of several shapes
-(`image create`'s `source`) is checked by its `type`: an unknown `type`, or a
-key the chosen shape does not have, is refused too. The bodies use the API's
-request fields:
+field of the wrong JSON type is refused (exit 2), naming the field, and the
+key or index of the first entry of the wrong JSON type when the field holds a
+map or an array of plain values. A number an integer field cannot hold says
+why: it is not whole (`1.5`), out of the field's range (`1e30`), or a whole
+number written with a fraction or an exponent (`2.0`, `1e3`), which the CLI
+does not convert. Keys name the API's request fields exactly, at any depth, as
+the API does: an unknown key, including one that differs from a field only in
+case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map values such as
+`env` and `labels` are names of your own and are sent as given. A field whose
+value is one of several shapes (`image create`'s `source`) is checked by its
+`type`: an unknown `type`, or a key the chosen shape does not have, is refused
+too. The bodies use the API's request fields:
 
 | Command | Body |
 |---|---|
@@ -688,10 +690,12 @@ of being ignored; the CLI reads the key's project once per command
 
 A credential must be printable ASCII: one that contains a control character
 (such as a line break or tab) or a non-ASCII character is refused before any
-request (exit 2); the error names where it came from (the flag,
-the variable or the profile), never the value. With no credential at all, a
-command that needs an organization or project reports "not logged in"
-(exit 3) before asking for either.
+request (exit 2); the error names where it came from (the flag, the variable,
+the saved profile, or the login's access token), never the value. A malformed
+credential the server or the identity provider issues (a login access token, a
+minted project key, a platform token) is refused (exit 1) before the CLI saves
+it. With no credential at all, a command that needs an organization or project
+reports "not logged in" (exit 3) before asking for either.
 
 A saved credential (a login or `login --token`) belongs to the API URL it was
 saved with. With `--api-url` or `DAYTONA_V2_API_URL` naming another API, the
