@@ -41,8 +41,10 @@ def remember_retry_after(error: DaytonaError, header: Optional[str]) -> None:
         return
     value = header.strip()
     seconds: Optional[float] = None
-    if value.isdigit():
-        seconds = float(int(value))
+    if value.isascii() and value.isdigit():
+        # A value too large for a float reads as infinite and is ignored, as
+        # in the Go and TypeScript SDKs.
+        seconds = float(value)
     else:
         try:
             when = parsedate_to_datetime(value)

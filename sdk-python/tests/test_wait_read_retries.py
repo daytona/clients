@@ -172,7 +172,7 @@ def test_the_retry_hint_prefers_the_body_then_the_header() -> None:
     later = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=30), usegmt=True)
     error = error_from_response(503, b"", content_type=None, retry_after=later)
     assert 25 <= retry_after_seconds(error) <= 30
-    for unusable in ("soon", "-1", "", None):
+    for unusable in ("soon", "-1", "", None, "9" * 400, "9" * 5000, "\u0665"):
         error = error_from_response(503, b"", content_type=None, retry_after=unusable)
         assert retry_after_seconds(error) == 0
 
