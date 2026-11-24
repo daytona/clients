@@ -84,6 +84,12 @@ class CallbackError extends Error {
 const MAX_EVENT = 128 * 1024
 // Bound one-shot responses client-side without trusting Content-Length.
 const MAX_ONE_SHOT_BYTES = 2 * 1024 * 1024
+/**
+ * How long an error response's diagnostic body may take when its request has
+ * no deadline (`requestTimeoutSeconds: 0`): past it the status alone is the
+ * error, so a 429 / 5xx that never finishes its body is still retried.
+ */
+const ERROR_BODY_MS = 30_000
 
 /** JSON-boundary scratch values never escape the validated DTO constructors. */
 function jsonObject(json: string): Record<string, unknown> {
@@ -465,7 +471,7 @@ async function httpError(response: Response, deadline: number | undefined): Prom
     return redirectError(response.status)
   }
   try {
-    const body = await finiteBody(response, deadline, 'error')
+    const body = await finiteBody(response, deadline ?? performance.now() + ERROR_BODY_MS, 'error')
     return errorFromEnvelopeBody(body, response.headers.get('content-type'), response.status, `build log HTTP ${response.status}`, true)
   } catch (error) {
     // A denied request stays denied even if its explanatory JSON stalls. Do

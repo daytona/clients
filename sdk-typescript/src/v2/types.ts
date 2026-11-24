@@ -1222,7 +1222,7 @@ export interface FilePermissionsOptions {
   readonly group?: string
   /**
    * Total deadline of this call in seconds, replacing the client's
-   * `requestTimeoutSeconds` (work over a large tree can outlast it); `0`, or a
+   * `requestTimeoutSeconds` (a slow sandbox file system can outlast it); `0`, or a
    * value above 2,147,483.647 (about 24.8 days), is no limit. Omitted, the
    * client's request timeout applies. A negative or non-finite value (or one
    * that is not a number) throws `BadRequestError` before any request. A

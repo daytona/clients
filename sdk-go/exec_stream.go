@@ -97,7 +97,12 @@ func (h *ProcessHandle) recoverExec(
 	// A process that ended by the deadline reports how it ended, not timed_out.
 	readCtx, cancel := context.WithTimeout(ctx, execDeadlineReadBound)
 	defer cancel()
-	if info, err := h.Get(readCtx); err == nil && info.State == ProcessStateTerminal {
+	info, err := h.Get(readCtx)
+	if ctx.Err() != nil {
+		// The caller cancelled during the read: that, not timed_out, is the answer.
+		return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), transportError(ctx, ctx.Err())
+	}
+	if err == nil && info.State == ProcessStateTerminal {
 		return processResult(h.id, info.WaitResult, logs), nil
 	}
 	return processResult(h.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil

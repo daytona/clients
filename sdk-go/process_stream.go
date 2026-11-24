@@ -91,11 +91,14 @@ func (b idleBody) Read(p []byte) (int, error) {
 // idleWatch cancels a stream once no bytes arrived for idle. Its timer checks
 // the last arrival under the lock and re-arms for the rest of the window, so
 // a read that arrived in time never loses to a timer that already fired.
+// While paused (the caller is handling an event), no time counts as silence.
+// A nil watch is no bound.
 type idleWatch struct {
 	mu      sync.Mutex
 	last    time.Time
 	timer   *time.Timer
 	stopped bool
+	paused  bool
 }
 
 func newIdleWatch(idle time.Duration, expire func()) *idleWatch {
@@ -108,6 +111,10 @@ func newIdleWatch(idle time.Duration, expire func()) *idleWatch {
 		if watch.stopped {
 			return
 		}
+		if watch.paused {
+			watch.timer.Reset(idle)
+			return
+		}
 		if quiet := time.Since(watch.last); quiet < idle {
 			watch.timer.Reset(idle - quiet)
 			return
@@ -118,12 +125,38 @@ func newIdleWatch(idle time.Duration, expire func()) *idleWatch {
 }
 
 func (w *idleWatch) kick() {
+	if w == nil {
+		return
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.last = time.Now()
 }
 
+// pause stops counting silence until resume, which starts a fresh window.
+func (w *idleWatch) pause() {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.paused = true
+}
+
+func (w *idleWatch) resume() {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.paused = false
+	w.last = time.Now()
+}
+
 func (w *idleWatch) stop() {
+	if w == nil {
+		return
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.stopped = true
@@ -132,25 +165,25 @@ func (w *idleWatch) stop() {
 
 // open sends the follow request. With an idle bound, the idle window starts
 // before the request, so a follow request whose response headers never arrive
-// is bounded by it too, and the returned body kicks it as bytes arrive.
+// is bounded by it too, and the returned body kicks it as bytes arrive. The
+// watch is nil without an idle bound.
 func (s processLogStream) open(ctx context.Context, cancel context.CancelCauseFunc) (
-	*http.Response, io.Reader, func(), error,
+	*http.Response, io.Reader, *idleWatch, error,
 ) {
-	stop := func() {}
-	var watch *idleWatch
-	if s.idle > 0 {
-		watch = newIdleWatch(s.idle, func() { cancel(errProcessLogIdle) })
-		stop = watch.stop
+	if s.idle <= 0 {
+		response, err := s.toolbox.stream(ctx, s.request)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return response, response.Body, nil, nil
 	}
+	watch := newIdleWatch(s.idle, func() { cancel(errProcessLogIdle) })
 	response, err := s.toolbox.stream(ctx, s.request)
 	if err != nil {
-		return nil, nil, stop, err
-	}
-	if watch == nil {
-		return response, response.Body, stop, nil
+		return nil, nil, watch, err
 	}
 	watch.kick()
-	return response, idleBody{Reader: response.Body, watch: watch}, stop, nil
+	return response, idleBody{Reader: response.Body, watch: watch}, watch, nil
 }
 
 func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEvent, error) bool) (
@@ -159,8 +192,8 @@ func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEven
 	streamCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	idled := func() bool { return ctx.Err() == nil && errors.Is(context.Cause(streamCtx), errProcessLogIdle) }
-	response, body, stop, openErr := s.open(streamCtx, cancel)
-	defer stop()
+	response, body, watch, openErr := s.open(streamCtx, cancel)
+	defer watch.stop()
 	if openErr != nil {
 		if idled() {
 			return false, errProcessLogIdle
@@ -187,7 +220,11 @@ func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEven
 		if event == nil {
 			continue
 		}
-		if !yield(event, nil) {
+		// Time the caller spends on an event is not silence on the stream.
+		watch.pause()
+		more := yield(event, nil)
+		watch.resume()
+		if !more {
 			return true, nil
 		}
 		switch event.(type) {

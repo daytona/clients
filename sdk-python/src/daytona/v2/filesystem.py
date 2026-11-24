@@ -604,9 +604,10 @@ class AsyncFileSystemService:
         Work over a large tree can take longer than the client's
         ``request_timeout``; ``timeout`` replaces it for this call, as a total
         deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
-        days), means no limit; omitted, the client's request timeout applies. A negative,
-        non-finite or boolean value raises ``BadRequestError`` before any
-        request. A timeout ends the call, not the work in the sandbox.
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
         await self._transport.send(
             RequestSpec(
@@ -644,9 +645,10 @@ class AsyncFileSystemService:
         Work over a large tree can take longer than the client's
         ``request_timeout``; ``timeout`` replaces it for this call, as a total
         deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
-        days), means no limit; omitted, the client's request timeout applies. A negative,
-        non-finite or boolean value raises ``BadRequestError`` before any
-        request. A timeout ends the call, not the work in the sandbox.
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
         return parse_grep_response(
             await self._transport.send(
@@ -672,9 +674,10 @@ class AsyncFileSystemService:
         Work over a large tree can take longer than the client's
         ``request_timeout``; ``timeout`` replaces it for this call, as a total
         deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
-        days), means no limit; omitted, the client's request timeout applies. A negative,
-        non-finite or boolean value raises ``BadRequestError`` before any
-        request. A timeout ends the call, not the work in the sandbox.
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
         return parse_glob_response(
             await self._transport.send(
@@ -695,9 +698,10 @@ class AsyncFileSystemService:
         Work over a large tree can take longer than the client's
         ``request_timeout``; ``timeout`` replaces it for this call, as a total
         deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
-        days), means no limit; omitted, the client's request timeout applies. A negative,
-        non-finite or boolean value raises ``BadRequestError`` before any
-        request. A timeout ends the call, not the work in the sandbox.
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
         checked_files = [
             sandbox_path(path, f"files[{index}]") for index, path in enumerate(path_sequence(files, "files"))
@@ -727,10 +731,10 @@ class AsyncFileSystemService:
     ) -> None:
         """Set file permissions and ownership.
 
-        Work over a large tree can take longer than the client's
-        ``request_timeout``; ``timeout`` replaces it for this call, as a total
-        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
-        days), means no limit; omitted, the client's request timeout applies. A negative,
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        as a total deadline in seconds (a slow sandbox file system can outlast
+        it). ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
         non-finite or boolean value raises ``BadRequestError`` before any
         request. A timeout ends the call, not the work in the sandbox.
         """

@@ -40,7 +40,8 @@ type RemoveFileOptions struct {
 	// Timeout replaces the client's request timeout for this call as its total
 	// deadline (work over a large tree can outlast it); zero keeps the request
 	// timeout, NoTimeout (or a duration above 2,147,483.647 seconds) disables
-	// it. The context always bounds the call. A timeout ends the call, not the
+	// it, and any other negative value returns ErrBadRequest before a request.
+	// The context always bounds the call. A timeout ends the call, not the
 	// work in the sandbox.
 	Timeout time.Duration
 }
@@ -54,9 +55,10 @@ type FilePermissionsOptions struct {
 	// Group is a group name or ID; empty leaves it unchanged.
 	Group string
 	// Timeout replaces the client's request timeout for this call as its total
-	// deadline (work over a large tree can outlast it); zero keeps the request
+	// deadline (a slow sandbox file system can outlast it); zero keeps the request
 	// timeout, NoTimeout (or a duration above 2,147,483.647 seconds) disables
-	// it. The context always bounds the call. A timeout ends the call, not the
+	// it, and any other negative value returns ErrBadRequest before a request.
+	// The context always bounds the call. A timeout ends the call, not the
 	// work in the sandbox.
 	Timeout time.Duration
 }

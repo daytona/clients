@@ -132,11 +132,36 @@ describe('build-log follower HTTP errors', () => {
     expect(paths).toEqual([DISCOVERY])
   })
 
-  it('retries a 5xx whose error body is oversized, keeping its status', async () => {
+  it('retries a 5xx whose error body is oversized', async () => {
     const big = new Response(JSON.stringify({ code: 'SERVICE_UNAVAILABLE', message: 'x'.repeat(200 * 1024) }), { status: 503, headers: { 'content-type': 'application/json' } })
     const { client, paths } = setup([big])
     await expect(advance(client.images.followBuildLogs('image', { onLogs: () => {} }))).resolves.toMatchObject({ status: 'ready' })
     expect(paths).toEqual([DISCOVERY, DISCOVERY, STREAM])
+  })
+
+  it('keeps an oversized 5xx error body\'s status as the cause when retries end', async () => {
+    const big = (): Response => new Response(JSON.stringify({ code: 'SERVICE_UNAVAILABLE', message: 'x'.repeat(200 * 1024) }), { status: 503, headers: { 'content-type': 'application/json' } })
+    const { client, paths } = setup(Array.from({ length: 6 }, big))
+    const error = await failure(client.images.followBuildLogs('image', { onLogs: () => {} }))
+    expect(error).toBeInstanceOf(BuildLogInterruptedError)
+    expect(error.cause).toMatchObject({ statusCode: 503, code: 'BUILD_LOG_PROTOCOL_ERROR' })
+    expect(paths).toEqual(Array(6).fill(DISCOVERY))
+  })
+
+  it('bounds an error body that never ends when the request has no deadline', async () => {
+    const neverEnds = new Response(new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('{"code":')) },
+    }), { status: 503, headers: { 'content-type': 'application/json' } })
+    const { paths } = setup([neverEnds])
+    const previous = process.env.DAYTONA_V2_API_URL
+    process.env.DAYTONA_V2_API_URL = 'https://api.example'
+    const unbounded = new Daytona({ apiKey: 'test-key', requestTimeoutSeconds: 0 })
+    if (previous === undefined) delete process.env.DAYTONA_V2_API_URL
+    else process.env.DAYTONA_V2_API_URL = previous
+    const start = performance.now()
+    await expect(advance(unbounded.images.followBuildLogs('image', { onLogs: () => {} }))).resolves.toMatchObject({ status: 'ready' })
+    expect(paths).toEqual([DISCOVERY, DISCOVERY, STREAM])
+    expect(performance.now() - start).toBeGreaterThanOrEqual(30_000)
   })
 
   it('keeps an oversized 4xx error body as its status error, as Python does', async () => {

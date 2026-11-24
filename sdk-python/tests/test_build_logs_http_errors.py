@@ -6,6 +6,9 @@ as the final error or its cause."""
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
+import anyio
 import anyio.lowlevel
 import httpx
 import pytest
@@ -189,5 +192,37 @@ async def test_a_5xx_with_an_oversized_error_body_is_still_retried(recorded_dela
     big = httpx.Response(503, json={"code": "SERVICE_UNAVAILABLE", "message": "x" * (200 * 1024)})
     api, requests = setup([big])
     result = await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+    assert result.status == "ready"
+    assert paths(requests) == [DISCOVERY, DISCOVERY, "/build-logs/images/image"]
+
+
+class _NeverEnds(httpx.AsyncByteStream):
+    """An error body that starts and never finishes."""
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield b'{"code":"SERVICE_UNAVAILABLE",'
+        await anyio.sleep(3600)
+
+
+async def test_an_error_body_that_never_ends_is_bounded_without_a_request_deadline(
+    monkeypatch, recorded_delays
+):
+    # Given no request timeout, no caller timeout, and a 503 whose body never ends.
+    monkeypatch.setattr("daytona.v2.build_logs._ERROR_BODY_SECONDS", 0.05)
+    requests: list[httpx.Request] = []
+    discoveries = [httpx.Response(503, headers={"content-type": "application/json"}, stream=_NeverEnds())]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == DISCOVERY:
+            return discoveries.pop(0) if discoveries else httpx.Response(200, json={"url": LOGS_URL})
+        return done()
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    api = AsyncTransport("https://api.example", "test-key", client=client, request_timeout=0)
+    # When following.
+    with anyio.fail_after(5):
+        result = await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+    # Then the status alone was the error after the body budget, and it was retried.
     assert result.status == "ready"
     assert paths(requests) == [DISCOVERY, DISCOVERY, "/build-logs/images/image"]

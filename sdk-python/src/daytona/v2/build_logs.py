@@ -247,6 +247,11 @@ _MAX_EVENT = 128 * 1024
 # Bound this SDK string API to 2 MiB of response-body bytes so a misbehaving
 # endpoint cannot turn a one-shot read into an unbounded allocation.
 _MAX_ONE_SHOT_BYTES = 2 * 1024 * 1024
+# How long an error response's diagnostic body may take when its request has
+# no deadline (request_timeout 0 and no caller timeout): past it the status
+# alone is the error, so a 429 / 5xx that never finishes its body is still
+# retried instead of stalling the follower.
+_ERROR_BODY_SECONDS = 30.0
 _WIRE_MODELS: Mapping[str, type[BaseModel]] = {
     "state": BuildLogState,
     "log": BuildLogChunk,
@@ -710,7 +715,7 @@ async def _finite_http_error(stream: AsyncResponseStream, deadline: float | None
     if 300 <= stream.status_code < 400:
         # The SDK follows no redirect; its body is never read.
         return redirect_error(stream.status_code)
-    budget = _budget(deadline)
+    budget = _ERROR_BODY_SECONDS if deadline is None else _budget(deadline)
     if budget is not None and budget <= 0:
         return create_error(f"build log HTTP {stream.status_code}", stream.status_code)
     with anyio.move_on_after(budget):

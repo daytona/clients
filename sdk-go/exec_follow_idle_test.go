@@ -213,3 +213,92 @@ func TestExec_whenAFollowRequestNeverAnswers_resumesAfterTheIdleBound(t *testing
 		require.Equal(t, execFollowIdle, time.Since(started))
 	})
 }
+
+func TestExec_whenTheCallerSpendsLongOnAnEvent_doesNotResume(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given a healthy stream whose second frame arrives a second after the first.
+		mux := http.NewServeMux()
+		mux.HandleFunc("POST /processes", jsonHandler(t, processFixture("p")))
+		mux.HandleFunc("GET /processes/p/wait", jsonHandler(t, map[string]any{"reason": "exited", "exitCode": 0}))
+		follows := 0
+		sandbox := dockerTimingSandbox(t, func(r *http.Request) (*http.Response, error) {
+			if r.URL.Query().Get("follow") != "true" {
+				return (waitTestTransport{handler: mux.ServeHTTP}).RoundTrip(r)
+			}
+			follows++
+			parts := []string{
+				"event: log\nid: 1\ndata: {\"timestamp\":1,\"channel\":\"stdout\",\"data\":\"a\"}\n\n",
+				"event: log\nid: 2\ndata: {\"timestamp\":2,\"channel\":\"stdout\",\"data\":\"b\"}\n\nevent: eof\nid: 3\ndata: {}\n\n",
+			}
+			if r.Header.Get("Last-Event-ID") == "1" {
+				parts = parts[1:]
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"text/event-stream"}},
+				Body: io.NopCloser(&execLaterFrames{ctx: r.Context(), parts: parts}), Request: r,
+			}, nil
+		})
+		// When the caller's writer takes longer than the idle bound on the first frame.
+		result, err := sandbox.Exec(t.Context(), "command", &ExecOptions{
+			Timeout: WaitForever, Stdout: execSlowWriter{delay: 2 * execFollowIdle},
+		})
+		// Then the stream is not treated as dropped: one follow request, no resume.
+		require.NoError(t, err)
+		require.Equal(t, "ab", result.Stdout)
+		require.Equal(t, 1, follows)
+	})
+}
+
+func TestExec_whenTheCallerCancelsDuringTheDeadlineProcessRead_reportsTheCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given a run whose post-deadline process read sees the caller cancel.
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		mux := http.NewServeMux()
+		mux.HandleFunc("POST /processes", jsonHandler(t, processFixture("p")))
+		mux.HandleFunc("GET /processes/p/logs", jsonHandler(t, processLogsFixture()))
+		mux.HandleFunc("GET /processes/p", func(_ http.ResponseWriter, r *http.Request) {
+			cancel()
+			<-r.Context().Done()
+		})
+		sandbox, _ := execDroppedStreamSandbox(t, mux,
+			"event: log\nid: 1\ndata: {\"timestamp\":1,\"channel\":\"stdout\",\"data\":\"out\"}\n\n")
+		// When the run's budget expires.
+		result, err := sandbox.Exec(ctx, "command", &ExecOptions{Timeout: time.Second, Stdout: io.Discard})
+		// Then the cancellation is the answer, never a clean timed_out.
+		require.ErrorIs(t, err, context.Canceled)
+		require.Equal(t, ProcessReasonUnknown, result.Reason)
+		require.Equal(t, "out", result.Stdout)
+	})
+}
+
+// execLaterFrames returns its parts one per Read, a second apart, until its
+// request is cancelled.
+type execLaterFrames struct {
+	ctx   context.Context
+	parts []string
+}
+
+func (r *execLaterFrames) Read(p []byte) (int, error) {
+	if len(r.parts) == 0 {
+		return 0, io.EOF
+	}
+	select {
+	case <-r.ctx.Done():
+		return 0, r.ctx.Err()
+	case <-time.After(time.Second):
+	}
+	n := copy(p, r.parts[0])
+	r.parts[0] = r.parts[0][n:]
+	if r.parts[0] == "" {
+		r.parts = r.parts[1:]
+	}
+	return n, nil
+}
+
+type execSlowWriter struct{ delay time.Duration }
+
+func (w execSlowWriter) Write(p []byte) (int, error) {
+	time.Sleep(w.delay)
+	return len(p), nil
+}

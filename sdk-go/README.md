@@ -212,7 +212,9 @@ Every duration is a `time.Duration`:
   therefore take a `Timeout` option (`RemoveFileOptions`, `FileSearchOptions`,
   `ReplaceOptions`, `FilePermissionsOptions`) that replaces the request timeout
   for that call. Zero keeps the request timeout; `daytona.NoTimeout`, or a
-  duration above 2,147,483.647 seconds, means no limit. A timeout ends the call, not the work in the sandbox.
+  duration above 2,147,483.647 seconds, means no limit. Any other negative
+  value returns `ErrBadRequest` before a request is sent. A timeout ends the
+  call, not the work in the sandbox.
 - `Exec`, `Run`, `RunArgs` and `Session.Run` with `Stdout` or `Stderr`
   writers follow the output on a log stream. A stream that delivers nothing
   for 45 seconds is treated as dropped and resumed after the last event, so a
