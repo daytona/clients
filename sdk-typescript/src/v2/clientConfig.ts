@@ -45,6 +45,12 @@ function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', va
   }
 }
 
+function optionalBoolean(name: 'otelEnabled' | 'sharedHub', value: boolean | undefined): boolean | undefined {
+  // `null` keeps its current meaning (unset); only another type is refused.
+  if (value != null && typeof value !== 'boolean') throw badRequest(`${name} must be a boolean`)
+  return value
+}
+
 function connectionPoolMaxsize(value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (!Number.isInteger(value) || value <= 0) {
@@ -117,7 +123,8 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
   // Above the timer maximum (about 24.8 days) means no bound, like 0.
   const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
-  const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
+  const otelEnabled = optionalBoolean('otelEnabled', config.otelEnabled) ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
+  optionalBoolean('sharedHub', config.sharedHub)
   const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
   const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
   if (!apiKey && !jwtToken) {

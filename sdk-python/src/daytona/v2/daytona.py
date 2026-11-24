@@ -91,6 +91,7 @@ from .image import ImageBuilder
 from .network_policy import serialize_network_policy_input
 from .sandbox import (
     AsyncSandbox,
+    _check_toolbox_override_url,
     _lifecycle_wire_timestamps,
     _scoped_toolbox_url,
     _wait_without_raising_for_its_end,
@@ -200,7 +201,7 @@ class AsyncDaytona:
         # events hub key carries no region either.
         self._target = "local"
         self._request_timeout = resolved.request_timeout
-        shared_hub = config.shared_hub if config is not None else True
+        shared_hub = _optional_bool("shared_hub", config.shared_hub) if config is not None else True
         events_config = _resolve_events_config(config.events if config is not None else None)
         # `_source` is the X-Daytona-Source label; Daytona passes "sdk-python"
         # because it drives this class through a bridge and would otherwise be
@@ -903,8 +904,9 @@ class AsyncDaytona:
         ``access_token`` is a sandbox access token the handle sends to sandbox
         services instead of minting its own; the handle never replaces it.
 
-        Both are checked before any request: ``toolbox_url`` must be a
-        non-blank string, and ``access_token`` (sent as a bearer credential)
+        Both are checked before any request: ``toolbox_url`` must be an
+        absolute ``http``/``https`` URL with a host and no query or fragment
+        (a ``{sandbox_id}`` placeholder only in its path), and ``access_token`` (sent as a bearer credential)
         non-empty printable ASCII with no surrounding whitespace, never
         stripped; ``None`` omits either.
         """
@@ -1466,9 +1468,9 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     project_id = config.project_id if config.project_id is not None else _ambient("DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
         raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")
-    otel_enabled = (
-        config.otel_enabled if config.otel_enabled is not None else _env_truthy("DAYTONA_OTEL_ENABLED")
-    )
+    otel_enabled = _optional_bool("otel_enabled", config.otel_enabled)
+    if otel_enabled is None:
+        otel_enabled = _env_truthy("DAYTONA_OTEL_ENABLED")
     return _ResolvedConfig(
         api_url=api_url,
         api_key=api_key,
@@ -1529,6 +1531,11 @@ def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[Sa
     """
     if config is None:
         return config
+    if not isinstance(config, SandboxEventsConfig):
+        raise create_error(
+            f"events must be a SandboxEventsConfig, got {type(config).__name__}", 400, "BAD_REQUEST", "SDK"
+        )
+    _optional_bool("events.enabled", config.enabled)
     reconcile = _clamped_seconds(
         "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
     )
@@ -1544,6 +1551,14 @@ def _clamped_seconds(name: str, value: Optional[float], ceiling: float) -> Optio
         return None
     seconds = _non_negative_seconds(name, value)
     return ceiling if seconds > ceiling else value
+
+
+def _optional_bool(name: str, value: object) -> Optional[bool]:
+    """``value`` when it is a ``bool`` or ``None``; anything else (a string
+    such as ``"no"`` would read as true) is the SDK's ``BadRequestError``."""
+    if value is not None and not isinstance(value, bool):
+        raise create_error(f"{name} must be a boolean", 400, "BAD_REQUEST", "SDK")
+    return value
 
 
 def _env_truthy(env_var: str) -> bool:
@@ -1671,10 +1686,13 @@ def _named_create(name: CreateConfigValue | None) -> Optional[str]:
 
 def _check_connect_options(toolbox_url: object, access_token: object) -> None:
     """``get()``'s connect options, as TypeScript checks them: ``None`` is
-    omitted; a toolbox URL is a non-blank string; an access token follows the
-    header rule (it is sent as a bearer credential), never stripped."""
-    if toolbox_url is not None and (not isinstance(toolbox_url, str) or not toolbox_url.strip()):
-        raise create_error("toolbox_url must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    omitted; a toolbox URL is a non-blank string and an absolute http(s) URL
+    with a host and no query or fragment; an access token follows the header
+    rule (it is sent as a bearer credential), never stripped."""
+    if toolbox_url is not None:
+        if not isinstance(toolbox_url, str) or not toolbox_url.strip():
+            raise create_error("toolbox_url must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+        _check_toolbox_override_url(toolbox_url, "toolbox_url")
     if access_token is not None:
         if not isinstance(access_token, str):
             raise create_error("access_token must be a string", 400, "BAD_REQUEST", "SDK")

@@ -614,7 +614,9 @@ export interface SandboxConnectOptions {
    * The SDK sends this sandbox's toolbox credential there (the API key, a
    * project token, or a minted sandbox token), so pass only a URL you trust —
    * never one read from stored or user-supplied data. Omit it to use the URL
-   * the API returns.
+   * the API returns. It must be an absolute `http` / `https` URL with a host
+   * and no query or fragment (a `{sandboxId}` placeholder only in its path),
+   * checked before any request.
    */
   readonly toolboxUrl?: string
   /**

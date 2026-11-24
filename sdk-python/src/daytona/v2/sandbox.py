@@ -8,6 +8,7 @@ import contextlib
 import dataclasses
 import enum
 import math
+import re
 import time
 from collections.abc import Mapping as MappingABC
 from collections.abc import Sequence as SequenceABC
@@ -26,7 +27,7 @@ from typing import (
     Union,
     get_args,
 )
-from urllib.parse import quote, urlsplit
+from urllib.parse import SplitResult, quote, urlsplit
 
 import anyio
 from typing_extensions import Self
@@ -2373,6 +2374,39 @@ def _assert_placeholder_in_path(url: str) -> None:
             400,
             "BAD_REQUEST",
             "SDK",
+        )
+
+
+_URL_SPACE_OR_CONTROL: Final = re.compile(r"[\s\x00-\x1f\x7f]")
+_HTTP_URL_PREFIX: Final = re.compile(r"https?://", re.IGNORECASE)
+
+
+def _check_toolbox_override_url(url: str, name: str) -> None:
+    """Refuse a caller's toolbox URL override that is not an absolute http(s)
+    URL with a host and no query or fragment (the Go SDK's rule), before any
+    request. A ``{sandbox_id}`` placeholder is allowed in the path only."""
+    if _has_sandbox_id_placeholder(url):
+        _assert_placeholder_in_path(url)
+    masked = url
+    for placeholder in _SANDBOX_ID_PLACEHOLDERS:
+        masked = masked.replace(placeholder, "sandbox")
+    parsed: Optional[SplitResult]
+    try:
+        parsed = urlsplit(masked)
+        _ = parsed.port  # a malformed port raises ValueError
+    except ValueError:
+        parsed = None
+    valid = (
+        parsed is not None
+        and bool(parsed.hostname)
+        and _HTTP_URL_PREFIX.match(masked) is not None
+        and _URL_SPACE_OR_CONTROL.search(masked) is None
+        and "?" not in masked
+        and "#" not in masked
+    )
+    if not valid:
+        raise create_error(
+            f"{name} must be an http(s) URL with a host and no query or fragment", 400, "BAD_REQUEST", "SDK"
         )
 
 

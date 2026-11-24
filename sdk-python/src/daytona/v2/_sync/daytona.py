@@ -479,8 +479,9 @@ class Daytona:
         ``access_token`` is a sandbox access token the handle sends to sandbox
         services instead of minting its own; the handle never replaces it.
 
-        Both are checked before any request: ``toolbox_url`` must be a
-        non-blank string, and ``access_token`` (sent as a bearer credential)
+        Both are checked before any request: ``toolbox_url`` must be an
+        absolute ``http``/``https`` URL with a host and no query or fragment
+        (a ``{sandbox_id}`` placeholder only in its path), and ``access_token`` (sent as a bearer credential)
         non-empty printable ASCII with no surrounding whitespace, never
         stripped; ``None`` omits either.
         """

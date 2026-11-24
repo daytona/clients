@@ -175,6 +175,29 @@ function assertPlaceholderInPath(url: string): void {
   }
 }
 
+/**
+ * Refuse a caller's toolbox URL override that is not an absolute http(s) URL
+ * with a host and no query or fragment (the Go SDK's rule), before any
+ * request; a `{sandboxId}` placeholder is allowed in the path only.
+ * @internal
+ */
+export function assertToolboxOverrideUrl(url: string, name: string): void {
+  if (hasSandboxIdPlaceholder(url)) assertPlaceholderInPath(url)
+  const masked = SANDBOX_ID_PLACEHOLDERS.reduce((acc, placeholder) => acc.split(placeholder).join('sandbox'), url)
+  let hostname = ''
+  try {
+    hostname = new URL(masked).hostname
+  } catch {
+    hostname = ''
+  }
+  const valid = hostname !== ''
+    && /^https?:\/\//i.test(masked)
+    && !/[\s\u0000-\u001f\u007f]/.test(masked)
+    && !masked.includes('?')
+    && !masked.includes('#')
+  if (!valid) throw badRequest(`${name} must be an http(s) URL with a host and no query or fragment`)
+}
+
 function expandSandboxIdPlaceholder(url: string, sandboxId: string): string {
   assertPlaceholderInPath(url)
   // Same RFC 3986 strict encoder the presigned path uses, so a template expands
