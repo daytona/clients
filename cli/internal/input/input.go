@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -252,6 +253,9 @@ func numberProblem(goType, value string) string {
 		return ""
 	}
 	parsed, _, err := big.ParseFloat(number, 10, 256, big.ToNearestEven)
+	if errors.Is(err, strconv.ErrRange) || (err == nil && parsed.IsInf()) {
+		return fmt.Sprintf("is out of range (%s to %s), got %s", bounds[0], bounds[1], number)
+	}
 	if err != nil || !parsed.IsInt() {
 		return fmt.Sprintf("must be a whole number, got %s", number)
 	}
