@@ -14,10 +14,9 @@ Do not report security vulnerabilities through public GitHub issues. Use one of:
 
 ## Supported versions
 
-Reports are accepted against the latest release of each line. Until 2.x has a
-general release, that is its latest prerelease.
+Reports are accepted against the latest release of each line.
 
 | Line | Branch | Packages |
 |---|---|---|
-| 2.x | `main` | prerelease versions of `daytona` (PyPI) and `@daytona/sdk` (npm), and of the `daytona` CLI |
-| 0.x | `release/v0` | `daytona` (PyPI) and `@daytona/sdk` (npm) as installed by default, and the 0.x CLI |
+| 2.x | `main` | `daytona` (PyPI) and `@daytona/sdk` (npm) as installed by default, the Go SDK `go.daytona.com/sdk/v2`, and the `daytona` CLI |
+| 0.x | `release/v0` | 0.x versions of `daytona` (PyPI) and `@daytona/sdk` (npm), the legacy `daytona-sdk` / `@daytonaio/sdk` packages, and the 0.x CLI |

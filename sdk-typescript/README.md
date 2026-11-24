@@ -3,15 +3,17 @@
 The official TypeScript SDK for Daytona sandboxes. Ships ESM + CJS with type
 declarations. Node >= 22.15 (or a browser environment with `WebSocket`).
 
-> **Alpha.** This SDK is published as alpha prereleases under the `alpha`
-> dist-tag. Install with `npm install @daytona/sdk@alpha` (or pin an exact
-> `X.Y.Z-alpha.N` version). The API may still change between alphas.
-
 ## Install
 
 ```bash
-npm install @daytona/sdk@alpha
+npm install @daytona/sdk
 ```
+
+This installs the latest stable 2.x release (the `latest` dist-tag).
+Pre-releases are published under their own dist-tags: `next` for release
+candidates and `alpha` for alphas. To try one, install it explicitly
+(`npm install @daytona/sdk@next`) or pin an exact `X.Y.Z-rc.N` /
+`X.Y.Z-alpha.N` version.
 
 The legacy package `@daytonaio/sdk` is published only from the 0.x line:
 installing or upgrading it never gives you 2.x. Install `@daytona/sdk`.

@@ -3,18 +3,19 @@
 The official Python SDK for Daytona sandboxes. Import module and package name
 are both `daytona`.
 
-> **Alpha.** This SDK is published as alpha prereleases. Pin the exact
-> version you want (see the release history on PyPI) — a bare
-> `pip install --pre daytona` picks the highest prerelease on PyPI, which is
-> not necessarily the newest alpha. The API may still change between alphas.
-
 ## Install
 
 ```bash
-pip install daytona==X.Y.ZaN          # substitute the alpha you want
-pip install 'daytona[otel]==X.Y.ZaN'  # adds OpenTelemetry request spans
-pip install 'daytona[v0-sdk]==X.Y.ZaN'    # adds the v0 namespace (Daytona().v0)
+pip install daytona                # the latest stable 2.x release
+pip install 'daytona[otel]'        # adds OpenTelemetry request spans
+pip install 'daytona[v0-sdk]'      # adds the v0 namespace (Daytona().v0)
 ```
+
+Pre-releases (alphas and release candidates) are published too. To try one,
+pin its exact version (`pip install daytona==X.Y.ZaN`, or `X.Y.ZrcN`): a bare
+`pip install --pre daytona` picks the highest pre-release on PyPI, which is
+not necessarily the newest one, because PEP 440 sorts release candidates above
+alphas.
 
 The legacy package name `daytona-sdk` (`daytona_sdk`) is published only from
 the 0.x line: installing or upgrading it never gives you 2.x. Install
@@ -204,7 +205,7 @@ accessing it without the extra raises `ImportError` naming the install command.
 A program that only uses `d.v2` never imports v0 code.
 
 ```bash
-pip install 'daytona[v0-sdk]==X.Y.ZaN'
+pip install 'daytona[v0-sdk]'
 ```
 
 ```python
