@@ -977,11 +977,11 @@ export class Sandbox {
    * @returns {Promise<void>}
    *
    * @example
-   * // Returns once the deletion request is accepted
-   * await sandbox.delete()
-   *
-   * // Or: returns once the Sandbox is destroyed
-   * await sandbox.delete(60, true)
+   * const sandbox = await daytona.create()
+   * // ... use sandbox ...
+   * await sandbox.delete() // Returns once the deletion request is accepted
+   * // Or, to return once the Sandbox is destroyed:
+   * // await sandbox.delete(60, true)
    */
   @WithInstrumentation()
   public async delete(timeout = 60, wait = false): Promise<void> {

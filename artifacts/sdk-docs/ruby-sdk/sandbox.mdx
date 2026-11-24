@@ -884,11 +884,11 @@ Only meaningful when +wait+ is true.
 **Examples:**
 
 ```ruby
-# Returns once the deletion request is accepted
-sandbox.delete
-
-# Or: returns once the Sandbox is destroyed
-sandbox.delete(wait: true)
+sandbox = daytona.create
+# ... use sandbox ...
+sandbox.delete # Returns once the deletion request is accepted
+# Or, to return once the Sandbox is destroyed:
+# sandbox.delete(wait: true)
 
 ```
 

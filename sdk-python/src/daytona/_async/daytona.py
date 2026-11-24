@@ -803,7 +803,8 @@ class AsyncDaytona:
             sandbox = await daytona.create()
             # ... use sandbox ...
             await daytona.delete(sandbox)  # Returns once the deletion request is accepted
-            # Or: await daytona.delete(sandbox, wait=True)  # Returns once the Sandbox is destroyed
+            # Or, to return once the Sandbox is destroyed:
+            # await daytona.delete(sandbox, wait=True)
             ```
         """
         _ = await sandbox.delete(timeout, wait=wait)

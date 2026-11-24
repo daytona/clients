@@ -1058,11 +1058,11 @@ class Sandbox(SandboxDto):
 
         Example:
             ```python
-            # Returns once the deletion request is accepted
-            sandbox.delete()
-
-            # Or: returns once the Sandbox is destroyed
-            sandbox.delete(wait=True)
+            sandbox = daytona.create()
+            # ... use sandbox ...
+            sandbox.delete()  # Returns once the deletion request is accepted
+            # Or, to return once the Sandbox is destroyed:
+            # sandbox.delete(wait=True)
             ```
         """
         subscription: wait_poll.WaitSubscription | None = None

@@ -1118,11 +1118,9 @@ export class Daytona implements AsyncDisposable {
    *
    * @example
    * const sandbox = await daytona.get('my-sandbox-id');
-   * // Returns once the deletion request is accepted
-   * await daytona.delete(sandbox);
-   *
-   * // Or: returns once the Sandbox is destroyed
-   * await daytona.delete(sandbox, 60, true);
+   * await daytona.delete(sandbox); // Returns once the deletion request is accepted
+   * // Or, to return once the Sandbox is destroyed:
+   * // await daytona.delete(sandbox, 60, true);
    */
   @WithInstrumentation()
   public async delete(sandbox: Sandbox, timeout = 60, wait = false) {

@@ -142,11 +142,9 @@ module Daytona
     # @return [void]
     #
     # @example
-    #   # Returns once the deletion request is accepted
-    #   daytona.delete(sandbox)
-    #
-    #   # Or: returns once the Sandbox is destroyed
-    #   daytona.delete(sandbox, wait: true)
+    #   daytona.delete(sandbox) # Returns once the deletion request is accepted
+    #   # Or, to return once the Sandbox is destroyed:
+    #   # daytona.delete(sandbox, wait: true)
     def delete(sandbox, wait: false) = sandbox.delete(wait:)
 
     # Gets a Sandbox by its ID.

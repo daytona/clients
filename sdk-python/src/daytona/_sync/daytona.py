@@ -674,7 +674,8 @@ class Daytona:
             sandbox = daytona.create()
             # ... use sandbox ...
             daytona.delete(sandbox)  # Returns once the deletion request is accepted
-            # Or: daytona.delete(sandbox, wait=True)  # Returns once the Sandbox is destroyed
+            # Or, to return once the Sandbox is destroyed:
+            # daytona.delete(sandbox, wait=True)
             ```
         """
         return sandbox.delete(timeout, wait=wait)

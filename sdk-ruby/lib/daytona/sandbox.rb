@@ -431,11 +431,11 @@ module Daytona
     # @return [void]
     #
     # @example
-    #   # Returns once the deletion request is accepted
-    #   sandbox.delete
-    #
-    #   # Or: returns once the Sandbox is destroyed
-    #   sandbox.delete(wait: true)
+    #   sandbox = daytona.create
+    #   # ... use sandbox ...
+    #   sandbox.delete # Returns once the deletion request is accepted
+    #   # Or, to return once the Sandbox is destroyed:
+    #   # sandbox.delete(wait: true)
     def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/MethodLength
       return delete_and_wait(timeout) if wait
 

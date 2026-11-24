@@ -195,11 +195,9 @@ still be returned by +get+ and +list+ for a short time.
 **Examples:**
 
 ```ruby
-# Returns once the deletion request is accepted
-daytona.delete(sandbox)
-
-# Or: returns once the Sandbox is destroyed
-daytona.delete(sandbox, wait: true)
+daytona.delete(sandbox) # Returns once the deletion request is accepted
+# Or, to return once the Sandbox is destroyed:
+# daytona.delete(sandbox, wait: true)
 
 ```
 
