@@ -1,0 +1,30 @@
+.github/workflows/sdk-ci.yaml
+  s_cb9030153545d8::t_2de2c1b4f2ad7d 209,211-213,224-225
+sdk-typescript/tests/node-only-declarations.test.ts
+  s_cb9030153545d8::t_24ee1b897d07dc 1-12,19-56,59,61
+  s_cb9030153545d8::t_be599a37d17a6d 13-18,57-58,60
+changelog.d/ts-node-only-declarations.fixed.md
+  s_cb9030153545d8::t_c5dfdff35c6f63 1-4
+sdk-typescript/scripts/cjs-types-fixture/node-only.mts
+  s_cb9030153545d8::t_e243bb227eba86 1-16
+sdk-typescript/scripts/cjs-types-fixture/tsconfig.strict.node-only.json
+  s_cb9030153545d8::t_e243bb227eba86 1-12
+sdk-typescript/src/v2/http.ts
+  s_cb9030153545d8::t_4c2ccb08794ca6 201-203,206-207,211-212,255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70fff1513552bf6016e785adb4442742e24aba48",
+  "prompts": {},
+  "sessions": {
+    "s_cb9030153545d8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a2f4b2ffeYECIX54SMR5Ryr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
