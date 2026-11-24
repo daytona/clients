@@ -88,9 +88,8 @@ with Daytona() as d:
         sandbox.delete()
 ```
 
-Requests cannot run once the interpreter is shutting down, so cleanup
-registered with `atexit` (or run by a finalizer at interpreter shutdown) never
-works: the SDK refuses a request made from an `atexit` handler with
+Cleanup registered with `atexit` (or run by a finalizer at interpreter
+shutdown) never works: the SDK refuses a request made from an `atexit` handler with
 `ClientClosedError` before sending it, with the sync or the async client. A
 request or file transfer from another thread still running after the program
 ended (or while Python stops its thread pools at exit) raises the same error

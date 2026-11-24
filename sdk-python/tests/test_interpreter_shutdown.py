@@ -11,6 +11,7 @@ outlives the program keeps working while the pools it needs still run."""
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import textwrap
@@ -31,17 +32,52 @@ from daytona.v2._shutdown import (
 from daytona.v2.errors import ClientClosedError
 
 ROOT = Path(__file__).resolve().parents[1]
+# The subprocesses read no ambient Daytona configuration.
+_ENV = {name: value for name, value in os.environ.items() if not name.startswith("DAYTONA_")}
+
+# Both local servers below are quiet and joined: a client the SDK abandons
+# mid-request (a refused upload) must not make a handler thread write to
+# stderr while the interpreter finalizes, which aborts the process. Handler
+# threads are not daemons, so Python joins them before atexit runs; the
+# server stops in the atexit handler registered first, which runs last.
+_QUIET_SERVER = """
+import atexit
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+class QuietServer(ThreadingHTTPServer):
+    daemon_threads = False
+    block_on_close = True
+
+    def handle_error(self, request, client_address):
+        pass
+
+class QuietHandler(BaseHTTPRequestHandler):
+    timeout = 10
+
+    def log_message(self, *args):
+        pass
+
+def serve(handler):
+    server = QuietServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    def stop():
+        server.shutdown()
+        server.server_close()
+
+    atexit.register(stop)
+    return server
+"""
 
 # A local API answering every request 404 and closing the connection, so a
 # later request needs a new connection; it records what it received.
 _SERVER = """
 import asyncio, atexit, json, os, sys, threading, time
 sys.path.insert(0, {src!r})
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
+{quiet}
 HITS = []
 
-class Handler(BaseHTTPRequestHandler):
+class Handler(QuietHandler):
     def _reply(self):
         HITS.append(self.command + " " + self.path)
         body = json.dumps({{"message": "no such sandbox", "code": "NOT_FOUND", "source": "DAYTONA_API"}}).encode()
@@ -54,11 +90,7 @@ class Handler(BaseHTTPRequestHandler):
 
     do_GET = do_DELETE = do_POST = _reply
 
-    def log_message(self, *args):
-        pass
-
-SERVER = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-threading.Thread(target=SERVER.serve_forever, daemon=True).start()
+SERVER = serve(Handler)
 os.environ["DAYTONA_V2_API_URL"] = "http://{host}:%d" % SERVER.server_address[1]
 
 def report(label, error=None):
@@ -75,11 +107,12 @@ def report(label, error=None):
 
 
 def _run(body: str, *, host: str = "localhost") -> List[Dict[str, object]]:
-    script = _SERVER.format(src=str(ROOT / "src"), host=host) + textwrap.dedent(body)
+    script = _SERVER.format(src=str(ROOT / "src"), host=host, quiet=_QUIET_SERVER) + textwrap.dedent(body)
     result = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False, env=_ENV
     )
     assert result.returncode == 0, result.stderr[-2000:]
+    assert result.stderr == "", result.stderr[-2000:]
     reports = [
         json.loads(line[len("RESULT ") :])
         for line in result.stdout.splitlines()
@@ -302,11 +335,10 @@ def test_a_request_while_python_stops_its_thread_pools_is_typed() -> None:
 _FILE_SERVER = """
 import asyncio, json, os, sys, tempfile, threading, time
 sys.path.insert(0, {src!r})
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
+{quiet}
 HITS = []
 
-class Handler(BaseHTTPRequestHandler):
+class Handler(QuietHandler):
     def _reply(self):
         HITS.append(self.command + " " + self.path.split("?")[0])
         length = int(self.headers.get("Content-Length") or 0)
@@ -330,11 +362,7 @@ class Handler(BaseHTTPRequestHandler):
 
     do_GET = do_POST = do_PUT = _reply
 
-    def log_message(self, *args):
-        pass
-
-SERVER = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-threading.Thread(target=SERVER.serve_forever, daemon=True).start()
+SERVER = serve(Handler)
 URL = "http://127.0.0.1:%d" % SERVER.server_address[1]
 WORK = tempfile.mkdtemp()
 
@@ -373,11 +401,12 @@ def after_exit(operation):
 
 
 def _run_file_io(body: str) -> Dict[str, object]:
-    script = _FILE_SERVER.format(src=str(ROOT / "src")) + textwrap.dedent(body)
+    script = _FILE_SERVER.format(src=str(ROOT / "src"), quiet=_QUIET_SERVER) + textwrap.dedent(body)
     result = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False, env=_ENV
     )
     assert result.returncode == 0, result.stderr[-2000:]
+    assert result.stderr == "", result.stderr[-2000:]
     reports = [
         json.loads(line[len("RESULT ") :])
         for line in result.stdout.splitlines()
