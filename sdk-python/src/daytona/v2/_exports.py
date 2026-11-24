@@ -98,6 +98,7 @@ ROOT_EXPORTS = [
     "ComputerUseStatusResponse",
     "ComputerUseUnknownStatus",
     "ComputerUseWindow",
+    "parse_computer_use_status",
     "ConflictError",
     "ClientClosedError",
     "ConnectionError",
