@@ -37,9 +37,7 @@ from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
     TransportPayload,
-    above_timer_maximum,
     bulk_download_spec,
-    checked_seconds,
     expect_file_info,
     file_bulk_upload_spec,
     file_download_spec,
@@ -53,6 +51,7 @@ from ._core import (
     parse_sse_events_bounded,
     sse_json,
     stream_event_too_large,
+    wait_budget,
 )
 from ._filesystem_inputs import buffer_bytes, path_sequence, sandbox_path
 from ._filesystem_watch_events import (
@@ -614,7 +613,7 @@ class AsyncFileSystemService:
                 "DELETE",
                 "/files",
                 params={"path": sandbox_path(path), "recursive": recursive},
-                timeout=_call_timeout(timeout),
+                timeout=wait_budget(timeout),
             )
         )
 
@@ -656,7 +655,7 @@ class AsyncFileSystemService:
                     "GET",
                     "/files/find",
                     params={"path": sandbox_path(path), "pattern": pattern},
-                    timeout=_call_timeout(timeout),
+                    timeout=wait_budget(timeout),
                 )
             )
         )
@@ -685,7 +684,7 @@ class AsyncFileSystemService:
                     "GET",
                     "/files/search",
                     params={"path": sandbox_path(path), "pattern": pattern},
-                    timeout=_call_timeout(timeout),
+                    timeout=wait_budget(timeout),
                 )
             )
         )
@@ -712,7 +711,7 @@ class AsyncFileSystemService:
                     "POST",
                     "/files/replace",
                     json_body={"files": checked_files, "pattern": pattern, "newValue": new_value},
-                    timeout=_call_timeout(timeout),
+                    timeout=wait_budget(timeout),
                 )
             ),
             description="replace response",
@@ -746,7 +745,7 @@ class AsyncFileSystemService:
         if group is not None:
             params["group"] = group
         await self._transport.send(
-            RequestSpec("POST", "/files/permissions", params=params, timeout=_call_timeout(timeout))
+            RequestSpec("POST", "/files/permissions", params=params, timeout=wait_budget(timeout))
         )
 
     async def watch_dir(
@@ -954,17 +953,6 @@ class AsyncFileSystemService:
         if self._file_url_signer is None:
             raise create_error("filesystem handle has no pre-signed URL signer", 400, "BAD_REQUEST", "SDK")
         return self._file_url_signer
-
-
-def _call_timeout(timeout: Optional[float]) -> Optional[float]:
-    """A caller's per-call ``timeout`` in seconds as ``RequestSpec.timeout``:
-    ``None`` keeps the client's request timeout, ``0`` (also for a value
-    above the timer maximum) is no limit. Anything but a non-negative finite
-    number is the SDK's ``BadRequestError``, before any request."""
-    if timeout is None:
-        return None
-    seconds = checked_seconds(timeout)
-    return 0 if seconds == 0 or above_timer_maximum(seconds) else seconds
 
 
 def _expires_unix_seconds(expires_in_seconds: int) -> int:

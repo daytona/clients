@@ -219,8 +219,9 @@ Every duration is a `time.Duration`:
   writers follow the output on a log stream. A stream that delivers nothing
   for 45 seconds is treated as dropped and resumed after the last event, so a
   network path that drops quiet connections does not hold the run until its
-  `Timeout`. When the `Timeout` ends, a process that already ended reports
-  how it ended rather than `timed_out`.
+  `Timeout`. When the `Timeout` ends, the SDK checks the process (a read
+  bounded at 5 seconds); if that check succeeds and the process already
+  ended, the run reports how it ended rather than `timed_out`.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
 
