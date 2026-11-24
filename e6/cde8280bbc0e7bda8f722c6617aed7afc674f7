@@ -1,0 +1,45 @@
+sdk-typescript/src/v2/Sandbox.ts
+  s_450c83ea6ec946::t_e17b186bc43b48 12,432
+changelog.d/ts-credential-enumeration.security.md
+  s_450c83ea6ec946::t_ff08bbd8ead911 1-7
+sdk-typescript/src/v2/sandboxAuth.ts
+  s_450c83ea6ec946::t_e17b186bc43b48 7
+  s_450c83ea6ec946::t_4ea00831246eef 99
+sdk-typescript/src/v2/Images.ts
+  s_450c83ea6ec946::t_e17b186bc43b48 13,111
+sdk-typescript/src/v2/http.ts
+  s_450c83ea6ec946::t_e0ce9e77e6a291 1274-1276,1299-1301
+  s_450c83ea6ec946::t_2fd36b17985da7 1062,1067
+  s_450c83ea6ec946::t_aa3e486eed0466 18,931,1555
+sdk-typescript/src/diagnostics.ts
+  s_450c83ea6ec946::t_f0f7ef685e91a7 18-36
+sdk-typescript/src/v2/Daytona.ts
+  s_450c83ea6ec946::t_6150a19cb64063 11,86-87
+AGENTS.md
+  s_450c83ea6ec946::t_a25a5cb1e347b0 330-340
+sdk-typescript/tests/credential-inspection.test.ts
+  s_450c83ea6ec946::t_632f80122759c1 234-237,239-255,257-269,271,273-280,282-294,296,298-306
+  s_450c83ea6ec946::t_ddf947e10eeee8 40-76,78-79,81-84
+  s_450c83ea6ec946::t_a140fa5fa4fb28 77,256
+  s_450c83ea6ec946::t_0793de56846c0d 238
+  s_450c83ea6ec946::t_41ade670eba8b2 80,85-86,109-111
+  s_450c83ea6ec946::t_43519d367ba2e2 270,272,281,295,297
+sdk-typescript/src/Daytona.ts
+  s_450c83ea6ec946::t_1908996da70152 7,182,184-185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e6cde8280bbc0e7bda8f722c6617aed7afc674f7",
+  "prompts": {},
+  "sessions": {
+    "s_450c83ea6ec946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3b8c9ffemgoEzkgpQFwDrO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
