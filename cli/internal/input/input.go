@@ -253,6 +253,17 @@ func numberProblem(goType, value string) string {
 		return ""
 	}
 	parsed, _, err := big.ParseFloat(number, 10, 256, big.ToNearestEven)
+	// An exponent beyond big.Float's range is an error (or rounds to 0 or
+	// ±Inf), so the sign of the exponent and a zero mantissa decide.
+	mantissa, exponent, _ := strings.Cut(strings.ToLower(number), "e")
+	zero := !strings.ContainsAny(mantissa, "123456789")
+	negativeExponent := strings.HasPrefix(exponent, "-")
+	if (errors.Is(err, strconv.ErrRange) || err == nil && parsed.Sign() == 0) && negativeExponent && !zero {
+		return fmt.Sprintf("must be a whole number, got %s", number)
+	}
+	if errors.Is(err, strconv.ErrRange) && zero {
+		return fmt.Sprintf("must be written as a whole number without a fraction or exponent, got %s", number)
+	}
 	if errors.Is(err, strconv.ErrRange) || (err == nil && parsed.IsInf()) {
 		return fmt.Sprintf("is out of range (%s to %s), got %s", bounds[0], bounds[1], number)
 	}

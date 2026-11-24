@@ -232,16 +232,19 @@ type numberRequest struct {
 func TestDecode_numberMismatchSaysWhy(t *testing.T) {
 	registerFields[numberRequest](t)
 	for body, want := range map[string]string{
-		`{"idle_expiry_seconds":1.5}`:           `field "idle_expiry_seconds" must be a whole number, got 1.5`,
-		`{"idle_expiry_seconds":1e30}`:          `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e30`,
-		`{"disk_mib":3000000000}`:               `field "disk_mib" is out of range (-2147483648 to 2147483647), got 3000000000`,
-		`{"count":-1}`:                          `field "count" is out of range (0 to 65535), got -1`,
-		`{"disk_mib":2.0}`:                      `field "disk_mib" must be written as a whole number without a fraction or exponent, got 2.0`,
-		`{"disk_mib":1e3}`:                      `field "disk_mib" must be written as a whole number without a fraction or exponent, got 1e3`,
-		`{"ratio":1e400}`:                       `field "ratio" is out of range for a number, got 1e400`,
-		`{"idle_expiry_seconds":1e1000000000}`:  `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e1000000000`,
-		`{"idle_expiry_seconds":-1e1000000000}`: `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got -1e1000000000`,
-		`{"disk_mib":"2"}`:                      `field "disk_mib" cannot be a string`,
+		`{"idle_expiry_seconds":1.5}`:                    `field "idle_expiry_seconds" must be a whole number, got 1.5`,
+		`{"idle_expiry_seconds":1e30}`:                   `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e30`,
+		`{"disk_mib":3000000000}`:                        `field "disk_mib" is out of range (-2147483648 to 2147483647), got 3000000000`,
+		`{"count":-1}`:                                   `field "count" is out of range (0 to 65535), got -1`,
+		`{"disk_mib":2.0}`:                               `field "disk_mib" must be written as a whole number without a fraction or exponent, got 2.0`,
+		`{"disk_mib":1e3}`:                               `field "disk_mib" must be written as a whole number without a fraction or exponent, got 1e3`,
+		`{"ratio":1e400}`:                                `field "ratio" is out of range for a number, got 1e400`,
+		`{"idle_expiry_seconds":1e1000000000}`:           `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e1000000000`,
+		`{"idle_expiry_seconds":1e-1000000000}`:          `field "idle_expiry_seconds" must be a whole number, got 1e-1000000000`,
+		`{"idle_expiry_seconds":1e-9999999999999999999}`: `field "idle_expiry_seconds" must be a whole number, got 1e-9999999999999999999`,
+		`{"idle_expiry_seconds":0e-9999999999999999999}`: `field "idle_expiry_seconds" must be written as a whole number without a fraction or exponent, got 0e-9999999999999999999`,
+		`{"idle_expiry_seconds":-1e1000000000}`:          `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got -1e1000000000`,
+		`{"disk_mib":"2"}`:                               `field "disk_mib" cannot be a string`,
 	} {
 		b, err := loadBody(t, body)
 		if err != nil {
