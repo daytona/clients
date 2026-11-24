@@ -14,7 +14,9 @@ import (
 // credentials need read:limits; JWT authentication needs read:organization.
 // With nil options or an empty OrganizationID, API-key authentication looks up
 // and caches the key's organization; JWT authentication returns ErrBadRequest.
-// A nil UsageLimit.Limit means unlimited. Invalid organization IDs and malformed
+// A nil UsageLimit.Limit means unlimited, except on the deprecated sandbox
+// total and storage counts, whose limit is not returned; a create that reaches
+// one is still refused with ErrLimitExceeded (contact support to raise it). Invalid organization IDs and malformed
 // responses return ErrBadRequest. Context cancellation remains reachable
 // through errors.Is, including while waiting for a shared organization lookup.
 // Cancelling one caller does not cancel that lookup for other callers;

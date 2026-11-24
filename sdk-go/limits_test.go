@@ -117,7 +117,7 @@ func TestAccountLimitsRetriesFailedOrganizationLookup(t *testing.T) {
 	result, err := client.Limits(t.Context(), &GetLimitsOptions{})
 	// Then
 	require.NoError(t, err)
-	require.EqualValues(t, 7, result.Sandboxes.Total.Usage)
+	require.EqualValues(t, 7, result.Sandboxes.Concurrent.Usage)
 	require.EqualValues(t, 2, lookups.Load())
 	require.Len(t, fake.requests(), 3)
 }

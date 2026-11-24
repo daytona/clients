@@ -44,7 +44,7 @@ func TestAccountLimitsLiveWaiterSurvivesFirstCallerCancellation(t *testing.T) {
 	second := make(chan error, 1)
 	go func() {
 		limits, err := client.Limits(waiting, nil)
-		if err == nil && limits.Sandboxes.Total.Usage != 7 {
+		if err == nil && limits.Sandboxes.Concurrent.Usage != 7 {
 			t.Error("live waiter received the wrong limits")
 		}
 		second <- err
@@ -81,7 +81,7 @@ func TestAccountLimitsRetriesEmptyOrganizationID(t *testing.T) {
 	result, err := client.Limits(t.Context(), nil)
 	// Then the empty ID did not poison the cache.
 	require.NoError(t, err)
-	require.EqualValues(t, 7, result.Sandboxes.Total.Usage)
+	require.EqualValues(t, 7, result.Sandboxes.Concurrent.Usage)
 	require.EqualValues(t, 2, lookups.Load())
 }
 

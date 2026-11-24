@@ -35,7 +35,7 @@ func TestAccountLimitsRetriesMalformedOrganizationID(t *testing.T) {
 			result, err := client.Limits(t.Context(), nil)
 			// Then
 			require.NoError(t, err)
-			require.EqualValues(t, 7, result.Sandboxes.Total.Usage)
+			require.EqualValues(t, 7, result.Sandboxes.Concurrent.Usage)
 		})
 	}
 }

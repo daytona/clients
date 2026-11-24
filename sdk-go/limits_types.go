@@ -14,7 +14,8 @@ type GetLimitsOptions struct {
 
 // UsageLimit pairs a resource count limit with its current usage.
 type UsageLimit struct {
-	// Limit is the maximum count; nil means unlimited.
+	// Limit is the maximum count; nil means unlimited, except on the
+	// deprecated sandbox total and storage counts, whose limit is not returned.
 	Limit *int64
 	// Usage is the current count.
 	Usage int64
@@ -25,6 +26,10 @@ type SandboxLimits struct {
 	// Concurrent counts concurrently running sandboxes.
 	Concurrent UsageLimit
 	// Total counts all sandboxes.
+	//
+	// Deprecated: the limit is not returned, so Limit is always nil; Usage is
+	// still reported. Daytona determines this limit for each organization;
+	// contact support to request a higher one.
 	Total UsageLimit
 }
 
@@ -45,10 +50,22 @@ type ImageBuildLimits struct {
 // StorageLimits describes storage resource count limits, not byte limits.
 type StorageLimits struct {
 	// Volumes counts volumes.
+	//
+	// Deprecated: the limit is not returned, so Limit is always nil; Usage is
+	// still reported. Daytona determines this limit for each organization;
+	// contact support to request a higher one.
 	Volumes UsageLimit
 	// Images counts images.
+	//
+	// Deprecated: the limit is not returned, so Limit is always nil; Usage is
+	// still reported. Daytona determines this limit for each organization;
+	// contact support to request a higher one.
 	Images UsageLimit
 	// Snapshots counts snapshots.
+	//
+	// Deprecated: the limit is not returned, so Limit is always nil; Usage is
+	// still reported. Daytona determines this limit for each organization;
+	// contact support to request a higher one.
 	Snapshots UsageLimit
 }
 
