@@ -17,7 +17,8 @@ export interface GetArtifactOptions {
    * is returned for the caller to check; a budget above the timer maximum
    * waits without a deadline. A budget that runs out first throws
    * `RequestTimeoutError`. A hold that fails transiently (no response, a
-   * stalled read, HTTP 429 or a 5xx other than 501) is retried with back-off
+   * stalled read, HTTP 429 other than `LIMIT_EXCEEDED`, or a 5xx other than
+   * 501) is retried with back-off
    * within the budget; the timeout then carries the last failure as its
    * `cause`. Omitted or zero sends one hold of the server's
    * default length and returns what the server reports. */

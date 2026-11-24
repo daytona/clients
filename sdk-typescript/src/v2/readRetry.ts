@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ClientTimeoutError, ConnectionError, DaytonaError } from './errors/DaytonaError.js'
+import { ClientTimeoutError, ConnectionError, DaytonaError, RequestTimeoutError } from './errors/DaytonaError.js'
 import { sleep } from './http.js'
 import { MAX_TIMER_DELAY_MS } from './options.js'
 import { retryAfterHeaderMs } from './retryAfterHint.js'
@@ -11,7 +11,8 @@ import { retryAfterHeaderMs } from './retryAfterHint.js'
 // Retries of a wait's failed observation reads. A wait (sandbox state, Docker
 // status, image or snapshot readiness) reads the server until a target or
 // terminal state, within one deadline. A read that fails transiently (no
-// response, the client's own read timer, HTTP 429, a 5xx other than 501) is
+// response, the client's own read timer, HTTP 429 other than LIMIT_EXCEEDED,
+// a 5xx other than 501) is
 // retried after a back-off of 200 ms doubling to 5 s, or the server's retry
 // hint when longer, never past the wait's deadline. A spent deadline throws
 // the wait's own timeout with the last failed read as its cause. Any other
@@ -24,9 +25,17 @@ export const READ_RETRY_MAX_DELAY_MS = 5_000
 
 /** The server's retry hint in ms: the body's `retryAfterMs`, else its `retry_after_seconds`, else the `Retry-After` header; 0 without one. */
 export function retryAfterMs(error: DaytonaError): number {
-  if (error.retryAfterMs !== undefined) return error.retryAfterMs
-  if (error.retryAfterSeconds !== undefined) return error.retryAfterSeconds * 1000
+  for (const hint of [bodyHint(error.retryAfterMs, 1), bodyHint(error.retryAfterSeconds, 1000)]) {
+    if (hint !== undefined) return hint
+  }
   return retryAfterHeaderMs(error) ?? 0
+}
+
+/** A body hint in ms; a negative or non-finite one is none. */
+function bodyHint(value: number | undefined, unitMs: number): number | undefined {
+  if (value === undefined || value < 0) return undefined
+  const ms = value * unitMs
+  return Number.isFinite(ms) ? ms : undefined
 }
 
 /** Whether a failed observation read may be retried within the wait. */
@@ -57,9 +66,15 @@ export class ReadRetry {
     return true
   }
 
-  /** Keep a retryable failure as the timeout cause without scheduling a read (an events-hub probe, which the hub reschedules itself). */
-  remember(error: unknown): void {
-    if (isRetryableReadError(error)) this.lastError = error
+  /**
+   * Record a failed events-hub probe. A transient failure schedules the next
+   * read as `note` does; any other failure the hub keeps waiting through (its
+   * probes stop only on 401, 403 and 404) is kept as the timeout's cause too.
+   * The wait's own timeout is not a read failure.
+   */
+  probeFailed(error: unknown): void {
+    if (this.note(error) || !(error instanceof DaytonaError)) return
+    if (!(error instanceof RequestTimeoutError && error.source === 'SDK')) this.lastError = error
   }
 
   succeeded(): void {
@@ -67,11 +82,19 @@ export class ReadRetry {
     this.nextReadAt = undefined
   }
 
-  /** Sleep until the next read is due, never past `deadline`. */
-  async pause(deadline: number | undefined): Promise<void> {
+  /**
+   * Sleep until the next read is due (and not before `notBefore`, a wait's
+   * own poll spacing), never past `deadline`. Sleeps in timer-sized steps
+   * until the clock reads that time: a timer may fire a little early, and a
+   * hint may be longer than one timer.
+   */
+  async pause(deadline: number | undefined, notBefore?: number): Promise<void> {
     if (this.nextReadAt === undefined) return
-    const pause = Math.min(this.nextReadAt - Date.now(), deadline === undefined ? Infinity : deadline - Date.now())
-    if (pause > 0) await sleep(Math.min(pause, MAX_TIMER_DELAY_MS))
+    const due = Math.max(this.nextReadAt, notBefore ?? -Infinity)
+    const until = deadline === undefined ? due : Math.min(due, deadline)
+    for (let left = until - Date.now(); left > 0; left = until - Date.now()) {
+      await sleep(Math.min(Math.ceil(left), MAX_TIMER_DELAY_MS))
+    }
   }
 }
 

@@ -251,9 +251,10 @@ export class ImagesService {
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
     // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
     const deadline = waitDeadline(timeoutSeconds)
-    // A readiness hold that fails transiently is retried within the budget.
+    // With `wait`, a read after the submission (the first lookup and every
+    // readiness hold) that fails transiently is retried within the budget.
     const retry = new ReadRetry()
-    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: retry.lastError })
+    const timeoutError = (cause?: unknown) => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: retry.lastError ?? cause })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let activeRequestUsesDeadline = false
@@ -278,7 +279,20 @@ export class ImagesService {
     try {
       const { data: response } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
       const submittedId = acknowledgedId(response, 'image create')
-      const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${pathSegment(submittedId, 'image id')}`, requestOptions())
+      const path = `/images/${pathSegment(submittedId, 'image id')}`
+      // The lookup after the submission (a read, never the submission itself).
+      const firstRead = async (): Promise<api.ImageListItem> => {
+        for (;;) {
+          try {
+            return (await this.http.get<api.ImageListItem>(path, requestOptions())).data
+          } catch (error) {
+            if (options.wait === false || controller.signal.aborted || (activeRequestUsesDeadline && isRequestBudgetTimeout(error)) || !retry.note(error)) throw error
+            await retry.pause(deadline)
+          }
+        }
+      }
+      const initial = await firstRead()
+      retry.succeeded()
       checkDeadline()
       let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image
@@ -325,7 +339,7 @@ export class ImagesService {
       if (controller.signal.aborted || (isRequestBudgetTimeout(error) && (
         activeRequestUsesDeadline
         || (deadline !== undefined && Date.now() >= deadline)
-      ))) throw timeoutError()
+      ))) throw timeoutError(error)
       throw error
     } finally {
       if (timer !== undefined) clearTimeout(timer)

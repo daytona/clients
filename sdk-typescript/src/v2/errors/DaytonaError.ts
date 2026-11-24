@@ -957,7 +957,8 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   // Only a body declared as application/json carries a code.
   const json = isJsonMediaType(axiosResponseHeader(error.response?.headers, 'content-type'))
   const status = error.response?.status
-  if (json && status !== undefined && nestedDeeperThan(error.response?.data)) return tooDeepErrorBody(status)
+  const retryAfter = axiosResponseHeader(error.response?.headers, 'retry-after')
+  if (json && status !== undefined && nestedDeeperThan(error.response?.data)) return withRetryAfter(tooDeepErrorBody(status), retryAfter)
   const envelope = json ? dataObject(error.response?.data) : undefined
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
@@ -966,8 +967,13 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   if (isRedirectStatus(status)) return redirectError(status)
   const fallback = typeof error.response?.data === 'string' ? error.response.data : (json ? undefined : errorBodyText(error.response?.data)) || error.message
   const mapped = createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
-  rememberRetryAfter(mapped, axiosResponseHeader(error.response?.headers, 'retry-after'))
-  return mapped
+  return withRetryAfter(mapped, retryAfter)
+}
+
+/** `error` with its response's `Retry-After` header kept for the wait retries (readRetry.ts). */
+function withRetryAfter(error: DaytonaError, header: unknown): DaytonaError {
+  rememberRetryAfter(error, header)
+  return error
 }
 
 // Reads the unified envelope off a string body for callers that read the body
@@ -1028,16 +1034,15 @@ export async function errorFromFetchResponse(response: Response, limit = 0, onCh
   }
   const text = await readFetchText(response, limit, onChunk)
   if (text === undefined) {
-    return createDaytonaError(
+    return withRetryAfter(createDaytonaError(
       `HTTP ${response.status}: the response body was too large to read (over the ${limit}-byte maxResponseBytes limit)`,
       response.status,
-    )
+    ), response.headers.get('retry-after'))
   }
   // Only a body declared as application/json carries a code.
   const parsed = isJsonMediaType(response.headers.get('content-type')) ? parsedBody(text) : undefined
   const mapped = nestedDeeperThan(parsed) ? tooDeepErrorBody(response.status) : errorFromEnvelope(parsed, response.status, text || response.statusText, false)
-  rememberRetryAfter(mapped, response.headers.get('retry-after'))
-  return mapped
+  return withRetryAfter(mapped, response.headers.get('retry-after'))
 }
 
 /**

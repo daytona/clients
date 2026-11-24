@@ -1056,12 +1056,18 @@ first throws `SandboxTerminalStateError`, with the observed public state as
 that state, the explanation is `error.reason` and ends the error message.
 
 Every wait that reads the server (sandbox waits, `docker.waitUntilReady()`,
-`images.get()` / `snapshots.get()` with `wait: 'ready'`, `images.pull()`)
-retries a read that fails transiently (no response, a stalled read, HTTP 429
-or a 5xx other than 501) with backoff (200 ms doubling to 5 s, or the
-server's `Retry-After` when longer) within the same budget. When the budget
-runs out, its timeout error carries the last failed read as `cause`. Any other
-failure, such as an authentication error, is thrown at once.
+`images.get()` / `snapshots.get()` with `wait: 'ready'` and a positive
+`timeoutSeconds`, the readiness waits of `images.pull()` and
+`createFromBuild()`) retries a read that fails transiently (no response, a
+stalled read, HTTP 429 other than `LIMIT_EXCEEDED`, or a 5xx other than 501)
+with backoff (200 ms doubling to 5 s, or the server's `Retry-After` when
+longer) within the same budget. When the budget runs out, its timeout error
+carries the last failed read as `cause`; a wait without a deadline keeps
+retrying until the server answers or the caller aborts. Any other failure,
+such as an authentication error, is thrown at once, with one exception: while
+the events stream is live, its early probes of a sandbox wait keep waiting
+through any failure but 401, 403 and 404, and the wait's timeout then carries
+that failure as its cause.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` accept
 `{ timeoutSeconds }` with the same default and unbounded form. They wait for

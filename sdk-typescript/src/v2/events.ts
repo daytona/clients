@@ -27,6 +27,7 @@ import {
 import type { SandboxEventsConfig, SandboxState } from './types.js'
 import { MAX_TIMER_DELAY_MS, optionalSeconds } from './options.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
+import { isRetryableReadError } from './readRetry.js'
 import type { ReadRetry } from './readRetry.js'
 
 // ---------------------------------------------------------------------------
@@ -568,11 +569,11 @@ export async function runPollLoop(
     try {
       outcome = await fn()
     } catch (error) {
-      if (retry === undefined || !retry.note(error)) throw error
-      await retry.pause(deadline)
+      // `fn` records its failure in `retry` and waits out the back-off before
+      // its next read.
+      if (retry === undefined || !isRetryableReadError(error)) throw error
       continue
     }
-    retry?.succeeded()
     const result = evaluate(predicate, outcome.state)
     if (result === 'resolve') return outcome
     if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, { rawState: outcome.rawState })

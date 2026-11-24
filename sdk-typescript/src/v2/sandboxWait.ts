@@ -136,6 +136,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (pause > 0 && (remaining() ?? Infinity) > pause) await sleep(pause)
     }
     for (;;) {
+      // After a failed read (this loop's or an earlier probe's), the back-off
+      // or the server's retry hint, within the deadline.
+      await retry.pause(deadline)
       const budget = remaining()
       if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const pollStarted = Date.now()
@@ -143,10 +146,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       try {
         outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
       } catch (error) {
-        if (retry.note(error)) {
-          await retry.pause(deadline)
-          continue
-        }
+        if (retry.note(error)) continue
         if (retry.lastError !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') throw timeoutError(retry.lastError)
         throw error
       }
@@ -170,16 +170,20 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastPollEnd), remaining() ?? Infinity)
         if (pause > 0) await sleep(pause)
       }
+      // A failed read (a probe's or the fallback's) holds the next one back by
+      // its back-off or the server's retry hint.
+      await retry.pause(hubDeadline ?? deadline)
       const budget = remaining()
-      if (budget !== undefined && budget <= 0) throw timeoutError()
+      if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
       // The read itself (its slack included) ends with the hub's share.
       let result: SandboxReadOutcome
       try {
         result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
       } catch (error) {
-        // A failed probe is the wait's timeout cause if nothing later fails.
-        retry.remember(error)
+        // A failed read schedules the next one and is the wait's timeout cause
+        // if nothing later fails.
+        retry.probeFailed(error)
         throw error
       }
       retry.succeeded()

@@ -121,7 +121,7 @@ describe('sandbox wait budgets', () => {
 
   it.each([
     { timeoutSeconds: 60, failedAt: 35_000 },
-    { timeoutSeconds: 0.05, failedAt: 1 },
+    { timeoutSeconds: 0.5, failedAt: 1 },
   ])('retries a client timer failure before the wait deadline at $failedAt ms', async ({ timeoutSeconds, failedAt }) => {
     // Given either a slice timeout or an earlier client timer, not the wait deadline.
     jest.useFakeTimers({ now: 0 })
@@ -138,8 +138,9 @@ describe('sandbox wait budgets', () => {
     // Then the read is retried until the deadline, which keeps the failure as its cause.
     const error = await result
     expect(error).toBeInstanceOf(RequestTimeoutError)
-    expect(error).toMatchObject({ source: 'SDK', code: 'REQUEST_TIMEOUT', cause: failure })
-    expect(get.mock.calls.length).toBeGreaterThanOrEqual(1)
+    expect(error).toMatchObject({ source: 'SDK', code: 'REQUEST_TIMEOUT' })
+    expect((error as RequestTimeoutError).cause).toBe(failure)
+    expect(get.mock.calls.length).toBeGreaterThan(1)
   })
 
   it('preserves an API HTTP 408 during a bounded wait', async () => {

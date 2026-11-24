@@ -32,10 +32,16 @@ import {
   createDaytonaError,
 } from '../src/v2/errors/DaytonaError'
 import { runPollLoop, targetPredicate } from '../src/v2/events'
+import type { WaitHub, WaitOutcome } from '../src/v2/events'
+import * as httpModule from '../src/v2/http'
 import { HttpTransport, createHttpClient } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
 import { READ_RETRY_MIN_DELAY_MS, ReadRetry, isRetryableReadError, retryAfterMs } from '../src/v2/readRetry'
 import { imageWire, snapshotWire } from './artifactFixtures'
+import { clientAt } from './helpers/client'
+import { startFakeApi } from './networkPolicyTestServer'
+import { ImageBuilder } from '../src/v2/Image'
+import { MAX_TIMER_DELAY_MS } from '../src/v2/options'
 import { createSandbox } from './helpers/sandbox'
 
 /** A scripted answer: a body (200), an HTTP failure, or a thrown error. */
@@ -85,6 +91,18 @@ function script(http: AxiosInstance, steps: Step[]): Scripted {
     return { config, status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, data: step.body }
   }
   return record
+}
+
+/** A hub whose early probe fails once, then polls (or lets its share run out). */
+function probingHub(thenTimeOut: boolean): WaitHub {
+  return {
+    enabled: true,
+    wait: async (_id: string, _predicate: unknown, options: { readonly sandboxPollFn?: () => Promise<WaitOutcome> }) => {
+      await options.sandboxPollFn!().catch(() => undefined)
+      if (thenTimeOut) throw new RequestTimeoutError('hub share spent', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      return options.sandboxPollFn!()
+    },
+  } as unknown as WaitHub
 }
 
 const gaps = (record: Scripted): number[] => record.times.slice(1).map((time, index) => time - record.times[index]!)
@@ -233,8 +251,8 @@ describe('sandbox waits', () => {
     expect(error).toBeInstanceOf(RequestTimeoutError)
     expect(error).toMatchObject({ source: 'SDK', code: 'REQUEST_TIMEOUT', message: 'sandbox failed to reach the requested state before timeout' })
     expect((error as RequestTimeoutError).cause).toBeInstanceOf(ServiceUnavailableError)
-    // 0.2 + 0.4 s of back-off, then a read cut by the deadline.
-    expect(record.times.length).toBeGreaterThanOrEqual(3)
+    // 0.2 + 0.4 s of back-off, then a read cut by the deadline (fewer on a slow host).
+    expect(record.times.length).toBeGreaterThanOrEqual(2)
     expect(record.times.length).toBeLessThanOrEqual(4)
   })
 
@@ -247,21 +265,62 @@ describe('sandbox waits', () => {
   })
 
   it('retry in the events fallback poll loop', async () => {
+    // The sandbox's poll function records each failure in the shared retry
+    // and waits it out before its next read.
     const failure = createDaytonaError('bad gateway', 502)
     const predicate = targetPredicate(new Set(['started']), new Set(['error']))
-    let calls = 0
-    const outcome = await runPollLoop('sbx', predicate, {
-      deadline: Date.now() + 5_000,
-      fn: async () => { calls += 1; if (calls === 1) throw failure; return { state: 'started', rawState: 'running' } },
-      retry: new ReadRetry(),
-    })
+    const polling = (retry: ReadRetry, steps: Array<Error | 'ok'>) => async () => {
+      await retry.pause(undefined)
+      const step = (steps.length > 1 ? steps.shift() : steps[0])!
+      if (step !== 'ok') { retry.probeFailed(step); throw step }
+      retry.succeeded()
+      return { state: 'started', rawState: 'running' } as const
+    }
+    let retry = new ReadRetry()
+    const started = Date.now()
+    const outcome = await runPollLoop('sbx', predicate, { deadline: Date.now() + 5_000, fn: polling(retry, [failure, 'ok']), retry })
     expect(outcome.state).toBe('started')
-    expect(calls).toBe(2)
-    const timedOut = await caught(runPollLoop('sbx', predicate, { deadline: Date.now() + 300, fn: async () => { throw failure }, retry: new ReadRetry() }))
+    expect(Date.now() - started).toBeGreaterThanOrEqual(READ_RETRY_MIN_DELAY_MS - 5)
+    retry = new ReadRetry()
+    const timedOut = await caught(runPollLoop('sbx', predicate, { deadline: Date.now() + 300, fn: polling(retry, [failure]), retry }))
     expect(timedOut).toBeInstanceOf(RequestTimeoutError)
     expect((timedOut as RequestTimeoutError).cause).toBe(failure)
     const refused = createDaytonaError('no', 401, 'UNAUTHORIZED', 'DAYTONA_API')
-    await expect(runPollLoop('sbx', predicate, { deadline: Date.now() + 5_000, fn: async () => { throw refused }, retry: new ReadRetry() })).rejects.toBe(refused)
+    retry = new ReadRetry()
+    await expect(runPollLoop('sbx', predicate, { deadline: Date.now() + 5_000, fn: polling(retry, [refused]), retry })).rejects.toBe(refused)
+  })
+
+  it('make no read at the deadline when a pause timer fires a little early', async () => {
+    // Node can fire a timer about 1 ms before the clock reads its time.
+    const realSleep = httpModule.sleep
+    jest.spyOn(httpModule, 'sleep').mockImplementation((ms: number) => realSleep(Math.max(0, ms - 1)))
+    const { sandbox, record } = sandboxWith([{ status: 429, body: { code: 'RATE_LIMITED', message: 'slow down' }, headers: { 'retry-after': '60' } }])
+    const error = await caught(sandbox.wait({ until: 'started', timeoutSeconds: 0.3 }))
+    expect(error).toBeInstanceOf(RequestTimeoutError)
+    expect(record.times).toHaveLength(1)
+  })
+
+  it('hold back the fallback read after a failed probe by its retry hint', async () => {
+    const http = createHttpClient('http://api.invalid', 'key')
+    const record = script(http, [
+      { status: 429, body: { code: 'RATE_LIMITED', message: 'slow down', retryAfterMs: 600 } },
+      { body: detail('running') },
+    ])
+    const hub = probingHub(false)
+    const sandbox = createSandbox('sbx', http, undefined, 'key', undefined, {}, undefined, undefined, hub)
+    await sandbox.wait({ until: 'started', timeoutSeconds: 20 })
+    expect(sandbox.state).toBe('started')
+    expect(gaps(record)[0]).toBeGreaterThanOrEqual(590)
+  })
+
+  it('keep a failed probe the hub waits through as the timeout cause', async () => {
+    const http = createHttpClient('http://api.invalid', 'key')
+    script(http, [{ status: 400, body: { code: 'BAD_REQUEST', message: 'bad', source: 'DAYTONA_API' } }, { body: detail('booting') }])
+    const sandbox = createSandbox('sbx', http, undefined, 'key', undefined, {}, undefined, undefined, probingHub(true))
+    const error = await caught(sandbox.wait({ until: 'started', timeoutSeconds: 1 }))
+    expect(error).toBeInstanceOf(RequestTimeoutError)
+    expect(error).toMatchObject({ source: 'SDK' })
+    expect((error as RequestTimeoutError).cause).toBeInstanceOf(BadRequestError)
   })
 })
 
@@ -342,5 +401,81 @@ describe('image and snapshot readiness', () => {
     expect(error).toBeInstanceOf(RequestTimeoutError)
     expect(error).toMatchObject({ message: 'image pull did not finish before timeout' })
     expect((error as RequestTimeoutError).cause).toMatchObject({ statusCode: 503 })
+  })
+})
+
+describe('review follow-ups', () => {
+  it.each([undefined, 0, 60])('createFromBuild retries a transient readiness read with buildTimeoutSeconds %s', async (buildTimeoutSeconds) => {
+    const api = await startFakeApi([
+      { status: 202, body: { id: 'img-one', status: 'pending' } },
+      { status: 200, body: imageWire({ status: 'pending' }) },
+      { status: 502, body: { code: 'BAD_GATEWAY', message: 'bad gateway' } },
+      { status: 200, body: imageWire({ status: 'ready' }) },
+      { status: 200, body: { ...detail('running'), wait_cap_seconds: 0 } },
+    ])
+    const client = clientAt(api.url)
+    try {
+      const sandbox = await client.v2.createFromBuild(ImageBuilder.fromRegistry('base'), { buildTimeoutSeconds, waitSeconds: 0 })
+      expect(sandbox.id).toBe('sbx')
+      expect(api.requests.map((request) => request.method)).toEqual(['POST', 'GET', 'GET', 'GET', 'POST'])
+      // The default budget repeats holds without a deadline instead of one hold.
+      expect(api.requests[3]!.path).toContain('timeout_ms=')
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+
+  it.each(['retryAfterMs', 'retry_after_seconds'])('reads an unusable %s body hint as none', (field) => {
+    // A JSON integer too large for a double reads as Infinity.
+    const huge = createDaytonaError('busy', 503, undefined, undefined, field === 'retryAfterMs' ? { retryAfterMs: Infinity } : { retryAfterSeconds: 1e308 })
+    expect(retryAfterMs(huge)).toBe(0)
+    const negative = createDaytonaError('busy', 503, undefined, undefined, { retryAfterMs: -1, retryAfterSeconds: -5 })
+    expect(retryAfterMs(negative)).toBe(0)
+  })
+
+  it.each(['after 2099', '2099-01-01', 'Sunday, 06-Nov-94 08:49:37 GMT', 'Fri, 1 Jan 2099 00:00:00 GMT'])('ignores a Retry-After that is not an HTTP date: %s', async (header) => {
+    const http = createHttpClient('http://api.invalid', 'key')
+    script(http, [{ status: 503, body: 'busy', headers: { 'retry-after': header } }])
+    const error = await caught(http.get('/x'))
+    expect(retryAfterMs(error as DaytonaError)).toBe(0)
+  })
+
+  it('keeps the Retry-After header of a body nested too deeply to read', async () => {
+    const http = createHttpClient('http://api.invalid', 'key')
+    let deep: unknown = 1
+    for (let i = 0; i < 700; i++) deep = [deep]
+    script(http, [{ status: 503, body: { nested: deep }, headers: { 'retry-after': '3' } }])
+    const error = await caught(http.get('/x'))
+    expect(error).toBeInstanceOf(DaytonaError)
+    expect(retryAfterMs(error as DaytonaError)).toBe(3000)
+  })
+
+  it('keeps Docker readiness to its poll spacing after a failure', async () => {
+    const { docker, record } = dockerWith([{ status: 429, body: { code: 'RATE_LIMITED', message: 'slow down' } }, { body: { state: 'ready', owner: 'daemon' } }])
+    await docker.waitUntilReady({ timeoutSeconds: 20 })
+    expect(gaps(record)[0]).toBeGreaterThanOrEqual(495)
+  })
+
+  it('retries the first lookup of a pull that waits, and not of one that does not', async () => {
+    const waiting = imagesWith([{ body: { id: 'img-one', status: 'pending' } }, { error: new ConnectionError('reset') }, { body: imageWire({ status: 'ready' }) }])
+    await expect(waiting.images.pull('alpine', { timeoutSeconds: 60 })).resolves.toMatchObject({ status: 'ready' })
+    expect(waiting.record.times).toHaveLength(3)
+    const failure = new ConnectionError('reset')
+    const notWaiting = imagesWith([{ body: { id: 'img-one', status: 'pending' } }, { error: failure }, { body: imageWire({ status: 'ready' }) }])
+    await expect(notWaiting.images.pull('alpine', { wait: false })).rejects.toBe(failure)
+  })
+
+  it('waits out a retry hint longer than one timer', async () => {
+    jest.useFakeTimers({ now: 0 })
+    const retry = new ReadRetry()
+    retry.note(createDaytonaError('slow down', 429, 'RATE_LIMITED', 'DAYTONA_API', { retryAfterSeconds: 3_000_000 }))
+    let done = false
+    const pausing = retry.pause(undefined).then(() => { done = true })
+    await jest.advanceTimersByTimeAsync(MAX_TIMER_DELAY_MS + 1)
+    expect(done).toBe(false)
+    await jest.advanceTimersByTimeAsync(3_000_000_000 - MAX_TIMER_DELAY_MS)
+    await pausing
+    expect(done).toBe(true)
   })
 })

@@ -110,7 +110,8 @@ export class DockerService {
    * the deadline. No request runs more than a fraction of a second past the
    * deadline. `timeoutSeconds: 0`, or a value above about 24.8 days, waits without a deadline.
    * A status read that fails transiently (no response, a stalled read, HTTP
-   * 429 or a 5xx other than 501) is retried with back-off within the budget;
+   * 429 other than `LIMIT_EXCEEDED`, or a 5xx other than 501) is retried with
+   * back-off within the budget, never sooner than the 500 ms poll spacing;
    * the timeout then carries the last failure as its `cause`. Other failures
    * are thrown at once.
    */
@@ -133,7 +134,8 @@ export class DockerService {
       } catch (error) {
         if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw withCause(new DockerWaitTimeoutError(last), error)
         if (!retry.note(error)) throw error
-        await retry.pause(deadline)
+        // Never sooner than the poll spacing, whatever the back-off.
+        await retry.pause(deadline, pollStarted + DOCKER_STATUS_POLL_INTERVAL_MS)
         continue
       }
       retry.succeeded()
