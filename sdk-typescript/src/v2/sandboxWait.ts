@@ -36,6 +36,8 @@ export interface SandboxWaitContext {
   /** What the handle last observed, its reason included. */
   readonly current: () => SandboxReadOutcome
   readonly observe: (outcome: WaitOutcome) => void
+  /** The owning client's closed signal: ends a retry pause (readRetry.ts). */
+  readonly closed?: AbortSignal
 }
 
 export interface SandboxStateWaitOptions {
@@ -121,7 +123,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
 
   // One back-off and last failure for every read of this wait: the events
   // fallback, the hub's probes and the final reserve (readRetry.ts).
-  const retry = new ReadRetry()
+  const retry = new ReadRetry(context.closed)
 
   // Long-poll reads until a target or terminal state. `lastReadEnd` is when
   // the wait's previous read ended; the first read keeps the minimum spacing.
@@ -187,8 +189,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
       } catch (error) {
         // A failed read schedules the next one and is the wait's timeout cause
-        // if nothing later fails.
-        retry.probeFailed(error)
+        // if nothing later fails; a probe that outlived its wait records nothing.
+        if (!hubSettled.signal.aborted) retry.probeFailed(error)
         throw error
       }
       retry.succeeded()

@@ -4,7 +4,7 @@
  */
 
 import { DockerNotReadyError, DockerWaitTimeoutError, ClientTimeoutError } from './errors/DaytonaError.js'
-import { encodeQuery, HttpTransport, sleep } from './http.js'
+import { closedSignalOf, encodeQuery, HttpTransport, sleep } from './http.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import type * as toolbox from './gen/toolbox-types.js'
@@ -121,7 +121,7 @@ export class DockerService {
     // 0, or above the timer maximum (about 24.8 days), is no deadline.
     const deadline = waitDeadline(timeoutSeconds)
     let last: DockerStatus | undefined
-    const retry = new ReadRetry()
+    const retry = new ReadRetry(closedSignalOf(this.transport.http))
     for (;;) {
       const remaining = deadline === undefined ? undefined : Math.ceil(deadline - Date.now())
       if (remaining !== undefined && remaining <= 0) throw withCause(new DockerWaitTimeoutError(last), retry.lastError)

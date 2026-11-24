@@ -706,6 +706,7 @@ export class Sandbox {
         // A frame without a status leaves the wire status unknown (never '').
         this.observed.rawState = outcome.rawState || undefined
       },
+      closed: this.httpOptions?.closed,
     }, states, options)
   }
 

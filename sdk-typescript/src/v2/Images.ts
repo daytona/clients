@@ -19,7 +19,7 @@ import { archiveBuilder, archiveDirectory, isContextDirectory } from './contextA
 import { localSourcesOf } from './ImageBuilder.js'
 import { expandHome } from './builderLocalSource.js'
 import type { BuildContext } from './contextUpload.js'
-import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
+import { HttpTransport, boundedRequestTimeout, closedSignalOf, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import { acknowledgedId } from './responseFields.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
@@ -253,7 +253,7 @@ export class ImagesService {
     const deadline = waitDeadline(timeoutSeconds)
     // With `wait`, a read after the submission (the first lookup and every
     // readiness hold) that fails transiently is retried within the budget.
-    const retry = new ReadRetry()
+    const retry = new ReadRetry(closedSignalOf(this.http))
     const timeoutError = (cause?: unknown) => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: retry.lastError ?? cause })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined

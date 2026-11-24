@@ -57,6 +57,9 @@ export class ReadRetry {
   private delayMs = 0
   private nextReadAt: number | undefined
 
+  /** `closed`: the owning client's closed signal, which ends every pause (the next read then throws `ClientClosedError`). */
+  constructor(private readonly closed?: AbortSignal) {}
+
   /** Record a failed read; `false` when it must be thrown instead. */
   note(error: unknown): boolean {
     if (!isRetryableReadError(error)) return false
@@ -86,30 +89,32 @@ export class ReadRetry {
    * Sleep until the next read is due (and not before `notBefore`, a wait's
    * own poll spacing), never past `deadline`. Sleeps in timer-sized steps
    * until the clock reads that time: a timer may fire a little early, and a
-   * hint may be longer than one timer. `signal` ends the pause early and
-   * clears its timer (an events-hub probe whose wait has settled).
+   * hint may be longer than one timer. `signal` (an events-hub probe whose
+   * wait has settled) and the client's closed signal end the pause early and
+   * clear its timer.
    */
   async pause(deadline: number | undefined, notBefore?: number, signal?: AbortSignal): Promise<void> {
     if (this.nextReadAt === undefined) return
     const due = Math.max(this.nextReadAt, notBefore ?? -Infinity)
     const until = deadline === undefined ? due : Math.min(due, deadline)
-    for (let left = until - Date.now(); left > 0 && signal?.aborted !== true; left = until - Date.now()) {
+    const signals = [signal, this.closed].filter((each): each is AbortSignal => each !== undefined)
+    for (let left = until - Date.now(); left > 0 && !signals.some((each) => each.aborted); left = until - Date.now()) {
       const step = Math.min(Math.ceil(left), MAX_TIMER_DELAY_MS)
-      await (signal === undefined ? sleep(step) : abortableSleep(step, signal))
+      await (signals.length === 0 ? sleep(step) : abortableSleep(step, signals))
     }
   }
 }
 
-/** A sleep that `signal` ends early, clearing its timer. */
-function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+/** A sleep that any of `signals` ends early, clearing its timer. */
+function abortableSleep(ms: number, signals: readonly AbortSignal[]): Promise<void> {
   return new Promise((resolve) => {
     const done = (): void => {
       clearTimeout(timer)
-      signal.removeEventListener('abort', done)
+      for (const signal of signals) signal.removeEventListener('abort', done)
       resolve()
     }
     const timer = setTimeout(done, ms)
-    signal.addEventListener('abort', done)
+    for (const signal of signals) signal.addEventListener('abort', done)
   })
 }
 

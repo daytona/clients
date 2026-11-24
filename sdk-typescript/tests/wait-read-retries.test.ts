@@ -19,6 +19,7 @@ import { SnapshotsService } from '../src/v2/Snapshots'
 import {
   AuthenticationError,
   BadRequestError,
+  ClientClosedError,
   ClientTimeoutError,
   ConnectionError,
   DaytonaError,
@@ -540,3 +541,27 @@ describe('events-hub probes', () => {
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+describe('client close during a retry pause', () => {
+  const busy = { status: 503, body: { code: 'SERVICE_UNAVAILABLE', message: 'busy' }, headers: { 'retry-after': '8' } }
+
+  it.each(['sandbox wait', 'image readiness'] as const)('ends an unbounded %s at once with ClientClosedError', async (kind) => {
+    const api = await startFakeApi(kind === 'sandbox wait' ? [{ status: 200, body: detail('stopped') }, busy, busy] : [busy, busy])
+    const client = clientAt(api.url)
+    try {
+      const waiting = kind === 'sandbox wait'
+        ? (await client.v2.get('sbx')).wait({ until: 'started', timeoutSeconds: 0 })
+        : client.v2.images.get('img-one', { wait: 'ready', timeoutSeconds: 3_000_000 })
+      const outcome = caught(waiting)
+      await sleepMs(300)
+      const closedAt = Date.now()
+      await client.close()
+      // Then the 8 s retry hint does not hold the wait: it ends at its next read.
+      expect(await outcome).toBeInstanceOf(ClientClosedError)
+      expect(Date.now() - closedAt).toBeLessThan(2_000)
+      expect(api.requests.filter((request) => request.method === 'GET').length).toBe(kind === 'sandbox wait' ? 2 : 1)
+    } finally {
+      await api.close()
+    }
+  })
+})

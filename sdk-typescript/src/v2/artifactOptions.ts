@@ -5,7 +5,7 @@
 
 import { assertKnownOptions, badRequest, optionKeys, optionalSeconds, waitDeadline } from './options.js'
 import type { AxiosInstance } from 'axios'
-import { sleep } from './http.js'
+import { closedSignalOf, sleep } from './http.js'
 import { ClientTimeoutError, RequestTimeoutError } from './errors/DaytonaError.js'
 import { ReadRetry } from './readRetry.js'
 
@@ -59,7 +59,7 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
   // Above the timer maximum (about 24.8 days): holds repeat with no deadline.
   const deadline = waitDeadline(seconds)
   const timedOut = (cause?: unknown) => new RequestTimeoutError('artifact did not become ready before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause })
-  const retry = new ReadRetry()
+  const retry = new ReadRetry(closedSignalOf(http))
   for (;;) {
     const remaining = deadline === undefined ? undefined : deadline - Date.now()
     if (remaining !== undefined && remaining <= 0) throw timedOut(retry.lastError)
