@@ -81,7 +81,7 @@ export class Daytona {
     this.secrets = new SecretsService(INTERNAL, this.api)
     this.reservations = new ReservationsService(INTERNAL, this.api)
     this.macModels = new MacModelsService(INTERNAL, this.api)
-    this.hubShared = config.sharedHub ?? true
+    this.hubShared = connection.sharedHub
     this.hubEventsConfig = eventsHubConfig(connection.events)
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }

@@ -37,6 +37,24 @@ def test_a_config_that_is_not_a_daytona_config_is_refused(
     _assert_bad_request(error, message)
 
 
+@pytest.mark.parametrize("client", [Daytona, AsyncDaytona])
+@pytest.mark.parametrize(
+    "config",
+    [{"api_url": "https://example.invalid"}, {"api_key": "k", "toolbox_url": "https://t.invalid"}],
+)
+def test_a_0x_shaped_config_keeps_the_migration_error_naming_its_url_field(
+    client: Callable[[Any], object], config: dict[str, str]
+) -> None:
+    with pytest.raises(TypeError, match="SDK 2.x targets Daytona Cloud"):
+        client(config)
+
+
+def test_another_daytona_config_class_is_named_in_full() -> None:
+    with pytest.raises(BadRequestError) as error:
+        Daytona(DaytonaConfigV2(api_key="key"))  # type: ignore[arg-type]
+    _assert_bad_request(error, "config must be a DaytonaConfig, got daytona.v2.types.DaytonaConfig")
+
+
 @pytest.mark.parametrize("events", ["x", {"enabled": False}, 5])
 def test_events_that_are_not_a_sandbox_events_config_are_refused(events: object) -> None:
     with pytest.raises(BadRequestError) as error:
@@ -57,6 +75,12 @@ def test_the_v2_client_refuses_events_that_are_not_a_sandbox_events_config() -> 
     [
         (DaytonaConfig(api_key="key", shared_hub="no"), "shared_hub must be a boolean"),  # type: ignore[arg-type]
         (DaytonaConfig(api_key="key", shared_hub=0), "shared_hub must be a boolean"),  # type: ignore[arg-type]
+        # Typed bool with no unset value: None would read as false.
+        (DaytonaConfig(api_key="key", shared_hub=None), "shared_hub must be a boolean"),  # type: ignore[arg-type]
+        (
+            DaytonaConfig(api_key="key", events=SandboxEventsConfig(enabled=None)),  # type: ignore[arg-type]
+            "events.enabled must be a boolean",
+        ),
         (DaytonaConfig(api_key="key", otel_enabled="yes"), "otel_enabled must be a boolean"),  # type: ignore[arg-type]
         (DaytonaConfig(api_key="key", otel_enabled=1), "otel_enabled must be a boolean"),  # type: ignore[arg-type]
         (
@@ -129,6 +153,11 @@ def _detail(url: str) -> JsonObject:
         ("https://toolbox.example/sbx#top", _URL_MESSAGE),
         ("https://toolbox.example:99999/sbx", _URL_MESSAGE),
         (" https://toolbox.example/sbx", _URL_MESSAGE),
+        ("https://toolbox.example/s bx", _URL_MESSAGE),
+        ("https:///toolbox.example/sbx", _URL_MESSAGE),
+        ("https://toolbox.example\\sbx", _URL_MESSAGE),
+        ("http://%41.toolbox.example/sbx", _URL_MESSAGE),
+        ("http://[::1/{sandbox_id}", _URL_MESSAGE),
         ("https://{sandbox_id}.toolbox.example/", _PLACEHOLDER_MESSAGE),
     ],
 )
@@ -152,6 +181,8 @@ async def test_get_refuses_a_toolbox_url_that_is_no_http_url_before_any_request(
     [
         "https://toolbox.example/sandboxes/sbx",
         "HTTP://127.0.0.1:8080/",
+        "http://[::1]:8080/sbx",
+        "https://user@toolbox.example/sbx",
         "https://toolbox.example/{sandboxId}/tools",
         "https://toolbox.example/{sandbox_id}",
     ],

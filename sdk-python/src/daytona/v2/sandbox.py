@@ -2378,28 +2378,42 @@ def _assert_placeholder_in_path(url: str) -> None:
 
 
 _URL_SPACE_OR_CONTROL: Final = re.compile(r"[\s\x00-\x1f\x7f]")
-_HTTP_URL_PREFIX: Final = re.compile(r"https?://", re.IGNORECASE)
+_HTTP_URL_AUTHORITY: Final = re.compile(r"https?://([^/?#]*)", re.IGNORECASE)
+
+
+def _plain_authority(url: str) -> bool:
+    """Whether the raw authority (between ``://`` and the first ``/``, ``?``
+    or ``#``) of an http(s) URL is one every SDK reads the same way: not
+    empty, no ``\\``, and no ``%`` in a host that is not an IPv6 literal
+    (the TypeScript SDK checks the same)."""
+    match = _HTTP_URL_AUTHORITY.match(url)
+    if match is None:
+        return False
+    authority = match.group(1)
+    host = authority[authority.rfind("@") + 1 :]
+    return bool(host) and "\\" not in authority and (host.startswith("[") or "%" not in host)
 
 
 def _check_toolbox_override_url(url: str, name: str) -> None:
     """Refuse a caller's toolbox URL override that is not an absolute http(s)
-    URL with a host and no query or fragment (the Go SDK's rule), before any
-    request. A ``{sandbox_id}`` placeholder is allowed in the path only."""
-    if _has_sandbox_id_placeholder(url):
-        _assert_placeholder_in_path(url)
+    URL with a host and no query or fragment, before any request: the Go SDK's
+    rule, plus a valid port and no whitespace or control characters. A
+    ``{sandbox_id}`` placeholder is allowed in the path only."""
     masked = url
     for placeholder in _SANDBOX_ID_PLACEHOLDERS:
         masked = masked.replace(placeholder, "sandbox")
     parsed: Optional[SplitResult]
     try:
+        if _has_sandbox_id_placeholder(url):
+            _assert_placeholder_in_path(url)
         parsed = urlsplit(masked)
         _ = parsed.port  # a malformed port raises ValueError
-    except ValueError:
+    except ValueError:  # an unparsable authority, such as a malformed IPv6 host
         parsed = None
     valid = (
         parsed is not None
         and bool(parsed.hostname)
-        and _HTTP_URL_PREFIX.match(masked) is not None
+        and _plain_authority(masked)
         and _URL_SPACE_OR_CONTROL.search(masked) is None
         and "?" not in masked
         and "#" not in masked

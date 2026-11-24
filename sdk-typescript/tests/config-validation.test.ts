@@ -56,6 +56,10 @@ describe('get() toolbox URL override', () => {
     ['a fragment', 'https://toolbox.example/sbx#top', URL_MESSAGE],
     ['an invalid port', 'https://toolbox.example:99999/sbx', URL_MESSAGE],
     ['surrounding whitespace', ' https://toolbox.example/sbx', URL_MESSAGE],
+    ['whitespace in the path', 'https://toolbox.example/s bx', URL_MESSAGE],
+    ['an empty authority', 'https:///toolbox.example/sbx', URL_MESSAGE],
+    ['a backslash in the authority', 'https://toolbox.example\\sbx', URL_MESSAGE],
+    ['a percent-encoded host', 'http://%41.toolbox.example/sbx', URL_MESSAGE],
     ['a placeholder in the host', 'https://{sandboxId}.toolbox.example/', 'the {sandboxId} placeholder in a toolbox URL is only supported in the path'],
   ] as const)('refuses %s before any request', async (_name, toolboxUrl, message) => {
     const api = await startFakeApi([])
@@ -74,6 +78,8 @@ describe('get() toolbox URL override', () => {
   it.each([
     ['an https URL', 'https://toolbox.example/sandboxes/sbx'],
     ['an upper-case scheme and a port', 'HTTP://127.0.0.1:8080/'],
+    ['an IPv6 host', 'http://[::1]:8080/sbx'],
+    ['userinfo', 'https://user@toolbox.example/sbx'],
     ['a path placeholder', 'https://toolbox.example/{sandboxId}/tools'],
     ['the snake_case placeholder', 'https://toolbox.example/{sandbox_id}'],
   ] as const)('accepts %s', async (_name, toolboxUrl) => {

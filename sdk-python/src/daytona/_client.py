@@ -17,6 +17,7 @@ import importlib
 import os
 import threading
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from types import ModuleType
 from typing import TYPE_CHECKING, Callable, Final, Optional, Union
@@ -291,9 +292,18 @@ def _snapshot_config(config: object) -> DaytonaConfig:
     not a ``SandboxEventsConfig``, is a ``BadRequestError``, as in TypeScript.
     """
     if not isinstance(config, DaytonaConfig):
-        raise create_error(
-            f"config must be a DaytonaConfig, got {type(config).__name__}", 400, "BAD_REQUEST", "SDK"
+        # A 0.x-shaped config keeps the migration error naming its URL field.
+        for name in _REMOVED_URL_FIELDS:
+            if (isinstance(config, Mapping) and name in config) or hasattr(config, name):
+                raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+        given = type(config)
+        # Another DaytonaConfig class (daytona.v2's) is named in full.
+        shown = (
+            f"{given.__module__}.{given.__qualname__}"
+            if given.__name__ == "DaytonaConfig"
+            else given.__name__
         )
+        raise create_error(f"config must be a DaytonaConfig, got {shown}", 400, "BAD_REQUEST", "SDK")
     _refuse_url_fields(config)
     snapshot = object.__new__(DaytonaConfig)
     for config_field in fields(DaytonaConfig):

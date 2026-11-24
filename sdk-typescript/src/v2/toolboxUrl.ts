@@ -46,9 +46,23 @@ export function assertPlaceholderInPath(url: string): void {
 }
 
 /**
+ * Whether the raw authority (between `://` and the first `/`, `?` or `#`) of
+ * an http(s) URL is one every SDK reads the same way: not empty, no `\`, and
+ * no `%` in a host that is not an IPv6 literal. The WHATWG parser would
+ * otherwise rewrite `https:///h`, `https://h\p` and `http://%41.example/`
+ * into hosts the Go and Python SDKs refuse.
+ */
+function plainAuthority(url: string): boolean {
+  const authority = /^https?:\/\/([^/?#]*)/i.exec(url)?.[1] ?? ''
+  const host = authority.slice(authority.lastIndexOf('@') + 1)
+  return host !== '' && !authority.includes('\\') && (host.startsWith('[') || !host.includes('%'))
+}
+
+/**
  * Refuse a caller's toolbox URL override that is not an absolute http(s) URL
- * with a host and no query or fragment (the Go SDK's rule), before any
- * request; a `{sandboxId}` placeholder is allowed in the path only.
+ * with a host and no query or fragment, before any request: the Go SDK's
+ * rule, plus a valid port and no whitespace or control characters. A
+ * `{sandboxId}` placeholder is allowed in the path only.
  */
 export function assertToolboxOverrideUrl(url: string, name: string): void {
   if (hasSandboxIdPlaceholder(url)) assertPlaceholderInPath(url)
@@ -61,6 +75,7 @@ export function assertToolboxOverrideUrl(url: string, name: string): void {
   }
   const valid = hostname !== ''
     && /^https?:\/\//i.test(masked)
+    && plainAuthority(masked)
     && !/[\s\u0000-\u001f\u007f]/.test(masked)
     && !masked.includes('?')
     && !masked.includes('#')

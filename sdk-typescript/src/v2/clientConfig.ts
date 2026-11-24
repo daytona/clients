@@ -84,6 +84,8 @@ interface ClientConnectionConfig {
   readonly maxResponseBytes: number
   readonly httpOptions: HttpClientOptions
   readonly hubIdentityKey: string
+  /** Whether the client shares its events hub (`sharedHub`, default true). */
+  readonly sharedHub: boolean
   readonly events?: SandboxEventsConfig
 }
 
@@ -124,7 +126,7 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   // Above the timer maximum (about 24.8 days) means no bound, like 0.
   const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
   const otelEnabled = optionalBoolean('otelEnabled', config.otelEnabled) ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
-  optionalBoolean('sharedHub', config.sharedHub)
+  const sharedHub = optionalBoolean('sharedHub', config.sharedHub) ?? true
   const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
   const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
   if (!apiKey && !jwtToken) {
@@ -157,5 +159,5 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
     otelEnabled,
     otelApi: config.otelApi,
   }
-  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, maxResponseBytes, httpOptions, hubIdentityKey, events }
+  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, maxResponseBytes, httpOptions, hubIdentityKey, sharedHub, events }
 }
