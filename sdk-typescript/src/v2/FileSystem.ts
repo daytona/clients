@@ -410,7 +410,11 @@ export class FileSystemService {
     return parseBulkReadResult(body, contentTypeHeader(response.headers))
   }
 
-  /** List a directory: one page of `{ items, nextCursor }`. */
+  /**
+   * List a directory: one page of `{ items, nextCursor }`. `depth` is how many
+   * levels to descend: omitted lists `path`'s own entries (`1`); the sandbox
+   * accepts 1 to 32 and caps a recursive listing at 10,000 entries.
+   */
   public async list(path: string, options: ListFilesOptions = {}): Promise<ListResult<FileInfo>> {
     sandboxPath('path', path)
     assertKnownOptions('ListFilesOptions', options, LIST_FILES_OPTION_KEYS)
@@ -688,8 +692,12 @@ export class FileSystemService {
   }
 
   /**
-   * Return the paths of files under `path` whose base name matches the glob
-   * `pattern`. Directories below `path` that the sandbox user cannot read are
+   * Return the absolute paths under `path` whose base name matches the glob
+   * `pattern`. The walk is recursive and matches every entry it visits: files,
+   * directories, and `path` itself. `pattern` supports `*` (any run of
+   * characters) and `?` (one character) only; there are no character classes
+   * or braces, and `**` is the same as `*`. Symbolic links are not followed.
+   * Directories below `path` that the sandbox user cannot read are
    * not searched; `skipped` lists their absolute paths (at most 1000). Only an
    * unreadable `path` itself throws `FileAccessDeniedError`.
    */

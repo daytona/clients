@@ -764,7 +764,10 @@ export class Sandbox {
   }
 
   /**
-   * Stop the sandbox and wait until it is stopped. While it is stopped, toolbox
+   * Stop the sandbox and wait until it is stopped. Only a persistent sandbox
+   * can stop: one that is not (`persistent` on the handle) is refused with
+   * `ConflictError` (409). The SDK's Linux creates do not ask for
+   * persistence; `createMacos()` takes `persistent: true`. While it is stopped, toolbox
    * calls (process, files, git, …) and its preview URLs answer
    * `SandboxNotRunningError` (409, `SANDBOX_NOT_RUNNING`); `start()` it first.
    */
@@ -782,7 +785,9 @@ export class Sandbox {
    * A return to started means the pause failed. A paused macOS sandbox keeps
    * its memory on its Mac. With auto-renew on, it keeps its reservation
    * renewing; otherwise the sandbox is stopped, with its disk, before the
-   * reservation ends.
+   * reservation ends. Only a persistent sandbox can pause: one that is not
+   * (`persistent` on the handle) is refused with `ConflictError` (409). The SDK's Linux creates do not ask for
+   * persistence; `createMacos()` takes `persistent: true`.
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -795,7 +800,8 @@ export class Sandbox {
 
   /**
    * Resume a paused sandbox and wait until it is started.
-   * A return to stopped means the resume failed.
+   * A return to stopped means the resume failed. Only a persistent sandbox
+   * pauses, so only a persistent one resumes.
    */
   public async resume(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -807,7 +813,10 @@ export class Sandbox {
   }
 
   /**
-   * Fork this sandbox and return the fork handle.
+   * Fork this sandbox and return the fork handle. Only a persistent sandbox
+   * can be forked: one that is not (`persistent` on the handle) is refused
+   * with `ConflictError` (409). The SDK's Linux creates do not ask for
+   * persistence; `createMacos()` takes `persistent: true`.
    *
    * By default the fork continues from the source's memory (running processes
    * included). `memory: false` copies only the disk, after which the fork boots
@@ -1143,7 +1152,10 @@ export class Sandbox {
 
   /**
    * Capture this sandbox, memory and disk, as a new {@link Snapshot}
-   * (`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
+   * (`POST /sandboxes/{id}/snapshots`). The sandbox must be running and
+   * resumable: a persistent sandbox always is, while one that is not
+   * persistent may not be. Otherwise the API throws `ConflictError` (409);
+   * create the sandbox persistent to snapshot it. The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).
    */

@@ -571,7 +571,12 @@ class AsyncFileSystemService:
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
     async def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
-        """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
+        """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``).
+
+        ``depth`` is how many levels to descend: omitted lists ``path``'s own
+        entries (``1``); the sandbox accepts 1 to 32 and caps a recursive
+        listing at 10,000 entries.
+        """
         params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if depth is not None:
             if isinstance(depth, bool) or not isinstance(depth, int):
@@ -631,9 +636,13 @@ class AsyncFileSystemService:
         )
 
     async def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
-        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
+        """Return the absolute paths under ``path`` whose base name matches the glob ``pattern``.
 
-        Directories below ``path`` that the sandbox user cannot read are not
+        The walk is recursive and matches every entry it visits: files,
+        directories, and ``path`` itself. ``pattern`` supports ``*`` (any run of
+        characters) and ``?`` (one character) only; there are no character
+        classes or braces, and ``**`` is the same as ``*``. Symbolic links are
+        not followed. Directories below ``path`` that the sandbox user cannot read are not
         searched; ``skipped`` lists their absolute paths (at most 1000). Only an
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.

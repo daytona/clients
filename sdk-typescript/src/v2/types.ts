@@ -288,6 +288,7 @@ export interface NetworkPolicyInput {
 }
 
 export interface VolumeMount {
+  /** The volume's `vol_` ID or its name. */
   readonly volumeId: string
   /**
    * An absolute path with no `..` component. The API normalizes it (repeated

@@ -1349,9 +1349,11 @@ class AsyncSandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
-        terminal state raises :class:`SandboxTerminalStateError`. Which
-        sandboxes can stop (today: persistent macOS sandboxes) is the API's
-        decision; a refusal surfaces as its typed error. While it is stopped,
+        terminal state raises :class:`SandboxTerminalStateError`. Only a
+        persistent sandbox can stop: one that is not (``persistent`` on the
+        handle) is refused with :class:`ConflictError` (409). The SDK's Linux creates do
+        not ask for persistence; :meth:`AsyncDaytona.create_macos` takes
+        ``persistent=True``. While it is stopped,
         toolbox calls (process, files, git, …) and its preview URLs answer
         :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
         :meth:`start` it first.
@@ -1368,8 +1370,11 @@ class AsyncSandbox:
         then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
         keeps its memory on its Mac. With auto-renew on, it keeps its
         reservation renewing; otherwise the sandbox is stopped, with its disk,
-        before the reservation ends. Which sandboxes can pause is the API's
-        decision.
+        before the reservation ends. Only a persistent sandbox can pause:
+        a sandbox that is not persistent (``persistent`` on the handle) is
+        refused with :class:`ConflictError` (409). The SDK's Linux creates do
+        not ask for persistence; :meth:`AsyncDaytona.create_macos` takes
+        ``persistent=True``.
         """
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/pause"))
@@ -1380,7 +1385,8 @@ class AsyncSandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
-        raises :class:`SandboxTerminalStateError`.
+        raises :class:`SandboxTerminalStateError`. Only a persistent sandbox
+        pauses, so only a persistent one resumes.
         """
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/resume"))
@@ -1394,6 +1400,12 @@ class AsyncSandbox:
         wait_seconds: float = 60,
     ) -> AsyncSandbox:
         """Fork this sandbox and return the fork's handle.
+
+        Only a persistent sandbox can be forked: one that is not
+        (``persistent`` on the handle) is refused with :class:`ConflictError`
+        (409). The SDK's Linux creates do
+        not ask for persistence; :meth:`AsyncDaytona.create_macos` takes
+        ``persistent=True``.
 
         By default the fork continues from the source's memory (running
         processes included). ``memory=False`` copies only the disk, and the
@@ -1750,7 +1762,10 @@ class AsyncSandbox:
         """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
         (``POST /sandboxes/{id}/snapshots``).
 
-        The credential needs ``write:sandboxes`` in addition to
+        The sandbox must be running and resumable: a persistent sandbox always
+        is, while one that is not persistent may not be. Otherwise the API
+        raises :class:`ConflictError` (409); create the sandbox persistent to
+        snapshot it. The credential needs ``write:sandboxes`` in addition to
         ``write:snapshots``; without it the capture raises
         :class:`ForbiddenError` (403).
         """

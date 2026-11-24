@@ -407,7 +407,12 @@ class AsyncProcessHandle:
         await self._send(stdin_spec(self.id, data, eof=False))
 
     async def close_stdin(self) -> None:
-        """Close the stdin of an exec or PTY process (EOF)."""
+        """Close the stdin of an exec process (EOF).
+
+        A PTY has no end-of-input signal of its own: the sandbox refuses this
+        on a PTY handle. Write ``"\\x04"`` (Ctrl-D) with :meth:`write_stdin`
+        instead, which the terminal reads as end of input.
+        """
         self._require_stdin_kind("close_stdin")
         await self._send(stdin_spec(self.id, "", eof=True))
 

@@ -108,6 +108,7 @@ func (h *ProcessHandle) Write(ctx context.Context, data []byte) (int, error) {
 }
 
 // CloseStdin sends EOF. It is separate from deleting or disconnecting the process.
+// A PTY refuses it: write "\x04" (Ctrl-D) to end a PTY's input instead.
 func (h *ProcessHandle) CloseStdin(ctx context.Context) error {
 	if err := h.requireStdin(); err != nil {
 		return err

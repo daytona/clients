@@ -82,6 +82,7 @@ export interface StorageLimits {
   readonly snapshots: UsageLimit
 }
 
+/** Per-sandbox maximums for Linux sandboxes: `maxCores` in cores and `maxMemoryMib` in MiB. */
 export interface SandboxResourceLimits {
   readonly maxCores: number
   readonly maxMemoryMib: number

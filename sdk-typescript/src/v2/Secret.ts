@@ -32,6 +32,7 @@ import type { ResponseFields } from './responseFields.js'
 /** Secret metadata (never the value). */
 export interface Secret {
   readonly name: string
+  /** The hosts the value may be sent to; `['*']` means any verified host and an empty list none. `secrets.set()` requires at least one entry. */
   readonly allowedDomains: readonly string[]
   readonly description?: string
   readonly createdAt: string
@@ -41,8 +42,10 @@ export interface Secret {
 /** Options for creating/updating a secret. */
 export interface SetSecretOptions {
   /** The hosts where this secret's value may be sent (exact or `*.` wildcard),
-   *  or `["*"]` for any verified host. `"*"` lets the value reach any HTTPS
-   *  host, including one a compromised sandbox controls. */
+   *  or `["*"]` for any verified host; it must not be empty (a {@link Secret}
+   *  read back with no allowed domains is sent nowhere, but `set()` cannot
+   *  create one). `"*"` lets the value reach any HTTPS host, including one a
+   *  compromised sandbox controls. */
   readonly allowedDomains: readonly string[]
   /**
    * Omitted (or `null`) keeps the stored description of an existing secret,

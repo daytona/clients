@@ -44,6 +44,8 @@ func (f *FileSystem) Grep(ctx context.Context, path, pattern string) (*FileSearc
 }
 
 // Glob finds paths whose base names match pattern. It does not search contents.
+// The walk is recursive and matches every entry, directories and path itself
+// included; pattern supports only * and ?.
 func (f *FileSystem) Glob(ctx context.Context, path, pattern string) (*FileSearchResult[string], error) {
 	query, err := filePath(path)
 	if err != nil {

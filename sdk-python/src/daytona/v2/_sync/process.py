@@ -57,7 +57,12 @@ class ProcessHandle:
         return self._impl.kind
 
     def close_stdin(self) -> None:
-        """Close the stdin of an exec or PTY process (EOF)."""
+        r"""Close the stdin of an exec process (EOF).
+
+        A PTY has no end-of-input signal of its own: the sandbox refuses this
+        on a PTY handle. Write ``"\x04"`` (Ctrl-D) with :meth:`write_stdin`
+        instead, which the terminal reads as end of input.
+        """
         return self._bridge.call(lambda: self._impl.close_stdin())
 
     def delete(self) -> None:

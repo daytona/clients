@@ -133,7 +133,12 @@ export class ProcessHandle {
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, body)
   }
 
-  /** Close the stdin of an exec or pty process (EOF). */
+  /**
+   * Close the stdin of an exec process (EOF). A pty has no end-of-input signal
+   * of its own: the sandbox refuses this on a pty handle. Write `'\x04'`
+   * (Ctrl-D) with {@link writeStdin} instead, which the terminal reads as end of
+   * input.
+   */
   public async closeStdin(): Promise<void> {
     if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('closeStdin', this.kind)
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, { data: '', eof: true })
