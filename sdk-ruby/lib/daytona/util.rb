@@ -16,43 +16,92 @@ module Daytona
     PREFIX_LEN = STDOUT_PREFIX.bytesize
     private_constant :PREFIX_LEN
 
+    # Splits one complete multiplexed log into stdout and stderr.
+    # Use {Demuxer} for a log that arrives in several chunks.
+    #
+    # @param line [String]
+    # @return [Array(String, String)] stdout and stderr
     def self.demux(line)
-      out_parts = []
-      err_parts = []
-      state = nil
-      pos = 0
+      demuxer = Demuxer.new
+      stdout, stderr = demuxer.feed(line)
+      rest_stdout, rest_stderr = demuxer.flush
+      [stdout + rest_stdout, stderr + rest_stderr]
+    end
 
-      while pos < line.bytesize
-        si = line.index(STDOUT_PREFIX, pos)
-        ei = line.index(STDERR_PREFIX, pos)
+    # Splits a multiplexed log stream into stdout and stderr chunk by chunk.
+    #
+    # The current stream and a trailing, possibly partial, stream marker carry over
+    # from one chunk to the next, so the output does not depend on where the stream
+    # is split (for example into WebSocket messages). Output before the first marker
+    # of the whole stream is dropped.
+    class Demuxer
+      MARKERS = { stdout: STDOUT_PREFIX.b.freeze, stderr: STDERR_PREFIX.b.freeze }.freeze
+      private_constant :MARKERS
 
-        if si && (ei.nil? || si < ei)
-          next_idx = si
-          next_state = :stdout
-        elsif ei
-          next_idx = ei
-          next_state = :stderr
-        else
-          case state
-          when :stdout then out_parts << line[pos..]
-          when :stderr then err_parts << line[pos..]
-          end
-          break
-        end
-
-        if pos < next_idx
-          chunk = line[pos...next_idx]
-          case state
-          when :stdout then out_parts << chunk
-          when :stderr then err_parts << chunk
-          end
-        end
-
-        state = next_state
-        pos = next_idx + PREFIX_LEN
+      def initialize
+        @stream = nil
+        @pending = ''.b
+        @encoding = Encoding::UTF_8
+        @output = { stdout: ''.b, stderr: ''.b }
       end
 
-      [out_parts.join, err_parts.join]
+      # @param data [String] The next chunk of the stream
+      # @return [Array(String, String)] stdout and stderr decoded from the chunk so far
+      def feed(data)
+        @encoding = data.encoding
+        buffer = @pending + data.b
+        pos = consume_markers(buffer)
+        held = partial_marker_length(buffer, pos)
+        append(buffer.byteslice(pos, buffer.bytesize - pos - held))
+        @pending = buffer.byteslice(buffer.bytesize - held, held)
+        take_output
+      end
+
+      # Emits the bytes held back at the end of the stream as output of the current stream.
+      #
+      # @return [Array(String, String)] stdout and stderr
+      def flush
+        append(@pending)
+        @pending = ''.b
+        take_output
+      end
+
+      private
+
+      def consume_markers(buffer)
+        pos = 0
+        loop do
+          marker_at, stream = next_marker(buffer, pos)
+          return pos unless marker_at
+
+          append(buffer.byteslice(pos, marker_at - pos))
+          @stream = stream
+          pos = marker_at + PREFIX_LEN
+        end
+      end
+
+      def next_marker(buffer, pos)
+        MARKERS.filter_map { |stream, marker| (at = buffer.index(marker, pos)) && [at, stream] }.min_by(&:first)
+      end
+
+      def partial_marker_length(buffer, pos)
+        (PREFIX_LEN - 1).downto(1).find do |length|
+          next false if buffer.bytesize - pos < length
+
+          tail = buffer.byteslice(buffer.bytesize - length, length)
+          MARKERS.each_value.any? { |marker| marker.start_with?(tail) }
+        end || 0
+      end
+
+      def append(chunk)
+        @output[@stream] << chunk if @stream
+      end
+
+      def take_output
+        output = @output.values.map { |part| part.force_encoding(@encoding) }
+        @output = { stdout: ''.b, stderr: ''.b }
+        output
+      end
     end
 
     # @param uri [URI]

@@ -225,6 +225,35 @@ RSpec.describe Daytona::SandboxNodes do
     expect(a_request(:delete, %r{/process/session/})).to have_been_made.twice
   end
 
+  it 'keeps the stream and split markers across streamed log messages' do
+    sessions
+    chunks = Queue.new
+    allow(Daytona::Common::WebSocketDialer).to receive(:connect) do |_, **_, &block|
+      handlers = {}
+      socket = double('socket')
+      allow(socket).to receive(:on) { |event, &handler| handlers[event] = handler }
+      allow(socket).to receive(:close)
+      block.call(socket)
+      ["\x01\x01", "\x01ok\x02", "\x02\x02bad", " more\x01"].each do |data|
+        handlers[:message].call(double(type: :binary, data: data))
+      end
+      handlers[:close].call
+      socket
+    end
+    sandbox.nodes.process.exec(
+      command: 'echo ok',
+      on_stdout: ->(rank, chunk) { chunks << [rank, :stdout, chunk] },
+      on_stderr: ->(rank, chunk) { chunks << [rank, :stderr, chunk] }
+    )
+    output = Array.new(chunks.size) { chunks.pop }.group_by(&:first).transform_values do |entries|
+      entries.group_by { |entry| entry[1] }.transform_values { |parts| parts.map(&:last).join }
+    end
+    expect(output).to eq(
+      0 => { stdout: 'ok', stderr: "bad more\x01" },
+      1 => { stdout: 'ok', stderr: "bad more\x01" }
+    )
+  end
+
   it 'uploads the exact bytes of an IO on every rank' do
     bytes = [1, 0, 2].pack('C*')
     sandbox.nodes.each do |node|

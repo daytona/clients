@@ -273,6 +273,11 @@ module Daytona
       url.query = 'follow=true'
 
       completion_queue = Queue.new
+      demuxer = Util::Demuxer.new
+      emit = lambda do |(stdout, stderr)|
+        on_stdout.call(stdout) unless stdout.empty?
+        on_stderr.call(stderr) unless stderr.empty?
+      end
 
       Common::WebSocketDialer.connect(
         url.to_s,
@@ -285,16 +290,15 @@ module Daytona
         client.on(:message) do |message|
           if message.type == :close
             client.close
+            emit.call(demuxer.flush)
             completion_queue.push(:close)
           else
-            stdout, stderr = Util.demux(message.data.to_s)
-
-            on_stdout.call(stdout) unless stdout.empty?
-            on_stderr.call(stderr) unless stderr.empty?
+            emit.call(demuxer.feed(message.data.to_s))
           end
         end
 
         client.on(:close) do
+          emit.call(demuxer.flush)
           completion_queue.push(:close)
         end
 
@@ -342,6 +346,11 @@ module Daytona
       url.query = 'follow=true'
 
       completion_queue = Queue.new
+      demuxer = Util::Demuxer.new
+      emit = lambda do |(stdout, stderr)|
+        on_stdout.call(stdout) unless stdout.empty?
+        on_stderr.call(stderr) unless stderr.empty?
+      end
 
       Common::WebSocketDialer.connect(
         url.to_s,
@@ -354,16 +363,15 @@ module Daytona
         client.on(:message) do |message|
           if message.type == :close
             client.close
+            emit.call(demuxer.flush)
             completion_queue.push(:close)
           else
-            stdout, stderr = Util.demux(message.data.to_s)
-
-            on_stdout.call(stdout) unless stdout.empty?
-            on_stderr.call(stderr) unless stderr.empty?
+            emit.call(demuxer.feed(message.data.to_s))
           end
         end
 
         client.on(:close) do
+          emit.call(demuxer.flush)
           completion_queue.push(:close)
         end
 

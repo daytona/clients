@@ -320,6 +320,42 @@ RSpec.describe Daytona::Process do
     end
   end
 
+  describe 'streamed log demultiplexing across WebSocket messages' do
+    let(:messages) { ["\x01\x01\x01out\n\x02", "\x02\x02err\n", "more\n\x01", "\x01\x01", "back\n\x02\x02"] }
+
+    let(:socket) { PassiveWebSocket.new }
+
+    before { allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket) }
+
+    def stream_logs(messages)
+      output = [+'', +'']
+      thread = Thread.new { yield(->(chunk) { output[0] << chunk }, ->(chunk) { output[1] << chunk }) }
+      sleep 0.02
+      messages.each { |data| socket.emit(:message, double(type: :binary, data: data)) }
+      socket.emit(:close)
+      thread.join
+      output
+    end
+
+    it 'keeps the stream and split markers in session command logs' do
+      result = stream_logs(messages) do |on_stdout, on_stderr|
+        process.get_session_command_logs_async(
+          session_id: 'sess-1', command_id: 'cmd-1', on_stdout: on_stdout, on_stderr: on_stderr
+        )
+      end
+
+      expect(result).to eq(["out\nback\n\x02\x02", "err\nmore\n"])
+    end
+
+    it 'keeps the stream and split markers in entrypoint logs' do
+      result = stream_logs(messages) do |on_stdout, on_stderr|
+        process.get_entrypoint_logs_async(on_stdout: on_stdout, on_stderr: on_stderr)
+      end
+
+      expect(result).to eq(["out\nback\n\x02\x02", "err\nmore\n"])
+    end
+  end
+
   describe '#get_entrypoint_logs_async' do
     it 'streams entrypoint logs until close' do
       socket = PassiveWebSocket.new
