@@ -492,7 +492,9 @@ actions = d.v2.list_audit_actions() # the actions the audit log records, per tar
 ```
 
 `get_limits()` defaults to the API key's own organization; with `jwt_token`
-authentication pass `organization_id=`. A `limit` of `None` means unlimited.
+authentication pass `organization_id=`. A `limit` of `None` means unlimited,
+except on the deprecated sandbox and storage counts, where the limit is not
+returned.
 An unset budget comes back with its limit and period fields `None`. On
 `AsyncDaytona` await each call.
 

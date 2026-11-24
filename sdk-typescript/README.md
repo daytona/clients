@@ -474,7 +474,8 @@ const actions = await daytona.v2.listAuditActions() // the actions the audit log
 
 `getLimits()` defaults to the API key's own organization; with `jwtToken`
 authentication pass `{ organizationId }`. An undefined `limit` means
-unlimited. An unset budget comes back with its limit and period fields
+unlimited, except on the deprecated sandbox and storage counts, where the
+limit is not returned. An unset budget comes back with its limit and period fields
 undefined.
 
 ### Sandbox labels and entrypoint logs
