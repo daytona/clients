@@ -816,10 +816,11 @@ function optionalInteger(value: unknown): number | undefined {
  */
 export function errorOptionsFromEnvelope(envelope: ErrorEnvelope | undefined): ErrorOptions {
   if (envelope === undefined) return {}
+  const retryAfterSeconds = optionalInteger(envelope.retry_after_seconds)
   const retryAfterMs = optionalInteger(envelope.retryAfterMs)
   return {
     traceId: optionalText(envelope.trace_id),
-    retryAfterSeconds: optionalInteger(envelope.retry_after_seconds),
+    retryAfterSeconds: retryAfterSeconds !== undefined && retryAfterSeconds >= 0 ? retryAfterSeconds : undefined,
     feature: optionalText(envelope.feature),
     entitlement: optionalText(envelope.entitlement),
     replacement: optionalText(envelope.replacement),
