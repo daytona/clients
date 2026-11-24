@@ -748,10 +748,11 @@ from the process log, so its `keepLogs` takes `'on_exit_ttl'` (default) or
 `'until_cleanup'`, not `'none'`. It returns no handle to write to, so it
 refuses `stdin: 'open'`: use `start()` for a process that reads stdin.
 
-`run()`, `session.run()` and `ProcessHandle.wait()` wait in rounds: no request
-holds for more than 30 seconds, however long the `timeoutSeconds` (or with
-none), so a network path that drops long, quiet connections costs one round,
-which the wait retries, not the whole wait. The request that starts the
+`run()`, `session.run()` and `ProcessHandle.wait()` wait in rounds: the
+sandbox holds each request for at most 30 seconds (its read is bounded at 35
+seconds), however long the `timeoutSeconds` (or with none), so a network path
+that drops long, quiet connections costs one round, which the wait retries,
+not the whole wait. The request that starts the
 process is never retried: when it fails, the process may already be running.
 
 `process.start()` (and `session.start()`) sends `keepLogs: 'on_exit_ttl'`
@@ -902,9 +903,10 @@ directory. `timeoutSeconds` (`0`, or a value above 2,147,483.647 (about 24.8
 days), means no limit) replaces `requestTimeoutSeconds` for that call, which a
 move to another file system (a copy in the sandbox) can outlast; a negative or
 non-finite value throws `BadRequestError` before any request. The SDK does not
-retry a move that timed out or failed, and a timeout ends the call, not the
-move: it may still be running, or have finished, so check the destination
-before moving again.
+retry a move that timed out or failed (only a 401, which the sandbox refuses
+before moving anything, is re-sent once with a fresh token), and a timeout ends
+the call, not the move: it may still be running, or have finished, so check
+the destination before moving again.
 
 `watchDir(path, onEvent, { recursive, onOverflow, onExit })` calls `onEvent`
 for each change (a `FilesystemEvent`; `timestampMs` is Unix milliseconds;

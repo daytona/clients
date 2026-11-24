@@ -143,9 +143,12 @@ export class ProcessHandle {
    * Wait until the process ends. `timeoutSeconds` is the caller's wait budget
    * (omitted or `0` waits until it ends); on expiry the result is
    * `{ reason: 'timed_out' }` and the process keeps running. The wait is a
-   * series of requests that each hold for at most 30 seconds, so no single
-   * request stays open for the whole budget; a dropped or stalled round is
-   * retried within the budget.
+   * series of requests the sandbox holds for at most 30 seconds each (each
+   * read is bounded at 35 seconds), so no single request stays open for the
+   * whole budget; a dropped or stalled round is retried within the budget. A
+   * timed-out wait may return a few seconds past the budget: the process
+   * record is read once after the last round, so a process that ended with it
+   * is reported.
    */
   public async wait(options: WaitProcessOptions = {}): Promise<WaitResult> {
     assertKnownOptions('WaitProcessOptions', options, WAIT_OPTION_KEYS)

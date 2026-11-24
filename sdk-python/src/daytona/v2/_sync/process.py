@@ -129,10 +129,13 @@ class ProcessHandle:
         """Wait for terminal state using the process long-poll contract.
 
         ``timeout`` is the caller wait budget in seconds; omitted or ``0``
-        waits until the process ends. The wait is a series of requests that
-        each hold for at most 30 seconds, so no single request stays open for
-        the whole budget; a dropped or stalled round is retried within the
-        budget.
+        waits until the process ends. The wait is a series of requests the
+        sandbox holds for at most 30 seconds each (each read is bounded at 35
+        seconds), so no single request stays open for the whole budget; a
+        dropped or stalled round is retried within the budget. A timed-out
+        wait may return a few seconds past the budget: the process record is
+        read once after the last round, so a process that ended with it is
+        reported.
         """
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
 
