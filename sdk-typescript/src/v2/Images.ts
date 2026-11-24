@@ -108,7 +108,7 @@ export class ImagesService {
     private readonly apiTransport?: HttpTransport | HttpTransportConfig,
   ) {
     assertInternal(token, 'ImagesService')
-    concealFields(this, ['apiTransport'])
+    concealFields(this, ['apiTransport', 'resolvedApiTransport'])
     credentialSafeDiagnostics(this, () => ({ type: 'ImagesService' }))
   }
 

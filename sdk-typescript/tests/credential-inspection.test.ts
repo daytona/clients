@@ -130,6 +130,9 @@ describe('credential-safe diagnostics', () => {
     const apiConfig = { apiKey: API_KEY, httpOptions: { authProvider: { token: ACCESS_TOKEN, authorizationHeader: async () => `Bearer ${ACCESS_TOKEN}` } } }
     // When
     const images = new ImagesService(INTERNAL, api, apiConfig)
+    // SAFETY: getApiTransport is the service's private, argument-free resolver
+    // that followBuildLogs() runs first.
+    ;(images as unknown as { getApiTransport(): unknown }).getApiTransport()
     // Then
     expectSafe(images)
     expect(apiConfig.apiKey).toBe(API_KEY)
@@ -300,8 +303,10 @@ describe('credential-safe diagnostics', () => {
     // When
     await api.get('/ping')
     await api.get('/ping', { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } })
-    // Then: the default bearer, and a per-request one that replaces it
-    expect(sent).toEqual([`Bearer ${API_KEY}`, `Bearer ${ACCESS_TOKEN}`])
+    await api.get('/ping', { headers: { Authorization: null } })
+    // Then: the default bearer, a per-request one that replaces it, and none
+    // when the request removes the header
+    expect(sent).toEqual([`Bearer ${API_KEY}`, `Bearer ${ACCESS_TOKEN}`, 'null'])
     expect(enumerableCredentialPaths(api)).toEqual([])
   })
 })

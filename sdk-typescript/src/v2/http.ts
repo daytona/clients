@@ -408,6 +408,14 @@ function getAxiosHeader(config: AxiosRequestConfig, name: string): string | unde
   return undefined
 }
 
+/** Whether the request names `name` at all: a `null` value removes the header and still counts. */
+function hasAxiosHeader(config: AxiosRequestConfig, name: string): boolean {
+  const headers = config.headers
+  if (headers !== undefined && typeof (headers as AxiosHeaders).has === 'function') return (headers as AxiosHeaders).has(name)
+  if (headers === undefined || typeof headers !== 'object') return false
+  return Object.entries(headers).some(([key, value]) => key.toLowerCase() === name.toLowerCase() && value !== undefined)
+}
+
 function sandboxIdFromPath(path: string | undefined, fallback: string | undefined): string | undefined {
   if (fallback) return fallback
   if (!path) return undefined
@@ -1296,7 +1304,7 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
   instance.interceptors.request.use(async (config) => {
     options?.ensureOpen?.()
     const daytonaConfig = config as DaytonaAxiosRequestConfig
-    if (apiKey && getAxiosHeader(daytonaConfig, 'Authorization') === undefined) {
+    if (apiKey && !hasAxiosHeader(daytonaConfig, 'Authorization')) {
       setAxiosHeader(daytonaConfig, 'Authorization', `Bearer ${apiKey}`)
     }
     // No responseType: the SDK reads the bytes and decodes them itself (kept
