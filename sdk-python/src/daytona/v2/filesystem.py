@@ -488,9 +488,8 @@ class AsyncFileSystemService:
         raises ``TransferCancelledError``: a ``threading.Event`` stops a
         stalled transfer as soon as it is set, from any thread (on CPython
         3.10 to 3.15; elsewhere, and for subclasses, within 50 ms). Any other
-        object is checked every 50 ms while the transfer waits on the network;
-        an ``asyncio.Event`` set on the event loop running the async client's
-        transfer also stops it at once.
+        object, an ``asyncio.Event`` included, is checked every 50 ms while
+        the transfer waits on the network.
         """
         sandbox_path(remote_path, "remote_path")
         destination_path = Path(local_path)

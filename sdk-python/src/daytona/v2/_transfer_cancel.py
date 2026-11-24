@@ -7,16 +7,11 @@ A transfer with no signal awaits the network directly. A plain
 ``threading.Event`` on CPython 3.10 to 3.15 wakes the transfer when it is
 set, from any thread, with no periodic wake-ups; elsewhere it is polled.
 
-An ``asyncio.Event`` wakes the async client's transfer when it is set on the
-caller's loop, and is also checked every ``POLL_SECONDS``, because
-``asyncio.Event.set()`` is not thread-safe and does not wake a loop it is
-called off. Waiting on an ``asyncio.Event`` binds it to the waiting loop for
-good, so the watch waits on it only when it is already bound to the loop
-running the transfer, or is unbound and that loop is the caller's own (not a
-synchronous client's private loop); any other ``asyncio.Event`` is only
-polled, and its binding is left alone. Any other object with ``is_set()``
-cannot notify anyone and is checked every ``POLL_SECONDS``. Checks happen
-only while the transfer waits.
+Any other object with ``is_set()``, ``asyncio.Event`` included, is checked
+every ``POLL_SECONDS`` while the transfer waits, and only then. The watch
+never waits on an ``asyncio.Event``: that would bind the caller's event to
+the transfer's loop, and its ``set()`` from another thread (unsafe for
+asyncio, and an error in debug mode) could leave the waiter stuck.
 
 The ``threading.Event`` watch briefly takes the event's lock on the thread
 running the transfer, as ``Event.wait()`` does: a signal handler on that
@@ -36,7 +31,6 @@ from typing import AsyncIterator, Awaitable, Callable, Final, Optional, Type, Ty
 
 from typing_extensions import Self
 
-from ._bridge import on_a_bridge_loop
 from ._shutdown import refusing_stopped_pools
 from .errors import TransferCancelledError
 from .types import TransferCancelSignal
@@ -50,14 +44,6 @@ POLL_SECONDS: Final[float] = 0.05
 _THREAD_EVENT_CHECKED_THROUGH: Final[tuple[int, int]] = (3, 15)
 
 
-def _waitable_here(event: asyncio.Event) -> bool:
-    """Whether waiting on ``event`` here leaves the caller's own use of it intact."""
-    bound = getattr(event, "_loop", None)
-    if bound is not None:
-        return bound is asyncio.get_running_loop()
-    return not on_a_bridge_loop()
-
-
 def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal], *, operation: str) -> None:
     if cancel is not None and cancel.is_set():
         raise TransferCancelledError(
@@ -65,25 +51,20 @@ def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal], *, opera
         )
 
 
-async def _first_done(
-    task: asyncio.Task[_T], notified: asyncio.Future[object], timeout: Optional[float]
-) -> None:
-    """Return once ``task`` or ``notified`` is done, or after ``timeout`` seconds."""
+async def _first_done(task: asyncio.Task[_T], notified: asyncio.Future[object]) -> None:
+    """Return once ``task`` or ``notified`` is done."""
     loop = asyncio.get_running_loop()
     woken: asyncio.Future[None] = loop.create_future()
 
-    def wake(_: object = None) -> None:
+    def wake(_: object) -> None:
         if not woken.done():
             woken.set_result(None)
 
     task.add_done_callback(wake)
     notified.add_done_callback(wake)
-    timer = None if timeout is None else loop.call_later(timeout, wake)
     try:
         await woken
     finally:
-        if timer is not None:
-            timer.cancel()
         task.remove_done_callback(wake)
         notified.remove_done_callback(wake)
 
@@ -184,9 +165,6 @@ class TransferCancelWatch:
         self._notifier: Optional[asyncio.Future[object]] = None
         self._notified: Optional[asyncio.Future[object]] = None
         self._thread_watch: Optional[_ThreadEventWatch] = None
-        # An asyncio.Event set off the transfer's loop resolves its waiter
-        # without waking the loop: keep checking it.
-        self._backstop = isinstance(cancel, asyncio.Event)
 
     @property
     def notifies(self) -> bool:
@@ -196,15 +174,11 @@ class TransferCancelWatch:
     @property
     def polling(self) -> bool:
         """Whether a wait on the network wakes every ``POLL_SECONDS`` to check the signal."""
-        return self.cancel is not None and (self._notified is None or self._backstop)
+        return self.cancel is not None and self._notified is None
 
     async def __aenter__(self) -> Self:
         cancel = self.cancel
         if cancel is None:
-            return self
-        if isinstance(cancel, asyncio.Event):
-            if _waitable_here(cancel):
-                self._notifier = self._notified = asyncio.ensure_future(cancel.wait())
             return self
         condition = _ThreadEventWatch.condition_of(cancel)
         if condition is not None:
@@ -223,16 +197,17 @@ class TransferCancelWatch:
             try:
                 watch.start(cancel)  # type: ignore[arg-type]
                 self._thread_watch = watch
+                self._notifier = self._notified = notified
             except RuntimeError:
                 # No thread can start (a thread limit, interpreter shutdown):
                 # the event is polled like any other is_set() object.
                 return self
             except BaseException:
-                # An interrupt between starting the helper and recording it:
-                # __aexit__ will not run, so release the helper here.
+                # An interrupt before the watch is fully recorded: __aexit__
+                # will not run, so release the helper here.
+                self._thread_watch = self._notifier = self._notified = None
                 watch.close()
                 raise
-            self._notifier = self._notified = notified
         return self
 
     async def __aexit__(
@@ -260,14 +235,13 @@ class TransferCancelWatch:
                 if notified is None:
                     await asyncio.wait({task}, timeout=POLL_SECONDS)
                 else:
-                    await _first_done(task, notified, POLL_SECONDS if self._backstop else None)
+                    await _first_done(task, notified)
                 if task.done():
                     return task.result()
                 raise_if_transfer_cancelled(self.cancel, operation=operation)
                 if notified is not None and notified.done():
-                    # The notification fired but the signal reads unset (cleared
-                    # again, or an asyncio.Event bound to another loop): check it
-                    # by polling from here on.
+                    # The notification fired but the signal reads unset (set and
+                    # cleared again): check it by polling from here on.
                     self._notified = None
         except BaseException:
             task.cancel()

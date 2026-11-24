@@ -1034,9 +1034,8 @@ total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
 set `atomic=True` to write through a temp file + rename. A `threading.Event`
 stops an upload or download as soon as it is set, from any thread, even while
 the transfer waits on the network (on CPython 3.10 to 3.15; elsewhere, and for
-`Event` subclasses, it is checked every 50 ms). Any other object is checked
-every 50 ms while the transfer waits; an `asyncio.Event` set on the event loop
-running an `AsyncDaytona` transfer also stops it at once. `download_file()`
+`Event` subclasses, it is checked every 50 ms). Any other object, an
+`asyncio.Event` included, is checked every 50 ms while the transfer waits. `download_file()`
 streams to a unique temp file in the destination directory, renames it on
 success, reports progress with `Content-Length` when the server sends it, and
 removes that temp file on error or cancellation. `write_bytes()`,

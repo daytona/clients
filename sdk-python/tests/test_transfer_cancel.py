@@ -3,11 +3,10 @@
 
 """File transfers wait on the network without needless wake-ups: with no
 cancel signal they await it directly, and a ``threading.Event`` wakes them
-when set, from any thread, without polling. An ``asyncio.Event`` wakes them
-when set on the transfer's loop and is also polled, since setting it from
-another thread does not wake that loop; other ``is_set()`` objects are
-polled. Every helper the watch starts ends with the transfer, and the watch
-never hides a cancellation of the caller's task."""
+when set, from any thread, without polling. Every other ``is_set()`` object,
+``asyncio.Event`` included, is polled; the watch never waits on (or binds) a
+caller's ``asyncio.Event``. Every helper the watch starts ends with the
+transfer, and the watch never hides a cancellation of the caller's task."""
 
 from __future__ import annotations
 
@@ -99,11 +98,12 @@ async def test_download_without_a_signal_reads_every_chunk_in_the_callers_task(t
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("kind", ["asyncio", "threading"])
-async def test_events_notify_and_only_a_threading_event_is_not_polled(kind: str, no_polling: None) -> None:
+async def test_only_a_threading_event_notifies_and_an_asyncio_event_is_polled(kind: str) -> None:
     cancel = asyncio.Event() if kind == "asyncio" else threading.Event()
     async with TransferCancelWatch(cancel) as watch:
-        assert watch.notifies is True
+        assert watch.notifies is (kind == "threading")
         assert watch.polling is (kind == "asyncio")
+    assert _helper_threads() == []
 
 
 @pytest.mark.anyio
@@ -172,9 +172,10 @@ async def test_a_threading_event_falls_back_to_polling_when_no_thread_can_start(
 
 
 @pytest.mark.anyio
-async def test_asyncio_event_cancels_a_stalled_download_without_polling(
-    tmp_path: Path, no_polling: None
+async def test_asyncio_event_cancels_a_stalled_download_by_polling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", 0.001)
     destination = tmp_path / "download.bin"
     stream = NeverYieldingDownloadStream()
     fs = AsyncFileSystemService(DownloadTransport(stream))  # type: ignore[arg-type]
@@ -214,7 +215,11 @@ async def test_threading_event_set_from_another_thread_cancels_a_stalled_downloa
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("kind", ["asyncio", "threading"])
-async def test_an_event_cancels_a_stalled_header_read(kind: str, tmp_path: Path, no_polling: None) -> None:
+async def test_an_event_cancels_a_stalled_header_read(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A threading.Event must wake the transfer on its own; an asyncio.Event is polled.
+    monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", _NO_POLL if kind == "threading" else 0.001)
     transport = NeverOpeningDownloadTransport()
     fs = AsyncFileSystemService(transport)  # type: ignore[arg-type]
     cancel = asyncio.Event() if kind == "asyncio" else threading.Event()
@@ -232,7 +237,11 @@ async def test_an_event_cancels_a_stalled_header_read(kind: str, tmp_path: Path,
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("kind", ["asyncio", "threading"])
-async def test_an_event_cancels_a_stalled_upload(kind: str, tmp_path: Path, no_polling: None) -> None:
+async def test_an_event_cancels_a_stalled_upload(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A threading.Event must wake the transfer on its own; an asyncio.Event is polled.
+    monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", _NO_POLL if kind == "threading" else 0.001)
     local_path = tmp_path / "payload.bin"
     local_path.write_bytes(b"abc")
     transport = StalledAfterBodyTransport()
@@ -297,11 +306,11 @@ async def test_an_asyncio_event_bound_to_another_loop_is_polled_and_left_bound(
 
 
 @pytest.mark.anyio
-async def test_an_asyncio_event_set_then_cleared_falls_back_to_polling(
+async def test_a_threading_event_set_then_cleared_falls_back_to_polling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", 0.001)
-    cancel = asyncio.Event()
+    cancel = threading.Event()
     stalled = asyncio.Event()
     async with TransferCancelWatch(cancel) as watch:
         assert watch.notifies is True
@@ -314,7 +323,7 @@ async def test_an_asyncio_event_set_then_cleared_falls_back_to_polling(
         for _ in range(1000):
             if not watch.notifies:
                 break
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.001)
         assert watch.notifies is False
         assert not step.done()
 
@@ -322,6 +331,7 @@ async def test_an_asyncio_event_set_then_cleared_falls_back_to_polling(
 
         with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
             await asyncio.wait_for(step, timeout=_BOUND)
+    assert _helper_threads() == []
 
 
 @pytest.mark.anyio
@@ -579,18 +589,19 @@ def test_sync_client_leaves_an_unbound_asyncio_event_usable_on_the_callers_loop(
 
 
 @pytest.mark.anyio
-async def test_the_async_client_waits_on_an_unbound_asyncio_event_on_the_callers_loop(
-    no_polling: None,
+async def test_the_async_client_never_binds_the_callers_asyncio_event(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", 0.001)
     cancel = asyncio.Event()
     async with TransferCancelWatch(cancel) as watch:
-        assert watch.notifies is True
+        assert watch.notifies is False
         step = asyncio.create_task(watch.run(asyncio.Event().wait(), operation="download"))
         await asyncio.sleep(0)
         cancel.set()
         with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
             await asyncio.wait_for(step, timeout=_BOUND)
-    assert cancel._loop is asyncio.get_running_loop()  # type: ignore[attr-defined]
+    assert cancel._loop is None  # type: ignore[attr-defined]
 
 
 @pytest.mark.anyio
@@ -612,3 +623,45 @@ async def test_an_interrupt_while_starting_the_helper_leaves_nothing_behind(
             pass
     assert _helper_threads() == []
     assert not cancel._cond._waiters  # type: ignore[attr-defined]
+
+
+def test_an_asyncio_event_set_from_another_thread_in_debug_mode_cancels_and_lets_the_loop_exit(
+    tmp_path: Path,
+) -> None:
+    # In asyncio debug mode, a set() from another thread that has to wake a
+    # waiter on the loop raises in the setter and the waiter never runs. The
+    # watch registers no waiter: the poll notices the set, the setter gets no
+    # error, the transfer ends and asyncio.run() exits.
+    outcome: list[object] = []
+    setter_errors: list[BaseException] = []
+
+    async def main() -> None:
+        asyncio.get_running_loop().set_debug(True)
+        stream = NeverYieldingDownloadStream()
+        fs = AsyncFileSystemService(DownloadTransport(stream))  # type: ignore[arg-type]
+        cancel = asyncio.Event()
+        task = asyncio.create_task(fs.download_file("/remote.bin", tmp_path / "out.bin", cancel=cancel))
+        await asyncio.wait_for(stream.started.wait(), timeout=_BOUND)
+
+        def set_it() -> None:
+            try:
+                cancel.set()
+            except BaseException as error:
+                setter_errors.append(error)
+
+        setter = threading.Thread(target=set_it)
+        setter.start()
+        setter.join(_BOUND)
+        try:
+            await asyncio.wait_for(task, timeout=_BOUND)
+        except BaseException as error:
+            outcome.append(error)
+        outcome.append(stream.closed)
+
+    runner = threading.Thread(target=asyncio.run, args=(main(),), daemon=True)
+    runner.start()
+    runner.join(_BOUND * 3)
+    assert not runner.is_alive(), "asyncio.run() did not exit"
+    assert setter_errors == []
+    assert len(outcome) == 2 and isinstance(outcome[0], TransferCancelledError), outcome
+    assert outcome[1] is True
