@@ -101,7 +101,7 @@ Get started:
 			a.Ctx = cmd.Context()
 			installAuth(a)
 			cmd.SetContext(context.WithValue(cmd.Context(), ctxKey{}, a))
-			return nil
+			return refuseStaticCredential(cmd, a)
 		},
 	}
 	root.SetOut(stdout)
@@ -150,6 +150,7 @@ Get started:
 	root.InitDefaultHelpCmd()
 	root.InitDefaultCompletionCmd()
 	normalizeTree(root)
+	documentLoginOnly(root)
 	return root
 }
 

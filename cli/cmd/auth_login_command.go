@@ -35,8 +35,10 @@ event with known verification_uri, verification_uri_complete, user_code and
 expires_in fields before waiting. It prints no additional result on stdout.
 --token: stores a static credential (a project API key, an org API key, or any
 bearer the server accepts) as-is. The CLI only rejects an empty value (for
-example an unset CI secret) and never inspects it otherwise; the server decides
-what it may do.
+example an unset CI secret); the server decides what it may do. The commands
+only a login session can use (billing, invite, key, member, org-key, project,
+service-account, and org except org limits) refuse a static credential before
+any request, unless it is shaped like a JWT.
 
 After a browser or device login the CLI selects your personal organization
 and its default project the first time, and remembers your last selection
