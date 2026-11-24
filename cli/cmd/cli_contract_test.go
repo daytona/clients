@@ -137,6 +137,27 @@ func TestDefaultOutputFollowsTheTerminal(t *testing.T) {
 	require.Equal(t, "true", strings.TrimSpace(stdout))
 }
 
+// `config set confirm` takes exactly true or false; any other spelling is a
+// usage error that leaves the setting as it was.
+func TestConfigSetConfirmTakesOnlyTrueOrFalse(t *testing.T) {
+	d := cfgDir(t)
+	_, stderr, code := runReported(t, d, nil, "config", "set", "confirm", "false")
+	require.Equal(t, 0, code, stderr)
+	for _, v := range []string{"1", "0", "t", "f", "T", "F", "TRUE", "FALSE", "True", "False", "yes", " true", ""} {
+		_, stderr, code := runReported(t, d, nil, "config", "set", "confirm", v)
+		require.Equal(t, cerr.ExitUsage, code, "%q: %s", v, stderr)
+		obj := errorObject(t, stderr)
+		require.Equal(t, float64(cerr.ExitUsage), obj["exit_code"], v)
+		require.Contains(t, obj["message"], "true|false", v)
+		stdout, _, _ := runReported(t, d, nil, "config", "get", "confirm")
+		require.Equal(t, map[string]any{"confirm": false}, mustJSON(t, stdout), v)
+	}
+	_, stderr, code = runReported(t, d, nil, "config", "set", "confirm", "true")
+	require.Equal(t, 0, code, stderr)
+	stdout, _, _ := runReported(t, d, nil, "config", "get", "confirm")
+	require.Equal(t, map[string]any{"confirm": true}, mustJSON(t, stdout))
+}
+
 // In JSON mode an error is one stderr object carrying the server's code,
 // source and trace id; at a terminal (or with -o table) it stays prose.
 func TestErrorsInJSONModeAreOneStderrObject(t *testing.T) {
