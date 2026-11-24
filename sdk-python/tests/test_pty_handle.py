@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import queue
 from unittest.mock import AsyncMock, MagicMock
 
@@ -448,6 +449,100 @@ async def _echo_pty(request: web.Request) -> web.WebSocketResponse:
         elif msg.type is aiohttp.WSMsgType.BINARY and msg.data == b"exit\n":
             await ws.close(code=1000, message=b'{"exitCode":0}')
     return ws
+
+
+async def _chatty_pty(request: web.Request) -> web.WebSocketResponse:
+    """Local PTY endpoint: reports connected, then prints a byte every 10 ms until it reads ``exit``."""
+    ws = web.WebSocketResponse(protocols=(PTY_EXIT_CONTROL_SUBPROTOCOL,))
+    await ws.prepare(request)
+    await ws.send_str('{"type":"control","status":"connected"}')
+
+    async def ticker() -> None:
+        while not ws.closed:
+            await ws.send_bytes(b".")
+            await asyncio.sleep(0.01)
+
+    ticking = asyncio.create_task(ticker())
+    try:
+        async for msg in ws:
+            if msg.type is aiohttp.WSMsgType.BINARY and msg.data == b"exit\n":
+                await ws.close(code=1000, message=b'{"exitCode":3}')
+    finally:
+        _ = ticking.cancel()
+    return ws
+
+
+@contextlib.asynccontextmanager
+async def _local_pty(handler, on_data=None):
+    from daytona._async.process import AsyncProcess
+
+    app = web.Application()
+    app.router.add_get("/{tail:.*}", handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "127.0.0.1", 0).start()
+    url = f"http://127.0.0.1:{runner.addresses[0][1]}/process/pty/pty-1/connect"
+    try:
+        api_client = MagicMock()
+        api_client._connect_pty_session_serialize.return_value = ("GET", url, {}, None)
+        async with aiohttp.ClientSession() as session:
+            api_client.api_client.http_session = session
+            handle = await AsyncProcess("python", api_client).connect_pty_session("pty-1", on_data)
+            try:
+                yield handle
+            finally:
+                await handle.disconnect()
+    finally:
+        await runner.cleanup()
+
+
+class TestAsyncPtyHandleWaitTimeout:
+    @pytest.mark.asyncio
+    async def test_wait_timeout_on_idle_pty_raises_and_keeps_the_session(self):
+        pong = asyncio.Event()
+        async with _local_pty(_echo_pty, lambda data: pong.set() if data == b"pong\n" else None) as handle:
+            loop = asyncio.get_running_loop()
+            started = loop.time()
+            with pytest.raises(DaytonaTimeoutError):
+                _ = await handle.wait(timeout=0.2)
+            assert loop.time() - started < 2
+
+            assert handle.is_connected()
+            await handle.send_input("ping\n")
+            _ = await asyncio.wait_for(pong.wait(), timeout=5)
+
+            await handle.send_input("exit\n")
+            result = await handle.wait(timeout=5)
+            assert result.exit_code == 0
+
+    @pytest.mark.asyncio
+    async def test_wait_timeout_on_busy_pty_raises_and_keeps_the_session(self):
+        received: list[bytes] = []
+        async with _local_pty(_chatty_pty, received.append) as handle:
+            with pytest.raises(DaytonaTimeoutError):
+                _ = await handle.wait(timeout=0.2)
+
+            assert received
+            assert handle.is_connected()
+            await handle.send_input("exit\n")
+            result = await handle.wait(timeout=5)
+            assert result.exit_code == 3
+
+    @pytest.mark.asyncio
+    async def test_wait_without_timeout_returns_the_result(self, monkeypatch):
+        handle, _ws = await TestAsyncPtyHandle()._build_handle(monkeypatch)
+        handle._exit_code = 0
+
+        for timeout in (None, 0):
+            result = await handle.wait(timeout=timeout)
+            assert result.exit_code == 0
+
+    @pytest.mark.asyncio
+    async def test_wait_rejects_negative_timeout(self, monkeypatch):
+        handle, _ws = await TestAsyncPtyHandle()._build_handle(monkeypatch)
+
+        with pytest.raises(DaytonaError, match="non-negative"):
+            _ = await handle.wait(timeout=-1)
 
 
 class TestAsyncPtyHandleWaitCancellation:
