@@ -207,6 +207,12 @@ Every duration is a `time.Duration`:
   starts after build submission and the initial lookup, excluding local
   archiving and upload. `Images.Pull` also has no deadline by default; its
   `Timeout` covers submission, lookup and readiness together.
+- `FileSystem.Remove`, `Grep`, `Glob`, `Replace` and `Chmod` take a `Timeout`
+  option (`RemoveFileOptions`, `FileSearchOptions`, `ReplaceOptions`,
+  `FilePermissionsOptions`) that replaces the request timeout for that call,
+  which work over a large tree can outlast: zero keeps the request timeout,
+  and `daytona.NoTimeout` or a duration above 2,147,483.647 seconds means no
+  limit. A timeout ends the call, not the work in the sandbox.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
 

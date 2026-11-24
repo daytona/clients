@@ -952,6 +952,13 @@ may be relative. Path lists must be sequences of strings, not a bare string.
 `write_text()` requires a string; `write_bytes()` and `write_many()` accept
 bytes-like buffers, including `bytes`, `bytearray` and `memoryview`.
 
+`remove()`, `grep()`, `glob()`, `replace()` and `chmod()` take a keyword
+`timeout=` **(seconds; `0`, or a value above 2,147,483.647 (about 24.8 days),
+means no limit)** that replaces `request_timeout` for that call, which work
+over a large tree can outlast; a negative, non-finite or boolean value raises
+`BadRequestError` before any request. A timeout ends the call, not the work in
+the sandbox.
+
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
 `download_file()`, bulk `read_many` / `write_many`, `remove()`, `grep()` (file
 contents) / `glob()` (file names), `watch_dir()` for directory watches, and

@@ -37,7 +37,9 @@ from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
     TransportPayload,
+    above_timer_maximum,
     bulk_download_spec,
+    checked_seconds,
     expect_file_info,
     file_bulk_upload_spec,
     file_download_spec,
@@ -596,10 +598,23 @@ class AsyncFileSystemService:
             RequestSpec("POST", "/files/folder", params={"path": sandbox_path(path), "mode": mode})
         )
 
-    async def remove(self, path: str, /, *, recursive: bool = False) -> None:
-        """Remove a file, or a directory with ``recursive=True``."""
+    async def remove(self, path: str, /, *, recursive: bool = False, timeout: Optional[float] = None) -> None:
+        """Remove a file, or a directory with ``recursive=True``.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which work over a large tree can outlast: a total deadline in seconds;
+        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
+        """
         await self._transport.send(
-            RequestSpec("DELETE", "/files", params={"path": sandbox_path(path), "recursive": recursive})
+            RequestSpec(
+                "DELETE",
+                "/files",
+                params={"path": sandbox_path(path), "recursive": recursive},
+                timeout=_call_timeout(timeout),
+            )
         )
 
     async def move(self, source: str, destination: str, /) -> None:
@@ -615,7 +630,9 @@ class AsyncFileSystemService:
             )
         )
 
-    async def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
+    async def grep(
+        self, path: str, pattern: str, /, *, timeout: Optional[float] = None
+    ) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
         Returns matches with one-based line numbers, as the sandbox user sees
@@ -623,31 +640,65 @@ class AsyncFileSystemService:
         read are not searched; ``skipped`` lists their absolute paths (at most
         1000). Only an unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which work over a large tree can outlast: a total deadline in seconds;
+        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
         """
         return parse_grep_response(
             await self._transport.send(
-                RequestSpec("GET", "/files/find", params={"path": sandbox_path(path), "pattern": pattern})
+                RequestSpec(
+                    "GET",
+                    "/files/find",
+                    params={"path": sandbox_path(path), "pattern": pattern},
+                    timeout=_call_timeout(timeout),
+                )
             )
         )
 
-    async def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
+    async def glob(
+        self, path: str, pattern: str, /, *, timeout: Optional[float] = None
+    ) -> FileSearchResult[str]:
         """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
 
         Directories below ``path`` that the sandbox user cannot read are not
         searched; ``skipped`` lists their absolute paths (at most 1000). Only an
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which work over a large tree can outlast: a total deadline in seconds;
+        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
         """
         return parse_glob_response(
             await self._transport.send(
-                RequestSpec("GET", "/files/search", params={"path": sandbox_path(path), "pattern": pattern})
+                RequestSpec(
+                    "GET",
+                    "/files/search",
+                    params={"path": sandbox_path(path), "pattern": pattern},
+                    timeout=_call_timeout(timeout),
+                )
             )
         )
 
     async def replace(
-        self, files: Sequence[str], pattern: str, new_value: str, /
+        self, files: Sequence[str], pattern: str, new_value: str, /, *, timeout: Optional[float] = None
     ) -> ListResult[ReplaceResult]:
-        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
+        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which work over a large tree can outlast: a total deadline in seconds;
+        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
+        """
         checked_files = [
             sandbox_path(path, f"files[{index}]") for index, path in enumerate(path_sequence(files, "files"))
         ]
@@ -657,6 +708,7 @@ class AsyncFileSystemService:
                     "POST",
                     "/files/replace",
                     json_body={"files": checked_files, "pattern": pattern, "newValue": new_value},
+                    timeout=_call_timeout(timeout),
                 )
             ),
             description="replace response",
@@ -671,8 +723,17 @@ class AsyncFileSystemService:
         mode: Optional[str] = None,
         owner: Optional[str] = None,
         group: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> None:
-        """Set file permissions and ownership."""
+        """Set file permissions and ownership.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which work over a large tree can outlast: a total deadline in seconds;
+        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
+        """
         params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if mode is not None:
             params["mode"] = mode
@@ -680,7 +741,9 @@ class AsyncFileSystemService:
             params["owner"] = owner
         if group is not None:
             params["group"] = group
-        await self._transport.send(RequestSpec("POST", "/files/permissions", params=params))
+        await self._transport.send(
+            RequestSpec("POST", "/files/permissions", params=params, timeout=_call_timeout(timeout))
+        )
 
     async def watch_dir(
         self,
@@ -887,6 +950,17 @@ class AsyncFileSystemService:
         if self._file_url_signer is None:
             raise create_error("filesystem handle has no pre-signed URL signer", 400, "BAD_REQUEST", "SDK")
         return self._file_url_signer
+
+
+def _call_timeout(timeout: Optional[float]) -> Optional[float]:
+    """A caller's per-call ``timeout`` in seconds as ``RequestSpec.timeout``:
+    ``None`` keeps the client's request timeout, ``0`` (also for a value
+    above the timer maximum) is no limit. Anything but a non-negative finite
+    number is the SDK's ``BadRequestError``, before any request."""
+    if timeout is None:
+        return None
+    seconds = checked_seconds(timeout)
+    return 0 if seconds == 0 or above_timer_maximum(seconds) else seconds
 
 
 def _expires_unix_seconds(expires_in_seconds: int) -> int:
