@@ -1,0 +1,14 @@
+sdk-go/e2e/fs_test.go
+  h_e7759ddd73fa65 111-123,125-127,130-136,138,166-168,170-192,194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f649eaf3c5710f992ab42638eaee982cb98bf952",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
