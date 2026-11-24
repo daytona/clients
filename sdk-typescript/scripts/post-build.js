@@ -62,6 +62,12 @@ const nodeLoadersStubJs = path.join('utils', 'NodeLoaders.stub.js')
 const nodeLoadersImport = '#node-loaders'
 const nodeLoadersPath = path.join(esmDir, nodeLoadersJs)
 const esmPackageJson = { type: 'module' }
+if (
+  fs.existsSync(path.join(sourceDir, 'src', nodeLoadersJs.replace(/\.js$/, '.ts'))) &&
+  !fs.existsSync(nodeLoadersPath)
+) {
+  throw new Error(`post-build: the ESM build has no ${nodeLoadersJs}; the Node loaders would not be published`)
+}
 if (fs.existsSync(nodeLoadersPath)) {
   const original = fs.readFileSync(nodeLoadersPath, 'utf8')
   const rewritten = original.replace(/\brequire\s*\(/g, 'createRequire(import.meta.url)(')

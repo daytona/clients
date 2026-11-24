@@ -26,6 +26,7 @@ afterEach(() => {
 function runPostBuild(
   esmFiles: Record<string, string>,
   rootDeps: Record<string, string | undefined> = {},
+  sourceFiles: Record<string, string> = {},
 ): {
   read: (file: string) => string
   esmDir: string
@@ -50,6 +51,11 @@ function runPostBuild(
 
   fs.mkdirSync(sourceDir, { recursive: true })
   fs.writeFileSync(path.join(sourceDir, 'package.json'), JSON.stringify({ name: '@daytona/sdk', version: '9.9.9' }))
+  for (const [relative, contents] of Object.entries(sourceFiles)) {
+    const target = path.join(sourceDir, relative)
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, contents)
+  }
   const dependencies: Record<string, string | undefined> = {
     tslib: '^2.0.0',
     ws: '^8.0.0',
@@ -214,5 +220,17 @@ describe('post-build ESM Node loaders', () => {
     const { esmDir } = runPostBuild({ 'utils/Import.js': `export const l = () => require('fs')\n` })
 
     expect(JSON.parse(fs.readFileSync(path.join(esmDir, 'package.json'), 'utf8'))).toEqual({ type: 'module' })
+  })
+})
+
+describe('post-build ESM Node loaders source guard', () => {
+  it('fails the build when the source has Node loaders but the ESM build does not', () => {
+    expect(() =>
+      runPostBuild(
+        { 'utils/Import.js': `export const l = () => require('fs')\n` },
+        {},
+        { 'src/utils/NodeLoaders.ts': `export const nodeLoaders = {}\n` },
+      ),
+    ).toThrow()
   })
 })
