@@ -180,6 +180,7 @@ def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
     message = (
         _optional_str(payload.get("message")) or _optional_str(payload.get("error")) or f"HTTP {status_code}"
     )
+    retry_after_seconds = _optional_int(payload.get("retry_after_seconds"))
     retry_after_ms = payload.get("retryAfterMs")
     return create_error(
         message,
@@ -187,7 +188,9 @@ def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
         _optional_str(payload.get("code")),
         _optional_str(payload.get("source")),
         trace_id=_optional_str(payload.get("trace_id")),
-        retry_after_seconds=_optional_int(payload.get("retry_after_seconds")),
+        retry_after_seconds=(
+            retry_after_seconds if retry_after_seconds is not None and retry_after_seconds >= 0 else None
+        ),
         feature=_optional_str(payload.get("feature")),
         entitlement=_optional_str(payload.get("entitlement")),
         replacement=_optional_str(payload.get("replacement")),

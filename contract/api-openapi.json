@@ -67,15 +67,13 @@
         }
       },
       "Limit": {
-        "description": "Maximum number of items to return, 1\u2013200 (default 100)",
+        "description": "Maximum number of items to return, 1\u2013200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.",
         "in": "query",
         "name": "limit",
         "required": false,
         "schema": {
           "default": 100,
           "format": "int64",
-          "maximum": 200,
-          "minimum": 1,
           "type": "integer"
         }
       },
@@ -9290,6 +9288,69 @@
         ],
         "type": "object"
       },
+      "SecretSearchListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Secret"
+          },
+          {
+            "properties": {
+              "cursor": {
+                "description": "Opaque cursor for this item.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "cursor"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SecretSearchPage": {
+        "description": "A page of matching secrets.",
+        "properties": {
+          "next_cursor": {
+            "description": "Continuation token; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "secrets": {
+            "description": "Matching secrets in this page.",
+            "items": {
+              "$ref": "#/components/schemas/SecretSearchListItem"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "Number of matching secrets, exact when `total_relation` is `eq`.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_relation": {
+            "$ref": "#/components/schemas/SearchTotalRelation",
+            "description": "Whether total is exact (`eq`) or a lower bound (`gte`)."
+          }
+        },
+        "required": [
+          "secrets",
+          "total",
+          "total_relation"
+        ],
+        "type": "object"
+      },
+      "SecretSearchSort": {
+        "enum": [
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "SetAutomaticTopUpRequest": {
         "properties": {
           "target_cents": {
@@ -11010,6 +11071,15 @@
         ],
         "type": "object"
       },
+      "VolumeBucketOrigin": {
+        "enum": [
+          "platform",
+          "external",
+          "claimed"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "VolumeMount": {
         "description": "A volume attachment as requested on `POST /sandboxes`.",
         "properties": {
@@ -11065,6 +11135,81 @@
           "volumes"
         ],
         "type": "object"
+      },
+      "VolumeSearchListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Volume"
+          },
+          {
+            "properties": {
+              "cursor": {
+                "description": "Opaque cursor for this item.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "cursor"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "VolumeSearchPage": {
+        "description": "A page of matching volumes.",
+        "properties": {
+          "next_cursor": {
+            "description": "Continuation token; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total": {
+            "description": "Number of matching volumes, exact when `total_relation` is `eq`.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_relation": {
+            "$ref": "#/components/schemas/SearchTotalRelation",
+            "description": "Whether total is exact (`eq`) or a lower bound (`gte`)."
+          },
+          "volumes": {
+            "description": "Matching volumes in this page.",
+            "items": {
+              "$ref": "#/components/schemas/VolumeSearchListItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "volumes",
+          "total",
+          "total_relation"
+        ],
+        "type": "object"
+      },
+      "VolumeSearchSort": {
+        "enum": [
+          "created_at",
+          "updated_at",
+          "name",
+          "used_bytes",
+          "last_used_at",
+          "size_gib"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "VolumeSearchStatus": {
+        "enum": [
+          "ready",
+          "deleting",
+          "error"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
       },
       "VolumeStatus": {
         "enum": [
@@ -15521,7 +15666,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of balances to return (default 25, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -15664,7 +15818,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of charges to return (default 25, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -16403,7 +16566,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of invoices to return (default 25, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -17085,7 +17257,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of payment methods to return (default 20, maximum 100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -18121,7 +18302,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "The maximum number of usage periods to return (default 12, maximum 60)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 60,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -19928,7 +20118,16 @@
             "$ref": "#/components/parameters/OrganizationId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -20527,7 +20726,16 @@
             "$ref": "#/components/parameters/OrganizationRegionId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -20953,7 +21161,16 @@
             "$ref": "#/components/parameters/OrganizationRegionId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -21257,7 +21474,16 @@
             "$ref": "#/components/parameters/OrganizationRegionId"
           },
           {
-            "$ref": "#/components/parameters/Limit"
+            "description": "Maximum number of items to return (1\u2013100, default 50)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -30355,6 +30581,201 @@
         ]
       }
     },
+    "/secrets/search": {
+      "get": {
+        "description": "Searches the project's secrets using the supplied filters. Results may be briefly stale after a change.",
+        "operationId": "search_secrets",
+        "parameters": [
+          {
+            "description": "Free text over the secret name (any substring, case-insensitive) and description.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match this exact secret name.",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match names starting with this case-sensitive prefix.",
+            "in": "query",
+            "name": "name_prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match an allowed domain exactly.",
+            "in": "query",
+            "name": "allowed_domain",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on creation time.",
+            "in": "query",
+            "name": "created_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on creation time.",
+            "in": "query",
+            "name": "created_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-modified time.",
+            "in": "query",
+            "name": "updated_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-modified time.",
+            "in": "query",
+            "name": "updated_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort field. Defaults to `name`.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SecretSearchSort"
+            }
+          },
+          {
+            "description": "Sort order. Defaults to `asc`.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretSearchPage"
+                }
+              }
+            },
+            "description": "The page of matching secrets",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is not enabled (`SEARCH_NOT_CONFIGURED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "read:secrets"
+            ]
+          },
+          {
+            "platform_token": [
+              "read:secrets"
+            ]
+          }
+        ],
+        "summary": "Search secrets",
+        "tags": [
+          "secrets"
+        ]
+      }
+    },
     "/secrets/{name}": {
       "delete": {
         "description": "Refused while a sandbox or bucket volume still references the secret.",
@@ -31511,6 +31932,263 @@
           }
         ],
         "summary": "Create a volume",
+        "tags": [
+          "volumes"
+        ]
+      }
+    },
+    "/volumes/search": {
+      "get": {
+        "description": "Searches the project's volumes using the supplied filters. Results may be briefly stale after a change.",
+        "operationId": "search_volumes",
+        "parameters": [
+          {
+            "description": "Free text over the volume name (any substring, case-insensitive); a volume ID matches exactly.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match this exact volume name.",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match names starting with this case-sensitive prefix.",
+            "in": "query",
+            "name": "name_prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated volume types.",
+            "explode": false,
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeType"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated non-deleted volume statuses.",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeSearchStatus"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Comma-separated bucket origins. Only bucket volumes match.",
+            "explode": false,
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "items": {
+                "$ref": "#/components/schemas/VolumeBucketOrigin"
+              },
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "True returns imported volumes, false returns native volumes, absent returns both.",
+            "in": "query",
+            "name": "imported",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on creation time.",
+            "in": "query",
+            "name": "created_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on creation time.",
+            "in": "query",
+            "name": "created_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-modified time.",
+            "in": "query",
+            "name": "updated_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-modified time.",
+            "in": "query",
+            "name": "updated_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on last-used time.",
+            "in": "query",
+            "name": "last_used_start_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound on last-used time.",
+            "in": "query",
+            "name": "last_used_end_at",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort field. Defaults to `created_at`.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/VolumeSearchSort"
+            }
+          },
+          {
+            "description": "Sort order. Defaults to `desc`.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SortOrder"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolumeSearchPage"
+                }
+              }
+            },
+            "description": "The page of matching volumes",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "A filter, timestamp, limit, or cursor is invalid (`BAD_REQUEST`). The query string is longer than 12,288 bytes (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is not enabled (`SEARCH_NOT_CONFIGURED`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "read:volumes"
+            ]
+          },
+          {
+            "platform_token": [
+              "read:volumes"
+            ]
+          }
+        ],
+        "summary": "Search volumes",
         "tags": [
           "volumes"
         ]

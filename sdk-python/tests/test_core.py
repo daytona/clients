@@ -260,7 +260,9 @@ _CONTRACT_ROUTE_PREFIXES: Final = (
     "/volumes",
 )
 
-_API_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {}
+_API_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
+    ("GET", "/volumes/search"): "Not exposed by the SDK yet.",
+}
 
 
 async def _no_sleep(_seconds: float) -> None:
@@ -7647,6 +7649,25 @@ def test_unified_error_envelope_message_trace_and_extras_are_surfaced():
     assert err.entitlement == "example_feature"
     assert err.replacement == "new-value"
     assert err.first_available_cursor == "cursor-1"
+
+
+def test_negative_retry_after_seconds_is_dropped():
+    from daytona.v2._core import parse_error_payload
+
+    def retry_after(value: int) -> object:
+        payload = {
+            "code": "RATE_LIMITED",
+            "message": "slow down",
+            "source": "DAYTONA_API",
+            "retry_after_seconds": value,
+        }
+        return parse_error_payload(429, payload).retry_after_seconds
+
+    # The contract's minimum is 0, as for retryAfterMs: a negative value is treated as absent.
+    assert retry_after(-5) is None
+    assert retry_after(-1) is None
+    assert retry_after(0) == 0
+    assert retry_after(3) == 3
 
 
 def test_source_and_code_dispatch_precedes_generic_and_status_fallback():
