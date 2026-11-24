@@ -17,7 +17,7 @@ from typing import Optional
 
 import httpx
 
-from .errors import ConnectionError
+from .errors import ConnectionError, create_error
 
 _HEADER_TEXT = re.compile(r"(Illegal header (?:name|value))\b.*", re.DOTALL)
 
@@ -47,3 +47,13 @@ def redact_header_text(error: BaseException) -> None:
             )
         pending.extend((current.__cause__, current.__context__))
         pending.extend(arg for arg in current.args if isinstance(arg, BaseException))
+
+
+def bearer(token: str) -> str:
+    """The ``Authorization`` value for ``token``. The HTTP client encodes
+    header values as ASCII and would otherwise raise a ``UnicodeEncodeError``
+    whose ``object`` holds the whole header; a token that is not ASCII is the
+    SDK's ``BadRequestError`` instead, with no part of it in the message."""
+    if not token.isascii():
+        raise create_error("the request credential is not ASCII", 400, "BAD_REQUEST", "SDK")
+    return f"Bearer {token}"

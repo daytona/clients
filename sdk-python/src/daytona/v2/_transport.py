@@ -48,7 +48,7 @@ from ._core import (
     parse_json_bytes,
 )
 from ._otel import OpenTelemetrySupport
-from ._transport_errors import connection_error
+from ._transport_errors import bearer, connection_error
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
@@ -1312,7 +1312,7 @@ def _request_headers(
     # Only the encodings the capped readers decode in bounded steps.
     request_headers["Accept-Encoding"] = ACCEPT_ENCODING
     if token:
-        request_headers["Authorization"] = f"Bearer {token}"
+        request_headers["Authorization"] = bearer(token)
     if headers:
         request_headers.update(headers)
     return request_headers

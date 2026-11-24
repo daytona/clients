@@ -13,7 +13,7 @@ from . import _clock
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, send_buffered
 from ._core import MAX_SAFE_INTEGER, error_from_response, is_json_media_type, loads_json
 from ._otel import OpenTelemetrySupport
-from ._transport_errors import connection_error
+from ._transport_errors import bearer, connection_error
 from .errors import ClientTimeoutError, DaytonaError, create_error
 
 _TOKEN_REFRESH_SKEW_SECONDS = 30.0
@@ -121,7 +121,7 @@ class ProjectTokenAuth:
 
         headers: Dict[str, str] = {
             **client_identity_headers(self._source),
-            "Authorization": f"Bearer {self._jwt_token}",
+            "Authorization": bearer(self._jwt_token),
         }
         span = self._otel.start_request_span(method="POST", url=url, headers=headers) if self._otel else None
         try:

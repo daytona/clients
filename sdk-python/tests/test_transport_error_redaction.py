@@ -19,7 +19,7 @@ from typing import Iterator, Optional
 import httpx
 import pytest
 
-from daytona.v2 import ConnectionError
+from daytona.v2 import BadRequestError, ConnectionError
 from daytona.v2._auth import ProjectTokenAuth
 from daytona.v2._core import RequestSpec
 from daytona.v2._otel import _ActiveRequestSpan
@@ -141,3 +141,24 @@ def test_redaction_keeps_other_error_text() -> None:
     name = httpx.LocalProtocolError(f"Illegal header name b'X-{_SECRET}:'")
     redact_header_text(name)
     assert str(name) == "Illegal header name (redacted)"
+
+
+@pytest.mark.anyio
+async def test_a_non_ascii_bearer_is_refused_without_its_value(listener: str) -> None:
+    # Only a token the SDK did not check itself (a server-issued one) can get
+    # here; the HTTP client would raise a UnicodeEncodeError holding the header.
+    sync = SyncTransport(listener, f"{_SECRET}\u00e9", request_timeout=5)
+    transport = AsyncTransport(listener, f"{_SECRET}\u00e9", request_timeout=5)
+    try:
+        with pytest.raises(BadRequestError) as sync_info:
+            sync.send(RequestSpec("GET", "/sandboxes"))
+        with pytest.raises(BadRequestError) as async_info:
+            await transport.send(RequestSpec("GET", "/sandboxes"))
+    finally:
+        sync.close()
+        await transport.close()
+    for error in (sync_info.value, async_info.value):
+        assert str(error) == "the request credential is not ASCII"
+        assert (error.status_code, error.code, error.source) == (400, "BAD_REQUEST", "SDK")
+        assert all(_SECRET not in repr(link) for link in _chain(error))
+        assert _SECRET not in "".join(traceback.format_exception(error))
