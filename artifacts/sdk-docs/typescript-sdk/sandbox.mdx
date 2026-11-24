@@ -271,11 +271,11 @@ Creates an SSH access token for the sandbox.
 delete(timeout?: number, wait?: boolean): Promise<void>;
 ```
 
-Deletes the Sandbox.
+Requests deletion of the Sandbox and returns before it is destroyed, unless `wait` is true.
 
-By default this returns as soon as the deletion request is accepted (matching
-historical behavior). Pass `wait = true` to block until the Sandbox reaches
-the 'destroyed' state.
+By default this returns as soon as the deletion request is accepted, so the Sandbox can still be
+returned by `get()` and `list()` for a short time. Pass `wait = true` to block until the Sandbox
+reaches the 'destroyed' state.
 
 **Parameters**:
 
@@ -288,6 +288,16 @@ the 'destroyed' state.
 **Returns**:
 
 - `Promise<void>`
+
+**Example:**
+
+```ts
+// Returns once the deletion request is accepted
+await sandbox.delete()
+
+// Or: returns once the Sandbox is destroyed
+await sandbox.delete(60, true)
+```
 
 #### downloadUrl()
 

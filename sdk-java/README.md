@@ -74,7 +74,8 @@ try (Daytona daytona = new Daytona()) {
     ExecuteResponse response = sandbox.process.codeRun("print('Hello World!')");
     System.out.println(response.getResult());
 
-    sandbox.delete();
+    // delete() returns once the deletion request is accepted; delete(timeout, true) returns once the sandbox is destroyed
+    sandbox.delete(60, true);
 }
 ```
 

@@ -59,6 +59,9 @@ const sandbox = await daytona.create({
 });
 const response = await sandbox.process.codeRun('console.log("Hello World!")');
 console.log(response.result);
+
+// delete() returns once the deletion request is accepted; pass wait = true to return once the sandbox is destroyed
+await sandbox.delete(60, true);
 ```
 
 ## Examples and guides

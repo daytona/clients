@@ -228,7 +228,10 @@ delete(
 ): Promise<void>;
 ```
 
-Deletes a Sandbox.
+Requests deletion of a Sandbox and returns before it is destroyed, unless `wait` is true.
+
+With the default `wait = false`, the Sandbox can still be returned by `get()` and `list()` for a short
+time after this resolves. Pass `wait = true` to resolve only once it reaches the 'destroyed' state.
 
 **Parameters**:
 
@@ -245,7 +248,11 @@ Deletes a Sandbox.
 
 ```ts
 const sandbox = await daytona.get('my-sandbox-id');
+// Returns once the deletion request is accepted
 await daytona.delete(sandbox);
+
+// Or: returns once the Sandbox is destroyed
+await daytona.delete(sandbox, 60, true);
 ```
 
 #### fork()

@@ -1106,7 +1106,10 @@ export class Daytona implements AsyncDisposable {
   }
 
   /**
-   * Deletes a Sandbox.
+   * Requests deletion of a Sandbox and returns before it is destroyed, unless `wait` is true.
+   *
+   * With the default `wait = false`, the Sandbox can still be returned by `get()` and `list()` for a short
+   * time after this resolves. Pass `wait = true` to resolve only once it reaches the 'destroyed' state.
    *
    * @param {Sandbox} sandbox - The Sandbox to delete
    * @param {number} timeout - Timeout in seconds (0 means no timeout, default is 60)
@@ -1115,7 +1118,11 @@ export class Daytona implements AsyncDisposable {
    *
    * @example
    * const sandbox = await daytona.get('my-sandbox-id');
+   * // Returns once the deletion request is accepted
    * await daytona.delete(sandbox);
+   *
+   * // Or: returns once the Sandbox is destroyed
+   * await daytona.delete(sandbox, 60, true);
    */
   @WithInstrumentation()
   public async delete(sandbox: Sandbox, timeout = 60, wait = false) {

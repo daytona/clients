@@ -865,11 +865,11 @@ def delete(timeout = DEFAULT_TIMEOUT, wait: false)
 
 ```
 
-Deletes the Sandbox.
+Requests deletion of the Sandbox and returns before it is destroyed, unless +wait+ is true.
 
-By default returns as soon as the deletion request is accepted (matching
-origin/main behavior). Pass +wait: true+ to block until the Sandbox
-reaches the +destroyed+ state.
+By default returns as soon as the deletion request is accepted, so the Sandbox can
+still be returned by +get+ and +list+ for a short time. Pass +wait: true+ to block
+until the Sandbox reaches the +destroyed+ state.
 
 **Parameters**:
 
@@ -880,6 +880,17 @@ Only meaningful when +wait+ is true.
 **Returns**:
 
 - `void`
+
+**Examples:**
+
+```ruby
+# Returns once the deletion request is accepted
+sandbox.delete
+
+# Or: returns once the Sandbox is destroyed
+sandbox.delete(wait: true)
+
+```
 
 #### get_user_home_dir()
 

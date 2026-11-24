@@ -4796,9 +4796,9 @@ err := sandbox.CreateSnapshotWithTimeout(ctx, "my-snapshot", 2*time.Minute)
 func (s *Sandbox) Delete(ctx context.Context) error
 ```
 
-Delete deletes the sandbox with a default timeout of 60 seconds.
+Delete requests deletion of the sandbox and returns before it is destroyed. The API call has a default timeout of 60 seconds.
 
-The method issues the delete API call and returns immediately without waiting for the sandbox to reach the "destroyed" state. This matches the historical behavior. Use [Sandbox.DeleteAndWait](<#Sandbox.DeleteAndWait>) to block until destruction.
+The method returns as soon as the deletion request is accepted, so the sandbox can still be returned by [Client.Get](<#Client.Get>) and [Client.List](<#Client.List>) for a short time. Use [Sandbox.DeleteAndWait](<#Sandbox.DeleteAndWait>) to block until the sandbox reaches the "destroyed" state.
 
 Example:
 
@@ -4828,7 +4828,7 @@ err := sandbox.DeleteAndWait(ctx, 60*time.Second)
 func (s *Sandbox) DeleteWithTimeout(ctx context.Context, timeout time.Duration) error
 ```
 
-DeleteWithTimeout deletes the sandbox with a custom timeout for the API call. 0 means no timeout.
+DeleteWithTimeout requests deletion of the sandbox, with a custom timeout for the API call, and returns before it is destroyed. 0 means no timeout.
 
 Like [Sandbox.Delete](<#Sandbox.Delete>), this returns as soon as the API call completes without waiting for the "destroyed" state. Use [Sandbox.DeleteAndWait](<#Sandbox.DeleteAndWait>) to block until destruction.
 

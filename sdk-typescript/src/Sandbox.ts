@@ -964,17 +964,24 @@ export class Sandbox {
   }
 
   /**
-   * Deletes the Sandbox.
+   * Requests deletion of the Sandbox and returns before it is destroyed, unless `wait` is true.
    *
-   * By default this returns as soon as the deletion request is accepted (matching
-   * historical behavior). Pass `wait = true` to block until the Sandbox reaches
-   * the 'destroyed' state.
+   * By default this returns as soon as the deletion request is accepted, so the Sandbox can still be
+   * returned by `get()` and `list()` for a short time. Pass `wait = true` to block until the Sandbox
+   * reaches the 'destroyed' state.
    *
    * @param {number} [timeout] - Timeout in seconds for the request — and, when
    *                            `wait` is true, for reaching 'destroyed'. 0 means no timeout.
    *                            Defaults to 60-second timeout.
    * @param {boolean} [wait] - If true, wait until the Sandbox is destroyed. Defaults to false.
    * @returns {Promise<void>}
+   *
+   * @example
+   * // Returns once the deletion request is accepted
+   * await sandbox.delete()
+   *
+   * // Or: returns once the Sandbox is destroyed
+   * await sandbox.delete(60, true)
    */
   @WithInstrumentation()
   public async delete(timeout = 60, wait = false): Promise<void> {
