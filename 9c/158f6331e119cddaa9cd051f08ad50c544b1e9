@@ -1,0 +1,50 @@
+sdk-go/create_wait_test.go
+  s_da52886f8bc83e::t_d9396baa332c09 17
+sdk-go/sandbox_wait_retry.go
+  s_da52886f8bc83e::t_c62ffe6fc4753b 25,28-30,34-35
+sdk-go/docker_boundary_test.go
+  s_da52886f8bc83e::t_d9396baa332c09 73-75
+sdk-go/sandbox_wait_retry_test.go
+  s_da52886f8bc83e::t_d9396baa332c09 106,108,112-113,121-128,134-138,144-188,190-195,197-198
+  s_da52886f8bc83e::t_a04a5bfe9621ea 8
+  s_da52886f8bc83e::t_29f6d4afdef2e3 189,196
+sdk-go/README.md
+  s_da52886f8bc83e::t_ab3b3c9327d1e3 212-218
+sdk-go/sandbox_wait_retry_decisive_test.go
+  s_da52886f8bc83e::t_a04a5bfe9621ea 112
+sdk-go/image_wait.go
+  s_da52886f8bc83e::t_ce4eef6b41e91c 136
+  s_da52886f8bc83e::t_7a629007c3e118 20-23,72,75,84-91,93,99,131-135,137-141
+  s_da52886f8bc83e::t_25f1a68b893adf 142-143
+sdk-go/read_retry.go
+  s_da52886f8bc83e::t_9d394f619c7104 1-70
+sdk-go/images_ready.go
+  s_da52886f8bc83e::t_7a629007c3e118 72,75,94-101,103,109
+sdk-go/read_retry_test.go
+  s_da52886f8bc83e::t_2ee28a7c2ac0b7 98-100,102-108,121-122,126,136-137,153-154,158,164-165,184-185,189,192-193
+  s_da52886f8bc83e::t_8251ca74712bb9 1-55,57-70,72-76,78-97,101,109-120,123-125,127-131,133-135,138-152,155-157,159-162,166-183,186-188,190,194-216,218-273,275-302,304-321,323-345
+  s_da52886f8bc83e::t_636fdd72a1b63b 71,77,132,163,191,217,274,303,322
+  s_da52886f8bc83e::t_ce4eef6b41e91c 56
+sdk-go/docker_wait.go
+  s_da52886f8bc83e::t_ce4eef6b41e91c 109-111
+  s_da52886f8bc83e::t_91e076a1e2fb59 25-27,49,58,60-67,69,84-85,90-108,114
+sdk-go/sandbox_wait.go
+  s_da52886f8bc83e::t_c62ffe6fc4753b 26-31,96
+  s_da52886f8bc83e::t_029ea20197ce93 32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c158f6331e119cddaa9cd051f08ad50c544b1e9",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
