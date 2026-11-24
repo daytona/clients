@@ -272,6 +272,8 @@ class PtyHandle:
             timeout: Optional timeout in seconds. If the process has not exited when it elapses, whether or not
                 the PTY is producing output, returns with ``exit_code`` None and leaves the session connected.
                 A timeout of 0 or None means no timeout, consistent with the rest of the Python SDK.
+                Unlike ``AsyncPtyHandle.wait()``, which raises ``DaytonaTimeoutError``, this returns on timeout;
+                check ``exit_code`` to tell a timeout from an exit.
 
         Returns:
             PtyResult: Result containing exit code and error (if any)

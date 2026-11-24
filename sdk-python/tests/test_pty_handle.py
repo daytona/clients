@@ -529,12 +529,24 @@ class TestAsyncPtyHandleWaitTimeout:
             assert result.exit_code == 3
 
     @pytest.mark.asyncio
-    async def test_wait_without_timeout_returns_the_result(self, monkeypatch):
+    async def test_wait_without_timeout_waits_for_the_reader(self, monkeypatch):
         handle, _ws = await TestAsyncPtyHandle()._build_handle(monkeypatch)
-        handle._exit_code = 0
 
         for timeout in (None, 0):
-            result = await handle.wait(timeout=timeout)
+            exited = asyncio.Event()
+            handle._exit_code = None
+
+            async def reader() -> None:
+                _ = await exited.wait()
+                handle._exit_code = 0
+
+            handle._wait = asyncio.create_task(reader())
+            waiting = asyncio.create_task(handle.wait(timeout=timeout))
+            await asyncio.sleep(0.3)
+            assert not waiting.done(), f"wait(timeout={timeout!r}) returned before the process exited"
+
+            exited.set()
+            result = await asyncio.wait_for(waiting, timeout=5)
             assert result.exit_code == 0
 
     @pytest.mark.asyncio

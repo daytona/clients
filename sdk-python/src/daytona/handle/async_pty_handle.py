@@ -155,7 +155,8 @@ class AsyncPtyHandle:
 
         Args:
             timeout: Optional timeout in seconds. 0 or None means no timeout; negative values
-                are rejected.
+                are rejected. Unlike the synchronous ``PtyHandle.wait()``, which returns a result
+                with ``exit_code`` None on timeout, this raises ``DaytonaTimeoutError``.
 
         Returns:
             PtyResult: Result containing exit code and error (if any)
