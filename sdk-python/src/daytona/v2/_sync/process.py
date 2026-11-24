@@ -61,7 +61,9 @@ class ProcessHandle:
 
         A PTY has no end-of-input signal of its own: the sandbox refuses this
         on a PTY handle. Write ``"\x04"`` (Ctrl-D) with :meth:`write_stdin`
-        instead, which the terminal reads as end of input.
+        instead: in the terminal's default (canonical) mode, at the start of a
+        line, the program reads it as end of input; a program that puts the
+        terminal in raw mode receives the byte as data.
         """
         return self._bridge.call(lambda: self._impl.close_stdin())
 

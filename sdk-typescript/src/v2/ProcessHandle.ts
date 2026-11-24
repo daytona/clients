@@ -136,8 +136,10 @@ export class ProcessHandle {
   /**
    * Close the stdin of an exec process (EOF). A pty has no end-of-input signal
    * of its own: the sandbox refuses this on a pty handle. Write `'\x04'`
-   * (Ctrl-D) with {@link writeStdin} instead, which the terminal reads as end of
-   * input.
+   * (Ctrl-D) with {@link writeStdin} instead: in the terminal's default
+   * (canonical) mode, at the start of a line, the program reads it as end of
+   * input; a program that puts the terminal in raw mode receives the byte as
+   * data.
    */
   public async closeStdin(): Promise<void> {
     if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('closeStdin', this.kind)

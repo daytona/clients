@@ -362,8 +362,11 @@ export class Sandbox {
   public get macBootMode(): MacBootMode | undefined {
     return this.observed.macBootMode
   }
-  /** macOS only: whether the sandbox preserves its disk when stopped; undefined on a
-    *  handle whose metadata has not been loaded yet. */
+  /**
+   * Whether the sandbox is persistent: it can stop, pause, resume and fork, and
+   * a stop keeps its disk. Undefined until a read reports it (a create handle
+   * can still be undefined; `refreshData()` fills it in).
+   */
   public get persistent(): boolean | undefined { return this.observed.persistent }
   public get spot(): boolean | undefined { return this.observed.spot }
   public get spotEvictedAt(): string | undefined { return this.observed.spotEvictedAt }
@@ -1152,10 +1155,14 @@ export class Sandbox {
 
   /**
    * Capture this sandbox, memory and disk, as a new {@link Snapshot}
-   * (`POST /sandboxes/{id}/snapshots`). The sandbox must be running and
-   * resumable: a persistent sandbox always is, while one that is not
-   * persistent may not be. Otherwise the API throws `ConflictError` (409);
-   * create the sandbox persistent to snapshot it. The credential needs `write:sandboxes`
+   * (`POST /sandboxes/{id}/snapshots`). Linux sandboxes only, and only while
+   * running: a macOS sandbox throws `NotSupportedForClassError` (409; pausing
+   * it keeps its memory instead, or capture its disk with `captureImage()`).
+   * The API also refuses with `ConflictError` (409) a sandbox that is not
+   * running, one with an attached volume, and one whose saved state the
+   * platform cannot resume (it booted the sandbox in a shape that cannot be
+   * snapshotted; the SDK has no option that asks for a resumable boot).
+   * The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).
    */

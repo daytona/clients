@@ -19,4 +19,4 @@ Reports are accepted against the latest release of each line.
 | Line | Branch | Packages |
 |---|---|---|
 | 2.x | `main` | `daytona` (PyPI) and `@daytona/sdk` (npm) as installed by default, the Go SDK `go.daytona.com/sdk/v2`, and the `daytona` CLI |
-| 0.x | `release/v0` | 0.x versions of `daytona` (PyPI) and `@daytona/sdk` (npm), the legacy `daytona-sdk` / `@daytonaio/sdk` packages, and the 0.x CLI |
+| 0.x | `release/v0` | 0.x versions of `daytona` (PyPI) and `@daytona/sdk` (npm), the legacy `daytona-sdk` / `@daytonaio/sdk` packages, the 0.x Go SDK `github.com/daytona/clients/sdk-go`, and the 0.x CLI |

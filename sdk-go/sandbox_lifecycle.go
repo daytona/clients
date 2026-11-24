@@ -11,6 +11,9 @@ import (
 // Stop stops the sandbox and waits for stopped. The default wait is 60 seconds;
 // NoWait returns after acceptance. Toolbox calls require Start before reuse.
 // A failed completion returns ErrRequestTimeout or *SandboxTerminalStateError.
+// Only a persistent sandbox (Info().Persistent) can stop, pause, resume or fork;
+// on one that is not, the API answers 409 (ErrConflict). Linux creates do not ask
+// for persistence; CreateMacOS can.
 func (s *Sandbox) Stop(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{action: "stop", target: SandboxStateStopped}, opts)
 }
@@ -18,6 +21,9 @@ func (s *Sandbox) Stop(ctx context.Context, opts *LifecycleWaitOptions) error {
 // Pause saves sandbox memory and waits for paused (default 60 seconds).
 // Returning to started is a *SandboxTerminalStateError. NoWait skips waiting.
 // The server decides whether the sandbox supports pausing.
+// Only a persistent sandbox (Info().Persistent) can stop, pause, resume or fork;
+// on one that is not, the API answers 409 (ErrConflict). Linux creates do not ask
+// for persistence; CreateMacOS can.
 func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{
 		action: "pause", target: SandboxStatePaused, failure: SandboxStateStarted,
@@ -26,6 +32,9 @@ func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 
 // Resume resumes a paused sandbox and waits for started (default 60 seconds).
 // Returning to stopped is a *SandboxTerminalStateError. NoWait skips waiting.
+// Only a persistent sandbox (Info().Persistent) can stop, pause, resume or fork;
+// on one that is not, the API answers 409 (ErrConflict). Linux creates do not ask
+// for persistence; CreateMacOS can.
 func (s *Sandbox) Resume(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{
 		action: "resume", target: SandboxStateStarted, failure: SandboxStateStopped,

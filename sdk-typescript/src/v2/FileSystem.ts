@@ -413,7 +413,8 @@ export class FileSystemService {
   /**
    * List a directory: one page of `{ items, nextCursor }`. `depth` is how many
    * levels to descend: omitted lists `path`'s own entries (`1`); the sandbox
-   * accepts 1 to 32 and caps a recursive listing at 10,000 entries.
+   * accepts 1 to 32 and refuses a recursive listing of more than 10,000
+   * entries with `BadRequestError` (try a smaller depth).
    */
   public async list(path: string, options: ListFilesOptions = {}): Promise<ListResult<FileInfo>> {
     sandboxPath('path', path)

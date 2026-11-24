@@ -10,10 +10,12 @@ npm install @daytona/sdk
 ```
 
 This installs the latest stable 2.x release (the `latest` dist-tag).
-Pre-releases are published under their own dist-tags: `next` for release
-candidates and `alpha` for alphas. To try one, install it explicitly
-(`npm install @daytona/sdk@next`) or pin an exact `X.Y.Z-rc.N` /
-`X.Y.Z-alpha.N` version.
+A pre-release is published under its own dist-tag, `next` for a release
+candidate and `alpha` for an alpha; a dist-tag exists only once such a
+release has been published, and it can point at a release older than the
+current stable one. To try a pre-release, pin its exact `X.Y.Z-rc.N` /
+`X.Y.Z-alpha.N` version (`npm view @daytona/sdk dist-tags` lists the current
+tags).
 
 The legacy package `@daytonaio/sdk` is published only from the 0.x line:
 installing or upgrading it never gives you 2.x. Install `@daytona/sdk`.
@@ -371,7 +373,7 @@ make asynchronous callback work cancellation-aware when needed.
   `createdStartAt` / `createdEndAt`, `updatedStartAt` / `updatedEndAt`, and
   `lastActivityStartAt` / `lastActivityEndAt`; each start is inclusive and
   each end is exclusive. The query text matches sandbox names and image
-  references, and results come in `sort` order (creation time by default),
+  references (or one sandbox exactly, by its id), and results come in `sort` order (creation time by default),
   not by relevance. Search, and `findByName()` with it, can lag a create,
   delete or label change by a few seconds: a sandbox just deleted can still
   appear, and one just labelled can still miss a label filter.
@@ -387,8 +389,8 @@ make asynchronous callback work cancellation-aware when needed.
   replacement only; reset is an explicit JSON `null`; the SDK does not auto-GET
   or auto-retry around stale `If-Match`. Pass `ifMatch` exactly as the last
   read or update returned its `etag` (an opaque, quoted string): a stale one
-  throws `PreconditionFailedError` (412), and a value that is not an ETag the
-  API issued throws `BadRequestError` (400). Domain allow-lists imply default-deny:
+  throws `PreconditionFailedError` (412), and a malformed value throws
+  `BadRequestError` (400). Domain allow-lists imply default-deny:
   omitting `blockAll` while setting `allowDomains` lets the API normalize it to
   `true`, while an explicit `blockAll: false` is rejected locally with
   `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allowCidrs` needs
@@ -475,8 +477,8 @@ const actions = await daytona.v2.listAuditActions() // the actions the audit log
 `getLimits()` defaults to the API key's own organization; with `jwtToken`
 authentication pass `{ organizationId }`. An undefined `limit` means
 unlimited, except on the deprecated sandbox and storage counts, where the
-limit is not returned. An unset budget comes back with its limit and period fields
-undefined.
+limit is not returned. An unset budget comes back with its limit, period and spend
+fields undefined.
 
 ### Sandbox labels and entrypoint logs
 
@@ -644,8 +646,9 @@ the server reports.
 image from a sandbox; `sandbox.captureImage({ idleExpirySeconds: 3600 })`
 captures an anonymous one that is deleted after that long unused (idle expiry
 applies only to anonymous images: passing both is a 400). Wait for either with
-`images.get(image.id, { wait: 'ready' })`. `sandbox.createSnapshot(name)` captures a snapshot of a running sandbox, memory included; the sandbox must be able to resume
-(a persistent one always can), else the API answers 409. Both need
+`images.get(image.id, { wait: 'ready' })`. `sandbox.createSnapshot(name)` captures a snapshot of a running Linux sandbox, memory included. A macOS sandbox cannot be
+snapshotted (pausing it keeps its memory), and the API answers 409 for a
+sandbox with an attached volume or one the platform cannot resume. Both need
 `write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
 they throw `ForbiddenError` (403).
 
@@ -811,7 +814,8 @@ on any worker (`process.connect(json or id)`); handles come from the SDK,
 never from a constructor. Handles offer cursor-replayable `logs()`,
 `streamLogs()` with resume, `wait()`, `writeStdin()` for exec and pty handles,
 `closeStdin()` (EOF) for exec handles (a pty refuses it: write `'\x04'`,
-Ctrl-D, to end its input), `delete()` (stopping it first if running; a running interpreter
+Ctrl-D, to end its input in the terminal's default canonical mode at the start
+of a line; a raw-mode program reads the byte as data), `delete()` (stopping it first if running; a running interpreter
 execution, or a session command that does not stop within 5 s, is refused:
 delete its context or session), signal-aware `kill()` with escalation,
 `resize()` and a websocket `attach()`. `streamLogs()` yields one
@@ -1023,9 +1027,11 @@ takes no `env`: set it when the context is created. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
 `timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded): on
-expiry the SDK interrupts the kernel (like ^C) and waits up to 10 more seconds
-for the run to stop before returning the interrupted result, so a run can take
-up to `timeoutSeconds` + 10 seconds. Results are split into
+expiry the SDK interrupts the kernel (like ^C) and then waits about 10 more
+seconds for the run to stop before returning the interrupted result, so a run
+takes longer than `timeoutSeconds`: about 10 seconds longer, or up to about 20
+when the sandbox cannot take the interrupt at once and the SDK keeps retrying
+it. Results are split into
 `results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
@@ -1068,8 +1074,8 @@ first, in one page; there is no paging.
 
 `pull()` is fast-forward only: when the histories have diverged it fails
 instead of merging. Without `branch` it pulls the branch's configured
-upstream; with `branch` (and `push()` always) the remote defaults to
-`origin`. `remote` names a remote configured in the repository (see
+upstream; with `branch` (which must name the checked-out branch, else
+`BadRequestError`) and for `push()` the remote defaults to `origin`. `remote` names a remote configured in the repository (see
 `listRemotes()` / `addRemote()`), not a URL. `username` and `password` are
 used only together: either one alone is ignored and the operation runs
 without credentials.
@@ -1220,14 +1226,17 @@ specialised errors build their own message from what identifies them instead:
 `SandboxCreateConnectionError(idempotencyKey, detail)`,
 `DockerWaitTimeoutError(status?)` and `DockerNotReadyError(status)`.
 
-The SDK does not retry ordinary requests: a 429 or 5xx response throws its
-error at once, and the only automatic retry is the one after a 401 that
-refreshes the credential. Retry yourself where the operation is safe to
-repeat. An error's `retryAfterSeconds` comes from the `retry_after_seconds`
-field of the error body; a bare `Retry-After` response header does not set
-it. Waits and log followers handle failures within their own budget, as their
-sections describe. A client-side timeout ends the SDK's wait, not the work it
-started in the sandbox or on the platform.
+Ordinary API requests are not retried: a 429 or 5xx response throws its
+error at once, and the only automatic retry of one is the single retry after a
+401 that refreshes the credential. Retry yourself where the operation is safe
+to repeat. A few specialised paths do retry on their own, within their own
+budget: build-context uploads (each part and the completion request, up to 3
+attempts each), process waits (a long poll cut by a connection
+failure or a client timeout), and the build-log followers and sandbox events
+stream (they reconnect). An error's `retryAfterSeconds` comes from the
+`retry_after_seconds` field of the error body; a bare `Retry-After` response
+header does not set it. A client-side timeout ends the SDK's wait, not the
+work it started in the sandbox or on the platform.
 
 ```ts
 import { DaytonaError } from '@daytona/sdk'

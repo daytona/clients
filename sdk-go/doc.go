@@ -11,7 +11,7 @@
 //	}
 //	defer client.Close()
 //
-//	sandbox, err := client.Create(ctx, "", nil) // "" = the default image, with Python 3
+//	sandbox, err := client.Create(ctx, "", nil) // "" = the default image, where the deployment has one
 //	if sandbox != nil {
 //		defer sandbox.Delete(context.WithoutCancel(ctx), nil)
 //	}

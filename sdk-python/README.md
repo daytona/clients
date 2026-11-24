@@ -11,11 +11,12 @@ pip install 'daytona[otel]'        # adds OpenTelemetry request spans
 pip install 'daytona[v0-sdk]'      # adds the v0 namespace (Daytona().v0)
 ```
 
-Pre-releases (alphas and release candidates) are published too. To try one,
-pin its exact version (`pip install daytona==X.Y.ZaN`, or `X.Y.ZrcN`): a bare
-`pip install --pre daytona` picks the highest pre-release on PyPI, which is
-not necessarily the newest one, because PEP 440 sorts release candidates above
-alphas.
+Pre-releases (alphas and release candidates) are published too, when there
+is one to try. Install one by pinning its exact version
+(`pip install daytona==X.Y.ZaN`, or `X.Y.ZrcN`). `pip install --pre daytona`
+does not select a pre-release: it lets pip consider pre-releases alongside
+stable releases and installs the highest version of all, which is a stable
+release whenever no newer pre-release exists.
 
 The legacy package name `daytona-sdk` (`daytona_sdk`) is published only from
 the 0.x line: installing or upgrading it never gives you 2.x. Install
@@ -430,7 +431,7 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   `created_end_at`, `updated_start_at` / `updated_end_at`, and
   `last_activity_start_at` / `last_activity_end_at`; starts are inclusive and
   ends are exclusive. The query text matches sandbox names and image
-  references, and results come in `sort` order (creation time by default),
+  references (or one sandbox exactly, by its id), and results come in `sort` order (creation time by default),
   not by relevance. Search, and `find_by_name()` with it, can lag a create,
   delete or label change by a few seconds: a sandbox just deleted can still
   appear, and one just labelled can still miss a label filter.
@@ -452,8 +453,8 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   replacement only; reset is an explicit JSON `null`; the SDK does not auto-GET
   or auto-retry around stale `If-Match`. Pass `if_match` exactly as the last
   read or update returned its `etag` (an opaque, quoted string): a stale one
-  raises `PreconditionFailedError` (412), and a value that is not an ETag the
-  API issued raises `BadRequestError` (400). Domain allow-lists imply default-deny:
+  raises `PreconditionFailedError` (412), and a malformed value raises
+  `BadRequestError` (400). Domain allow-lists imply default-deny:
   omitting `block_all` while setting `allow_domains` lets the API normalize it
   to `true`, while an explicit `block_all=False` is rejected locally with
   `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allow_cidrs` needs
@@ -495,7 +496,7 @@ actions = d.v2.list_audit_actions() # the actions the audit log records, per tar
 authentication pass `organization_id=`. A `limit` of `None` means unlimited,
 except on the deprecated sandbox and storage counts, where the limit is not
 returned.
-An unset budget comes back with its limit and period fields `None`. On
+An unset budget comes back with its limit, period and spend fields `None`. On
 `AsyncDaytona` await each call.
 
 ### Sandbox metadata and helpers
@@ -724,8 +725,9 @@ reports. `sandbox.capture_image(name="after-setup")` captures a named,
 permanent image from a sandbox; `sandbox.capture_image(idle_expiry_seconds=3600)`
 captures an anonymous one that is deleted after that long unused (idle expiry
 applies only to anonymous images: passing both is a 400). Wait for either with
-`images.get(image.id, wait="ready")`. `sandbox.create_snapshot(name)` captures a snapshot of a running sandbox, memory included; the sandbox must be able to resume
-(a persistent one always can), else the API answers 409. Both need
+`images.get(image.id, wait="ready")`. `sandbox.create_snapshot(name)` captures a snapshot of a running Linux sandbox, memory included. A macOS sandbox cannot be
+snapshotted (pausing it keeps its memory), and the API answers 409 for a
+sandbox with an attached volume or one the platform cannot resume. Both need
 `write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
 they raise `ForbiddenError` (403).
 
@@ -895,7 +897,9 @@ deleted, and `"none"` keeps no log. `process.start()` returns a detached
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` is for exec and PTY handles only,
 `close_stdin()` (EOF) for exec handles only: a PTY refuses it, so write
-`"\x04"` (Ctrl-D) to end a PTY's input instead. `stream_logs()` yields one `StreamLogEvent` per server
+`"\x04"` (Ctrl-D) to end a PTY's input instead (that works in the terminal's
+default canonical mode at the start of a line; a raw-mode program reads the
+byte as data). `stream_logs()` yields one `StreamLogEvent` per server
 event of a supported type (an event of another type is skipped), each
 carrying its resume `cursor`, and stops after the `eof` event: `StreamLogFrameEvent` (a
 `LogFrame` on `.frame`), `StreamLogStateEvent` (the process ended),
@@ -1101,9 +1105,10 @@ the context is created. If an explicit named
 context vanished, `interpreter.run(..., context=...)` / `context.run()` surface
 the typed `SessionNotFoundError`; recreate the context yourself and decide what
 to rerun. `timeout=` is enforced client-side **(seconds)**: on expiry the SDK
-interrupts the kernel (like ^C) and waits up to 10 more seconds for the run to
-stop before returning the interrupted result, so a run can take up to
-`timeout` + 10 seconds. Results are split into `results[]`, `logs{stdout,stderr}`,
+interrupts the kernel (like ^C) and then waits about 10 more seconds for the
+run to stop before returning the interrupted result, so a run takes longer
+than `timeout`: about 10 seconds longer, or up to about 20 when the sandbox
+cannot take the interrupt at once and the SDK keeps retrying it. Results are split into `results[]`, `logs{stdout,stderr}`,
 `error`, and `process`. That rich result shape comes from the interpreter run
 path itself; reconnecting a serialized code-process handle later does not
 recreate it.
@@ -1144,8 +1149,8 @@ the whole log, newest first, in one page; there is no paging.
 
 `pull()` is fast-forward only: when the histories have diverged it fails
 instead of merging. Without `branch=` it pulls the branch's configured
-upstream; with `branch=` (and `push()` always) the remote defaults to
-`origin`. `remote=` names a remote configured in the repository (see
+upstream; with `branch=` (which must name the checked-out branch, else
+`BadRequestError`) and for `push()` the remote defaults to `origin`. `remote=` names a remote configured in the repository (see
 `list_remotes()` / `add_remote()`), not a URL. `username=` and `password=` are
 used only together: either one alone is ignored and the operation runs
 without credentials.
@@ -1329,13 +1334,16 @@ persistent sandboxes, volumes, images and snapshots) the refusal still names
 the limit but leaves out the counts, so `current` and `max` are `None`;
 contact support to request a higher one. Other rate-limited requests keep raising plain `RateLimitError`.
 
-The SDK does not retry ordinary requests: a 429 or 5xx response raises its
-error at once, and the only automatic retry is the one after a 401 that
-refreshes the credential. Retry yourself where the operation is safe to
-repeat. An error's `retry_after_seconds` comes from the `retry_after_seconds`
-field of the error body; a bare `Retry-After` response header does not set
-it. Waits and log followers handle failures within their own budget, as
-their sections describe. A client-side timeout ends the SDK's wait, not the
+Ordinary API requests are not retried: a 429 or 5xx response raises its
+error at once, and the only automatic retry of one is the single retry after a
+401 that refreshes the credential. Retry yourself where the operation is safe
+to repeat. A few specialised paths do retry on their own, within their own
+budget: build-context uploads (each part and the completion request, up to 3
+attempts each), process waits (a long poll cut by a connection
+failure or a client timeout), and the build-log followers and sandbox events
+stream (they reconnect). An error's `retry_after_seconds` comes from the
+`retry_after_seconds` field of the error body; a bare `Retry-After` response
+header does not set it. A client-side timeout ends the SDK's wait, not the
 work it started in the sandbox or on the platform.
 
 On a sandbox that is deleted or being deleted, `set_labels()`,

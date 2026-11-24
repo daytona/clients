@@ -574,8 +574,9 @@ class AsyncFileSystemService:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``).
 
         ``depth`` is how many levels to descend: omitted lists ``path``'s own
-        entries (``1``); the sandbox accepts 1 to 32 and caps a recursive
-        listing at 10,000 entries.
+        entries (``1``); the sandbox accepts 1 to 32 and refuses a recursive
+        listing of more than 10,000 entries with
+        :class:`~daytona.v2.errors.BadRequestError` (try a smaller depth).
         """
         params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if depth is not None:

@@ -20,7 +20,9 @@ irm https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1 | iex
 
 The installer installs the highest stable 2.x release. Pre-releases are
 installed only when you ask for them, with a channel (`--channel rc` or
-`--channel alpha`) or an exact version:
+`--channel alpha`) or an exact version; a channel also takes a stable release
+when it is the highest, so it installs a pre-release only while one is newer
+than the latest stable release:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --channel alpha
@@ -39,8 +41,8 @@ Homebrew (macOS / Linux):
 | Formula | Installs |
 |---|---|
 | `daytonaio/cli/daytona` | stable 2.x releases as `daytona` |
-| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona` |
-| `daytonaio/cli/daytona-alpha` | 2.x alpha releases as `daytona` |
+| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona`, once a 2.x release candidate has been published to it (until then it still installs a 0.x CLI) |
+| `daytonaio/cli/daytona-alpha` | 2.x alpha releases as `daytona` (the latest alpha can be older than the latest stable release) |
 | `daytonaio/cli/daytona@0` | the 0.x CLI as `daytona-v0`, beside any of the above |
 
 ```sh
@@ -398,12 +400,13 @@ never prompts:
 - `sandbox search --status` takes the API's statuses (`running`, `stopped`,
   `paused`, …), not the SDKs' sandbox states (`started`, `destroyed`, …),
   which the SDKs map to these statuses. Search is eventually consistent: for a
-  few seconds after a change a sandbox can still show its old status or
-  labels. Deleted sandboxes are never returned, even with `--status
+  few seconds a sandbox just created may not appear yet, and one just changed
+  can still show its old status or labels. Deleted sandboxes are never returned, even with `--status
   deleted`; `deleting`, `failed` and `lost` ones are returned until the
   platform removes their records. `--image-ref` and `--image-ref-prefix`
-  match the project image the sandbox was created from (by its name), not
-  the registry reference that image was pulled or built from. `--spot`
+  match the project image the sandbox was created from (by its name; the
+  snapshot name for a sandbox created from a snapshot), not the registry
+  reference that image was pulled or built from. `--spot`
   selects spot sandboxes and `--spot=false` on-demand ones.
 - Sizes are MiB in the CLI (`--memory`, `--disk`, `--memory-max`,
   `--disk-max`, and `sandbox search --min-memory` / `--max-disk` …), while
@@ -430,7 +433,8 @@ never prompts:
   refused: the stored value cannot be read back, so an unset variable or an
   empty file would otherwise erase it silently. `--allowed-domain` rejects
   empty entries, including in comma-separated lists. Omit it to preserve an
-  existing scope (creating a secret requires it); use `--allowed-domain '*'` to remove domain restrictions
+  existing scope (creating a secret requires it, and so does an existing
+  secret with no scope); use `--allowed-domain '*'` to remove domain restrictions
   (the value can then reach any verified HTTPS host). An empty scope is not
   supported by the API; delete the secret to remove it entirely.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also

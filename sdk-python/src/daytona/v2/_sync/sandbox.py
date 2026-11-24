@@ -133,10 +133,14 @@ class Sandbox:
         """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
         (``POST /sandboxes/{id}/snapshots``).
 
-        The sandbox must be running and resumable: a persistent sandbox always
-        is, while one that is not persistent may not be. Otherwise the API
-        raises :class:`ConflictError` (409); create the sandbox persistent to
-        snapshot it. The credential needs ``write:sandboxes`` in addition to
+        Linux sandboxes only, and only while running: a macOS sandbox raises
+        :class:`NotSupportedForClassError` (409; pausing it keeps its memory
+        instead, or capture its disk with :meth:`capture_image`). The API also
+        refuses with :class:`ConflictError` (409) a sandbox that is not
+        running, one with an attached volume, and one whose saved state the
+        platform cannot resume (it booted the sandbox in a shape that cannot be
+        snapshotted; the SDK has no option that asks for a resumable boot).
+        The credential needs ``write:sandboxes`` in addition to
         ``write:snapshots``; without it the capture raises
         :class:`ForbiddenError` (403).
         """
@@ -669,7 +673,10 @@ class Sandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """macOS only: whether a stop keeps the disk; ``None`` until known."""
+        """Whether the sandbox is persistent: it can stop, pause, resume and
+        fork, and a stop keeps its disk. ``None`` until a read reports it (a
+        create handle can still be ``None``; :meth:`refresh_data` fills it in).
+        """
         return self._impl.persistent
 
     @property

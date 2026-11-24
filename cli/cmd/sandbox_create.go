@@ -204,7 +204,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	if sf.volumes && sf.macos {
 		f.StringArrayVar(&flags.volumes, "volume", nil, "disk volume mount VOLUME:MOUNT_PATH[:SUBPATH] (repeatable; read-write, a macOS sandbox cannot mount a volume read-only)")
 	} else if sf.volumes {
-		f.StringArrayVar(&flags.volumes, "volume", nil, "volume mount VOLUME:MOUNT_PATH[:SUBPATH][:ro] (repeatable; a trailing :ro mounts read-only, which only bucket volumes support; VOLUME:MOUNT_PATH:ro is always read-only, so a subpath named ro is VOLUME:MOUNT_PATH:ro:ro, or read-write only through --file; there is no :rw)")
+		f.StringArrayVar(&flags.volumes, "volume", nil, "volume mount VOLUME:MOUNT_PATH[:SUBPATH][:ro] (repeatable; a trailing :ro asks for a read-only mount, which only bucket volumes support). A third segment ro is always read as the read-only flag, never a subpath; a subpath named ro needs VOLUME:MOUNT_PATH:ro:ro, or --file for read-write. There is no :rw")
 	}
 	if sf.secrets {
 		f.StringArrayVar(&flags.secrets, "secret", nil, "secret name to attach (repeatable)")
