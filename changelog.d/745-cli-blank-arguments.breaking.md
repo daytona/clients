@@ -6,6 +6,7 @@ any credential check or request. Breaking for scripts that pass an unset
 variable: before, the value reached the API (a not-found or collection
 answer), and the optional `[id|name]` of `org get`, `org use`, `project get`,
 `project use` and the budget commands fell back to the saved selection; leave
-the argument out to use the saved selection. The `sandbox search` query,
-`config set`'s value, the arguments after `--` and the `ssh` arguments are
-unchanged.
+the argument out to use the saved selection. A `--` before the arguments
+(`get -- "$ID"`) changes nothing. The `sandbox search` query, `config set`'s
+value, the command `sandbox exec` runs after its `--` and the `ssh` arguments
+are unchanged.
