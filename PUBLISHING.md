@@ -90,7 +90,7 @@ The repository includes a GitHub Actions workflow for automated publishing: `.gi
    - **pypi_pkg_version**: (Optional) Override PyPI version
    - **npm_pkg_version**: (Optional) Override npm version
    - **rubygems_pkg_version**: (Optional) Override RubyGems version
-   - **npm_tag**: npm dist-tag (default: `v0-latest`, because npm `latest` belongs to the 2.x SDK; see [Release Branches](#release-branches))
+   - **npm_tag**: npm dist-tag (default: `v0-latest`, because npm `latest` belongs to the 2.x SDK; see [Release Branches](#release-branches)). The deprecated `@daytonaio/sdk`, `@daytonaio/api-client` and `@daytonaio/toolbox-api-client` never get a 2.x release, so with `v0-latest` they are published under `latest` instead (checked by `hack/npm-latest-guard.sh` like a `latest` publish); any other tag applies to them unchanged
 
 #### Required Secrets
 
