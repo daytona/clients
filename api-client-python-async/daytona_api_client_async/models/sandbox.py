@@ -20,9 +20,11 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Union
+from typing_extensions import Annotated
 from daytona_api_client_async.models.build_info import BuildInfo
 from daytona_api_client_async.models.gpu_type import GpuType
 from daytona_api_client_async.models.sandbox_desired_state import SandboxDesiredState
+from daytona_api_client_async.models.sandbox_node import SandboxNode
 from daytona_api_client_async.models.sandbox_state import SandboxState
 from daytona_api_client_async.models.sandbox_volume import SandboxVolume
 from pydantic import TypeAdapter
@@ -50,14 +52,14 @@ class Sandbox(BaseModel):
     outbound_proxy_url: Optional[StrictStr] = Field(default=None, description="Outbound proxy URL the sandbox HTTP(S) traffic is routed through. Applied via the HTTP(S)_PROXY environment variables (convenience routing); network-layer enforcement applies only when the sandbox also has a domainAllowList. Only returned on single-sandbox reads — never on list responses.", serialization_alias="outboundProxyUrl")
     otel_endpoint_override: Optional[StrictStr] = Field(default=None, description="OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and is not available in the Daytona analytics API or dashboard. Only returned on single-sandbox reads — never on list responses.", serialization_alias="otelEndpointOverride")
     target: StrictStr = Field(description="The target environment for the sandbox")
-    cpu: StrictInt = Field(description="The CPU quota for the sandbox")
-    gpu: StrictInt = Field(description="The GPU quota for the sandbox")
+    cpu: StrictInt = Field(description="The CPU quota for the sandbox; for a multi-node sandbox, this is the job total.")
+    gpu: StrictInt = Field(description="The GPU quota for the sandbox; for a multi-node sandbox, this is the job total.")
     spot: Optional[StrictBool] = Field(default=False, description="Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.")
     spot_evicted_at: Optional[StrictStr] = Field(default=None, description="When this sandbox was destroyed by spot preemption. Set only for spot-evicted sandboxes, which stay retrievable by ID for 24 hours after eviction.", serialization_alias="spotEvictedAt")
     queue_timed_out_at: Optional[StrictStr] = Field(default=None, description="When this sandbox was destroyed because it waited too long for a runner. Set only for queue-timeout sandboxes, which stay retrievable by ID for 24 hours after the timeout.", serialization_alias="queueTimedOutAt")
     gpu_type: Optional[GpuType] = Field(default=None, description="The GPU type assigned to the sandbox", serialization_alias="gpuType")
-    memory: StrictInt = Field(description="The memory quota for the sandbox")
-    disk: StrictInt = Field(description="The disk quota for the sandbox")
+    memory: StrictInt = Field(description="The memory quota for the sandbox; for a multi-node sandbox, this is the job total.")
+    disk: StrictInt = Field(description="The disk quota for the sandbox; for a multi-node sandbox, this is the job total.")
     state: Optional[SandboxState] = Field(default=None, description="The state of the sandbox")
     desired_state: Optional[SandboxDesiredState] = Field(default=None, description="The desired state of the sandbox", serialization_alias="desiredState")
     error_reason: Optional[StrictStr] = Field(default=None, description="The error reason of the sandbox", serialization_alias="errorReason")
@@ -81,8 +83,15 @@ class Sandbox(BaseModel):
     runner_id: Optional[StrictStr] = Field(default=None, description="The runner ID of the sandbox", serialization_alias="runnerId")
     linked_sandbox_id: Optional[StrictStr] = Field(default=None, description="ID of the sandbox this sandbox is linked to. When set, the sandbox is co-located on the same runner as the linked sandbox.", serialization_alias="linkedSandboxId")
     toolbox_proxy_url: StrictStr = Field(description="The toolbox proxy URL for the sandbox", serialization_alias="toolboxProxyUrl")
+    nodes: Optional[List[SandboxNode]] = Field(default=None, description="Gang members in rank order. Rank 0 is this sandbox.")
+    topology_generation: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Committed logical topology generation.", serialization_alias="topologyGeneration")
+    incarnation: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Physical incarnation for an internal gang row.")
+    node_count: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Derived number of physical nodes in this sandbox.", serialization_alias="nodeCount")
+    node_rank: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, description="Rank within the gang; present only on internal member rows.", serialization_alias="nodeRank")
+    head_sandbox_id: Optional[StrictStr] = Field(default=None, description="Gang head ID; present only on internal member rows.", serialization_alias="headSandboxId")
+    degraded: Optional[StrictBool] = Field(default=None, description="The gang remains usable but one or more fabric checks are degraded.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl"]
+    __properties: ClassVar[List[str]] = ["id", "organizationId", "name", "snapshot", "user", "env", "labels", "public", "networkBlockAll", "kvm", "networkAllowList", "domainAllowList", "outboundProxyUrl", "otelEndpointOverride", "target", "cpu", "gpu", "spot", "spotEvictedAt", "queueTimedOutAt", "gpuType", "memory", "disk", "state", "desiredState", "errorReason", "recoverable", "warmPoolId", "backupState", "backupCreatedAt", "autoStopInterval", "autoPauseInterval", "autoArchiveInterval", "autoDeleteInterval", "autoDestroyAt", "queueTimeout", "volumes", "buildInfo", "createdAt", "updatedAt", "lastActivityAt", "sandboxClass", "daemonVersion", "runnerId", "linkedSandboxId", "toolboxProxyUrl", "nodes", "topologyGeneration", "incarnation", "nodeCount", "nodeRank", "headSandboxId", "degraded"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -134,6 +143,13 @@ class Sandbox(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of build_info
         if self.build_info:
             _dict['buildInfo'] = self.build_info.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in nodes (list)
+        _items = []
+        if self.nodes:
+            for _item_nodes in self.nodes:
+                if _item_nodes:
+                    _items.append(_item_nodes.to_dict())
+            _dict['nodes'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -201,7 +217,14 @@ class Sandbox(BaseModel):
             "daemon_version": obj.get("daemonVersion"),
             "runner_id": obj.get("runnerId"),
             "linked_sandbox_id": obj.get("linkedSandboxId"),
-            "toolbox_proxy_url": obj.get("toolboxProxyUrl")
+            "toolbox_proxy_url": obj.get("toolboxProxyUrl"),
+            "nodes": [SandboxNode.from_dict(_item) for _item in obj["nodes"]] if obj.get("nodes") is not None else None,
+            "topology_generation": obj.get("topologyGeneration"),
+            "incarnation": obj.get("incarnation"),
+            "node_count": obj.get("nodeCount"),
+            "node_rank": obj.get("nodeRank"),
+            "head_sandbox_id": obj.get("headSandboxId"),
+            "degraded": obj.get("degraded")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -17,6 +17,7 @@ module DaytonaApiClient
   class WebhookEvent
     SANDBOX_CREATED = "sandbox.created".freeze
     SANDBOX_STATE_UPDATED = "sandbox.state.updated".freeze
+    SANDBOX_GANG_MEMBER_FAILED = "sandbox.gang-member-failed".freeze
     SNAPSHOT_CREATED = "snapshot.created".freeze
     SNAPSHOT_STATE_UPDATED = "snapshot.state.updated".freeze
     SNAPSHOT_REMOVED = "snapshot.removed".freeze
@@ -25,7 +26,7 @@ module DaytonaApiClient
     UNKNOWN_DEFAULT_OPEN_API = "unknown_default_open_api".freeze
 
     def self.all_vars
-      @all_vars ||= [SANDBOX_CREATED, SANDBOX_STATE_UPDATED, SNAPSHOT_CREATED, SNAPSHOT_STATE_UPDATED, SNAPSHOT_REMOVED, VOLUME_CREATED, VOLUME_STATE_UPDATED, UNKNOWN_DEFAULT_OPEN_API].freeze
+      @all_vars ||= [SANDBOX_CREATED, SANDBOX_STATE_UPDATED, SANDBOX_GANG_MEMBER_FAILED, SNAPSHOT_CREATED, SNAPSHOT_STATE_UPDATED, SNAPSHOT_REMOVED, VOLUME_CREATED, VOLUME_STATE_UPDATED, UNKNOWN_DEFAULT_OPEN_API].freeze
     end
 
     # Builds the enum from string

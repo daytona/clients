@@ -33,6 +33,8 @@ module DaytonaApiClient
     # Runner app version
     attr_accessor :app_version
 
+    attr_accessor :fabric
+
     # Attribute mapping from ruby-style variable name to JSON key.
     def self.attribute_map
       {
@@ -41,7 +43,8 @@ module DaytonaApiClient
         :'domain' => :'domain',
         :'proxy_url' => :'proxyUrl',
         :'api_url' => :'apiUrl',
-        :'app_version' => :'appVersion'
+        :'app_version' => :'appVersion',
+        :'fabric' => :'fabric'
       }
     end
 
@@ -63,7 +66,8 @@ module DaytonaApiClient
         :'domain' => :'String',
         :'proxy_url' => :'String',
         :'api_url' => :'String',
-        :'app_version' => :'String'
+        :'app_version' => :'String',
+        :'fabric' => :'RunnerFabricHealth'
       }
     end
 
@@ -116,6 +120,10 @@ module DaytonaApiClient
       else
         self.app_version = nil
       end
+
+      if attributes.key?(:'fabric')
+        self.fabric = attributes[:'fabric']
+      end
     end
 
     # Show invalid properties with the reasons. Usually used together with valid?
@@ -158,7 +166,8 @@ module DaytonaApiClient
           domain == o.domain &&
           proxy_url == o.proxy_url &&
           api_url == o.api_url &&
-          app_version == o.app_version
+          app_version == o.app_version &&
+          fabric == o.fabric
     end
 
     # @see the `==` method
@@ -170,7 +179,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [metrics, service_health, domain, proxy_url, api_url, app_version].hash
+      [metrics, service_health, domain, proxy_url, api_url, app_version, fabric].hash
     end
 
     # Builds the object from hash

@@ -120,7 +120,7 @@
           "bash ../../hack/npm-publish.sh",
           "node -e \"const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.name = '@daytonaio/sdk'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));\"",
           "cp ../../sdk-typescript/README.legacy.md README.md",
-          "bash ../../hack/npm-publish.sh",
+          "NPM_TAG=\"${NPM_LEGACY_TAG:-$NPM_TAG}\" bash ../../hack/npm-publish.sh",
           "npm deprecate \"@daytonaio/sdk@$NPM_PKG_VERSION\" \"Moved to @daytona/sdk, same API, no breaking changes. Please update: npm uninstall @daytonaio/sdk && npm i @daytona/sdk@0\" --registry https://registry.npmjs.org/ --//registry.npmjs.org/:_authToken=$NPM_DEPRECATE_TOKEN || true"
         ],
         "parallel": false

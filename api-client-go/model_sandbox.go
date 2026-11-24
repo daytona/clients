@@ -51,9 +51,9 @@ type Sandbox struct {
 	OtelEndpointOverride *string `json:"otelEndpointOverride,omitempty"`
 	// The target environment for the sandbox
 	Target string `json:"target"`
-	// The CPU quota for the sandbox
+	// The CPU quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Cpu int32 `json:"cpu"`
-	// The GPU quota for the sandbox
+	// The GPU quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Gpu int32 `json:"gpu"`
 	// Whether this is a spot GPU sandbox. Spot sandboxes may be instantly terminated to free capacity for on-demand GPU sandboxes. Absent on APIs that predate this field; treat as false.
 	Spot *bool `json:"spot,omitempty"`
@@ -63,9 +63,9 @@ type Sandbox struct {
 	QueueTimedOutAt *string `json:"queueTimedOutAt,omitempty"`
 	// The GPU type assigned to the sandbox
 	GpuType *GpuType `json:"gpuType,omitempty"`
-	// The memory quota for the sandbox
+	// The memory quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Memory int32 `json:"memory"`
-	// The disk quota for the sandbox
+	// The disk quota for the sandbox; for a multi-node sandbox, this is the job total.
 	Disk int32 `json:"disk"`
 	// The state of the sandbox
 	State *SandboxState `json:"state,omitempty"`

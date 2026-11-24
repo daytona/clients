@@ -176,6 +176,10 @@ public class SnapshotService {
      */
     public Snapshot create(String name, Image image, io.daytona.sdk.model.Resources resources, SandboxClass sandboxClass,
                            String regionId, Consumer<String> onLogs) {
+        if (resources != null && (resources.getCpuPerNode() != null || resources.getMemoryPerNode() != null ||
+                resources.getDiskPerNode() != null)) {
+            throw new DaytonaException("Snapshot creation does not support per-node resources");
+        }
         List<String> contextHashes = contextUploader.upload(image);
         CreateSnapshot req = new CreateSnapshot().name(name)
                 .buildInfo(new CreateBuildInfo().dockerfileContent(image.getDockerfile()).contextHashes(contextHashes))

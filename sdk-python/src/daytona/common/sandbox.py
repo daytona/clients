@@ -6,12 +6,46 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, NoReturn, Protocol
 
 from daytona_api_client import SandboxListSortDirection, SandboxListSortField, SandboxState
 from daytona_api_client_async import GpuType
 
+from .errors import DaytonaError, DaytonaTimeoutError, DaytonaValidationError
+
+if TYPE_CHECKING:
+    from .process import ExecuteResponse
+
 TOOLBOX_PORT: int = 2280
+
+
+def serialize_sandbox_membership(data: dict[str, Any], reported_node_count: int | None) -> dict[str, Any]:
+    if reported_node_count is None:
+        data.pop("nodes", None)
+    elif reported_node_count == 0 and "nodes" in data:
+        data["nodes"] = []
+    return data
+
+
+def raise_node_execution_error(failures: dict[int, Exception], results: dict[int, ExecuteResponse]) -> NoReturn:
+    first = failures[min(failures)]
+    if len(failures) == 1 and not results and isinstance(first, DaytonaError):
+        first.node_failures = failures
+        first.node_results = results
+        raise first
+    details = "; ".join(f"rank {rank}: {failures[rank]}" for rank in sorted(failures))
+    error_type = (
+        DaytonaTimeoutError if all(isinstance(e, DaytonaTimeoutError) for e in failures.values()) else DaytonaError
+    )
+    error = error_type(f"Command failed on {details}")
+    error.node_failures = failures
+    error.node_results = results
+    raise error from first
+
+
+def validate_node_exec_timeout(timeout: object) -> None:
+    if timeout is not None and (isinstance(timeout, bool) or not isinstance(timeout, int) or timeout < 0):
+        raise DaytonaValidationError("timeout must be a non-negative integer")
 
 
 @dataclass
@@ -47,6 +81,46 @@ class Resources:
     disk: int | None = None
     gpu: int | None = None
     gpu_type: GpuType | list[GpuType] | None = None
+
+
+@dataclass
+class CreateSandboxResources(Resources):
+    """Resources used when creating a Sandbox from an image.
+
+    Scalar resources apply to every node. Per-node lists follow node rank and
+    must match the node count. Specify one form for each resource.
+
+    Attributes:
+        cpu_per_node (list[int] | None): CPU cores for each node in rank order.
+        memory_per_node (list[int] | None): Memory in GiB for each node in rank order.
+        disk_per_node (list[int] | None): Disk space in GiB for each node in rank order.
+
+    Example:
+        ```python
+        # Two 8-GPU nodes with 2 and 4 CPU cores, each with 64 GiB of memory.
+        resources = CreateSandboxResources(gpu=16, cpu_per_node=[2, 4], memory=64)
+        ```
+    """
+
+    cpu_per_node: list[int] | None = None
+    memory_per_node: list[int] | None = None
+    disk_per_node: list[int] | None = None
+
+
+def validate_scalar_resources(resources: Resources) -> None:
+    if isinstance(resources, CreateSandboxResources) and any(
+        value is not None for value in (resources.cpu_per_node, resources.memory_per_node, resources.disk_per_node)
+    ):
+        raise DaytonaValidationError("Per-node resources can only be supplied when creating a sandbox from an image")
+
+
+@dataclass(frozen=True)
+class NodeResources:
+    """CPU, memory, and disk allocated to one appended Sandbox node."""
+
+    cpu: int
+    memory: int
+    disk: int
 
 
 @dataclass

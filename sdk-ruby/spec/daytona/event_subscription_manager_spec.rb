@@ -166,6 +166,53 @@ RSpec.describe Daytona::EventSubscriptionManager do
     end
   end
 
+  describe '#connected?' do
+    it 'reports the dispatcher connection state' do
+      connected_dispatcher = instance_double(Daytona::EventDispatcher, connected?: true)
+      manager = described_class.new(connected_dispatcher)
+
+      expect(manager.connected?).to be(true)
+      allow(connected_dispatcher).to receive(:connected?).and_return(false)
+      expect(manager.connected?).to be(false)
+    end
+
+    it 'is false after shutdown even while the dispatcher is still connected' do
+      connected_dispatcher = instance_double(Daytona::EventDispatcher, connected?: true)
+      manager = described_class.new(connected_dispatcher)
+
+      manager.shutdown
+
+      expect(manager.connected?).to be(false)
+    end
+
+    it 'is false without a dispatcher' do
+      expect(described_class.new(nil).connected?).to be(false)
+    end
+  end
+
+  describe '#event_backed?' do
+    let(:served_dispatcher) { instance_double(Daytona::EventDispatcher, event_backed?: true) }
+
+    it 'delegates to the dispatcher' do
+      expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(true)
+      expect(served_dispatcher).to have_received(:event_backed?).with('sandbox-1')
+    end
+
+    it 'is false when the dispatcher says so' do
+      allow(served_dispatcher).to receive(:event_backed?).and_return(false)
+
+      expect(described_class.new(served_dispatcher).event_backed?('sandbox-1')).to be(false)
+    end
+
+    it 'is false after shutdown and without a dispatcher' do
+      manager = described_class.new(served_dispatcher)
+      manager.shutdown
+
+      expect(manager.event_backed?('sandbox-1')).to be(false)
+      expect(described_class.new(nil).event_backed?('sandbox-1')).to be(false)
+    end
+  end
+
   describe '#shutdown' do
     it 'unsubscribes everything and rejects new subscriptions' do
       manager = described_class.new(dispatcher)

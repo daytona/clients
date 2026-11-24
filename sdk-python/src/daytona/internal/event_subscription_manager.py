@@ -72,6 +72,16 @@ class AsyncEventSubscriptionManager:
     def dispatcher(self) -> AsyncEventDispatcher | None:
         return self._dispatcher
 
+    @property
+    def connection_epoch(self) -> int:
+        """The dispatcher's connect count; a change means events may have been missed in between."""
+        return self._dispatcher.connection_epoch if self._dispatcher is not None else 0
+
+    def is_event_backed(self, resource_id: str) -> bool:
+        """Whether state events for the id arrive now: the connection is up and the server holds the id."""
+        dispatcher = self._dispatcher
+        return not self._closed and dispatcher is not None and dispatcher.is_event_backed(resource_id)
+
     def subscribe(
         self,
         resource_id: str,
@@ -143,8 +153,8 @@ class SyncEventSubscriptionManager:
     """Thread-safe variant of AsyncEventSubscriptionManager.
 
     All subscriptions share ONE lazily started expiry worker thread instead of a
-    ``threading.Timer`` (a dedicated OS thread) per subscription. Listing many
-    sandboxes therefore costs one thread total, not one thread each
+    ``threading.Timer`` (a dedicated OS thread) per subscription. Many concurrent
+    subscriptions therefore cost one thread total, not one thread each
     (https://github.com/daytona/clients/issues/108). ``refresh()`` only bumps the
     subscription deadline — it never creates or cancels threads.
     """
@@ -173,6 +183,16 @@ class SyncEventSubscriptionManager:
     @property
     def dispatcher(self) -> SyncEventDispatcher | None:
         return self._dispatcher
+
+    @property
+    def connection_epoch(self) -> int:
+        """The dispatcher's connect count; a change means events may have been missed in between."""
+        return self._dispatcher.connection_epoch if self._dispatcher is not None else 0
+
+    def is_event_backed(self, resource_id: str) -> bool:
+        """Whether state events for the id arrive now: the connection is up and the server holds the id."""
+        dispatcher = self._dispatcher
+        return not self._closed and dispatcher is not None and dispatcher.is_event_backed(resource_id)
 
     def subscribe(
         self,

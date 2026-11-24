@@ -23,6 +23,7 @@ import {
   DaytonaAuthenticationError,
   createAxiosDaytonaError,
   DaytonaError,
+  DaytonaNotFoundError,
   DaytonaInvalidArgumentError,
   DaytonaQueueTimeoutError,
   DaytonaTimeoutError,
@@ -178,6 +179,16 @@ export interface Resources {
   disk?: number
 }
 
+/** Resource allocation used when creating a Sandbox from an image. */
+export type CreateSandboxResources = Resources & {
+  /** CPU cores for each node, ordered by rank. */
+  cpuPerNode?: number[]
+  /** Memory in GiB for each node, ordered by rank. */
+  memoryPerNode?: number[]
+  /** Disk in GiB for each node, ordered by rank. */
+  diskPerNode?: number[]
+}
+
 /**
  * Base parameters for creating a new Sandbox.
  *
@@ -239,12 +250,11 @@ export type CreateSandboxBaseParams = {
  * @interface
  * @property {string | Image} [image] - Custom Docker image to use for the Sandbox. If an Image object is provided,
  * the image will be dynamically built.
- * @property {Resources} [resources] - Resource allocation for the Sandbox. If not provided, sandbox will
- * have default resources.
+ * @property {CreateSandboxResources} [resources] - Scalar allocations apply to every node. Use per-node arrays for rank-specific values.
  */
 export type CreateSandboxFromImageParams = CreateSandboxBaseParams & {
   image: string | Image
-  resources?: Resources
+  resources?: CreateSandboxResources
 }
 
 /**
@@ -469,6 +479,7 @@ export class Daytona implements AsyncDisposable {
     const useDeprecatedPolling =
       config?.useDeprecatedPolling ?? envReader()?.get('DAYTONA_USE_DEPRECATED_POLLING') === 'true'
 
+    // The dispatcher connects lazily, when a sandbox wait first subscribes to events.
     if (!useDeprecatedPolling) {
       this.eventDispatcher = new EventDispatcher(
         this.apiUrl,
@@ -477,7 +488,6 @@ export class Daytona implements AsyncDisposable {
         sdkLabel,
         packageJson.version,
       )
-      this.eventDispatcher.ensureConnected()
     }
     this.eventSubscriptionManager = new EventSubscriptionManager(this.eventDispatcher ?? null)
 
@@ -699,7 +709,7 @@ export class Daytona implements AsyncDisposable {
     try {
       let buildInfo: any | undefined
       let snapshot: string | undefined
-      let resources: Resources | undefined
+      let resources: CreateSandboxResources | undefined
 
       if ('snapshot' in params) {
         snapshot = params.snapshot
@@ -734,6 +744,7 @@ export class Daytona implements AsyncDisposable {
           public: params.public,
           target: params.target || this.target,
           cpu: resources?.cpu,
+          cpuPerNode: resources?.cpuPerNode,
           gpu: resources?.gpu,
           gpuType:
             resources?.gpuType === undefined
@@ -743,7 +754,9 @@ export class Daytona implements AsyncDisposable {
                 : [resources.gpuType],
           spot: params.spot,
           memory: resources?.memory,
+          memoryPerNode: resources?.memoryPerNode,
           disk: resources?.disk,
+          diskPerNode: resources?.diskPerNode,
           autoStopInterval: params.autoStopInterval,
           autoPauseInterval: params.autoPauseInterval,
           autoArchiveInterval: params.autoArchiveInterval,
@@ -880,6 +893,8 @@ export class Daytona implements AsyncDisposable {
 
   /**
    * Iterates over Sandboxes matching the given query.
+   * The iterator makes one additional request for each sandbox with more than 8 GPUs to fetch its nodes. A gang deleted
+   * between listing and fetching its node details is skipped.
    *
    * @param {ListSandboxesQuery} [query] - Optional filters, sorting, and per-page size.
    * @returns {AsyncIterableIterator<Sandbox>}
@@ -967,8 +982,19 @@ export class Daytona implements AsyncDisposable {
         firstPage = false
 
         for (const sandbox of response.data.items) {
+          // SandboxListItem deliberately stays lightweight and does not carry
+          // internal member rows. This release uses whole 8-GPU nodes, so
+          // gangs have more than 8 GPUs. Ordinary sandboxes need no extra GET.
+          let sandboxWithNodes: SandboxDto | typeof sandbox
+          try {
+            sandboxWithNodes = sandbox.gpu > 8 ? (await sandboxApi.getSandbox(sandbox.id)).data : sandbox
+          } catch (error) {
+            // A listed gang may be deleted before its hydration GET.
+            if (error instanceof DaytonaNotFoundError) continue
+            throw error
+          }
           // Sandbox ctor mutates clientConfig.basePath — clone per item.
-          const hydratedSandbox = await ensureToolboxProxyUrl(sandbox)
+          const hydratedSandbox = await ensureToolboxProxyUrl(sandboxWithNodes)
           yield new Sandbox(
             hydratedSandbox,
             structuredClone(clientConfig),

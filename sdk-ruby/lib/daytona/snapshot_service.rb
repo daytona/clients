@@ -90,6 +90,7 @@ module Daytona
     #     print chunk
     #   end
     def create(params, on_logs: nil) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+      params.resources.validate_scalar! if params.resources.is_a?(Resources)
       create_snapshot_req = DaytonaApiClient::CreateSnapshot.new(name: params.name)
 
       if params.image.is_a?(String)

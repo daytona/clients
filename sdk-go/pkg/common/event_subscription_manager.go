@@ -106,6 +106,45 @@ func (m *EventSubscriptionManager) Unsubscribe(subID string) {
 	}
 }
 
+// IsConnected reports whether the underlying event dispatcher currently has a
+// live connection, i.e. whether subscribed events can arrive. It is false once
+// the manager is shut down, even while the dispatcher lingers before closing.
+func (m *EventSubscriptionManager) IsConnected() bool {
+	if m == nil || m.dispatcher == nil {
+		return false
+	}
+	m.mu.Lock()
+	closed := m.closed
+	m.mu.Unlock()
+	if closed {
+		return false
+	}
+	return m.dispatcher.IsConnected()
+}
+
+// IsEventBacked reports whether state events for resourceID can arrive now: the
+// manager is open, the connection is up, and the server has not rejected
+// resourceID's subscribe.
+func (m *EventSubscriptionManager) IsEventBacked(resourceID string) bool {
+	if m == nil || m.dispatcher == nil {
+		return false
+	}
+	m.mu.Lock()
+	closed := m.closed
+	m.mu.Unlock()
+	return !closed && m.dispatcher.IsEventBacked(resourceID)
+}
+
+// ConnectionEpoch returns the dispatcher's count of successful connects; it
+// changes on every reconnect, so callers can tell whether events may have been
+// missed between two points in time.
+func (m *EventSubscriptionManager) ConnectionEpoch() uint64 {
+	if m == nil || m.dispatcher == nil {
+		return 0
+	}
+	return m.dispatcher.ConnectionEpoch()
+}
+
 func (m *EventSubscriptionManager) Shutdown() {
 	if m == nil {
 		return

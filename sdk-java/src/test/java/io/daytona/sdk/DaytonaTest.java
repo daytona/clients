@@ -20,6 +20,7 @@ import io.daytona.sdk.exception.DaytonaServerException;
 import io.daytona.sdk.exception.DaytonaUnprocessableEntityException;
 import io.daytona.sdk.internal.EventDispatcher;
 import io.daytona.sdk.internal.EventSubscriptionManager;
+import io.daytona.sdk.internal.FakeEventGateway;
 import io.daytona.sdk.model.CreateSandboxFromImageParams;
 import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
 import io.daytona.sdk.model.ListSandboxesQuery;
@@ -96,6 +97,43 @@ class DaytonaTest {
         assertThat(TestSupport.getField(manager, "dispatcher", EventDispatcher.class)).isSameAs(dispatcher);
     }
 
+    @Test
+    void eventConnectionIsOpenedByTheFirstWaitNotByConstructorGetOrList() throws Exception {
+        try (FakeEventGateway gateway = new FakeEventGateway();
+             Daytona lazyDaytona = new Daytona(new DaytonaConfig.Builder()
+                     .apiKey("test-key")
+                     .apiUrl(gateway.apiUrl())
+                     .target("eu")
+                     .build())) {
+            TestSupport.setField(lazyDaytona, "sandboxApi", sandboxApi);
+            when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(
+                    TestSupport.mainSandbox("sb-1", SandboxState.STARTING),
+                    TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+            ListSandboxesResponse response = new ListSandboxesResponse();
+            response.setItems(Collections.singletonList(TestSupport.mainSandboxListItem("sb-2", SandboxState.STARTED)));
+            doReturn(response).when(sandboxApi).listSandboxes(
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+            Sandbox sandbox = lazyDaytona.get("sb-1");
+            List<Sandbox> listed = new ArrayList<>();
+            lazyDaytona.list().forEach(listed::add);
+            Thread.sleep(300);
+
+            assertThat(listed).hasSize(1);
+            EventDispatcher dispatcher = TestSupport.getField(lazyDaytona, "eventDispatcher", EventDispatcher.class);
+            assertThat(TestSupport.getField(dispatcher, "connecting", Boolean.class)).isFalse();
+            assertThat(gateway.requestCount()).isZero();
+
+            sandbox.waitUntilStarted(5);
+
+            okhttp3.mockwebserver.RecordedRequest handshake = gateway.takeHandshake(5000);
+            assertThat(handshake).isNotNull();
+            assertThat(handshake.getRequestUrl().queryParameter("subscriptionMode")).isEqualTo("explicit");
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     void constructorSkipsEventDispatcherWhenDeprecatedPollingEnabled() {
@@ -153,6 +191,29 @@ class DaytonaTest {
     }
 
     @Test
+    void createEncodesPerNodeResourcesWithoutChangingScalarSetters() {
+        Resources resources = new Resources();
+        resources.setGpu(16);
+        resources.setCpuPerNode(java.util.Arrays.asList(8, 16));
+        resources.setMemoryPerNode(java.util.Arrays.asList(32, 64));
+        resources.setDiskPerNode(java.util.Arrays.asList(100, 200));
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("example/image:tag");
+        params.setResources(resources);
+        // A started create response is final: no read follows it.
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+        daytona.create(params);
+        ArgumentCaptor<CreateSandbox> body = ArgumentCaptor.forClass(CreateSandbox.class);
+        org.mockito.Mockito.verify(sandboxApi).createSandbox(body.capture(), isNull());
+        assertThat(body.getValue().getCpuPerNode()).isEqualTo(java.util.Arrays.asList(8, 16));
+        assertThat(body.getValue().getMemoryPerNode()).isEqualTo(java.util.Arrays.asList(32, 64));
+        assertThat(body.getValue().getDiskPerNode()).isEqualTo(java.util.Arrays.asList(100, 200));
+        resources.setCpu(4);
+        assertThatThrownBy(() -> daytona.create(params)).isInstanceOf(DaytonaException.class)
+                .hasMessageContaining("either a scalar");
+    }
+
+    @Test
     void createUsesDefaultSnapshotParamsAndWaitsUntilStarted() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTING));
         when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
@@ -182,7 +243,6 @@ class DaytonaTest {
     @Test
     void createImageTargetOverridesClientTarget() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage("python:3.12-slim");
@@ -206,9 +266,35 @@ class DaytonaTest {
     }
 
     @Test
+    void createFromImageFromAStartedResponseMakesNoGet() {
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("python:3.12-slim");
+        Sandbox sandbox = daytona.create(params, 1);
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+        org.mockito.Mockito.verify(sandboxApi, org.mockito.Mockito.never()).getSandbox(any(), any(), any());
+    }
+
+    @Test
+    void createFromImageWithoutAStateInTheResponseReadsTheSandbox() {
+        io.daytona.api.client.model.Sandbox stateless = TestSupport.mainSandbox("sb-1", SandboxState.STARTED);
+        stateless.setState(null);
+        when(sandboxApi.createSandbox(any(), isNull())).thenReturn(stateless);
+        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
+
+        CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
+        params.setImage("python:3.12-slim");
+        Sandbox sandbox = daytona.create(params, 1);
+
+        assertThat(sandbox.getState()).isEqualTo("started");
+        org.mockito.Mockito.verify(sandboxApi, org.mockito.Mockito.times(1)).getSandbox("sb-1", null, null);
+    }
+
+    @Test
     void createFromImageStringBuildsDockerfile() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage("python:3.12-slim");
@@ -222,7 +308,6 @@ class DaytonaTest {
     @Test
     void createFromImageObjectAddsResources() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-1", null, null)).thenReturn(TestSupport.mainSandbox("sb-1", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage(Image.base("python:3.12").runCommands("echo hi"));
@@ -496,7 +581,6 @@ class DaytonaTest {
     @Test
     void createFromImageWithoutImageLeavesBuildInfoUnset() {
         when(sandboxApi.createSandbox(any(), isNull())).thenReturn(TestSupport.mainSandbox("sb-10", SandboxState.STARTED));
-        when(sandboxApi.getSandbox("sb-10", null, null)).thenReturn(TestSupport.mainSandbox("sb-10", SandboxState.STARTED));
 
         CreateSandboxFromImageParams params = new CreateSandboxFromImageParams();
         params.setImage("");

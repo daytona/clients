@@ -51,6 +51,9 @@ module DaytonaApiClient
     # Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled.
     attr_accessor :max_sandbox_lifespan
 
+    # Maximum derived GPU node count; zero disables multi-node sandboxes.
+    attr_accessor :max_nodes_per_sandbox
+
     class EnumAttributeValidator
       attr_reader :datatype
       attr_reader :allowable_values
@@ -91,7 +94,8 @@ module DaytonaApiClient
         :'max_cpu_per_gpu' => :'maxCpuPerGpu',
         :'max_memory_per_gpu' => :'maxMemoryPerGpu',
         :'max_disk_per_gpu' => :'maxDiskPerGpu',
-        :'max_sandbox_lifespan' => :'maxSandboxLifespan'
+        :'max_sandbox_lifespan' => :'maxSandboxLifespan',
+        :'max_nodes_per_sandbox' => :'maxNodesPerSandbox'
       }
     end
 
@@ -123,7 +127,8 @@ module DaytonaApiClient
         :'max_cpu_per_gpu' => :'Float',
         :'max_memory_per_gpu' => :'Float',
         :'max_disk_per_gpu' => :'Float',
-        :'max_sandbox_lifespan' => :'Float'
+        :'max_sandbox_lifespan' => :'Float',
+        :'max_nodes_per_sandbox' => :'Float'
       }
     end
 
@@ -137,7 +142,7 @@ module DaytonaApiClient
         :'max_cpu_per_gpu',
         :'max_memory_per_gpu',
         :'max_disk_per_gpu',
-        :'max_sandbox_lifespan'
+        :'max_sandbox_lifespan',
       ])
     end
 
@@ -251,6 +256,10 @@ module DaytonaApiClient
         self.max_sandbox_lifespan = attributes[:'max_sandbox_lifespan']
       else
         self.max_sandbox_lifespan = nil
+      end
+
+      if attributes.key?(:'max_nodes_per_sandbox')
+        self.max_nodes_per_sandbox = attributes[:'max_nodes_per_sandbox']
       end
     end
 
@@ -394,7 +403,8 @@ module DaytonaApiClient
           max_cpu_per_gpu == o.max_cpu_per_gpu &&
           max_memory_per_gpu == o.max_memory_per_gpu &&
           max_disk_per_gpu == o.max_disk_per_gpu &&
-          max_sandbox_lifespan == o.max_sandbox_lifespan
+          max_sandbox_lifespan == o.max_sandbox_lifespan &&
+          max_nodes_per_sandbox == o.max_nodes_per_sandbox
     end
 
     # @see the `==` method
@@ -406,7 +416,7 @@ module DaytonaApiClient
     # Calculates hash code according to all attributes.
     # @return [Integer] Hash code
     def hash
-      [organization_id, region_id, sandbox_class, total_cpu_quota, total_memory_quota, total_disk_quota, total_gpu_quota, allowed_gpu_types, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, max_disk_per_non_ephemeral_sandbox, max_cpu_per_gpu, max_memory_per_gpu, max_disk_per_gpu, max_sandbox_lifespan].hash
+      [organization_id, region_id, sandbox_class, total_cpu_quota, total_memory_quota, total_disk_quota, total_gpu_quota, allowed_gpu_types, max_cpu_per_sandbox, max_memory_per_sandbox, max_disk_per_sandbox, max_disk_per_non_ephemeral_sandbox, max_cpu_per_gpu, max_memory_per_gpu, max_disk_per_gpu, max_sandbox_lifespan, max_nodes_per_sandbox].hash
     end
 
     # Builds the object from hash

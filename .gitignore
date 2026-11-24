@@ -106,5 +106,3 @@ result
 result-*
 .envrc.local
 
-# generated Go vanity Pages site
-hack/go-vanity/site/

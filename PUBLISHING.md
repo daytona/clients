@@ -90,7 +90,7 @@ The repository includes a GitHub Actions workflow for automated publishing: `.gi
    - **pypi_pkg_version**: (Optional) Override PyPI version
    - **npm_pkg_version**: (Optional) Override npm version
    - **rubygems_pkg_version**: (Optional) Override RubyGems version
-   - **npm_tag**: npm dist-tag (default: `latest`; see [Release Branches](#release-branches) for maintenance releases)
+   - **npm_tag**: npm dist-tag (default: `v0-latest`, because npm `latest` belongs to the 2.x SDK; see [Release Branches](#release-branches)). The deprecated `@daytonaio/sdk`, `@daytonaio/api-client` and `@daytonaio/toolbox-api-client` never get a 2.x release, so with `v0-latest` they are published under `latest` instead (checked by `hack/npm-latest-guard.sh` like a `latest` publish); any other tag applies to them unchanged
 
 #### Required Secrets
 
@@ -133,7 +133,7 @@ To ship a 0.x release, run **Prepare Release**, **Release** and **SDK and CLI Pu
 - refuse `npm_tag: latest` unless the version is above every published stable version (`hack/npm-latest-guard.sh`), and fail after publishing if `latest` is not the highest stable version; use a line tag such as `v0-latest` instead. A package never published to npm must be published once before a release branch can publish it with `latest`;
 - never update the Homebrew tap, except `release/v0` after the [cutover](#cutting-over-to-the-2x-line), which updates the `daytona-v0` formula, and also the `daytona` formula until the first stable 2.x release ([below](#the-daytona-formula-until-2x-is-stable)).
 
-PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The Go vanity site ([`hack/go-vanity`](hack/go-vanity/README.md)) deploys from `release/v0`.
+PyPI, RubyGems and the Go module proxy resolve the newest version by version order, not by publish date, so a maintenance release does not replace the newest release there. Maven and Gradle builds declare an exact version, and version ranges resolve by version order. The 0.x Go modules are published under `github.com/daytona/clients/...` and do not use the `go.daytona.com` vanity site, which serves the 2.x Go SDK and deploys from `main`.
 
 ### Cutting over to the 2.x line
 

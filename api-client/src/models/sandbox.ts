@@ -24,6 +24,9 @@ import type { GpuType } from './gpu-type';
 import type { SandboxDesiredState } from './sandbox-desired-state';
 // May contain unused imports in some cases
 // @ts-ignore
+import type { SandboxNode } from './sandbox-node';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { SandboxState } from './sandbox-state';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -91,11 +94,11 @@ export interface Sandbox {
      */
     'target': string;
     /**
-     * The CPU quota for the sandbox
+     * The CPU quota for the sandbox; for a multi-node sandbox, this is the job total.
      */
     'cpu': number;
     /**
-     * The GPU quota for the sandbox
+     * The GPU quota for the sandbox; for a multi-node sandbox, this is the job total.
      */
     'gpu': number;
     /**
@@ -115,11 +118,11 @@ export interface Sandbox {
      */
     'gpuType'?: GpuType;
     /**
-     * The memory quota for the sandbox
+     * The memory quota for the sandbox; for a multi-node sandbox, this is the job total.
      */
     'memory': number;
     /**
-     * The disk quota for the sandbox
+     * The disk quota for the sandbox; for a multi-node sandbox, this is the job total.
      */
     'disk': number;
     /**
@@ -216,6 +219,34 @@ export interface Sandbox {
      * The toolbox proxy URL for the sandbox
      */
     'toolboxProxyUrl': string;
+    /**
+     * Gang members in rank order. Rank 0 is this sandbox.
+     */
+    'nodes'?: Array<SandboxNode>;
+    /**
+     * Committed logical topology generation.
+     */
+    'topologyGeneration'?: number;
+    /**
+     * Physical incarnation for an internal gang row.
+     */
+    'incarnation'?: number;
+    /**
+     * Derived number of physical nodes in this sandbox.
+     */
+    'nodeCount'?: number;
+    /**
+     * Rank within the gang; present only on internal member rows.
+     */
+    'nodeRank'?: number;
+    /**
+     * Gang head ID; present only on internal member rows.
+     */
+    'headSandboxId'?: string;
+    /**
+     * The gang remains usable but one or more fabric checks are degraded.
+     */
+    'degraded'?: boolean;
 }
 
 export const SandboxBackupStateEnum = {

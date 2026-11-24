@@ -537,7 +537,7 @@ type SandboxAPI interface {
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param sandboxIdOrName ID or name of the sandbox
-	@param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+	@param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
 	@return SandboxAPISetTtlRequest
 	*/
 	SetTtl(ctx context.Context, sandboxIdOrName string, ttlMinutes float32) SandboxAPISetTtlRequest
@@ -563,6 +563,8 @@ type SandboxAPI interface {
 
 	/*
 	StopSandbox Stop sandbox
+
+	Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
 
 	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
 	@param sandboxIdOrName ID or name of the sandbox
@@ -5458,7 +5460,7 @@ SetTtl Set sandbox TTL
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param sandboxIdOrName ID or name of the sandbox
- @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived
+ @param ttlMinutes Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data
  @return SandboxAPISetTtlRequest
 */
 func (a *SandboxAPIService) SetTtl(ctx context.Context, sandboxIdOrName string, ttlMinutes float32) SandboxAPISetTtlRequest {
@@ -5689,6 +5691,8 @@ func (r SandboxAPIStopSandboxRequest) Execute() (*Sandbox, *http.Response, error
 
 /*
 StopSandbox Stop sandbox
+
+Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param sandboxIdOrName ID or name of the sandbox

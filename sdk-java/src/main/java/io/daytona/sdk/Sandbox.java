@@ -4,7 +4,6 @@
 package io.daytona.sdk;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.daytona.api.client.api.SandboxApi;
 import io.daytona.api.client.model.BuildInfo;
 import io.daytona.api.client.model.GpuType;
@@ -25,8 +24,10 @@ import io.daytona.api.client.model.UpdateSandboxSecrets;
 import io.daytona.sdk.exception.DaytonaException;
 import io.daytona.sdk.exception.DaytonaNotFoundException;
 import io.daytona.sdk.exception.DaytonaQueueTimeoutException;
+import io.daytona.sdk.exception.DaytonaRateLimitException;
 import io.daytona.sdk.exception.DaytonaSpotEvictedException;
 import io.daytona.sdk.exception.DaytonaTimeoutException;
+import io.daytona.sdk.internal.EventDispatcher;
 import io.daytona.sdk.internal.EventSubscriptionManager;
 import io.daytona.sdk.model.SandboxMetrics;
 import io.daytona.toolbox.client.api.SystemApi;
@@ -43,24 +44,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.DoubleSupplier;
 
 /**
  * Represents a Daytona Sandbox instance.
  *
  * <p>Exposes lifecycle controls and operation facades for process execution, file-system access,
- * and Git. State changes are streamed over WebSocket by default with polling as a safety net,
- * or observed by polling only when the deprecated polling mode is enabled.
+ * and Git. While a lifecycle call waits for a state change it subscribes to this Sandbox's
+ * state events over WebSocket (connecting on first use) with polling as a safety net, or
+ * observes the state by polling only when the deprecated polling mode is enabled.
  */
 public class Sandbox {
+    private final SandboxNodes nodes = new SandboxNodes(this);
+    private int nodeCount = 1;
+    private Integer topologyGeneration;
+    private boolean degraded;
+
+    /** Rank-ordered nodes, including the head at rank zero. */
+    public SandboxNodes getNodes() { return nodes; }
+    /** Number of nodes reported by the last refresh. */
+    public int getNodeCount() { return nodeCount; }
+    /** Current topology generation, or null when elasticity is unavailable. */
+    public Integer getTopologyGeneration() { return topologyGeneration; }
+    /** Whether the API reports a degraded gang. */
+    public boolean isDegraded() { return degraded; }
+    SandboxApi nodeSandboxApi() { return sandboxApi; }
+    void applyNodeResponse(io.daytona.api.client.model.Sandbox data) { populateFromDTO(data); }
     private static final Map<String, String> SANDBOX_METRIC_FIELD_BY_NAME = Map.of(
             "daytona.sandbox.cpu.utilization", "cpuUsedPct",
             "daytona.sandbox.cpu.limit", "cpuCount",
@@ -73,10 +94,19 @@ public class Sandbox {
     private static final List<String> SANDBOX_METRIC_NAMES =
             List.copyOf(SANDBOX_METRIC_FIELD_BY_NAME.keySet());
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private static final long POLL_ONLY_INTERVAL_MILLIS = 250;
-    private static final long POLL_STREAMING_INTERVAL_MILLIS = 1000;
+    // State events drive waits; polling is only a safety net, so keep it sparse while events flow.
+    private static final long EVENT_BACKED_POLL_INTERVAL_MILLIS = 5000;
+    // Subscribed but no events arrive (connection down, or the subscription rejected by the server, including
+    // past its per-socket limit): start at 1 s and back off, so thousands of such waits do not exhaust the request budget.
+    static final long FALLBACK_POLL_INTERVAL_MILLIS = 1000;
+    static final double FALLBACK_POLL_GROWTH = 1.5;
+    static final long FALLBACK_POLL_MAX_INTERVAL_MILLIS = 10_000;
+    // The longest Retry-After a rate-limited poll honours.
+    static final long MAX_RETRY_AFTER_MILLIS = 60_000;
+    // Spreads the polls of concurrent waits apart.
+    private static final double POLL_JITTER = 0.2;
+    private static final String SANDBOX_STATE_UPDATED_EVENT = "sandbox.state.updated";
     private static final Set<String> STARTED_STATES = Collections.singleton("started");
     private static final Set<String> STOPPED_STATES = new HashSet<>(Arrays.asList("stopped", "destroyed"));
     private static final Set<String> DESTROYED_STATES = Collections.singleton("destroyed");
@@ -128,9 +158,15 @@ public class Sandbox {
     private final String apiKey;
     private final java.util.function.Supplier<String> analyticsApiUrlProvider;
     private final EventSubscriptionManager subscriptionManager;
-    private final Object subscriptionLock = new Object();
-    private String subId;
     private final CopyOnWriteArrayList<StateWaiter> stateWaiters = new CopyOnWriteArrayList<>();
+    // Counts state events seen for this sandbox, so a wait can tell whether one raced its operation's response.
+    private final AtomicLong stateEventCount = new AtomicLong();
+    // Package-private test seams, null in production: a fixed jitter source for the waits' cadences, and
+    // a hook that sees every poll delay a cadence decides and returns the delay actually scheduled.
+    DoubleSupplier pollJitter;
+    PollScheduleHook pollScheduleHook;
+    // Pollers of the waits on this sandbox, woken to read at once when its subscription is rejected.
+    private final Set<Poller> activePollers = ConcurrentHashMap.newKeySet();
 
     // Fields shared by both io.daytona.api.client.model.Sandbox and SandboxListItem.
     private String id;
@@ -212,7 +248,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
-        ensureSubscribed();
+        nodes.update(data);
     }
 
     Sandbox(SandboxApi sandboxApi, DaytonaConfig config, SandboxListItem data,
@@ -233,7 +269,7 @@ public class Sandbox {
         this.git = new Git(new io.daytona.toolbox.client.api.GitApi(toolboxApiClient));
         this.computerUse = new ComputerUse(new io.daytona.toolbox.client.api.ComputerUseApi(toolboxApiClient));
         this.codeInterpreter = new CodeInterpreter(new io.daytona.toolbox.client.api.InterpreterApi(toolboxApiClient), this);
-        ensureSubscribed();
+        nodes.update(null);
     }
 
     /**
@@ -269,7 +305,6 @@ public class Sandbox {
      * @return a new {@link LspServer} configured for the given language
      */
     public LspServer createLspServer(String languageId, String pathToProject) {
-        ensureSubscribed();
         return new LspServer(new io.daytona.toolbox.client.api.LspApi(toolboxApiClient));
     }
 
@@ -287,7 +322,6 @@ public class Sandbox {
      * @throws DaytonaException if the Sandbox fails to start
      */
     public void start() {
-        ensureSubscribed();
         start(60);
     }
 
@@ -301,7 +335,6 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.startSandbox(id, null));
         if (response != null) {
@@ -318,7 +351,6 @@ public class Sandbox {
      * @throws DaytonaException if the Sandbox fails to stop
      */
     public void stop() {
-        ensureSubscribed();
         stop(60);
     }
 
@@ -332,13 +364,19 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
-        ExceptionMapper.callMain(() -> sandboxApi.stopSandbox(id, null, null));
-        refreshData();
-        long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-        long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
-        waitUntilStopped(remaining);
+        PreparedStateWait prepared = prepareStateWait();
+        try {
+            io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.stopSandbox(id, null, null));
+            prepared.setFreshState(applyOperationResponse(response));
+            long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+            long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
+            if (!STOPPED_STATES.contains(state)) {
+                waitForState(STOPPED_STATES, ERROR_STATES, remaining, true, prepared);
+            }
+        } finally {
+            prepared.release();
+        }
     }
 
     /**
@@ -348,7 +386,6 @@ public class Sandbox {
      * @throws DaytonaException if timeout is invalid, state becomes error, or timeout expires
      */
     public void waitUntilStopped(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -397,23 +434,28 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
-        ensureSubscribed();
-        long startTime = System.currentTimeMillis();
-        ExceptionMapper.callMain(() -> sandboxApi.deleteSandbox(id, null));
+        if (!wait) {
+            ExceptionMapper.callMain(() -> sandboxApi.deleteSandbox(id, null));
+            return;
+        }
 
+        long startTime = System.currentTimeMillis();
+        PreparedStateWait prepared = prepareStateWait();
         try {
-            if (wait) {
-                refreshDataSafe();
-                if (!"destroyed".equalsIgnoreCase(state)) {
-                    long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-                    long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
-                    waitForState(DESTROYED_STATES, ERROR_STATES, remaining, true);
-                }
+            io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.deleteSandbox(id, null));
+            if (response != null && response.getState() != null) {
+                populateFromDTO(response);
+                prepared.setFreshState(true);
+            } else {
+                prepared.setFreshState(refreshDataSafe());
+            }
+            if (!"destroyed".equalsIgnoreCase(state)) {
+                long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+                long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
+                waitForState(DESTROYED_STATES, ERROR_STATES, remaining, true, prepared);
             }
         } finally {
-            synchronized (subscriptionLock) {
-                unsubscribeFromEventsLocked();
-            }
+            prepared.release();
         }
     }
 
@@ -425,13 +467,13 @@ public class Sandbox {
      * @throws DaytonaException if label update fails
      */
     public Map<String, String> setLabels(Map<String, String> labels) {
-        ensureSubscribed();
-        ExceptionMapper.callMain(() -> {
-            okhttp3.Call call = sandboxApi.replaceLabelsCall(id, new SandboxLabels().labels(labels), null, null);
-            sandboxApi.getApiClient().execute(call, null);
-            return null;
-        });
-        refreshData();
+        SandboxLabels response = ExceptionMapper.callMain(
+                () -> sandboxApi.replaceLabels(id, new SandboxLabels().labels(labels), null));
+        if (response != null && response.getLabels() != null) {
+            this.labels = response.getLabels();
+        } else {
+            refreshData();
+        }
         return this.labels;
     }
 
@@ -445,7 +487,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setPublic(boolean isPublic) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.updatePublicStatus(id, isPublic, null));
         if (response != null) {
             populateFromDTO(response);
@@ -459,7 +500,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setAutostopInterval(int minutes) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutostopInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
@@ -486,7 +526,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setAutoArchiveInterval(int minutes) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutoArchiveInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
@@ -500,7 +539,6 @@ public class Sandbox {
      * @throws DaytonaException if the update fails
      */
     public void setAutoDeleteInterval(int minutes) {
-        ensureSubscribed();
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.setAutoDeleteInterval(id, BigDecimal.valueOf(minutes), null));
         if (response != null) {
             populateFromDTO(response);
@@ -567,7 +605,6 @@ public class Sandbox {
      * @throws DaytonaException if the request fails
      */
     public String getUserHomeDir() {
-        ensureSubscribed();
         io.daytona.toolbox.client.model.UserHomeDirResponse value = ExceptionMapper.callToolbox(() -> infoApi.getUserHomeDir());
         return value == null ? "" : asString(value.getDir());
     }
@@ -697,7 +734,6 @@ public class Sandbox {
      * @throws DaytonaException if the request fails
      */
     public String getWorkDir() {
-        ensureSubscribed();
         io.daytona.toolbox.client.model.WorkDirResponse value = ExceptionMapper.callToolbox(() -> infoApi.getWorkDir());
         return value == null ? "" : asString(value.getDir());
     }
@@ -833,7 +869,6 @@ public class Sandbox {
      * @throws DaytonaException if timeout is invalid, state becomes failure, or timeout expires
      */
     public void waitUntilStarted(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -850,7 +885,6 @@ public class Sandbox {
      * @throws DaytonaException if resize times out or fails
      */
     public void waitForResizeComplete(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -867,11 +901,29 @@ public class Sandbox {
      * @throws DaytonaException if refresh fails
      */
     public void refreshData() {
-        ensureSubscribed();
+        fetchData();
+    }
+
+    /** Refreshes like {@link #refreshData()}; returns whether the API returned the sandbox. */
+    private boolean fetchData() {
         io.daytona.api.client.model.Sandbox data = ExceptionMapper.callMain(() -> sandboxApi.getSandbox(id, null, null));
-        if (data != null) {
-            populateFromDTO(data);
+        if (data == null) {
+            return false;
         }
+        populateFromDTO(data);
+        return true;
+    }
+
+    /**
+     * Applies a lifecycle operation's response; older servers may return an empty body, then the
+     * sandbox is read instead. Returns whether the cached state now comes from the response or that read.
+     */
+    private boolean applyOperationResponse(io.daytona.api.client.model.Sandbox response) {
+        if (response != null && response.getState() != null) {
+            populateFromDTO(response);
+            return true;
+        }
+        return fetchData();
     }
 
     /**
@@ -908,6 +960,10 @@ public class Sandbox {
         this.volumes = d.getVolumes() == null ? null : Collections.unmodifiableList(d.getVolumes());
         this.buildInfo = d.getBuildInfo();
         this.backupCreatedAt = d.getBackupCreatedAt();
+        if (d.getNodeCount() != null) this.nodeCount = d.getNodeCount();
+        if (d.getTopologyGeneration() != null) this.topologyGeneration = d.getTopologyGeneration();
+        if (d.getDegraded() != null) this.degraded = d.getDegraded();
+        if (toolboxApiClient != null) nodes.update(d);
 
         applyState(d.getState() == null ? "" : d.getState().getValue());
     }
@@ -977,10 +1033,13 @@ public class Sandbox {
         this.updatedAt = updatedAt;
         this.lastActivityAt = lastActivityAt;
         String newProxyUrl = asString(toolboxProxyUrl);
-        if (!newProxyUrl.isEmpty() && !newProxyUrl.equals(this.toolboxProxyUrl) && this.toolboxApiClient != null) {
-            this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
+        if (!newProxyUrl.isBlank() && !newProxyUrl.equals(this.toolboxProxyUrl)) {
+            this.toolboxProxyUrl = newProxyUrl;
+            if (this.toolboxApiClient != null) {
+                this.toolboxApiClient.setBasePath(trimTrailingSlash(newProxyUrl) + "/" + this.id);
+                nodes.updateProxy(newProxyUrl);
+            }
         }
-        this.toolboxProxyUrl = newProxyUrl;
         this.autoDestroyAt = autoDestroyAt;
         this.queueTimeout = queueTimeout;
         this.sandboxClass = sandboxClass;
@@ -1000,39 +1059,26 @@ public class Sandbox {
         }
     }
 
-    private void ensureSubscribed() {
-        synchronized (subscriptionLock) {
-            if (subId != null) {
-                if (subscriptionManager.refresh(subId)) {
-                    return;
-                }
-                subId = null;
-            }
-
-            subId = subscriptionManager.subscribe(id, this::handleEvent,
-                    Arrays.asList("sandbox.state.updated", "sandbox.created"));
-        }
-    }
-
+    // Reads only the state, so slim payloads ({sandbox: {id, state, ...}, oldState, newState}) work.
     private void handleEvent(String eventName, JsonNode data) {
+        if (EventDispatcher.SUBSCRIPTION_REJECTED_EVENT.equals(eventName)) {
+            for (Poller poller : activePollers) {
+                poller.wake();
+            }
+            return;
+        }
         if (data == null || !data.isObject()) {
             return;
         }
 
-        if ("sandbox.created".equals(eventName)) {
-            JsonNode sandboxNode = data.has("sandbox") ? data.get("sandbox") : data;
-            if (sandboxNode != null) {
-                updateFromJsonEvent(sandboxNode);
-            }
-            return;
-        }
-
+        boolean hasReason = false;
         JsonNode eventSandbox = data.get("sandbox");
         if (eventSandbox != null && eventSandbox.isObject()) {
             // Set before the state: a wait that ends on an error state reports this reason. The event omits the
             // field when the sandbox has none.
             JsonNode reason = eventSandbox.path("errorReason");
-            this.errorReason = reason.isTextual() ? reason.asText() : null;
+            hasReason = reason.isTextual();
+            this.errorReason = hasReason ? reason.asText() : null;
         }
 
         JsonNode stateNode = data.path("newState");
@@ -1042,26 +1088,121 @@ public class Sandbox {
                 stateNode = sandboxNode.path("state");
             }
         }
-
-        if (stateNode.isTextual()) {
-            applyState(stateNode.asText());
-        }
-    }
-
-    private void unsubscribeFromEventsLocked() {
-        if (subId == null) {
-            subId = null;
+        if (!stateNode.isTextual()) {
             return;
         }
+        String newState = stateNode.asText();
+        stateEventCount.incrementAndGet();
 
-        subscriptionManager.unsubscribe(subId);
-        subId = null;
+        if (!hasReason && stateWaiters.stream().anyMatch(waiter -> waiter.errorStates.contains(newState))) {
+            // An error state without its reason: read the sandbox first, so the wait's error carries it.
+            // Off the event thread, which must not block on HTTP.
+            REFRESH_EXECUTOR.submit(() -> {
+                try {
+                    if (!fetchData()) {
+                        // An empty body carries nothing to read; the event's state still ends the wait.
+                        applyState(newState);
+                        return;
+                    }
+                    for (StateWaiter waiter : stateWaiters) {
+                        notifyWaiterOfCurrentState(waiter);
+                    }
+                } catch (Exception e) {
+                    applyState(newState);
+                }
+            });
+            return;
+        }
+        applyState(newState);
     }
 
+    /**
+     * Takes the state subscription for an operation's wait: before the operation's request when the
+     * sandbox id is known, so every state change after the request arrives as an event.
+     */
+    private PreparedStateWait prepareStateWait() {
+        // Baseline first: the handler runs on the dispatcher thread, so an event can arrive as soon as
+        // the subscribe is in place. Any event or reconnect from then on changes it, and the wait reads first.
+        long stateEventCountBefore = stateEventCount.get();
+        long connectionEpochBefore = subscriptionManager.connectionEpoch();
+        String subId = subscriptionManager.subscribe(id, this::handleEvent,
+                Collections.singletonList(SANDBOX_STATE_UPDATED_EVENT));
+        boolean live = subId != null && subscriptionManager.isEventBacked(id);
+        return new PreparedStateWait(subId, live, stateEventCountBefore, connectionEpochBefore);
+    }
+
+    /**
+     * A subscription taken before an operation's request. The operation's wait takes it over;
+     * {@link #release()} drops it if the wait never did (request failed, or no wait was needed).
+     */
+    private final class PreparedStateWait {
+        private String subId;
+        private final boolean live;
+        private final long stateEventCountAtSubscribe;
+        private final long connectionEpochAtSubscribe;
+        // Whether the cached state comes from the operation's response or a successful read taken after
+        // subscribing; without it the wait must read first.
+        private boolean freshState;
+
+        PreparedStateWait(String subId, boolean live, long stateEventCountAtSubscribe, long connectionEpochAtSubscribe) {
+            this.subId = subId;
+            this.live = live;
+            this.stateEventCountAtSubscribe = stateEventCountAtSubscribe;
+            this.connectionEpochAtSubscribe = connectionEpochAtSubscribe;
+        }
+
+        void setFreshState(boolean freshState) {
+            this.freshState = freshState;
+        }
+
+        String takeSubscription() {
+            String taken = subId;
+            subId = null;
+            return taken;
+        }
+
+        // Every later change arrives as an event when the subscription was live before the request, the
+        // connection did not drop since (events sent while it was down are lost) and no state event raced
+        // the response, so the wait's first read is redundant. An error or unexpected destroyed state from
+        // the response, or a state not read after subscribing, still gets the read, and so does a
+        // subscription that expired during the request (a new one would have missed the changes in between).
+        boolean canSkipFirstRead(Set<String> targetStates, Set<String> errorStates) {
+            String responseState = state;
+            boolean responseStateIsFailure = responseState != null
+                    && (errorStates.contains(responseState)
+                    || (DESTROYED_STATES.contains(responseState) && !targetStates.contains(responseState)));
+            return live && freshState && subId != null && subscriptionManager.refresh(subId)
+                    && subscriptionManager.isEventBacked(id)
+                    && subscriptionManager.connectionEpoch() == connectionEpochAtSubscribe
+                    && stateEventCount.get() == stateEventCountAtSubscribe
+                    && !responseStateIsFailure;
+        }
+
+        void release() {
+            String toRelease = takeSubscription();
+            if (toRelease != null) {
+                subscriptionManager.unsubscribe(toRelease);
+            }
+        }
+    }
+
+    /**
+     * Waits for one of {@code targetStates}. The wait holds its own subscription to this
+     * Sandbox's state events for its whole duration and releases it on every exit, and polls
+     * the state as a safety net at the interval chosen by {@link WaitPollCadence}, which is
+     * re-evaluated before every poll.
+     */
     private void waitForState(Set<String> targetStates, Set<String> errorStates,
                               long timeoutSeconds, boolean safeRefresh) {
-        ensureSubscribed();
-        boolean subscribed = hasActiveSubscription();
+        waitForState(targetStates, errorStates, timeoutSeconds, safeRefresh, null);
+    }
+
+    /**
+     * @param prepared subscription taken before the operation's request, or {@code null}; the wait
+     *                 takes it over once it starts polling, the caller releases it otherwise
+     */
+    private void waitForState(Set<String> targetStates, Set<String> errorStates,
+                              long timeoutSeconds, boolean safeRefresh, PreparedStateWait prepared) {
         StateWaiter waiter = new StateWaiter(targetStates, errorStates);
         stateWaiters.add(waiter);
 
@@ -1079,24 +1220,14 @@ public class Sandbox {
                 waiter.throwIfError(this);
             }
 
-            long pollIntervalMillis = subscribed ? POLL_STREAMING_INTERVAL_MILLIS : POLL_ONLY_INTERVAL_MILLIS;
-            AtomicBoolean refreshInFlight = new AtomicBoolean(false);
-            ScheduledFuture<?> pollFuture = POLL_SCHEDULER.scheduleAtFixedRate(() -> {
-                if (waiter.isResolved()) {
-                    return;
-                }
-                if (refreshInFlight.compareAndSet(false, true)) {
-                    REFRESH_EXECUTOR.submit(() -> {
-                        try {
-                            runPollingRefresh(waiter, safeRefresh);
-                        } finally {
-                            refreshInFlight.set(false);
-                        }
-                    });
-                }
-            }, 0, pollIntervalMillis, TimeUnit.MILLISECONDS);
-
+            Poller poller = new Poller(waiter, safeRefresh);
             try {
+                if (prepared != null) {
+                    boolean skipFirstRead = prepared.canSkipFirstRead(targetStates, errorStates);
+                    poller.start(prepared.takeSubscription(), skipFirstRead);
+                } else {
+                    poller.start();
+                }
                 boolean completed;
                 if (timeoutSeconds > 0) {
                     completed = waiter.latch.await(timeoutSeconds, TimeUnit.SECONDS);
@@ -1106,7 +1237,7 @@ public class Sandbox {
                 }
 
                 if (!completed) {
-                    pollFuture.cancel(false);
+                    poller.stop();
                     try {
                         if (safeRefresh) {
                             refreshDataSafe();
@@ -1129,22 +1260,263 @@ public class Sandbox {
                 Thread.currentThread().interrupt();
                 throw new DaytonaException("Interrupted while waiting for sandbox state change", e);
             } finally {
-                pollFuture.cancel(false);
+                poller.stop();
             }
         } finally {
             stateWaiters.remove(waiter);
         }
     }
 
-    private void refreshDataSafe() {
-        try {
-            refreshData();
-        } catch (DaytonaNotFoundException e) {
-            applyState("destroyed");
+    /** Test seam: sees each poll delay a wait's cadence decides, and returns the delay to schedule. */
+    @FunctionalInterface
+    interface PollScheduleHook {
+        long schedule(long decidedMillis, boolean subscribed, boolean eventBacked);
+    }
+
+    /**
+     * The poll cadence of one wait; it keeps the fallback backoff between polls. Without a
+     * subscription the fast interval applies unchanged; with one, every interval is jittered by
+     * {@code random}, a uniform source in [0, 1]. A stretch of being event-backed restarts the
+     * fallback backoff at its first interval. Not thread-safe: the poller calls it under its lock.
+     */
+    static final class WaitPollCadence {
+        private final DoubleSupplier random;
+        private double fallbackIntervalMillis = FALLBACK_POLL_INTERVAL_MILLIS;
+
+        WaitPollCadence(DoubleSupplier random) {
+            this.random = random;
+        }
+
+        long millis(boolean subscribed, boolean eventBacked) {
+            if (!subscribed) {
+                return POLL_ONLY_INTERVAL_MILLIS;
+            }
+            if (eventBacked) {
+                fallbackIntervalMillis = FALLBACK_POLL_INTERVAL_MILLIS;
+                return jitter(EVENT_BACKED_POLL_INTERVAL_MILLIS);
+            }
+            double interval = fallbackIntervalMillis;
+            advance();
+            return jitter(interval);
+        }
+
+        /**
+         * Delay after a rate-limited poll, in any mode: the longest of the mode's interval, the fallback
+         * backoff and Retry-After, then one backoff step, so repeated 429s slow every wait down. When
+         * Retry-After decides, it gets upward jitter only, so waits told the same never retry together nor early.
+         */
+        long rateLimitedMillis(boolean subscribed, boolean eventBacked, long retryAfterMillis) {
+            double factor = 1 + POLL_JITTER * (2 * random.getAsDouble() - 1);
+            double mode = !subscribed ? POLL_ONLY_INTERVAL_MILLIS : eventBacked ? EVENT_BACKED_POLL_INTERVAL_MILLIS * factor : 0;
+            double delay = Math.max(mode, fallbackIntervalMillis * factor);
+            if (retryAfterMillis > delay) {
+                delay = retryAfterMillis * (1 + POLL_JITTER * random.getAsDouble());
+            }
+            advance();
+            return Math.round(delay);
+        }
+
+        private void advance() {
+            fallbackIntervalMillis = Math.min(fallbackIntervalMillis * FALLBACK_POLL_GROWTH, FALLBACK_POLL_MAX_INTERVAL_MILLIS);
+        }
+
+        private long jitter(double intervalMillis) {
+            return Math.round(intervalMillis * (1 + POLL_JITTER * (2 * random.getAsDouble() - 1)));
         }
     }
 
-    private void runPollingRefresh(StateWaiter waiter, boolean safeRefresh) {
+    /**
+     * The {@code Retry-After} of a rate-limit error in milliseconds (seconds or an HTTP date), at most
+     * {@link #MAX_RETRY_AFTER_MILLIS}; 0 when absent, negative, non-finite or unparseable.
+     */
+    static long retryAfterMillis(DaytonaException error, long nowMillis) {
+        String value = null;
+        for (Map.Entry<String, String> header : error.getHeaders().entrySet()) {
+            if ("retry-after".equalsIgnoreCase(header.getKey())) {
+                value = header.getValue();
+            }
+        }
+        if (value == null || value.trim().isEmpty()) {
+            return 0;
+        }
+        value = value.trim();
+        // Whole seconds only (RFC 9110 delay-seconds), as in the other SDKs.
+        if (value.matches("\\d+")) {
+            double seconds = Double.parseDouble(value);
+            return Double.isFinite(seconds) ? (long) Math.min(seconds * 1000, MAX_RETRY_AFTER_MILLIS) : 0;
+        }
+        try {
+            long date = java.time.ZonedDateTime.parse(value, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+                    .toInstant().toEpochMilli();
+            return Math.min(Math.max(0, date - nowMillis), MAX_RETRY_AFTER_MILLIS);
+        } catch (java.time.format.DateTimeParseException notADate) {
+            return 0;
+        }
+    }
+
+    static boolean isRateLimit(Throwable error) {
+        return error instanceof DaytonaRateLimitException
+                || (error instanceof DaytonaException && ((DaytonaException) error).getStatusCode() == 429);
+    }
+
+    /**
+     * Polls the Sandbox state for one wait and owns the wait's event subscription, which is
+     * created by {@link #start()} and released by {@link #stop()}. One read runs at a time, and the next
+     * poll is scheduled once it has finished, so there is a single tick chain per wait.
+     */
+    private final class Poller {
+        private final StateWaiter waiter;
+        private final boolean safeRefresh;
+        private final Object pollLock = new Object();
+        private final WaitPollCadence cadence = new WaitPollCadence(pollJitter != null
+                ? pollJitter
+                : () -> ThreadLocalRandom.current().nextDouble());
+        private final PollScheduleHook scheduleHook = pollScheduleHook;
+        // All guarded by pollLock.
+        private boolean stopped;
+        private String subId;
+        private ScheduledFuture<?> next;
+        private boolean reading;
+
+        Poller(StateWaiter waiter, boolean safeRefresh) {
+            this.waiter = waiter;
+            this.safeRefresh = safeRefresh;
+        }
+
+        void start() {
+            synchronized (pollLock) {
+                subId = subscribe();
+            }
+            activePollers.add(this);
+            schedule(0);
+        }
+
+        void start(String preparedSubId, boolean skipFirstRead) {
+            synchronized (pollLock) {
+                subId = preparedSubId;
+            }
+            activePollers.add(this);
+            if (skipFirstRead && preparedSubId != null) {
+                scheduleNext(null);
+            } else {
+                schedule(0);
+            }
+        }
+
+        /**
+         * The subscription was rejected, so no events come: read now. A read already running covers the state,
+         * and the next poll is chosen when it returns.
+         */
+        void wake() {
+            synchronized (pollLock) {
+                if (stopped || reading) {
+                    return;
+                }
+            }
+            schedule(0);
+        }
+
+        void stop() {
+            activePollers.remove(this);
+            String toRelease;
+            synchronized (pollLock) {
+                stopped = true;
+                if (next != null) {
+                    next.cancel(false);
+                    next = null;
+                }
+                toRelease = subId;
+                subId = null;
+            }
+            if (toRelease != null) {
+                subscriptionManager.unsubscribe(toRelease);
+            }
+        }
+
+        private String subscribe() {
+            return subscriptionManager.subscribe(id, Sandbox.this::handleEvent,
+                    Collections.singletonList(SANDBOX_STATE_UPDATED_EVENT));
+        }
+
+        /** Schedules the next tick, replacing any pending one. */
+        private void schedule(long delayMillis) {
+            synchronized (pollLock) {
+                if (stopped) {
+                    return;
+                }
+                if (next != null) {
+                    next.cancel(false);
+                }
+                next = POLL_SCHEDULER.schedule(this::tick, delayMillis, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        private void tick() {
+            synchronized (pollLock) {
+                if (stopped || waiter.isResolved()) {
+                    return;
+                }
+                if (reading) {
+                    // A tick that raced a running read: the read covers it, and schedules the next poll.
+                    return;
+                }
+                reading = true;
+            }
+            REFRESH_EXECUTOR.submit(() -> {
+                Long rateLimitedRetryAfter = null;
+                try {
+                    rateLimitedRetryAfter = runPollingRefresh(waiter, safeRefresh);
+                } finally {
+                    afterRead(rateLimitedRetryAfter);
+                }
+            });
+        }
+
+        private void afterRead(Long rateLimitedRetryAfter) {
+            synchronized (pollLock) {
+                reading = false;
+                if (stopped || waiter.isResolved()) {
+                    return;
+                }
+                // Chosen now, after the read: a rejection that came during it already switched the mode.
+                scheduleNext(rateLimitedRetryAfter);
+            }
+        }
+
+        /**
+         * Keeps the wait's subscription alive (subscribing again if it expired) and schedules the next poll
+         * at the cadence, or after a rate-limited read when {@code rateLimitedRetryAfter} is set.
+         */
+        private void scheduleNext(Long rateLimitedRetryAfter) {
+            synchronized (pollLock) {
+                if (stopped) {
+                    return;
+                }
+                if (subId == null || !subscriptionManager.refresh(subId)) {
+                    subId = subscribe();
+                }
+                boolean subscribed = subId != null;
+                boolean eventBacked = subscribed && subscriptionManager.isEventBacked(id);
+                long delay = rateLimitedRetryAfter == null
+                        ? cadence.millis(subscribed, eventBacked)
+                        : cadence.rateLimitedMillis(subscribed, eventBacked, rateLimitedRetryAfter);
+                schedule(scheduleHook == null ? delay : scheduleHook.schedule(delay, subscribed, eventBacked));
+            }
+        }
+    }
+
+    /** Like {@link #fetchData()}, but a 404 means the sandbox is destroyed. */
+    private boolean refreshDataSafe() {
+        try {
+            return fetchData();
+        } catch (DaytonaNotFoundException e) {
+            applyState("destroyed");
+            return true;
+        }
+    }
+
+    /** One poll of a wait; returns the Retry-After (0 when absent) if it was rate limited, else null. */
+    private Long runPollingRefresh(StateWaiter waiter, boolean safeRefresh) {
         try {
             if (safeRefresh) {
                 refreshDataSafe();
@@ -1155,34 +1527,19 @@ public class Sandbox {
             // notify the waiter after each successful refresh.
             notifyWaiterOfCurrentState(waiter);
         } catch (Exception e) {
+            if (isRateLimit(e)) {
+                // A rate-limited poll backs off instead of failing the wait.
+                return retryAfterMillis((DaytonaException) e, System.currentTimeMillis());
+            }
             waiter.onPollError(e instanceof RuntimeException ? (RuntimeException) e : new DaytonaException(e.getMessage(), e));
         }
+        return null;
     }
 
     private void notifyWaiterOfCurrentState(StateWaiter waiter) {
         String current = this.state;
         if (current != null) {
             waiter.onStateChanged(current, queueTimedOutAt != null, spotEvictedAt != null, errorReason);
-        }
-    }
-
-    private boolean hasActiveSubscription() {
-        synchronized (subscriptionLock) {
-            return subId != null;
-        }
-    }
-
-    private void updateFromJsonEvent(JsonNode node) {
-        try {
-            io.daytona.api.client.model.Sandbox model = OBJECT_MAPPER.treeToValue(node, io.daytona.api.client.model.Sandbox.class);
-            if (model != null) {
-                populateFromDTO(model);
-            }
-        } catch (Exception e) {
-            JsonNode stateNode = node.path("state");
-            if (stateNode.isTextual()) {
-                applyState(stateNode.asText());
-            }
         }
     }
 
@@ -1322,7 +1679,22 @@ public class Sandbox {
             () -> sandboxApi.forkSandbox(id, forkReq, null)
         );
         Sandbox forked = new Sandbox(sandboxApi, config, response, analyticsApiUrlProvider, subscriptionManager);
-        forked.waitUntilStarted(timeoutSeconds);
+        if (STARTED_STATES.contains(forked.state)) {
+            return forked;
+        }
+        // The fork's id is only known from the response, so subscribe right after it. The fork endpoint
+        // returns before the new sandbox starts, so the transition still arrives as an event.
+        PreparedStateWait prepared = forked.prepareStateWait();
+        // Constructing the fork fetches a missing proxy URL (older servers), which widens the gap
+        // before the subscription; read first then.
+        boolean proxyUrlInResponse = response != null
+                && response.getToolboxProxyUrl() != null && !response.getToolboxProxyUrl().isEmpty();
+        prepared.setFreshState(response != null && response.getState() != null && proxyUrlInResponse);
+        try {
+            forked.waitForState(STARTED_STATES, ERROR_STATES, timeoutSeconds, false, prepared);
+        } finally {
+            prepared.release();
+        }
         return forked;
     }
 
@@ -1426,7 +1798,6 @@ public class Sandbox {
     }
 
     private void waitForSnapshotComplete(long timeoutSeconds) {
-        ensureSubscribed();
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be non-negative");
         }
@@ -1458,16 +1829,20 @@ public class Sandbox {
         if (timeoutSeconds < 0) {
             throw new DaytonaException("Timeout must be a non-negative number");
         }
-        ensureSubscribed();
         long startTime = System.currentTimeMillis();
-        ExceptionMapper.callMain(() -> sandboxApi.pauseSandbox(id, null));
-        refreshData();
-        if (PAUSE_TARGET_STATES.contains(state)) {
-            return;
+        PreparedStateWait prepared = prepareStateWait();
+        try {
+            io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.pauseSandbox(id, null));
+            prepared.setFreshState(applyOperationResponse(response));
+            if (PAUSE_TARGET_STATES.contains(state)) {
+                return;
+            }
+            long elapsed = (System.currentTimeMillis() - startTime) / 1000;
+            long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
+            waitForState(PAUSE_TARGET_STATES, ERROR_STATES, remaining, false, prepared);
+        } finally {
+            prepared.release();
         }
-        long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-        long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : 0;
-        waitForState(PAUSE_TARGET_STATES, ERROR_STATES, remaining, false);
     }
 
     /** @return Sandbox ID. */

@@ -3,35 +3,46 @@
 from __future__ import annotations
 
 import asyncio
-import functools
-import inspect
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import Any, TypeVar
+from typing import Any
 
 from deprecated import deprecated
-from pydantic import ConfigDict, PrivateAttr
+from pydantic import (
+    ConfigDict,
+    GetJsonSchemaHandler,
+    PrivateAttr,
+    SerializerFunctionWrapHandler,
+    TypeAdapter,
+    field_serializer,
+    model_serializer,
+)
+from pydantic.json_schema import JsonSchemaValue
+from typing_extensions import override
 
 from daytona_analytics_api_client_async import ApiClient as AnalyticsApiClient
 from daytona_analytics_api_client_async import Configuration as AnalyticsConfiguration
 from daytona_analytics_api_client_async import TelemetryApi
 from daytona_api_client_async import (
+    AddGangNodes,
     BuildInfo,
     ConfigApi,
     CreateSandboxSnapshot,
     ForkSandbox,
+    GangMembershipOperation,
+    GangNodeFailure,
+    GangNodeResources,
     GpuType,
     PortPreviewUrl,
+    RemoveGangNodes,
+    ReplaceGangNode,
     ResizeSandbox,
 )
 from daytona_api_client_async import Sandbox as SandboxDto
+from daytona_api_client_async import SandboxApi, SandboxClass, SandboxDesiredState, SandboxLabels, SandboxListItem
+from daytona_api_client_async import SandboxNode as SandboxNodeDto
 from daytona_api_client_async import (
-    SandboxApi,
-    SandboxClass,
-    SandboxDesiredState,
-    SandboxLabels,
-    SandboxListItem,
     SandboxState,
     SandboxVolume,
     SignedPortPreviewUrl,
@@ -63,17 +74,27 @@ from ..common.errors import (
     DaytonaError,
     DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
+    DaytonaRateLimitError,
     DaytonaSpotEvictedError,
+    DaytonaTimeoutError,
     DaytonaValidationError,
 )
 from ..common.lsp_server import LspLanguageId, LspLanguageIdLiteral
+from ..common.process import ExecuteResponse
 from ..common.sandbox import (
     SANDBOX_METRIC_NAMES,
+    NodeResources,
     Resources,
     SandboxMetrics,
     pivot_sandbox_metrics,
+    raise_node_execution_error,
     sandbox_metrics_from_system_metrics,
+    serialize_sandbox_membership,
+    validate_node_exec_timeout,
+    validate_scalar_resources,
 )
+from ..internal import wait_poll
+from ..internal.event_dispatcher import SUBSCRIPTION_REJECTED_EVENT
 from ..internal.event_subscription_manager import AsyncEventSubscriptionManager
 from ..internal.pool_tracker import AsyncPoolSaturationTracker
 from ..internal.toolbox_api_client_proxy import ToolboxApiClientProxy
@@ -84,39 +105,354 @@ from .git import AsyncGit
 from .lsp_server import AsyncLspServer
 from .process import AsyncProcess
 
-_T = TypeVar("_T")
+_RDMA_USERSPACE_CHECK = (
+    "sh -lc 'ldconfig -p 2>/dev/null | grep -q libibverbs.so.1 && "
+    'find /usr/lib /lib -name "libmlx5-rdmav*.so" -print -quit 2>/dev/null | grep -q .\''
+)
+_RDMA_USERSPACE_WARNING = (
+    "WARNING: rdma-core userspace (libibverbs.so.1 and an mlx5 provider) is missing; "
+    + "NCCL may fall back to sockets."
+)
 
 
-def with_events(cls: _T) -> _T:
-    for name in list(vars(cls)):
-        if name.startswith("_"):
-            continue
-        method = vars(cls)[name]
-        if not callable(method):
-            continue
+class AsyncSandboxNode:
+    """Lightweight async data-plane handle for one node in a multi-node Sandbox."""
 
-        if inspect.iscoroutinefunction(method):
+    def __init__(
+        self,
+        node: SandboxNodeDto,
+        toolbox_api: ApiClient,
+        toolbox_proxy_url: str,
+        sandbox_api: SandboxApi,
+        language: str,
+        pool_tracker: AsyncPoolSaturationTracker | None,
+    ) -> None:
+        if not node.id or node.id in {".", ".."} or any(char in node.id for char in "/\\?#%"):
+            raise DaytonaValidationError("Sandbox node id must be a valid path segment")
+        self.rank: int = node.rank
+        self.id: str = node.id
+        self.cpu: int = node.cpu
+        self.gpu: int = node.gpu
+        self.memory: int = node.memory
+        self.disk: int = node.disk
+        self.state: SandboxState = node.state
+        self.incarnation: int = node.incarnation
+        self.failure: GangNodeFailure | None = node.failure
+        self.fabric_address: str | None = None
+        self.fabric_prefix_length: int | None = None
+        self.fabric_healthy: bool | None = None
+        self.fabric_unhealthy_since: str | None = None
+        self.warnings: list[str] = []
+        self._rdma_lock: asyncio.Lock = asyncio.Lock()
+        self._rdma_incarnation: int | None = None
+        self._rdma_warning: str = ""
+        self._sandbox_api: SandboxApi = sandbox_api
+        self._toolbox_api: ToolboxApiClientProxy[ApiClient] = ToolboxApiClientProxy(
+            toolbox_api, self.id, toolbox_proxy_url, pool_tracker
+        )
+        self.fs: AsyncFileSystem = AsyncFileSystem(FileSystemApi(self._toolbox_api))
+        self.process: AsyncProcess = AsyncProcess(language, ProcessApi(self._toolbox_api))
+        self.update(node)
 
-            @functools.wraps(method)
-            async def async_wrapper(self: Any, *args: Any, _m: Any = method, **kwargs: Any) -> Any:
-                if getattr(self, "__pydantic_private__", None) is not None:
-                    self._ensure_subscribed()
-                return await _m(self, *args, **kwargs)
+    def update(self, node: SandboxNodeDto) -> None:
+        """Refresh resources, state, incarnation, failure details and fabric metadata.
 
-            setattr(cls, name, async_wrapper)
-        else:
+        Raises:
+            DaytonaError: If the node rank or ID differs from this handle.
+        """
+        if node.rank != self.rank or node.id != self.id:
+            raise DaytonaError(
+                f"Sandbox node identity changed from rank {self.rank}/{self.id} to {node.rank}/{node.id}"
+            )
+        self.cpu = node.cpu
+        self.gpu = node.gpu
+        self.memory = node.memory
+        self.disk = node.disk
+        self.state = node.state
+        if self.incarnation != node.incarnation and self._rdma_warning in self.warnings:
+            self.warnings.remove(self._rdma_warning)
+        self.incarnation = node.incarnation
+        self.failure = node.failure
+        self.fabric_address = node.fabric_address
+        self.fabric_prefix_length = node.fabric_prefix_length
+        self.fabric_healthy = node.fabric_healthy
+        self.fabric_unhealthy_since = node.fabric_unhealthy_since
 
-            @functools.wraps(method)
-            def sync_wrapper(self: Any, *args: Any, _m: Any = method, **kwargs: Any) -> Any:
-                if getattr(self, "__pydantic_private__", None) is not None:
-                    self._ensure_subscribed()
-                return _m(self, *args, **kwargs)
+    async def _check_rdma(self) -> None:
+        async with self._rdma_lock:
+            incarnation = self.incarnation
+            if self._rdma_incarnation == incarnation:
+                return
+            try:
+                check = await self.process.exec(_RDMA_USERSPACE_CHECK, timeout=5)
+                warning = "" if check.exit_code == 0 else _RDMA_USERSPACE_WARNING
+            except Exception:  # The advisory probe must not prevent the user's command.
+                warning = "WARNING: Could not check RDMA userspace; continuing without verification."
+            if self.incarnation == incarnation:
+                self._rdma_incarnation = incarnation
+                self._rdma_warning = warning
+                if warning and warning not in self.warnings:
+                    self.warnings.append(warning)
 
-            setattr(cls, name, sync_wrapper)
-    return cls
+    def _to_dto(self) -> SandboxNodeDto:
+        return SandboxNodeDto(
+            rank=self.rank,
+            id=self.id,
+            state=self.state,
+            incarnation=self.incarnation,
+            failure=self.failure,
+            cpu=self.cpu,
+            gpu=self.gpu,
+            memory=self.memory,
+            disk=self.disk,
+            fabric_address=self.fabric_address,
+            fabric_prefix_length=self.fabric_prefix_length,
+            fabric_healthy=self.fabric_healthy,
+            fabric_unhealthy_since=self.fabric_unhealthy_since,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this live handle in the generated node DTO wire shape."""
+        return self._to_dto().to_dict()
+
+    @intercept_errors(message_prefix="Failed to get node preview link: ")
+    @with_instrumentation()
+    async def get_preview_link(self, port: int, request_timeout: float | None = None) -> PortPreviewUrl:
+        """Get a preview URL for a port on this node."""
+        return await self._sandbox_api.get_port_preview_url(
+            self.id, port, _request_timeout=http_timeout(request_timeout)
+        )
+
+    @intercept_errors(message_prefix="Failed to create node SSH access: ")
+    @with_instrumentation()
+    async def create_ssh_access(
+        self,
+        expires_in_minutes: int | None = None,
+        request_timeout: float | None = None,
+    ) -> SshAccessDto:
+        """Create an SSH access token for this node."""
+        return await self._sandbox_api.create_ssh_access(
+            self.id,
+            expires_in_minutes=expires_in_minutes,
+            _request_timeout=http_timeout(request_timeout),
+        )
+
+    @intercept_errors(message_prefix="Failed to revoke node SSH access: ")
+    @with_instrumentation()
+    async def revoke_ssh_access(self, token: str, request_timeout: float | None = None) -> None:
+        """Revoke an SSH access token for this node."""
+        _ = await self._sandbox_api.revoke_ssh_access(
+            self.id, token=token, _request_timeout=http_timeout(request_timeout)
+        )
 
 
-@with_events
+class AsyncSandboxNodeProcess:
+    """Async process operations applied to every node in a Sandbox."""
+
+    def __init__(self, nodes: AsyncSandboxNodeCollection) -> None:
+        self._nodes: AsyncSandboxNodeCollection = nodes
+
+    @with_instrumentation()
+    async def exec(
+        self,
+        command: str,
+        *,
+        timeout: int | None = None,
+    ) -> dict[int, ExecuteResponse]:
+        """Execute a command on every node, keyed by rank.
+
+        ``timeout`` limits execution on each rank in seconds; None or 0 disables
+        the limit. Results contain buffered command output. For live output, use a
+        session on the individual node's process handle. On a partial failure, the
+        error exposes node_failures and node_results keyed by rank. RDMA diagnostics
+        are recorded in each node's warnings.
+        """
+        validate_node_exec_timeout(timeout)
+        nodes = self._nodes._snapshot()
+
+        async def execute_node(node: AsyncSandboxNode) -> ExecuteResponse:
+            if len(nodes) > 1:
+                await node._check_rdma()
+            if timeout is None:
+                return await node.process.exec(command)
+            return await node.process.exec(command, timeout=timeout)
+
+        outcomes = await asyncio.gather(*(execute_node(node) for node in nodes), return_exceptions=True)
+        results: dict[int, ExecuteResponse] = {}
+        failures: dict[int, Exception] = {}
+        for node, outcome in zip(nodes, outcomes, strict=True):
+            if isinstance(outcome, Exception):
+                failures[node.rank] = outcome
+            elif isinstance(outcome, BaseException):
+                raise outcome
+            else:
+                results[node.rank] = outcome
+        if failures:
+            raise_node_execution_error(failures, results)
+        return results
+
+
+class AsyncSandboxNodeFileSystem:
+    """Async file-system operations applied to every node in a Sandbox."""
+
+    def __init__(self, nodes: AsyncSandboxNodeCollection) -> None:
+        self._nodes: AsyncSandboxNodeCollection = nodes
+
+    @with_instrumentation()
+    async def upload_file(self, src: str | bytes, dst: str, timeout: int = 30 * 60) -> None:
+        """Upload the same file to every node in parallel without rollback."""
+        nodes = self._nodes._snapshot()
+        results = await asyncio.gather(
+            *(node.fs.upload_file(src, dst, timeout) for node in nodes), return_exceptions=True
+        )
+        failures = {
+            node.rank: result for node, result in zip(nodes, results, strict=True) if isinstance(result, Exception)
+        }
+        if failures:
+            details = "; ".join(f"rank {rank}: {failures[rank]}" for rank in sorted(failures))
+            raise DaytonaError(f"Failed to upload file to node ranks {sorted(failures)}: {details}")
+
+
+class AsyncSandboxNodeCollection(list[AsyncSandboxNode]):
+    """Live, rank-ordered async node collection with aggregate and topology operations."""
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, _schema: object, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
+        return handler(TypeAdapter(list[SandboxNodeDto]).core_schema)
+
+    def __init__(self, sandbox: AsyncSandbox | None) -> None:
+        super().__init__()
+        self._view_generation: int | None = None
+        self._sandbox: AsyncSandbox | None = sandbox
+        self.process: AsyncSandboxNodeProcess = AsyncSandboxNodeProcess(self)
+        self.fs: AsyncSandboxNodeFileSystem = AsyncSandboxNodeFileSystem(self)
+
+    def _snapshot(self) -> tuple[AsyncSandboxNode, ...]:
+        nodes = tuple(self)
+        if not nodes:
+            raise DaytonaError("Node membership is unavailable. Call refresh_data() and retry.")
+        return nodes
+
+    def _replace(self, nodes: list[AsyncSandboxNode], generation: int | None = None) -> None:
+        self._view_generation = generation
+        list.__setitem__(self, slice(None), nodes)
+
+    def _require_sandbox(self) -> AsyncSandbox:
+        if self._sandbox is None:
+            raise DaytonaError("Sandbox node collection is not initialized")
+        return self._sandbox
+
+    def _remaining(self, deadline: float | None) -> float | None:
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DaytonaTimeoutError("Node membership operation exceeded its timeout")
+        return remaining
+
+    def _generation(self) -> int:
+        generation = self._view_generation
+        if generation is None:
+            raise DaytonaError("Sandbox does not expose a topology generation; elastic node operations are unavailable")
+        return generation
+
+    async def _change(
+        self,
+        submit: Callable[[int, float | None], Awaitable[GangMembershipOperation]],
+        timeout: float | None,
+    ) -> GangMembershipOperation:
+        sandbox = self._require_sandbox()
+        wait_until = time.monotonic() + timeout if timeout else None
+
+        @intercept_errors(message_prefix="Failed to submit Sandbox membership change: ")
+        @with_timeout()
+        async def start(timeout: float | None) -> GangMembershipOperation:
+            deadline = time.monotonic() + timeout if timeout else None
+            generation = self._generation()
+            return await submit(generation, http_timeout(self._remaining(deadline)))
+
+        operation = await start(timeout=timeout)
+
+        @intercept_errors(message_prefix="Failed to wait for Sandbox membership change: ")
+        @with_timeout()
+        async def finish(timeout: float | None) -> GangMembershipOperation:
+            nonlocal operation
+            deadline = time.monotonic() + timeout if timeout else None
+            while operation.status not in {"COMPLETED", "FAILED"}:
+                await asyncio.sleep(min(1.0, self._remaining(deadline) or 1.0))
+                operation = await sandbox._sandbox_api.get_gang_membership_operation(
+                    sandbox.id, operation.id, _request_timeout=http_timeout(self._remaining(deadline))
+                )
+            if operation.status == "FAILED":
+                raise DaytonaError(operation.error_reason or f"Node {operation.type.lower()} operation failed")
+            await sandbox.refresh_data(request_timeout=self._remaining(deadline))
+            return operation
+
+        try:
+            return await finish(timeout=self._remaining(wait_until))
+        except DaytonaError as error:
+            # Refreshing cached handles cannot undo a confirmed membership change.
+            if operation.status == "COMPLETED":
+                return operation
+            error.operation_id = operation.id
+            raise
+
+    @with_instrumentation()
+    async def add(self, nodes: list[NodeResources], timeout: float | None = 600) -> GangMembershipOperation:
+        """Append rank-ordered nodes and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
+        sandbox = self._require_sandbox()
+        return await self._change(
+            lambda generation, remaining: sandbox._sandbox_api.add_sandbox_nodes(
+                sandbox.id,
+                AddGangNodes(
+                    expected_generation=generation,
+                    nodes=[GangNodeResources(cpu=n.cpu, memory=n.memory, disk=n.disk) for n in nodes],
+                ),
+                _request_timeout=remaining,
+            ),
+            timeout,
+        )
+
+    @with_instrumentation()
+    async def release(self, count: int = 1, timeout: float | None = 600) -> GangMembershipOperation:
+        """Release the highest ranks and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
+        sandbox = self._require_sandbox()
+        return await self._change(
+            lambda generation, remaining: sandbox._sandbox_api.remove_sandbox_nodes(
+                sandbox.id,
+                RemoveGangNodes(expected_generation=generation, count=count),
+                _request_timeout=remaining,
+            ),
+            timeout,
+        )
+
+    @with_instrumentation()
+    async def replace(self, rank: int, timeout: float | None = 600) -> GangMembershipOperation:
+        """Replace a degraded rank and wait for completion.
+
+        A wait error after acceptance carries the operation_id. If the final refresh fails,
+        the completed operation is returned; refresh the sandbox to update cached handles.
+        """
+        sandbox = self._require_sandbox()
+        return await self._change(
+            lambda generation, remaining: sandbox._sandbox_api.replace_sandbox_node(
+                sandbox.id,
+                str(rank),
+                ReplaceGangNode(expected_generation=generation),
+                _request_timeout=remaining,
+            ),
+            timeout,
+        )
+
+
 class AsyncSandbox(SandboxDto):
     """Represents a Daytona Sandbox.
 
@@ -197,17 +533,39 @@ class AsyncSandbox(SandboxDto):
     env: dict[str, str] | None = None  # pyright: ignore[reportRedeclaration]
     network_block_all: bool | None = None  # pyright: ignore[reportRedeclaration]
     kvm: bool | None = None  # pyright: ignore[reportRedeclaration]
+    nodes: AsyncSandboxNodeCollection  # pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
 
+    _reported_node_count: int | None = PrivateAttr(default=None)
     _fs: AsyncFileSystem = PrivateAttr()
     _git: AsyncGit = PrivateAttr()
     _process: AsyncProcess = PrivateAttr()
     _computer_use: AsyncComputerUse = PrivateAttr()
     _code_interpreter: AsyncCodeInterpreter = PrivateAttr()
     _state_waiters: list[Callable[[SandboxState | None], None]] = PrivateAttr(default_factory=list)
-    _sub_id: str | None = PrivateAttr(default=None)
+    # Wake the waits on this sandbox for an immediate read (their subscription was rejected).
+    _poll_now_waiters: list[Callable[[], None]] = PrivateAttr(default_factory=list)
+    _state_event_count: int = PrivateAttr(default=0)
+    # The cached state came from a state event that did not carry the sandbox's error reason.
+    _state_needs_reason: bool = PrivateAttr(default=False)
+    _toolbox_api_client: ApiClient = PrivateAttr()
+    _language: str = PrivateAttr()
+    _pool_tracker: AsyncPoolSaturationTracker | None = PrivateAttr(default=None)
 
     # TODO: Remove model_config once everything is migrated to pydantic # pylint: disable=fixme
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+
+    @model_serializer(mode="wrap")
+    def _serialize_sandbox(self, handler: SerializerFunctionWrapHandler):
+        return serialize_sandbox_membership(handler(self), self._reported_node_count)
+
+    @override
+    def to_dict(self) -> dict[str, Any]:
+        """Return the API representation, omitting node membership synthesized by the SDK."""
+        return serialize_sandbox_membership(super().to_dict(), self._reported_node_count)
+
+    @field_serializer("nodes")
+    def _serialize_nodes(self, nodes: AsyncSandboxNodeCollection) -> list[SandboxNodeDto]:
+        return [node._to_dto() for node in nodes]
 
     def __init__(
         self,
@@ -226,14 +584,23 @@ class AsyncSandbox(SandboxDto):
             toolbox_api (ApiClient): API client for toolbox operations.
             sandbox_api (SandboxApi): API client for Sandbox operations.
             language (str): Language code for the Sandbox code_run.
-            subscription_manager: AsyncEventSubscriptionManager for real-time updates.
+            subscription_manager: AsyncEventSubscriptionManager used for state events while waiting
+                for a state change.
             pool_tracker (AsyncPoolSaturationTracker | None): Tracker for connection pool saturation.
         """
-        super().__init__(**sandbox_dto.model_dump())
+        node_collection = AsyncSandboxNodeCollection(None)
+        model_data = sandbox_dto.model_dump()
+        model_data["nodes"] = node_collection
+        model_data.setdefault("node_count", 1)
+        super().__init__(**model_data)
+        node_collection._sandbox = self
         self.__process_sandbox_dto(sandbox_dto)
         self._sandbox_api: SandboxApi = sandbox_api
         self._analytics_api_url_provider: Callable[[], Awaitable[str | None]] | None = analytics_api_url_provider
         self._subscription_manager: AsyncEventSubscriptionManager = subscription_manager
+        self._toolbox_api_client = toolbox_api
+        self._language = language
+        self._pool_tracker = pool_tracker
         self._signing_key: str | None = None
         self._signing_key_fetched_at: float = 0
         # Wrap the toolbox API client to inject the sandbox ID into the resource path
@@ -250,7 +617,7 @@ class AsyncSandbox(SandboxDto):
         self._server_api: ServerApi = ServerApi(self._toolbox_api)
         self._system_api: SystemApi = SystemApi(self._toolbox_api)
 
-        self._ensure_subscribed()
+        self.__process_nodes(sandbox_dto)
 
     @property
     def fs(self) -> AsyncFileSystem:
@@ -616,6 +983,9 @@ class AsyncSandbox(SandboxDto):
     async def stop(self, timeout: float | None = 60, force: bool = False):
         """Stops the Sandbox and waits for it to be fully stopped.
 
+        For a multi-node GPU Sandbox this irreversibly destroys the complete
+        gang and all ephemeral local data; it cannot be started again.
+
         Args:
             timeout (float | None): Maximum time to wait in seconds. 0 means no timeout. Default is 60 seconds.
             force (bool): If True, uses SIGKILL instead of SIGTERM to stop the sandbox. Default is False.
@@ -630,14 +1000,26 @@ class AsyncSandbox(SandboxDto):
             print("Sandbox stopped successfully")
             ```
         """
-        _ = await self._sandbox_api.stop_sandbox(
-            self.id,
-            force=force,
-            _request_timeout=http_timeout(timeout),
-        )
-        await self.__refresh_data_safe()
-        # This method already handles a timeout, so we don't need to pass one to internal methods
-        await self.wait_for_sandbox_stop(timeout=0)
+        subscription: wait_poll.WaitSubscription | None = None
+        # One finally for the request and the wait: a timeout or interrupt between them must not leak
+        # the subscription.
+        try:
+            subscription = self._take_wait_subscription()
+            sandbox_dto = await self._sandbox_api.stop_sandbox(
+                self.id,
+                force=force,
+                _request_timeout=http_timeout(timeout),
+            )
+            # The stop response carries the sandbox; refresh only if it came back without a state.
+            if wait_poll.carries_state(sandbox_dto):
+                self.__process_sandbox_dto(sandbox_dto)
+                subscription = subscription.with_state_fresh(True)
+            else:
+                subscription = subscription.with_state_fresh(await self.__refresh_data_safe())
+            # This method already handles a timeout, so we don't need to pass one to internal methods
+            await self._wait_for_sandbox_stop_after_request(subscription)
+        finally:
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failed to remove sandbox: ")
     @with_timeout()
@@ -657,19 +1039,26 @@ class AsyncSandbox(SandboxDto):
                 is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
             wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
         """
-        sandbox = await self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
-        if sandbox:
-            self.__process_sandbox_dto(sandbox)
-
+        subscription: wait_poll.WaitSubscription | None = None
         try:
-            if wait and self.state != SandboxState.DESTROYED:
+            if wait:
+                subscription = self._take_wait_subscription()
+            sandbox = await self._sandbox_api.delete_sandbox(self.id, _request_timeout=http_timeout(timeout))
+            if sandbox:
+                self.__process_sandbox_dto(sandbox)
+                # Only a response with a state can stand in for the wait's first read.
+                if subscription is not None:
+                    subscription = subscription.with_state_fresh(wait_poll.carries_state(sandbox))
+
+            if wait:
                 await self._wait_for_state(
                     [SandboxState.DESTROYED],
                     [SandboxState.ERROR, SandboxState.BUILD_FAILED],
                     safe_refresh=True,
+                    subscription=subscription,
                 )
         finally:
-            self._unsubscribe_from_events()
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
     @with_timeout()
@@ -820,7 +1209,8 @@ class AsyncSandbox(SandboxDto):
 
         The Sandbox will be destroyed after the specified number of minutes, counted as
         wall-clock time from the current moment, regardless of its state (started, stopped,
-        paused, or archived). Setting to 0 disables the TTL.
+        paused, or archived). Setting to 0 disables the TTL. For a multi-node
+        head, expiry destroys every member and all ephemeral local data.
 
         Args:
             ttl_minutes (int): Number of minutes until the Sandbox is destroyed.
@@ -1117,8 +1507,11 @@ class AsyncSandbox(SandboxDto):
                 the operation on the server. Positive values under 1 second are rounded up to 1
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = await self._sandbox_api.archive_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
-        await self.refresh_data(request_timeout=request_timeout)
+        sandbox_dto = await self._sandbox_api.archive_sandbox(self.id, _request_timeout=http_timeout(request_timeout))
+        if wait_poll.carries_state(sandbox_dto):
+            self.__process_sandbox_dto(sandbox_dto)
+        else:
+            await self.refresh_data(request_timeout=request_timeout)
 
     @intercept_errors(message_prefix="Failed to resize sandbox: ")
     @with_timeout()
@@ -1149,6 +1542,7 @@ class AsyncSandbox(SandboxDto):
             await sandbox.resize(Resources(cpu=2, memory=4, disk=30))
             ```
         """
+        validate_scalar_resources(resources)
         if resources.gpu is not None or resources.gpu_type is not None:
             raise DaytonaValidationError(
                 "Resize does not support changes to gpu or gpu_type — to change GPU, create a new Sandbox"
@@ -1158,9 +1552,18 @@ class AsyncSandbox(SandboxDto):
             memory=resources.memory,
             disk=resources.disk,
         )
-        sandbox = await self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
-        self.__process_sandbox_dto(sandbox)
-        await self.wait_for_resize_complete(timeout=0)
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            subscription = self._take_wait_subscription()
+            sandbox = await self._sandbox_api.resize_sandbox(self.id, resize_request, _request_timeout=timeout or None)
+            if wait_poll.carries_state(sandbox):
+                self.__process_sandbox_dto(sandbox)
+            else:
+                await self.refresh_data()
+            subscription = subscription.with_state_fresh(True)
+            await self._wait_for_resize_after_request(subscription)
+        finally:
+            self._release_subscription(subscription)
 
     @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
     @with_timeout()
@@ -1220,7 +1623,9 @@ class AsyncSandbox(SandboxDto):
                 the operation on the server. Positive values under 1 second are rounded up to 1
                 second; 0 disables the client-side timeout and negative values are rejected.
         """
-        _ = await self._sandbox_api.revoke_ssh_access(self.id, token, _request_timeout=http_timeout(request_timeout))
+        _ = await self._sandbox_api.revoke_ssh_access(
+            self.id, token=token, _request_timeout=http_timeout(request_timeout)
+        )
 
     @intercept_errors(message_prefix="Failed to validate SSH access: ")
     @with_instrumentation()
@@ -1286,6 +1691,8 @@ class AsyncSandbox(SandboxDto):
             self.id, ForkSandbox(name=name), _request_timeout=http_timeout(timeout)
         )
 
+        # Fetching the URL (older servers) widens the gap before the fork's subscription: read first then.
+        state_fresh = wait_poll.carries_state(sandbox_dto) and bool(sandbox_dto.toolbox_proxy_url)
         if not sandbox_dto.toolbox_proxy_url:
             sandbox_dto.toolbox_proxy_url = (await self._sandbox_api.get_toolbox_proxy_url(sandbox_dto.id)).url
 
@@ -1299,7 +1706,7 @@ class AsyncSandbox(SandboxDto):
             self._subscription_manager,
             analytics_api_url_provider=self._analytics_api_url_provider,
         )
-        await forked.wait_for_sandbox_start(timeout=0)
+        await forked._wait_for_fork_start(state_fresh=state_fresh)
         return forked
 
     @deprecated(reason="Method is deprecated. Use `fork` instead. This method will be removed in a future version.")
@@ -1369,53 +1776,132 @@ class AsyncSandbox(SandboxDto):
         if timeout < 0:
             raise DaytonaError("Timeout must be a non-negative number")
 
-        _ = await self._sandbox_api.pause_sandbox(self.id, _request_timeout=timeout if timeout > 0 else None)
-        await self.refresh_data()
         error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
         exclude = {SandboxState.PAUSING} | set(error_states)
         target_states = [s for s in SandboxState if s not in exclude]
-        await self._wait_for_state(target_states, error_states)
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            subscription = self._take_wait_subscription()
+            sandbox_dto = await self._sandbox_api.pause_sandbox(
+                self.id, _request_timeout=timeout if timeout > 0 else None
+            )
+            if wait_poll.carries_state(sandbox_dto):
+                self.__process_sandbox_dto(sandbox_dto)
+            else:
+                await self.refresh_data()
+            subscription = subscription.with_state_fresh(True)
+            await self._wait_for_state(target_states, error_states, subscription=subscription)
+        finally:
+            self._release_subscription(subscription)
 
-    def _ensure_subscribed(self) -> None:
-        if self._sub_id is not None:
-            if self._subscription_manager.refresh(self._sub_id):
-                return
-            self._sub_id = None
-
-        subscription_id = self._subscription_manager.subscribe(
-            self.id,
-            self._handle_event,
-            events=["sandbox.state.updated", "sandbox.created"],
+    @intercept_errors(message_prefix="Failure during waiting for sandbox to stop: ")
+    @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_stop", labels={"method": "wait_for_sandbox_stop"})
+    async def _wait_for_sandbox_stop_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
+        """``wait_for_sandbox_stop`` for ``stop()``, with the subscription taken before the request."""
+        await self._wait_for_state(
+            [SandboxState.STOPPED, SandboxState.DESTROYED],
+            [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+            safe_refresh=True,
+            subscription=subscription,
         )
-        self._sub_id = subscription_id or None
+
+    @intercept_errors(message_prefix="Failure during waiting for sandbox to start: ")
+    @with_instrumentation(name="AsyncSandbox.wait_for_sandbox_start", labels={"method": "wait_for_sandbox_start"})
+    async def _wait_for_fork_start(self, state_fresh: bool) -> None:
+        """``wait_for_sandbox_start`` for a new fork, which can skip the first read of a live wait.
+
+        Args:
+            state_fresh: Whether the fork response carried a state and the toolbox proxy URL; otherwise
+                the wait reads first.
+        """
+        self._raise_destroyed_wait_error([SandboxState.STARTED])
+        if self.state == SandboxState.STARTED:
+            return
+
+        subscription: wait_poll.WaitSubscription | None = None
+        try:
+            # The id is only known now; the fork completes well after this subscription is live.
+            subscription = self._take_wait_subscription().with_state_fresh(state_fresh)
+            await self._wait_for_state(
+                [SandboxState.STARTED],
+                [SandboxState.ERROR, SandboxState.BUILD_FAILED],
+                subscription=subscription,
+            )
+        finally:
+            self._release_subscription(subscription)
+
+    @intercept_errors(message_prefix="Failure during waiting for resize to complete: ")
+    @with_instrumentation(name="AsyncSandbox.wait_for_resize_complete", labels={"method": "wait_for_resize_complete"})
+    async def _wait_for_resize_after_request(self, subscription: wait_poll.WaitSubscription) -> None:
+        """``wait_for_resize_complete`` for ``resize()``, with the subscription taken before the request."""
+        if self.state != SandboxState.RESIZING:
+            return
+
+        error_states = [SandboxState.ERROR, SandboxState.BUILD_FAILED]
+        exclude = {SandboxState.RESIZING} | set(error_states)
+        target_states = [s for s in SandboxState if s not in exclude]
+        await self._wait_for_state(target_states, error_states, subscription=subscription)
 
     def _handle_event(self, event_name: str, data: Any) -> None:
+        """Applies the new state and error reason from a ``sandbox.state.updated`` event.
+
+        A rejected subscription (a local notification from the dispatcher) wakes the waits instead: no
+        events will come, so they read now and fall back to polling.
+        """
+        if event_name == SUBSCRIPTION_REJECTED_EVENT:
+            for poll_now in list(self._poll_now_waiters):
+                poll_now()
+            return
         if not isinstance(data, dict):
             return
         raw: object = data.get("sandbox", data)  # pyright: ignore[reportUnknownVariableType]
-
-        if event_name == "sandbox.created":
-            sandbox_dto = SandboxDto.from_dict(raw)  # pyright: ignore[reportArgumentType]
-            if sandbox_dto is not None:
-                self.__process_sandbox_dto(sandbox_dto)
-        else:
+        new_state = (  # pyright: ignore[reportUnknownVariableType]
+            raw.get("state") if isinstance(raw, dict) else None
+        ) or data.get("newState")
+        if new_state is not None:
+            # Set before the state, so a wait that ends on an error state reports this reason. The event
+            # omits the field when the sandbox has none; a slim event may omit it, and then a wait ending
+            # on an error state reads the sandbox once before failing.
+            has_reason = isinstance(raw, dict) and "errorReason" in raw
             if isinstance(raw, dict) and "sandbox" in data:
-                # Set before the state: a wait that ends on an error state reports this reason. The event omits
-                # the field when the sandbox has none.
                 self.error_reason = raw.get("errorReason")
-            new_state = (  # pyright: ignore[reportUnknownVariableType]
-                raw.get("state") if isinstance(raw, dict) else None
-            ) or data.get("newState")
-            if new_state is not None:
-                try:
-                    self._apply_state(SandboxState(new_state))
-                except ValueError:
-                    pass
+            self._state_needs_reason = not has_reason
+            self._state_event_count += 1
+            try:
+                state = SandboxState(new_state)
+                if len(self.nodes) == 1 and (self.node_count == 1 or self.nodes[0].rank > 0):
+                    self.nodes[0].state = state
+                self._apply_state(state)
+            except ValueError:
+                pass
 
-    def _unsubscribe_from_events(self) -> None:
-        if self._sub_id is not None:
-            self._subscription_manager.unsubscribe(self._sub_id)
-            self._sub_id = None
+    def _event_backed(self) -> bool:
+        # Connected is not enough: an id the server rejected (e.g. past its per-socket limit) gets
+        # no events.
+        return self._subscription_manager.is_event_backed(self.id)
+
+    def _subscribe_state_events(self) -> str:
+        return self._subscription_manager.subscribe(self.id, self._handle_event, events=["sandbox.state.updated"])
+
+    def _take_wait_subscription(self) -> wait_poll.WaitSubscription:
+        """Takes the state subscription of an operation's wait, before its request where the id is known.
+
+        A live subscription sees every later state change, which lets the wait skip its first read
+        (see ``_wait_for_state``).
+        """
+        state_event_count = self._state_event_count
+        connection_epoch = self._subscription_manager.connection_epoch
+        sub_id = self._subscribe_state_events()
+        return wait_poll.WaitSubscription(
+            sub_id=sub_id,
+            live=bool(sub_id) and self._event_backed(),
+            state_event_count=state_event_count,
+            connection_epoch=connection_epoch,
+        )
+
+    def _release_subscription(self, subscription: wait_poll.WaitSubscription | None) -> None:
+        if subscription is not None and subscription.sub_id:
+            self._subscription_manager.unsubscribe(subscription.sub_id)
 
     def _apply_state(self, new_state: SandboxState | None) -> None:
         if new_state == self.state:
@@ -1447,80 +1933,173 @@ class AsyncSandbox(SandboxDto):
         target_states: list[SandboxState],
         error_states: list[SandboxState],
         safe_refresh: bool = False,
+        subscription: wait_poll.WaitSubscription | None = None,
     ) -> None:
         """Wait for sandbox to reach a target state via WebSocket events with periodic polling safety net.
+
+        The wait subscribes to the sandbox's state events for its own duration only. Polls are a safety
+        net: slow while events are flowing, backing off from 1 s to 10 s while they are not (connection
+        down, or subscription rejected by the server, including past its per-socket limit), and fast
+        only without a subscription (see ``internal.wait_poll``). A rate-limited poll does not fail the wait: the next
+        one waits at least the current interval, the fallback backoff and ``Retry-After``.
 
         Args:
             target_states: States that indicate success.
             error_states: States that indicate failure.
             safe_refresh: If True, use safe refresh that treats 404 as destroyed (for delete operations).
+            subscription: A subscription taken before the operation's request (after it, for a fork);
+                the caller releases it. Without one, the wait subscribes itself and always reads
+                first, since the cached state can be arbitrarily stale.
         """
-        self._ensure_subscribed()
-
         # Fast-path only on cached *target* states (parity with main's pre-check).
         # Cached error states are deliberately NOT evaluated here — main always
         # refreshed before failing, so a stale ERROR must survive one refresh.
         if self.state in target_states:
             return
 
-        subscribed = self._sub_id is not None
-        poll_interval = 1.0 if subscribed else 0.1
+        fast_poll_interval = wait_poll.FAST_POLL_INTERVAL
+        fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
+        sub_id = ""
         loop = asyncio.get_running_loop()
         poll_start = loop.time()
         state_resolved = asyncio.Event()
+        # Set when the state resolves or a read is due now; the loop waits on it between polls.
+        wake = asyncio.Event()
         result_state: SandboxState | None = None
-        # The reason that came with result_state; a refresh still in flight may replace self.error_reason after.
+        # The reason that came with result_state; a read still in flight may replace self.error_reason after.
         result_reason: str | None = None
+        result_needs_reason = False
 
         def _waiter(state: SandboxState | None) -> None:
-            nonlocal result_state, result_reason
-            if state is None:
+            nonlocal result_state, result_reason, result_needs_reason
+            if state is None or state_resolved.is_set():
                 return
 
             if state in target_states or state in error_states:
                 result_state = state
                 result_reason = self.error_reason
+                result_needs_reason = self._state_needs_reason
                 state_resolved.set()
+                wake.set()
 
-        self._state_waiters.append(_waiter)
-        try:
-            # First poll runs immediately (main always refreshed before state evaluation).
-            if safe_refresh:
-                await self.__refresh_data_safe()
-            else:
-                await self.refresh_data()
-
-            self._raise_destroyed_wait_error(target_states)
-            _waiter(self.state)
-
-            while not state_resolved.is_set():
-                try:
-                    _ = await asyncio.wait_for(state_resolved.wait(), timeout=poll_interval)
-                    break
-                except asyncio.TimeoutError:
-                    pass
-
+        async def _poll() -> wait_poll.RateLimited | None:
+            """Reads the sandbox; a rate limit does not fail the wait and is returned instead."""
+            try:
                 if safe_refresh:
-                    await self.__refresh_data_safe()
+                    _ = await self.__refresh_data_safe()
                 else:
                     await self.refresh_data()
+            except DaytonaRateLimitError as e:
+                return wait_poll.RateLimited(wait_poll.retry_after_seconds(e.headers))
+            return None
 
+        async def _error_message() -> str:
+            reason = result_reason
+            if result_needs_reason:
+                # The event that ended the wait did not carry the reason: read it once (error path only).
+                try:
+                    if safe_refresh:
+                        _ = await self.__refresh_data_safe()
+                    else:
+                        await self.refresh_data()
+                    reason = self.error_reason
+                except Exception:
+                    pass
+            return f"Sandbox {self.id} entered error state: {result_state}, error reason: {reason}"
+
+        self._state_waiters.append(_waiter)
+        self._poll_now_waiters.append(wake.set)
+        try:
+            if subscription is None:
+                sub_id = self._subscribe_state_events()
+                skip_first_read = False
+            else:
+                sub_id = subscription.sub_id
+                # An operation subscription that expired before the wait (its request outlived the TTL)
+                # missed the events in between: take a new one and read first.
+                still_held = bool(sub_id) and self._subscription_manager.refresh(sub_id)
+                if sub_id and not still_held:
+                    sub_id = self._subscribe_state_events()
+                # Safe only if the cached state came from the response (or a read after subscribing)
+                # and every change since then arrives as an event: an event that came before the
+                # response may have been overwritten by it, and events sent while the connection was
+                # down (a reconnect bumps the epoch) are lost. An error or destroyed response is read
+                # again first, so that it fails as fast as it always has.
+                skip_first_read = (
+                    still_held
+                    and subscription.state_fresh
+                    and subscription.live
+                    and self._event_backed()
+                    and self._subscription_manager.connection_epoch == subscription.connection_epoch
+                    and self._state_event_count == subscription.state_event_count
+                    and self.state not in error_states
+                    and (self.state != SandboxState.DESTROYED or SandboxState.DESTROYED in target_states)
+                )
+
+            # Unless skipped, the first poll runs immediately: it closes the race between subscribing
+            # and the state change.
+            rate_limited = None if skip_first_read else await _poll()
+            if rate_limited is None:
                 self._raise_destroyed_wait_error(target_states)
+                _waiter(self.state)
+            # else: a rate-limited read confirmed nothing; neither resolve nor fail on the cached state.
+            if not state_resolved.is_set():
+                # A wake (rejection) that came during the read is covered by it.
+                wake.clear()
 
-                if subscribed or loop.time() - poll_start > 5.0:
-                    poll_interval = min(poll_interval * 1.1, 1.0)
+            while not state_resolved.is_set():
+                # Keep the subscription alive past the manager's TTL; resubscribe if it already expired.
+                if sub_id and not self._subscription_manager.refresh(sub_id):
+                    sub_id = self._subscribe_state_events()
+                # Re-evaluated every iteration: the connection may come up (or drop) mid-wait.
+                subscribed = bool(sub_id)
+                event_backed = subscribed and self._event_backed()
+                if event_backed and rate_limited is None:
+                    # Back on events: a later fallback starts its backoff over.
+                    fallback_poll_interval = wait_poll.FALLBACK_POLL_INTERVAL
+                poll_interval = wait_poll.poll_interval(
+                    subscribed, event_backed, fast_poll_interval, fallback_poll_interval
+                )
+                if rate_limited is not None:
+                    # Rate limited, in any mode: back off, and never sooner than the server asks.
+                    poll_interval = wait_poll.rate_limited_poll_interval(
+                        poll_interval, fallback_poll_interval, rate_limited.retry_after
+                    )
+                    fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
+                try:
+                    _ = await asyncio.wait_for(wake.wait(), timeout=poll_interval)
+                except asyncio.TimeoutError:
+                    pass
+                if state_resolved.is_set():
+                    break
+                wake.clear()
+
+                rate_limited = await _poll()
+                if rate_limited is None:
+                    self._raise_destroyed_wait_error(target_states)
+                    # The cached state may already be a target or error state that only a rate-limited
+                    # first read left unconfirmed; this read confirms it.
+                    _waiter(self.state)
+                if not state_resolved.is_set():
+                    # A wake that came during the read is covered by it: the next delay is chosen now, for
+                    # whatever the wait's condition is after the read.
+                    wake.clear()
+
+                # A rate-limited poll advances the backoff once, when the next delay is chosen.
+                if subscribed and not event_backed and rate_limited is None:
+                    fallback_poll_interval = wait_poll.next_fallback_poll_interval(fallback_poll_interval)
+                if loop.time() - poll_start > wait_poll.FAST_POLL_PERIOD:
+                    fast_poll_interval = wait_poll.next_fast_poll_interval(fast_poll_interval)
 
             if result_state in error_states:
-                raise DaytonaError(
-                    f"Sandbox {self.id} entered error state: {result_state}, error reason: {result_reason}"
-                )
+                raise DaytonaError(await _error_message())
         except Exception as exc:
             # Parity with main: complete one final refresh-then-evaluate before
             # propagating, so a clamped/short timeout still observes the latest state.
             if not state_resolved.is_set():
                 try:
                     if safe_refresh:
-                        await self.__refresh_data_safe()
+                        _ = await self.__refresh_data_safe()
                     else:
                         await self.refresh_data()
                     self._raise_destroyed_wait_error(target_states)
@@ -1530,15 +2109,17 @@ class AsyncSandbox(SandboxDto):
                     pass
                 if state_resolved.is_set():
                     if result_state in error_states:
-                        message = (
-                            f"Sandbox {self.id} entered error state: {result_state}, error reason: {result_reason}"
-                        )
-                        raise DaytonaError(message) from exc
+                        raise DaytonaError(await _error_message()) from exc
                     return
             raise
         finally:
+            # The caller's subscription is the caller's to release; a renewal taken here is ours.
+            if sub_id and (subscription is None or sub_id != subscription.sub_id):
+                self._subscription_manager.unsubscribe(sub_id)
             if _waiter in self._state_waiters:
                 self._state_waiters.remove(_waiter)
+            if wake.set in self._poll_now_waiters:
+                self._poll_now_waiters.remove(wake.set)
 
     def __process_sandbox_dto(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
         self.id: str = sandbox_dto.id
@@ -1559,6 +2140,7 @@ class AsyncSandbox(SandboxDto):
         self.disk: int = sandbox_dto.disk
         self.desired_state: SandboxDesiredState | None = sandbox_dto.desired_state
         self.error_reason: str | None = sandbox_dto.error_reason
+        self._state_needs_reason = False
         self.recoverable: bool | None = sandbox_dto.recoverable
         self.backup_state: str | None = sandbox_dto.backup_state
         self.auto_stop_interval: float | int | None = sandbox_dto.auto_stop_interval
@@ -1572,6 +2154,8 @@ class AsyncSandbox(SandboxDto):
         if new_proxy_url:
             if new_proxy_url != self.toolbox_proxy_url and hasattr(self, "_toolbox_api"):
                 self._toolbox_api._toolbox_base_url = new_proxy_url
+                for node in self.nodes:
+                    node._toolbox_api._toolbox_base_url = new_proxy_url
             self.toolbox_proxy_url: str = new_proxy_url
         self.sandbox_class: str | None = (
             sandbox_dto.sandbox_class.value
@@ -1582,6 +2166,13 @@ class AsyncSandbox(SandboxDto):
         self.daemon_version: str | None = sandbox_dto.daemon_version
         self.auto_destroy_at: str | None = sandbox_dto.auto_destroy_at
         self.queue_timeout: int | None = sandbox_dto.queue_timeout
+        self.node_count: int = int(  # pyright: ignore[reportIncompatibleVariableOverride]
+            getattr(sandbox_dto, "node_count", None) or getattr(self, "node_count", None) or 1
+        )
+        topology_generation = getattr(sandbox_dto, "topology_generation", None)
+        if topology_generation is not None:
+            self.topology_generation = topology_generation  # pyright: ignore[reportUnannotatedClassAttribute]
+        self.degraded: bool | None = getattr(sandbox_dto, "degraded", getattr(self, "degraded", None))
 
         # Fields only present in the full SandboxDto (not returned by list results
         if isinstance(sandbox_dto, SandboxDto):
@@ -1600,12 +2191,88 @@ class AsyncSandbox(SandboxDto):
 
         self._apply_state(sandbox_dto.state)
 
-    async def __refresh_data_safe(self) -> None:
-        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors."""
+        if hasattr(self, "_toolbox_api_client"):
+            self.__process_nodes(sandbox_dto)
+
+    def __process_nodes(self, sandbox_dto: SandboxDto | SandboxListItem) -> None:
+        # A direct worker lookup returns only that worker, with its physical rank.
+        worker_rank = getattr(sandbox_dto, "node_rank", None) if getattr(sandbox_dto, "head_sandbox_id", None) else None
+        raw_nodes = getattr(sandbox_dto, "nodes", None)
+        reported_node_count = len(raw_nodes) if raw_nodes is not None else None
+        if not raw_nodes:
+            if reported_node_count == 0:
+                self._reported_node_count = 0
+            previous = self.nodes[0] if self.nodes else None
+            incarnation = getattr(sandbox_dto, "incarnation", None)
+            if previous is not None:
+                if len(self.nodes) != 1:
+                    return
+                if previous.rank > 0 and worker_rank is None:
+                    worker_rank = previous.rank
+                if previous.id != sandbox_dto.id or (incarnation is not None and previous.incarnation != incarnation):
+                    previous = None
+            # A gang head reports totals that cannot be assigned to individual ranks.
+            if worker_rank is None and self.node_count > 1:
+                return
+            if previous is None and reported_node_count is None:
+                self._reported_node_count = None
+            raw_nodes = [
+                SandboxNodeDto(
+                    rank=worker_rank or 0,
+                    id=sandbox_dto.id,
+                    state=sandbox_dto.state or (previous.state if previous else SandboxState.UNKNOWN),
+                    incarnation=incarnation or (previous.incarnation if previous else 1),
+                    failure=previous.failure if previous else None,
+                    fabric_address=previous.fabric_address if previous else None,
+                    fabric_prefix_length=previous.fabric_prefix_length if previous else None,
+                    fabric_healthy=previous.fabric_healthy if previous else None,
+                    fabric_unhealthy_since=previous.fabric_unhealthy_since if previous else None,
+                    cpu=sandbox_dto.cpu,
+                    gpu=sandbox_dto.gpu,
+                    memory=sandbox_dto.memory,
+                    disk=sandbox_dto.disk,
+                )
+            ]
+        if (
+            (worker_rank is not None and (worker_rank < 1 or len(raw_nodes) != 1))
+            or any(node.rank != rank for rank, node in enumerate(raw_nodes, start=worker_rank or 0))
+            or raw_nodes[0].id != sandbox_dto.id
+        ):
+            raise DaytonaError("Invalid sandbox node ordering: nodes[i].rank must equal i and rank 0 must be the head")
+        existing = {node.id: node for node in self.nodes}
+        updated: list[AsyncSandboxNode] = []
+        for node_dto in raw_nodes:
+            node = existing.get(node_dto.id)
+            if node is not None:
+                node.update(node_dto)
+            else:
+                node = AsyncSandboxNode(
+                    node_dto,
+                    self._toolbox_api_client,
+                    self.toolbox_proxy_url,
+                    self._sandbox_api,
+                    self._language,
+                    self._pool_tracker,
+                )
+            updated.append(node)
+        generation = getattr(sandbox_dto, "topology_generation", None) if worker_rank is None else None
+        self.nodes._replace(updated, generation)  # pylint: disable=no-member
+        if reported_node_count:
+            self._reported_node_count = reported_node_count
+
+    async def __refresh_data_safe(self) -> bool:
+        """Refreshes sandbox data, treating 404 as DESTROYED and tolerating pydantic validation errors.
+
+        Returns:
+            bool: Whether the sandbox data was read.
+        """
         try:
             await self.refresh_data()
         except DaytonaNotFoundError:
             self._apply_state(SandboxState.DESTROYED)
+            return False
         except Exception as e:
             if not is_validation_error(e):
                 raise
+            return False
+        return True

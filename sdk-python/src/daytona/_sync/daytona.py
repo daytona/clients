@@ -29,6 +29,7 @@ from daytona_api_client import Sandbox as SandboxDto
 from daytona_api_client import SandboxApi, SandboxState, SandboxVolume, SecretApi, SnapshotsApi
 from daytona_api_client import VolumesApi as VolumesApi
 from daytona_api_client import WarmPoolsApi
+from daytona_api_client.exceptions import NotFoundException
 from daytona_toolbox_api_client import ApiClient as ToolboxApiClient
 
 from .._utils.enum import to_enum
@@ -47,12 +48,13 @@ from ..common.daytona import (
 )
 from ..common.errors import (
     DaytonaAuthenticationError,
+    DaytonaNotFoundError,
     DaytonaQueueTimeoutError,
     DaytonaTimeoutError,
     DaytonaValidationError,
 )
 from ..common.image import Image
-from ..common.sandbox import ListSandboxesQuery
+from ..common.sandbox import CreateSandboxResources, ListSandboxesQuery
 from ..internal.event_dispatcher import SyncEventDispatcher
 from ..internal.event_subscription_manager import SyncEventSubscriptionManager
 from ..internal.http_client import build_sync_http_client
@@ -297,7 +299,7 @@ class Daytona:
                 "sdk-python",
                 sdk_version,
             )
-            self._event_dispatcher.ensure_connected()
+            # The event connection opens lazily, when a wait for a sandbox state first needs it.
 
         self._subscription_manager: SyncEventSubscriptionManager = SyncEventSubscriptionManager(self._event_dispatcher)
 
@@ -574,6 +576,13 @@ class Daytona:
                 sandbox_data.cpu = params.resources.cpu
                 sandbox_data.memory = params.resources.memory
                 sandbox_data.disk = params.resources.disk
+                if isinstance(params.resources, CreateSandboxResources):
+                    if params.resources.cpu_per_node is not None:
+                        sandbox_data.cpu_per_node = params.resources.cpu_per_node
+                    if params.resources.memory_per_node is not None:
+                        sandbox_data.memory_per_node = params.resources.memory_per_node
+                    if params.resources.disk_per_node is not None:
+                        sandbox_data.disk_per_node = params.resources.disk_per_node
                 sandbox_data.gpu = params.resources.gpu
                 if params.resources.gpu_type is not None:
                     gpu_types = (
@@ -719,6 +728,9 @@ class Daytona:
     ) -> Iterator[Sandbox]:
         """Iterates over Sandboxes matching the given query.
 
+        The iterator fetches each multi-node GPU sandbox’s node details in one additional request as it is yielded.
+        A gang deleted between listing and fetching its node details is skipped.
+
         Args:
             query: Optional filters, sorting, and per-page size.
             request_timeout (float | None): Optional client-side request timeout in seconds. Client-side
@@ -749,9 +761,26 @@ class Daytona:
             first_page = False
             response = self._fetch_sandbox_page(q, cursor, request_timeout)
             for sandbox in response.items:
-                language = self._validate_language_label(sandbox.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)).value
+                # SandboxListItem intentionally omits internal member rows.
+                # This release uses whole 8-GPU nodes, so gangs have more than 8 GPUs.
+                # Hydrate those heads without adding a GET for ordinary sandboxes.
+                try:
+                    sandbox_with_nodes = (
+                        self._sandbox_api.get_sandbox(
+                            sandbox.id,
+                            _request_timeout=http_timeout(request_timeout),
+                        )
+                        if sandbox.gpu > 8
+                        else sandbox
+                    )
+                except (NotFoundException, DaytonaNotFoundError):
+                    # A listed gang may be deleted before its hydration GET.
+                    continue
+                language = self._validate_language_label(
+                    sandbox_with_nodes.labels.get(CODE_TOOLBOX_LANGUAGE_LABEL)
+                ).value
                 yield Sandbox(
-                    sandbox,
+                    sandbox_with_nodes,
                     self._toolbox_api_client,
                     self._sandbox_api,
                     language,

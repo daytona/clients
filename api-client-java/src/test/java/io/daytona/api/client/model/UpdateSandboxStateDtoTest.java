@@ -61,4 +61,20 @@ public class UpdateSandboxStateDtoTest {
         // TODO: test recoverable
     }
 
+    /**
+     * Test the property 'incarnation'
+     */
+    @Test
+    public void incarnationTest() {
+        // TODO: test incarnation
+    }
+
+    /**
+     * Test the property 'fabricFenced'
+     */
+    @Test
+    public void fabricFencedTest() {
+        // TODO: test fabricFenced
+    }
+
 }

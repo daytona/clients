@@ -77,9 +77,13 @@ export interface CreateSandbox {
      */
     'target'?: string;
     /**
-     * CPU cores allocated to the sandbox
+     * CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
      */
     'cpu'?: number;
+    /**
+     * CPU cores for each node in rank order. Specify either cpu or cpuPerNode.
+     */
+    'cpuPerNode'?: Array<number> | null;
     /**
      * GPU units allocated to the sandbox
      */
@@ -93,13 +97,21 @@ export interface CreateSandbox {
      */
     'spot'?: boolean;
     /**
-     * Memory allocated to the sandbox in GB
+     * Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
      */
     'memory'?: number;
     /**
-     * Disk space allocated to the sandbox in GB
+     * Memory in GB for each node in rank order. Specify either memory or memoryPerNode.
+     */
+    'memoryPerNode'?: Array<number> | null;
+    /**
+     * Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node.
      */
     'disk'?: number;
+    /**
+     * Disk space in GB for each node in rank order. Specify either disk or diskPerNode.
+     */
+    'diskPerNode'?: Array<number> | null;
     /**
      * Auto-stop interval in minutes (0 means disabled)
      */

@@ -50,7 +50,7 @@ from daytona.common.process import (
     SessionExecuteResponse,
 )
 from daytona.common.pty import PtyResult, PtySize
-from daytona.common.sandbox import Resources
+from daytona.common.sandbox import CreateSandboxResources, Resources
 from daytona.common.snapshot import CreateSnapshotParams
 from daytona.common.volume import Volume, VolumeMount
 from daytona_toolbox_api_client import Chart as GeneratedChart
@@ -160,6 +160,15 @@ class TestCreateSandboxParams:
         assert params.resources is not None
         assert params.resources.cpu == 2
         assert params.resources.memory == 4
+
+    def test_image_params_with_rank_ordered_resources(self):
+        resources = CreateSandboxResources(cpu_per_node=[16, 32], memory=256, disk_per_node=[180, 300], gpu=16)
+        params = CreateSandboxFromImageParams(image="python:3.12", resources=resources)
+        assert params.resources == resources
+        assert isinstance(params.resources, Resources)
+        parsed = CreateSandboxFromImageParams.model_validate({"image": "alpine", "resources": {"cpu_per_node": [2, 4]}})
+        assert isinstance(parsed.resources, CreateSandboxResources)
+        assert parsed.resources.cpu_per_node == [2, 4]
 
     def test_image_params_with_image_object(self):
         params = CreateSandboxFromImageParams(image=Image.base("python:3.12"))

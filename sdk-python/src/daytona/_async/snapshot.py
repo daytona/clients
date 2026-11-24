@@ -22,6 +22,7 @@ from .._utils.stream import process_streaming_response
 from .._utils.timeout import with_timeout
 from ..common.errors import DaytonaError, DaytonaValidationError
 from ..common.image import Image
+from ..common.sandbox import validate_scalar_resources
 from ..common.snapshot import CreateSnapshotParams, PaginatedSnapshots, Snapshot, is_snapshot_id
 from ..internal.shared_session import SharedAiohttpSession
 from .object_storage import AsyncObjectStorage
@@ -164,6 +165,7 @@ class AsyncSnapshotService:
             )
 
         if params.resources:
+            validate_scalar_resources(params.resources)
             create_snapshot_req.cpu = params.resources.cpu
             create_snapshot_req.gpu = params.resources.gpu
             if params.resources.gpu_type is not None:
