@@ -4,10 +4,13 @@
 package cmd
 
 import (
+	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
 )
@@ -38,8 +41,13 @@ func isLoginOnly(cmd *cobra.Command) bool {
 	return loginOnlyFamilies[family] && !loginOnlyExceptions[path] && !cmd.HasSubCommands()
 }
 
+// loginOnlyRejectedHint replaces the generic 401 hint on a login-only
+// command, which sends only a login session or a JWT-shaped bearer.
+const loginOnlyRejectedHint = "this command needs a `daytona login` session, and the server refused the one sent: run `daytona login` (an API key is not accepted here)"
+
 // documentLoginOnly adds loginOnlyHelp to the help of every login-only
-// command, and of every group whose commands are all login-only.
+// command, and of every group whose commands are all login-only, and gives
+// a 401 from a login-only command loginOnlyRejectedHint.
 func documentLoginOnly(c *cobra.Command) bool {
 	all := true
 	for _, sub := range c.Commands() {
@@ -57,6 +65,10 @@ func documentLoginOnly(c *cobra.Command) bool {
 		}
 	} else if !isLoginOnly(c) {
 		return false
+	} else if run := c.RunE; run != nil {
+		c.RunE = func(cmd *cobra.Command, args []string) error {
+			return withLoginOnlyRejectedHint(run(cmd, args))
+		}
 	}
 	long := strings.TrimSpace(c.Long)
 	if long == "" {
@@ -117,4 +129,14 @@ func looksLikeJWT(s string) bool {
 		}
 	}
 	return true
+}
+
+// withLoginOnlyRejectedHint gives a 401 from the API loginOnlyRejectedHint.
+func withLoginOnlyRejectedHint(err error) error {
+	var ce *cerr.Error
+	var ae *api.APIError
+	if errors.As(err, &ce) && errors.As(err, &ae) && ae.Status == http.StatusUnauthorized {
+		ce.Hint = loginOnlyRejectedHint
+	}
+	return err
 }

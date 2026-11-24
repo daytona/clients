@@ -360,6 +360,22 @@ func TestLoginOnlyCommandsSendOnlyToLoginOnlyOperations(t *testing.T) {
 	}
 }
 
+// A 401 on a login-only command (an expired session, or a JWT-shaped bearer
+// the server refuses) says the command needs a login session; other
+// commands keep the generic hint.
+func TestLoginOnly401HintNamesTheLoginRequirement(t *testing.T) {
+	f := newFakeAPI(t)
+	f.on("GET", "/orgs/"+testOrgA+"/billing/wallet", 401, map[string]any{"code": "UNAUTHORIZED", "message": "unauthorized", "source": "DAYTONA_API"})
+	f.on("GET", "/orgs/"+testOrgA+"/limits", 401, map[string]any{"code": "UNAUTHORIZED", "message": "unauthorized", "source": "DAYTONA_API"})
+	_, errb, code := run(t, cfgDir(t), nil, "--api-key", testLoginBearer, "--api-url", f.srv.URL, "--org", testOrgA, "billing", "wallet")
+	require.Equal(t, cerr.ExitAuth, code, errb)
+	require.Contains(t, errb, loginOnlyRejectedHint)
+	require.NotContains(t, errb, "credential rejected")
+	_, errb, code = run(t, cfgDir(t), nil, "--api-key", testLoginBearer, "--api-url", f.srv.URL, "org", "limits", testOrgA)
+	require.Equal(t, cerr.ExitAuth, code, errb)
+	require.Contains(t, errb, "credential rejected")
+}
+
 // A credential saved for another API is refused first (exit 2), as on every
 // command: it is never sent to this API, and its hint (sign in there with
 // `daytona login --api-url URL --profile NAME`) also gives the login session

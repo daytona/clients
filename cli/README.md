@@ -677,7 +677,8 @@ session — `billing`, `invite`, `key`, `member`, `org-key`, `project`,
 (`--api-key`, `DAYTONA_API_KEY`, `login --token`) before choosing an
 organization or sending a request (exit 3), because the server would answer
 every API key there, valid or not, with the same 401. A bearer shaped like a
-JWT (a login's access token) is still sent. Precedence: `--api-key` >
+JWT (a login's access token) is still sent; a 401 on these commands says
+they need a `daytona login` session. Precedence: `--api-key` >
 `DAYTONA_API_KEY` > the active profile.
 An explicit credential is the only one used for that command — the CLI never
 falls back to your saved login, and an empty `--api-key` is a usage error.
