@@ -19,7 +19,7 @@ on:
         description: 'NPM package version (empty: skip TypeScript SDK publish)'
         required: false
       npm_tag:
-        description: 'NPM dist-tag. 0.x releases use v0-latest: npm latest belongs to the 2.x SDK'
+        description: 'NPM dist-tag. 0.x releases use v0-latest: npm latest belongs to the 2.x SDK. The deprecated @daytonaio packages take latest instead, since 2.x is never published there'
         required: false
         default: v0-latest
       rubygems_pkg_version:
@@ -36,6 +36,9 @@ env:
   RUBYGEMS_PKG_VERSION: ${{ inputs.rubygems_pkg_version }}
   MAVEN_PKG_VERSION: ${{ inputs.maven_pkg_version }}
   NPM_TAG: ${{ inputs.npm_tag }}
+  # 2.x is never published under the deprecated @daytonaio scope, so its npm
+  # latest keeps following 0.x: a v0-latest publish puts them on latest.
+  NPM_LEGACY_TAG: ${{ inputs.npm_tag == 'v0-latest' && 'latest' || inputs.npm_tag }}
   POETRY_VIRTUALENVS_IN_PROJECT: true
 
 permissions: {}
@@ -105,7 +108,7 @@ jobs:
             echo
             echo "| Leg | Version | Goes to |"
             echo "|---|---|---|"
-            if [ -n "$NPM_TAG" ]; then npm_dest="dist-tag \`${NPM_TAG}\`"; else npm_dest=":x: **will fail** — \`npm_tag\` is empty"; fi
+            if [ -n "$NPM_TAG" ]; then npm_dest="dist-tag \`${NPM_TAG}\` (\`@daytonaio/sdk\`, \`@daytonaio/api-client\`, \`@daytonaio/toolbox-api-client\`: \`${NPM_LEGACY_TAG}\`)"; else npm_dest=":x: **will fail** — \`npm_tag\` is empty"; fi
             target "TypeScript SDK" "$NPM_PKG_VERSION" "npm \`@daytona/sdk\` and deprecated \`@daytonaio/sdk\`, after the api-client, toolbox-api-client and analytics-api-client packages; ${npm_dest}"
             target "Python SDK" "$PYPI_PKG_VERSION" "PyPI \`daytona\` and \`daytona_sdk\`"
             target "Ruby SDK" "$RUBYGEMS_PKG_VERSION" "RubyGems \`daytona\`, after its three API-client gems"
@@ -205,7 +208,10 @@ jobs:
         # `npm publish --tag latest` moves the tag even to a lower version, so a
         # maintenance branch may only take `latest` with a version above every
         # published stable one. Otherwise publish under a line tag such as v0-latest.
-        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        # A v0-latest publish still moves latest of the @daytonaio packages.
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && ((startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest') || inputs.npm_tag == 'v0-latest')
+        env:
+          PACKAGES: ${{ inputs.npm_tag == 'v0-latest' && '@daytonaio/sdk @daytonaio/api-client @daytonaio/toolbox-api-client' || '' }}
         run: bash hack/npm-latest-guard.sh check "$NPM_PKG_VERSION"
       - uses: ./.github/actions/setup-toolchain
         if: matrix.pkg_version != ''
@@ -239,7 +245,9 @@ jobs:
       - name: Verify the npm latest dist-tag
         # Catches a higher version published by an overlapping run after the
         # check above.
-        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest'
+        if: matrix.projects == 'sdk-typescript' && matrix.pkg_version != '' && ((startsWith(github.ref, 'refs/heads/release/') && inputs.npm_tag == 'latest') || inputs.npm_tag == 'v0-latest')
+        env:
+          PACKAGES: ${{ inputs.npm_tag == 'v0-latest' && '@daytonaio/sdk @daytonaio/api-client @daytonaio/toolbox-api-client' || '' }}
         run: bash hack/npm-latest-guard.sh verify
       - name: Checkout release scripts
         if: matrix.homebrew_tap && inputs.publish_cli
