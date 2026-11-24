@@ -46,3 +46,27 @@ func TestErrorString_whenServerOmitsMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestErrorFromResponse_whenEnvelopeOrBodyHasNoUsableProse(t *testing.T) {
+	for _, tc := range []struct {
+		name, contentType, body, want string
+	}{
+		{"empty message", "application/json", `{"message":""}`, "HTTP 400"},
+		{"empty message and error", "application/json", `{"message":"","error":"bad input"}`, "bad input"},
+		{"empty message and empty error", "application/json", `{"message":"","error":""}`, "HTTP 400"},
+		{"blank JSON body", "application/json", "  \n", "HTTP 400"},
+		{"JSON null", "application/json", "null", "null"},
+		{"blank text body", "text/plain", "  ", "HTTP 400"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			response := &http.Response{StatusCode: 400, Header: http.Header{"Content-Type": {tc.contentType}}}
+			// When
+			err := errorFromResponse(response, []byte(tc.body))
+			// Then
+			var sdkErr *Error
+			require.ErrorAs(t, err, &sdkErr)
+			require.Equal(t, tc.want, sdkErr.Message)
+		})
+	}
+}

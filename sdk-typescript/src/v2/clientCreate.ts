@@ -50,8 +50,8 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     createdEventDestination = eventDestinationFromHeaders(response.headers) || undefined
     return response.data
   }).catch((error: unknown) => {
-    if (error instanceof ConnectionError) throw new SandboxCreateConnectionError(idempotencyKey, error.message)
-    if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey)
+    if (error instanceof ConnectionError) throw new SandboxCreateConnectionError(idempotencyKey, error.message, { cause: error })
+    if (error instanceof ClientTimeoutError) throw new SandboxCreateRequestTimeoutError(idempotencyKey, { cause: error })
     throw error
   })
   if (typeof created !== 'object' || created === null || !usablePathId(created.id)) {

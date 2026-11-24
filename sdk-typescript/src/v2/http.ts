@@ -5,7 +5,7 @@
 
 import axios, { AxiosError } from 'axios'
 import type { AxiosHeaders, AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosResponseHeaders, GenericAbortSignal, InternalAxiosRequestConfig } from 'axios'
-import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, isRedirectStatus, responseTooLargeError } from './errors/DaytonaError.js'
+import { ConnectionError, createAxiosDaytonaError, createDaytonaError, AuthenticationError, DaytonaError, BadRequestError, errorFromFetchResponse, ClientTimeoutError, isJsonMediaType, isRedirectStatus, networkCause, responseTooLargeError } from './errors/DaytonaError.js'
 import { DISABLED } from './types.js'
 import { MAX_INT32, boundedTimerDelay, badRequest } from './options.js'
 import { maxContentLengthFor, transferRequest } from './boundedAdapter.js'
@@ -1079,7 +1079,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
         finalize(undefined, reason)
         throw reason
       }
-      const connectionError = new ConnectionError(error instanceof Error ? error.message : String(error))
+      const connectionError = connectionErrorFrom(error)
       finalize(connectionError.statusCode, connectionError)
       throw connectionError
     } finally {
@@ -1822,7 +1822,7 @@ export class HttpTransport {
           finalize(undefined, error)
           throw error
         }
-        const connectionError = new ConnectionError(error instanceof Error ? error.message : String(error))
+        const connectionError = connectionErrorFrom(error)
         finalize(connectionError.statusCode, connectionError)
         throw connectionError
       }
@@ -2051,6 +2051,12 @@ class SseReader {
     if (field === 'data') this.data.push(value)
     return undefined
   }
+}
+
+/** The `ConnectionError` of a request that got no response, with its safe underlying cause ({@link networkCause}). */
+function connectionErrorFrom(error: unknown): ConnectionError {
+  const cause = networkCause(error)
+  return new ConnectionError(error instanceof Error ? error.message : String(error), cause === undefined ? undefined : { cause })
 }
 
 /**

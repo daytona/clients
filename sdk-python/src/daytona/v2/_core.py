@@ -374,7 +374,10 @@ def error_from_response(status_code: int, body: bytes, *, content_type: Optional
             decoded = None
         payload = decoded if isinstance(decoded, dict) else None
     if payload is None:
-        payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
+        # Not an envelope (not JSON, or a JSON value that is not an object):
+        # its text is the message, unless blank (TypeScript and Go agree).
+        text = body.decode("utf-8", errors="replace")
+        payload = {"message": text if text.strip() else f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
 
 

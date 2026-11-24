@@ -31,7 +31,9 @@ func errorFromResponse(response *http.Response, body []byte) error {
 		}
 		return result
 	}
-	result.Message = text
+	if strings.TrimSpace(text) != "" {
+		result.Message = text
+	}
 	if err := checkJSON(body); err != nil {
 		if strings.Contains(err.Error(), "nested too deeply") {
 			result.Message = "HTTP " + strconv.Itoa(response.StatusCode) +
@@ -43,12 +45,7 @@ func errorFromResponse(response *http.Response, body []byte) error {
 	if err != nil {
 		return result
 	}
-	result.Message = "HTTP " + strconv.Itoa(response.StatusCode)
-	if message, parseErr := field[string](object, "message", true); parseErr == nil {
-		result.Message = message
-	} else if prose, proseErr := field[string](object, "error", true); proseErr == nil {
-		result.Message = prose
-	}
+	result.Message = envelopeProse(object, "HTTP "+strconv.Itoa(response.StatusCode))
 	result.Code = optionalErrorString(object, "code")
 	result.Source = optionalErrorString(object, "source")
 	populateErrorDetails(result, object)
@@ -56,6 +53,17 @@ func errorFromResponse(response *http.Response, body []byte) error {
 		return &ImageBuildFailedError{SDKError: result}
 	}
 	return result
+}
+
+// envelopeProse is the envelope's message, else its error, else fallback. An
+// empty string is no prose, as in the Python and TypeScript SDKs.
+func envelopeProse(object jsonObject, fallback string) string {
+	for _, name := range []string{"message", "error"} {
+		if prose, err := field[string](object, name, true); err == nil && prose != "" {
+			return prose
+		}
+	}
+	return fallback
 }
 
 func populateErrorDetails(result *Error, object jsonObject) {

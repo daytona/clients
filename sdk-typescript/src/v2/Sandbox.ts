@@ -614,7 +614,7 @@ export class Sandbox {
       // An earlier slice/transport timer and an API HTTP 408 remain request
       // failures; only expiry of this wait's own cap is a wait timeout.
       if (deadlineOwnsTimeout && error instanceof ClientTimeoutError && requestDeadline !== undefined && Date.now() >= requestDeadline) {
-        throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: error })
       }
       throw error
     }

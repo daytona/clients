@@ -125,7 +125,7 @@ export class DockerService {
       try {
         last = dockerStatusFromWire(await this.transport.get<toolbox.DockerStatus>(`/docker/status${encodeQuery({ waitMs })}`, { timeout: requestTimeout }))
       } catch (error) {
-        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw new DockerWaitTimeoutError(last)
+        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw new DockerWaitTimeoutError(last, { cause: error })
         throw error
       }
       if (last.state === 'ready') return last

@@ -152,7 +152,7 @@ async function fetchAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRe
     done()
     if (timedOut) throw new AxiosError(`timeout of ${timeoutMs}ms exceeded`, AxiosError.ECONNABORTED, config)
     if (controller.signal.aborted) throw new AxiosError('canceled', AxiosError.ERR_CANCELED, config)
-    throw new AxiosError(error instanceof Error ? error.message : String(error), AxiosError.ERR_NETWORK, config)
+    throw networkError(error, config)
   }
   const responseHeaders: Record<string, string> = {}
   response.headers.forEach((value, name) => { responseHeaders[name] = value })
@@ -203,6 +203,14 @@ function errorEnvelopeData(bytes: Uint8Array): Record<string, unknown> | undefin
   } catch {
     return undefined
   }
+}
+
+/** axios' network error for a failed request, keeping the runtime's error as its cause (as axios' own adapters do). */
+function networkError(error: unknown, config: InternalAxiosRequestConfig): AxiosError {
+  const networkFailure = new AxiosError(error instanceof Error ? error.message : String(error), AxiosError.ERR_NETWORK, config)
+  // Any object: a fetch error may come from another realm (a vm context), where `instanceof Error` fails.
+  if (typeof error === 'object' && error !== null) networkFailure.cause = error as Error
+  return networkFailure
 }
 
 function settleError(config: InternalAxiosRequestConfig, response: AxiosResponse): AxiosError {
@@ -282,7 +290,7 @@ export async function boundedAdapter(config: InternalAxiosRequestConfig): Promis
       error.config = config
       return error
     }
-    return new AxiosError(error instanceof Error ? error.message : String(error), AxiosError.ERR_NETWORK, config)
+    return networkError(error, config)
   }
   try {
     let response: AxiosResponse
