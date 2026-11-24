@@ -29,7 +29,9 @@ Type-checking the root `@daytona/sdk` declarations with `skipLibCheck: false`
 needs TypeScript 5.7 or later (and `esModuleInterop` under node10 / CommonJS
 resolution, as for the 0.x SDK): the root's `daytona.v0` type comes from the
 vendored v0 SDK, whose declarations use generic `Uint8Array<…>` and a default
-import of `isomorphic-ws`.
+import of `isomorphic-ws`. A Node-only project does not need the `dom` lib:
+`@types/node` (20 or later) declares the fetch and abort-signal types the
+declarations use.
 
 ## Quickstart
 
