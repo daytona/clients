@@ -105,15 +105,18 @@ class FileSystemService:
     def move(self, source: str, destination: str, /, *, timeout: Optional[float] = None) -> None:
         """Move or rename a file or directory.
 
-        A move to another file system is a copy in the sandbox and can take
-        longer than the client's ``request_timeout``. ``timeout`` replaces it
-        for this call: a total deadline in seconds, ``0`` for no limit;
-        omitted, the client's request timeout applies.
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which a move to another file system (a copy in the sandbox) can
+        outlast: a total deadline in seconds; ``0``, or a value above
+        2,147,483.647 (about 24.8 days), means no limit; omitted, the client's
+        request timeout applies. A negative, non-finite or boolean value
+        raises ``BadRequestError`` before any request.
 
-        The SDK never retries a move. A timeout ends the call, not the move:
-        the move may still be running in the sandbox, or have finished, so
-        check the destination (for example with :meth:`stat`) before moving
-        again.
+        The SDK does not retry a move that timed out or failed (only a 401,
+        which the sandbox refuses before moving anything, is re-sent once with
+        a fresh token). A timeout ends the call, not the move: the move may
+        still be running in the sandbox, or have finished, so check the
+        destination (for example with :meth:`stat`) before moving again.
         """
         return self._bridge.call(lambda: self._impl.move(source, destination, timeout=timeout))
 

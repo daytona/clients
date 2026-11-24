@@ -142,10 +142,12 @@ func (f *FileSystem) Remove(ctx context.Context, path string, opts *RemoveFileOp
 //
 // A move to another file system is a copy in the sandbox and can take longer
 // than the client's request timeout; MoveOptions.Timeout replaces it for this
-// call. Pass at most one options value. The SDK never retries a move. A
-// timeout or cancellation ends the call, not the move: the move may still be
-// running in the sandbox, or have finished, so check the destination (for
-// example with Stat) before moving again.
+// call. Pass at most one options value. The SDK does not retry a move that
+// timed out or failed (only a 401, which the sandbox refuses before moving
+// anything, is re-sent once with a fresh token). A timeout or cancellation
+// ends the call, not the move: the move may still be running in the sandbox,
+// or have finished, so check the destination (for example with Stat) before
+// moving again.
 func (f *FileSystem) Move(ctx context.Context, source, destination string, opts ...*MoveOptions) error {
 	if _, err := filePaths([]string{source, destination}); err != nil {
 		return err

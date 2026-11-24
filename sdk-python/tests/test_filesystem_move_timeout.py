@@ -9,12 +9,17 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import threading
+import time
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import httpx
 import pytest
 import respx
 
 from daytona.v2 import BadRequestError, ClientTimeoutError
+from daytona.v2._bridge import SyncBridge
 from daytona.v2._sync.filesystem import FileSystemService
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.filesystem import AsyncFileSystemService
@@ -101,3 +106,51 @@ def test_the_sync_move_takes_the_same_timeout() -> None:
     parameter = inspect.signature(FileSystemService.move).parameters["timeout"]
     assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
     assert parameter.default is None
+
+
+class _SlowMove(BaseHTTPRequestHandler):
+    """A sandbox whose moves answer after 0.4 s; counts the moves it got."""
+
+    moves = 0
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+    def do_POST(self) -> None:
+        type(self).moves += 1
+        time.sleep(0.4)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        except OSError:
+            pass  # the client gave up first
+
+
+@pytest.fixture
+def slow_base() -> Iterator[str]:
+    _SlowMove.moves = 0
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _SlowMove)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_sync_move_passes_its_timeout_through(slow_base: str) -> None:
+    bridge = SyncBridge()
+    transport = AsyncTransport(slow_base, "k", request_timeout=0.1)
+    try:
+        fs = FileSystemService(AsyncFileSystemService(transport), bridge)
+        with pytest.raises(ClientTimeoutError):
+            fs.move("/big", "/mnt/big")
+        fs.move("/big", "/mnt/big", timeout=2)
+        fs.move("/big", "/mnt/big", timeout=0)
+        with pytest.raises(BadRequestError):
+            fs.move("/big", "/mnt/big", timeout=-1)
+    finally:
+        bridge.close(transport.close)
+    # One request per move that was sent; the refused one sent none.
+    assert _SlowMove.moves == 3

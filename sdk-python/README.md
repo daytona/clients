@@ -977,11 +977,13 @@ as the sandbox user and return a `FileSearchResult`, a `ListResult` whose
 decodes strictly as UTF-8 and keeps a leading byte-order mark.
 
 `move(source, destination, timeout=None)` moves or renames a file or
-directory. A move to another file system is a copy in the sandbox and can
-outlast `request_timeout`: `timeout=` **(seconds; `0` means no limit)**
-replaces it for that call. The SDK never retries a move, and a timeout ends
-the call, not the move: it may still be running, or have finished, so check
-the destination before moving again.
+directory. `timeout=` **(seconds; `0`, or a value above 2,147,483.647 (about
+24.8 days), means no limit)** replaces `request_timeout` for that call, which
+a move to another file system (a copy in the sandbox) can outlast; a negative,
+non-finite or boolean value raises `BadRequestError` before any request. The
+SDK does not retry a move that timed out or failed, and a timeout ends the
+call, not the move: it may still be running, or have finished, so check the
+destination before moving again.
 
 `watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
 calls `on_event` for each change (a `FilesystemEvent`; `timestamp_ms` is Unix

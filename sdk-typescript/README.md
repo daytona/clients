@@ -898,11 +898,13 @@ run as the sandbox user; a `FileSearchResult` is a `ListResult` whose
 and keeps a leading byte-order mark. Writes take no `mode`; use `chmod()`.
 
 `move(source, destination, { timeoutSeconds })` moves or renames a file or
-directory. A move to another file system is a copy in the sandbox and can
-outlast `requestTimeoutSeconds`: `timeoutSeconds` (`0` means no limit)
-replaces it for that call. The SDK never retries a move, and a timeout ends
-the call, not the move: it may still be running, or have finished, so check
-the destination before moving again.
+directory. `timeoutSeconds` (`0`, or a value above 2,147,483.647 (about 24.8
+days), means no limit) replaces `requestTimeoutSeconds` for that call, which a
+move to another file system (a copy in the sandbox) can outlast; a negative or
+non-finite value throws `BadRequestError` before any request. The SDK does not
+retry a move that timed out or failed, and a timeout ends the call, not the
+move: it may still be running, or have finished, so check the destination
+before moving again.
 
 `watchDir(path, onEvent, { recursive, onOverflow, onExit })` calls `onEvent`
 for each change (a `FilesystemEvent`; `timestampMs` is Unix milliseconds;

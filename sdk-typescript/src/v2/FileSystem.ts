@@ -128,8 +128,10 @@ export interface RemoveOptions {
 export interface MoveOptions {
   /**
    * Total deadline of this move in seconds, replacing the client's
-   * `requestTimeoutSeconds`; `0` (or a value above about 24.8 days) is no
-   * limit. Omitted, the client's request timeout applies.
+   * `requestTimeoutSeconds`; `0`, or a value above 2,147,483.647 (about 24.8
+   * days), is no limit. Omitted, the client's request timeout applies. A
+   * negative or non-finite value (or one that is not a number) throws
+   * `BadRequestError` before any request.
    */
   readonly timeoutSeconds?: number
 }
@@ -455,13 +457,15 @@ export class FileSystemService {
   /**
    * Move or rename a file or directory.
    *
-   * A move to another file system is a copy in the sandbox and can take
-   * longer than the client's `requestTimeoutSeconds`; `timeoutSeconds`
-   * replaces it for this call (`0` is no limit).
+   * `timeoutSeconds` replaces the client's `requestTimeoutSeconds` for this
+   * call, which a move to another file system (a copy in the sandbox) can
+   * outlast; see {@link MoveOptions}.
    *
-   * The SDK never retries a move. A timeout ends the call, not the move: the
-   * move may still be running in the sandbox, or have finished, so check the
-   * destination (for example with {@link stat}) before moving again.
+   * The SDK does not retry a move that timed out or failed (only a 401, which
+   * the sandbox refuses before moving anything, is re-sent once with a fresh
+   * token). A timeout ends the call, not the move: the move may still be
+   * running in the sandbox, or have finished, so check the destination (for
+   * example with {@link stat}) before moving again.
    */
   public async move(source: string, destination: string, options: MoveOptions = {}): Promise<void> {
     sandboxPath('source', source)
