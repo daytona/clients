@@ -28,6 +28,8 @@ type WatchOptions struct {
 // WatchHandle owns one directory stream. Call Stop when done, even if Events is
 // never consumed. The context passed to Watch or Client.Close also closes the
 // HTTP stream. Events is single-consumer; all other methods are concurrency-safe.
+// A server error event (for example, a macOS access denial) ends the watch with
+// its typed error, reported by Err, Wait, Events and OnExit.
 type WatchHandle struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -47,6 +49,7 @@ type WatchHandle struct {
 // Watch opens a directory stream and waits for its start handshake. Startup is
 // limited to 4096 events and 1 MiB; subsequent frames use the client response cap.
 // No request timeout applies after HTTP headers. Unknown SSE names are ignored.
+// A server error event before start fails this call without invoking OnExit.
 func (f *FileSystem) Watch(ctx context.Context, path string, opts *WatchOptions) (result *WatchHandle, failure error) {
 	query, err := filePath(path)
 	if err != nil {
