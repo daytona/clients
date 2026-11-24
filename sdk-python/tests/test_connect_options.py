@@ -77,14 +77,8 @@ async def test_none_connect_options_are_omitted_so_the_handle_mints_its_own_toke
         ({"toolbox_url": " \x85 "}, "toolbox_url must be a non-empty string"),
         ({"access_token": 5}, "access_token must be a string"),
         ({"access_token": ""}, "access_token must be a non-empty string"),
-        (
-            {"access_token": " tok "},
-            "access_token must be printable ASCII with no leading or trailing whitespace",
-        ),
-        (
-            {"access_token": "tök"},
-            "access_token must be printable ASCII with no leading or trailing whitespace",
-        ),
+        ({"access_token": " tok "}, "access_token must have no leading or trailing whitespace"),
+        ({"access_token": "tök"}, "access_token must be printable ASCII"),
     ],
     ids=["numeric url", "blank url", "numeric token", "empty token", "padded token", "non-ASCII token"],
 )

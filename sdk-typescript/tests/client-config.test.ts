@@ -224,7 +224,7 @@ describe('environment', () => {
   // Values no HTTP header can carry, refused before any request with a
   // message that never contains them (sdk-python/tests/test_client_config.py).
   const SECRET = 'dtn_config_secret'
-  const NOT_PRINTABLE = 'must be printable ASCII with no leading or trailing whitespace'
+  const NOT_PRINTABLE = 'must be printable ASCII'
   const MALFORMED: readonly (readonly [string, string])[] = [
     ['   ', 'must not be blank'],
     ['\t\r\n', 'must not be blank'],
@@ -270,16 +270,17 @@ describe('environment', () => {
   })
 
   it('sends a padded explicit key trimmed', async () => {
-    // A key read from a file keeps its trailing newline.
+    // A key read from a file may end in a newline; the SDK trims it.
     const client = new DaytonaV2({ apiKey: ' dtn_file_key\n' })
     const sent: string[] = []
     const api = client['api']
     api.defaults.adapter = async (config) => {
       sent.push(String(config.headers.get('Authorization')))
-      return { config, status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, data: new TextEncoder().encode('{"target_types":[]}').buffer }
+      return { config, status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, data: new TextEncoder().encode('{"targets":[]}').buffer }
     }
-    await client.listAuditActions().catch(() => undefined)
+    const actions = await client.listAuditActions()
     await client.close()
+    expect(actions.targets).toEqual([])
     expect(sent).toEqual(['Bearer dtn_file_key'])
   })
 

@@ -107,8 +107,8 @@ def test_explicit_values_are_used_as_given(clean_env: pytest.MonkeyPatch) -> Non
 def test_an_explicit_credential_is_trimmed_of_surrounding_whitespace(
     clean_env: pytest.MonkeyPatch, padded: str
 ) -> None:
-    # A key read from a file keeps its trailing newline; it works, as it did
-    # through the HTTP clients that trimmed it on the wire.
+    # A key read from a file may end in a newline; it is trimmed, as the HTTP
+    # clients trimmed it on the wire before.
     assert _v2(DaytonaConfig(api_key=padded))._api_key == "key"  # type: ignore[attr-defined]
     v2 = _v2(DaytonaConfig(jwt_token=padded.replace("key", "jwt"), project_id="p"))
     assert v2._auth._jwt_token == "jwt"  # type: ignore[attr-defined]
@@ -117,17 +117,15 @@ def test_an_explicit_credential_is_trimmed_of_surrounding_whitespace(
 @pytest.mark.anyio
 @respx.mock
 async def test_a_padded_explicit_key_is_sent_trimmed(clean_env: pytest.MonkeyPatch) -> None:
-    route = respx.get(f"{BASE}/audit/actions").mock(
-        return_value=httpx.Response(200, json={"target_types": []})
-    )
+    route = respx.get(f"{BASE}/audit/actions").mock(return_value=httpx.Response(200, json={"targets": []}))
     async with AsyncDaytona(DaytonaConfig(api_key=" dtn_file_key\n")) as root:
-        with contextlib.suppress(Exception):
-            await root.v2.list_audit_actions()
+        actions = await root.v2.list_audit_actions()
+    assert actions.targets == ()
     assert route.calls.last.request.headers["authorization"] == "Bearer dtn_file_key"
 
 
 _SECRET = "dtn_config_secret"
-_NOT_PRINTABLE = "must be printable ASCII with no leading or trailing whitespace"
+_NOT_PRINTABLE = "must be printable ASCII"
 # Values no HTTP header can carry: they used to fail inside the HTTP client
 # with an error that quoted the whole `Bearer <credential>` header.
 _MALFORMED = [

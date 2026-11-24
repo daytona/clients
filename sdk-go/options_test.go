@@ -70,10 +70,10 @@ func TestNew_whenCredentialIsMalformed(t *testing.T) {
 	const secret = "dtn_config_secret"
 	cases := []struct{ value, suffix string }{
 		{" \t\n", " must not be blank"},
-		{secret + "\u00e9", " must be printable ASCII with no leading or trailing whitespace"},
-		{secret + "\x00x", " must be printable ASCII with no leading or trailing whitespace"},
-		{"dtn_\x01" + secret, " must be printable ASCII with no leading or trailing whitespace"},
-		{secret + "\r\nX-Injected: 1", " must be printable ASCII with no leading or trailing whitespace"},
+		{secret + "\u00e9", " must be printable ASCII"},
+		{secret + "\x00x", " must be printable ASCII"},
+		{"dtn_\x01" + secret, " must be printable ASCII"},
+		{secret + "\r\nX-Injected: 1", " must be printable ASCII"},
 	}
 	for _, test := range cases {
 		for _, option := range []struct {
