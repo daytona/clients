@@ -320,9 +320,13 @@ async def test_a_long_pull_ends_pending_at_the_caller_deadline(fake_clock: _Fake
 
 
 @pytest.mark.anyio
-async def test_a_pull_without_a_deadline_keeps_waiting_in_rounds(fake_clock: _FakeClock) -> None:
+@pytest.mark.parametrize("timeout", [3_000_000.0, 10**999])
+async def test_a_pull_without_a_deadline_keeps_waiting_in_rounds(
+    fake_clock: _FakeClock, timeout: float
+) -> None:
+    # Above the timer maximum is no deadline, an integer too large for a float included.
     handler, requests = _rounds(["pending"] * 4 + ["unchanged"], fake_clock)
-    result = await _pull(handler, 3_000_000.0)
+    result = await _pull(handler, timeout)
     assert result.status == "unchanged"
     assert [json.loads(request.content)["waitMs"] for request in requests] == [30000] * 5
 

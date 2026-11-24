@@ -10,6 +10,7 @@ import (
 	"io"
 	"iter"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -73,18 +74,55 @@ type processLogStream struct {
 	idle     time.Duration
 }
 
-// idleBody kicks the stream's idle timer whenever bytes arrive.
+// idleBody records when bytes last arrived for the stream's idle watchdog.
 type idleBody struct {
 	io.Reader
-	kick func()
+	watch *idleWatch
 }
 
 func (b idleBody) Read(p []byte) (int, error) {
 	n, err := b.Reader.Read(p)
 	if n > 0 {
-		b.kick()
+		b.watch.kick()
 	}
 	return n, err
+}
+
+// idleWatch cancels a stream once no bytes arrived for idle. Its timer checks
+// the last arrival under the lock and re-arms for the rest of the window, so
+// a read that arrived in time never loses to a timer that already fired.
+type idleWatch struct {
+	mu    sync.Mutex
+	last  time.Time
+	timer *time.Timer
+}
+
+func newIdleWatch(idle time.Duration, expire func()) *idleWatch {
+	watch := &idleWatch{last: time.Now()}
+	watch.mu.Lock()
+	defer watch.mu.Unlock()
+	watch.timer = time.AfterFunc(idle, func() {
+		watch.mu.Lock()
+		defer watch.mu.Unlock()
+		if quiet := time.Since(watch.last); quiet < idle {
+			watch.timer.Reset(idle - quiet)
+			return
+		}
+		expire()
+	})
+	return watch
+}
+
+func (w *idleWatch) kick() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.last = time.Now()
+}
+
+func (w *idleWatch) stop() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.timer.Stop()
 }
 
 func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEvent, error) bool) (
@@ -99,9 +137,9 @@ func (s processLogStream) consume(ctx context.Context, yield func(ProcessLogEven
 	defer closeResponse(ctx, response, &failure)
 	var body io.Reader = response.Body
 	if s.idle > 0 {
-		timer := time.AfterFunc(s.idle, func() { cancel(errProcessLogIdle) })
-		defer timer.Stop()
-		body = idleBody{Reader: response.Body, kick: func() { timer.Reset(s.idle) }}
+		watch := newIdleWatch(s.idle, func() { cancel(errProcessLogIdle) })
+		defer watch.stop()
+		body = idleBody{Reader: response.Body, watch: watch}
 	}
 	reader := newProcessSSEReader(body, s.limit)
 	for {

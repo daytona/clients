@@ -120,3 +120,31 @@ func TestStreamLogs_hasNoIdleBound(t *testing.T) {
 		require.Equal(t, context.DeadlineExceeded, ctx.Err())
 	})
 }
+
+func TestIdleWatch_whenBytesArriveWithinTheWindow_neverExpires(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given a watch kicked just before every window ends.
+		expired := make(chan struct{})
+		watch := newIdleWatch(time.Second, func() { close(expired) })
+		defer watch.stop()
+		for range 5 {
+			time.Sleep(999 * time.Millisecond)
+			watch.kick()
+		}
+		synctest.Wait()
+		select {
+		case <-expired:
+			t.Fatal("expired while bytes kept arriving")
+		default:
+		}
+		// When nothing arrives for a whole window.
+		time.Sleep(time.Second)
+		synctest.Wait()
+		// Then it expires exactly once.
+		select {
+		case <-expired:
+		default:
+			t.Fatal("did not expire after an idle window")
+		}
+	})
+}
