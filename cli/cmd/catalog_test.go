@@ -218,6 +218,16 @@ func TestCatalogCommands_routeAndRenderJSON(t *testing.T) {
 	}
 }
 
+// cpuTableLines splits a `cpu-type list` table from the region defaults
+// printed under it, and checks that those name defaultLine.
+func cpuTableLines(t *testing.T, stdout, defaultLine string) []string {
+	t.Helper()
+	table, defaults, ok := strings.Cut(strings.TrimSpace(stdout), "\n\nDefaults for a create that names no CPU type:\n")
+	require.True(t, ok, stdout)
+	require.Equal(t, defaultLine, strings.TrimSpace(defaults))
+	return strings.Split(table, "\n")
+}
+
 func cpuCatalogFixture() string {
 	return `{"regions":[{"id":"region-b","default_arch":"amd64","default_type":"zen5"}],` +
 		`"arches":[{"id":"amd64","available":true,"region_ids":["region-b"]},{"id":"arm64","available":false,"region_ids":[]}],` +
@@ -251,7 +261,7 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 	t.Run("table renders availability per region", func(t *testing.T) {
 		stdout, _, err := runCLIWithOutput(t, "table", []string{"cpu-type", "list", "--region", "region-b"}, []expectedRequest{routing, catalog})
 		require.NoError(t, err)
-		lines := strings.Split(strings.TrimSpace(stdout), "\n")
+		lines := cpuTableLines(t, stdout, "region-b: amd64, zen5")
 		require.Len(t, lines, 4)
 		require.Equal(t, []string{"ID", "NAME", "ARCH", "TIER", "AVAILABLE"}, strings.Fields(lines[0]))
 		require.Equal(t, []string{"zen3", "AMD", "Zen", "3", "amd64", "1", "fallback"}, strings.Fields(lines[1]))
@@ -266,7 +276,9 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 			CPUTypes []json.RawMessage `json:"cpu_types"`
 		}
 		require.NoError(t, json.Unmarshal([]byte(cpuCatalogFixture()), &fixture))
-		want, err := json.Marshal(map[string]any{"items": fixture.CPUTypes, "incomplete": false})
+		var catalog map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal([]byte(cpuCatalogFixture()), &catalog))
+		want, err := json.Marshal(map[string]any{"items": fixture.CPUTypes, "incomplete": false, "regions": catalog["regions"], "arches": catalog["arches"]})
 		require.NoError(t, err)
 		require.JSONEq(t, string(want), stdout)
 	})
@@ -284,7 +296,7 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 	t.Run("mixed-case and whitespace --region normalizes to the catalog slug", func(t *testing.T) {
 		stdout, _, err := runCLIWithOutput(t, "table", []string{"cpu-type", "list", "--region", "  Region-B "}, []expectedRequest{routing, catalog})
 		require.NoError(t, err)
-		lines := strings.Split(strings.TrimSpace(stdout), "\n")
+		lines := cpuTableLines(t, stdout, "region-b: amd64, zen5")
 		require.Len(t, lines, 4)
 		require.Equal(t, []string{"zen3", "AMD", "Zen", "3", "amd64", "1", "fallback"}, strings.Fields(lines[1]))
 		require.Equal(t, []string{"zen5", "AMD", "Zen", "5", "amd64", "3", "exact"}, strings.Fields(lines[2]))
@@ -379,7 +391,7 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 		require.NoError(t, root.ExecuteContext(ctx))
 		require.Equal(t, int32(1), homeCalls.Load(), "exactly one region lookup on the default API")
 		require.Equal(t, int32(1), regionalCalls.Load(), "exactly one catalog request on the regional API")
-		lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+		lines := cpuTableLines(t, stdout.String(), "region-a: amd64, zen5")
 		require.Len(t, lines, 4)
 		require.Equal(t, []string{"zen3", "AMD", "Zen", "3", "amd64", "1", "fallback"}, strings.Fields(lines[1]))
 		require.Equal(t, []string{"zen5", "AMD", "Zen", "5", "amd64", "3", "exact"}, strings.Fields(lines[2]))

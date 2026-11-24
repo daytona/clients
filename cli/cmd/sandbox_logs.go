@@ -86,11 +86,15 @@ func newSandboxUsageCommand() *cobra.Command {
 				path += "/history"
 			}
 			if history {
-				var resp json.RawMessage
+				var resp api.Raw[gen.SandboxUsageHistory]
 				if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, &resp); err != nil {
 					return err
 				}
-				return a.Printer().Object(resp, [][2]string{{"id", resolved.Detail.Id}, {"history", fmt.Sprintf("%t", history)}})
+				p := a.Printer()
+				if p.Format == output.FormatTable && !resp.V.Available {
+					return p.Raw(fmt.Sprintf("Usage history is not available for sandbox %s.", resolved.Detail.Id), resp)
+				}
+				return p.TableOf(resp, usageHistoryTable(resp.V))
 			}
 			var usageResp api.Raw[gen.SandboxUsage]
 			if err := resolved.Client.Do(cmd.Context(), http.MethodGet, path, nil, nil, &usageResp); err != nil {
@@ -291,6 +295,29 @@ func nextSandboxLogsPollInterval(current time.Duration, changed bool) time.Durat
 		return 5 * time.Second
 	}
 	return sandboxLogsPollIntervalMax
+}
+
+// usageHistoryTable renders one row per usage period, in the API's units:
+// bytes, core-seconds and the period's covered span.
+func usageHistoryTable(h gen.SandboxUsageHistory) output.Table {
+	rows := make([][]string, 0, len(h.Periods))
+	for _, period := range h.Periods {
+		rows = append(rows, []string{
+			period.StartAt.UTC().Format(time.RFC3339),
+			(time.Duration(period.DurationMs) * time.Millisecond).String(),
+			strconv.FormatFloat(period.CpuCoreSeconds, 'f', -1, 64),
+			strconv.FormatInt(period.MemoryPeakBytes, 10),
+			strconv.FormatInt(period.DiskUsedBytes, 10),
+			strconv.FormatInt(period.DiskReadBytes, 10),
+			strconv.FormatInt(period.DiskWrittenBytes, 10),
+			strconv.FormatInt(period.NetworkReceivedBytes, 10),
+			strconv.FormatInt(period.NetworkSentBytes, 10),
+		})
+	}
+	return output.Table{
+		Headers: []string{"START", "DURATION", "CPU CORE-SECONDS", "MEMORY PEAK BYTES", "DISK USED BYTES", "DISK READ BYTES", "DISK WRITTEN BYTES", "NET RECEIVED BYTES", "NET SENT BYTES"},
+		Rows:    rows,
+	}
 }
 
 func sandboxUsageKV(resp *gen.SandboxUsage) [][2]string {
