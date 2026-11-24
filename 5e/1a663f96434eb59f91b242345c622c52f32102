@@ -1,0 +1,21 @@
+upgrade/scripts/gen-guide.mjs
+  s_e26152c3e6ca81::t_29aa4573816659 62-63,79-81
+upgrade/MIGRATION.md
+  s_e26152c3e6ca81::t_29aa4573816659 30-31,47-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e1a663f96434eb59f91b242345c622c52f32102",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
