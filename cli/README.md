@@ -619,7 +619,7 @@ request. While a sandbox is stopped, commands that work inside it
 |---|---|
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
-| `2` | usage: wrong number of arguments, an empty or blank id, name or other named argument, unknown command, flag or help topic, an invalid flag value or `--file` body, a credential with a control or non-ASCII character, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
+| `2` | usage: wrong number of arguments, an empty or blank id, name or other named argument (not the `sandbox search` query or `config set`'s value), unknown command, flag or help topic, an invalid flag value or `--file` body, a credential with a control or non-ASCII character, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
 | `3` | authentication: no credential, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE`, or the configuration's `active_profile`, that names a profile that does not exist (on the commands that use the selected profile) |
@@ -645,14 +645,16 @@ status apart from the CLI's own:
 
 `--file PATH` (or `--file -` for stdin) takes one JSON object (an array or
 another JSON value is refused, exit 2); explicit flags override its fields. A
-field of the wrong JSON type is refused (exit 2), naming the field. Keys name
-the API's request fields exactly, at any depth, as the API does: an unknown
-key, including one that differs from a field only in case (`Name`,
-`CORES_MAX`), is refused (exit 2). Keys of map values such as `env` and
-`labels` are names of your own and are sent as given. A field whose value is
-one of several shapes (`image create`'s `source`) is checked by its `type`: an
-unknown `type`, or a key the chosen shape does not have, is refused too. The
-bodies use the API's request fields:
+field of the wrong JSON type is refused (exit 2), naming the field (and the
+key or index of a wrong entry inside a map or an array); a number an integer
+field cannot hold says whether it is not whole or out of range. Keys name the
+API's request fields exactly, at any depth, as the API does: an unknown key,
+including one that differs from a field only in case (`Name`, `CORES_MAX`), is
+refused (exit 2). Keys of map values such as `env` and `labels` are names of
+your own and are sent as given. A field whose value is one of several shapes
+(`image create`'s `source`) is checked by its `type`: an unknown `type`, or a
+key the chosen shape does not have, is refused too. The bodies use the API's
+request fields:
 
 | Command | Body |
 |---|---|
@@ -684,9 +686,9 @@ registry, reservation, region and catalog commands) and on `whoami`, instead
 of being ignored; the CLI reads the key's project once per command
 (`GET /api-keys/current`) when a project is named.
 
-A credential that contains a character an HTTP header cannot carry (a control
-character such as a line break or tab, or a non-ASCII character) is refused
-before any request (exit 2); the error names where it came from (the flag,
+A credential must be printable ASCII: one that contains a control character
+(such as a line break or tab) or a non-ASCII character is refused before any
+request (exit 2); the error names where it came from (the flag,
 the variable or the profile), never the value. With no credential at all, a
 command that needs an organization or project reports "not logged in"
 (exit 3) before asking for either.
