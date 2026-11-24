@@ -58,6 +58,8 @@ dev = [
   "ruff==0.17.4",
   "mypy>=2.4.1",
   "opentelemetry-sdk>=1.27,<2",
+  # Installed so the tests prove the SDK stays on HTTP/1.1 when h2 is present.
+  "h2>=4",
 ]
 
 [tool.hatch.build]

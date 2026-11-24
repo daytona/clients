@@ -45,6 +45,15 @@
       "paths": [
         "cli/"
       ]
+    },
+    "go": {
+      "name": "Go SDK",
+      "lead": "Using the Daytona Go SDK",
+      "environment": "A Go module at /app/goeval already requires `go.daytona.com/sdk/v2` (package `daytona`), resolved to the build under test by a replace directive. Write your Go code inside that module, keep its require and replace lines for go.daytona.com/sdk/v2, and do not fetch the SDK from the network. Its package documentation is available with `go doc` from that module.",
+      "surfaceCheck": "Every Daytona operation the agent ran went through Go code in the module at /app/goeval using the `go.daytona.com/sdk/v2` package resolved to the build under test (the replace directive to /opt/clients/sdk-go was kept).",
+      "paths": [
+        "sdk-go/"
+      ]
     }
   },
   "tasks": {
@@ -118,6 +127,11 @@
     "cli-custom-image": "e253232f-d081-44f8-9116-abd181b5b038",
     "cli-file-roundtrip": "4024c349-f631-4fb0-83d0-969390d86d03",
     "cli-git-commit": "f0bc74b1-bf54-47a6-9141-da9e7902a37d",
-    "cli-preview-url": "b671a5ab-378d-4ce2-8af5-6faa8c74b69f"
+    "cli-preview-url": "b671a5ab-378d-4ce2-8af5-6faa8c74b69f",
+    "go-run-python": "a1cfddd8-504b-491e-87c1-704def4772dc",
+    "go-custom-image": "9ac2976e-795f-46dd-9d0c-6c759d1b2c11",
+    "go-file-roundtrip": "566795a2-831f-422b-b52f-e25a47f1b296",
+    "go-git-commit": "5561ee6b-ef9f-4688-b4fa-df244a66379e",
+    "go-preview-url": "f1bd0501-1306-4d47-8946-d32d1e72bc27"
   }
 }

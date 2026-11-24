@@ -26,9 +26,9 @@ import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
 import { binaryBytes, pathSequence, sandboxPath } from './filesystemInputs.js'
 import type { OptionKeys } from './options.js'
-import { bool, bulkWriteResultFromWire, envelopeList, fileInfoFromWire, fileMatchFromWire, int, listItems, malformedResponse, record, replaceResultFromWire, searchSkipped, str, strList } from './toolboxModels.js'
+import { bulkWriteResultFromWire, envelopeList, fileInfoFromWire, fileMatchFromWire, listItems, malformedResponse, record, replaceResultFromWire, searchSkipped, strList } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
-import { nestedDeeperThan } from './jsonDepth.js'
+import { checkOverflowEvent, parseFilesystemEvent, parseWatchError } from './filesystemWatchEvents.js'
 
 export type { BulkReadError, BulkReadResult, BulkWriteFile, BulkWriteResult }
 export type { DownloadFileOptions, TransferProgressCallback, UploadFileOptions }
@@ -51,6 +51,8 @@ export interface FilesystemEvent {
  * A running directory watch, returned by `fs.watchDir()`. Callbacks run one
  * at a time, in order, and are awaited. A failing `onEvent` or `onOverflow`
  * ends the watch: that error becomes `exitError` and is passed to `onExit`.
+ * A server `error` event (for example, a macOS access denial) ends it with
+ * the typed error carried by that event.
  */
 export interface WatchHandle {
   /**
@@ -203,44 +205,6 @@ function contentTypeHeader(headers: unknown): string | undefined {
   }
   const upper = Reflect.get(headers, 'Content-Type')
   return typeof upper === 'string' ? upper : undefined
-}
-
-const WATCH_EVENT = 'filesystem watch event'
-
-function parseFilesystemEvent(data: string): FilesystemEvent {
-  let parsed: unknown
-  try {
-    parsed = data ? JSON.parse(data) : {}
-  } catch {
-    throw malformedResponse(`${WATCH_EVENT}: the data is not JSON`)
-  }
-  if (nestedDeeperThan(parsed)) throw malformedResponse(`${WATCH_EVENT}: the JSON is nested too deeply`)
-  const raw = record(parsed, WATCH_EVENT)
-  return deepFrozen({
-    type: str(raw, 'type', WATCH_EVENT),
-    name: str(raw, 'name', WATCH_EVENT),
-    isDir: bool(raw, 'isDir', WATCH_EVENT),
-    timestampMs: int(raw, 'timestamp', WATCH_EVENT),
-  })
-}
-
-const OVERFLOW_EVENT = 'filesystem watch overflow event'
-
-/**
- * An `overflow` event carries `{ "dropped": <boolean> }`; anything else is the
- * malformed-response error, whether or not a callback handles it (as the
- * Python SDK's `_check_overflow_event`).
- */
-function checkOverflowEvent(data: string): void {
-  let parsed: unknown
-  try {
-    parsed = data ? JSON.parse(data) : {}
-  } catch {
-    throw malformedResponse(`${OVERFLOW_EVENT}: the data is not JSON`)
-  }
-  if (nestedDeeperThan(parsed)) throw malformedResponse(`${OVERFLOW_EVENT}: the JSON is nested too deeply`)
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw malformedResponse(`${OVERFLOW_EVENT}: the data is not a JSON object`)
-  bool(record(parsed, OVERFLOW_EVENT), 'dropped', OVERFLOW_EVENT)
 }
 
 export interface PresignedUrlOptions {
@@ -504,6 +468,8 @@ export class FileSystemService {
    * the watch is established. Callbacks run one at a time, in order, and are
    * awaited; a failing `onEvent` or `onOverflow` ends the watch with that
    * error. `onExit` runs once when the watch ends; its own failure is ignored.
+   * A server `error` event (such as a macOS access denial) ends the watch with
+   * its typed error, or rejects this call if received before `start`.
    * A failure before the watch starts rejects this call and does not call
    * `onExit`. Callbacks are held until this call has returned its handle, so
    * after a direct `await watchDir(...)` a callback can call `stop()` on it;
@@ -628,6 +594,7 @@ export class FileSystemService {
         for await (const message of sseMessages(response, eventBound)) {
           if (stopRequested) break
           try {
+            if (message.event === 'error') throw parseWatchError(message.data)
             if (message.event === 'start') {
               if (!started) {
                 started = true

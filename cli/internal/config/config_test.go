@@ -32,6 +32,20 @@ func TestDir(t *testing.T) {
 	if d != filepath.Join("/xdg", "daytona") {
 		t.Fatal(d)
 	}
+	// A relative DAYTONA_CONFIG_DIR resolves against the working directory.
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, _ = Dir(func(k string) string {
+		if k == "DAYTONA_CONFIG_DIR" {
+			return filepath.Join("rel", "cfg")
+		}
+		return ""
+	})
+	if d != filepath.Join(wd, "rel", "cfg") {
+		t.Fatal(d)
+	}
 }
 
 func TestRoundTripAndModes(t *testing.T) {

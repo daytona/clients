@@ -183,6 +183,20 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+  # Daytona Go SDK (2.x).
+  - package-ecosystem: gomod
+    directory: /sdk-go
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown: {default-days: 7}
+    groups:
+      sdk-go:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "chore(deps)"
+
   # ---------------------------------------------------------------------------
   # 0.x line (release/v0) -- maintenance only. Same groups and ignores as the
   # config that lived on release/v0, plus the target branch. These groups take

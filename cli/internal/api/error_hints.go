@@ -40,6 +40,11 @@ func hintFor(ae *APIError) string {
 			// provider; the message says so, and no credential fixes it.
 			return ""
 		}
+		if ae.Code == CodeEmailAccessDenied {
+			// The account itself is refused; no credential or permission
+			// change fixes it.
+			return "this account's email could not be validated — contact support@daytona.io"
+		}
 		if path, _, _ := strings.Cut(ae.Path, "?"); ae.Method == http.MethodPost && strings.HasSuffix(path, "/signed-preview-urls") {
 			return "this credential is not allowed to mint signed preview links here; if it can write sandboxes, the alternatives are `daytona sandbox port preview-url` (token in the X-Daytona-Preview-Token header) and `daytona sandbox port expose <sandbox-id> <port> --public` (no credential, anyone can open it)"
 		}
@@ -48,6 +53,8 @@ func hintFor(ae *APIError) string {
 		return "sandbox search is not enabled; use `sandbox list` (with --region to narrow) instead"
 	case ae.Status == http.StatusServiceUnavailable && ae.Code == CodeSearchUnavailable:
 		return "sandbox search is temporarily unavailable; retry, or use `sandbox list`"
+	case ae.Status == http.StatusServiceUnavailable && ae.Method == http.MethodPost && strings.HasPrefix(ae.Path, "/sandboxes/") && strings.HasSuffix(ae.Path, "/access-token"):
+		return "retry shortly; if it keeps failing, this deployment does not issue sandbox access tokens and `sandbox ssh` cannot sign in"
 	case ae.Status == http.StatusNotImplemented && ae.Code == CodeBillingDisabled:
 		return "billing is disabled on this deployment"
 	case ae.Status == http.StatusBadGateway && ae.Code == CodeBillingUnreachable:
