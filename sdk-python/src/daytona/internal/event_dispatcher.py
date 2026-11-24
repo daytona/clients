@@ -5,13 +5,16 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import contextlib
 import logging
 import threading
 import time
 from collections.abc import Awaitable
-from typing import Any, Callable, cast
+from typing import Any, Callable, cast, final
 from urllib.parse import quote, urlparse
 
+import aiohttp
+import engineio
 import socketio
 
 logger = logging.getLogger(__name__)
@@ -30,6 +33,71 @@ SUBSCRIPTION_REJECTED_EVENT = "daytona:subscription-rejected"
 _ACK_TIMEOUT = 10.0
 
 AckCallback = Callable[..., Any]
+
+
+@final
+class _WebSocketConnectionTracker:
+    """Track the Engine.IO WebSocket ownership handoff during connect."""
+
+    def __init__(self) -> None:
+        self.upgraded: asyncio.Event = asyncio.Event()
+        self.published: asyncio.Event = asyncio.Event()
+        self.websocket: aiohttp.ClientWebSocketResponse | None = None
+
+    def create_response(self, *args: Any, **kwargs: Any) -> aiohttp.ClientWebSocketResponse:
+        websocket = aiohttp.ClientWebSocketResponse(*args, **kwargs)
+        self.websocket = websocket
+        self.upgraded.set()
+        return websocket
+
+
+class _TrackedEngineIOClient(engineio.AsyncClient):
+    """Engine.IO client that reports aiohttp upgrade and WebSocket publication."""
+
+    def __init__(self, tracker: _WebSocketConnectionTracker, *args: Any, **kwargs: Any) -> None:
+        self.websocket_tracker: _WebSocketConnectionTracker = tracker
+        super().__init__(*args, **kwargs)
+
+    async def _connect_websocket(  # pyright: ignore[reportImplicitOverride]
+        self, url: str, headers: dict[str, str], engineio_path: str
+    ) -> bool:
+        if self.http is None or self.http.closed:  # pyright: ignore[reportUnnecessaryComparison]
+            self.websocket_tracker.upgraded.clear()
+            self.websocket_tracker.published.clear()
+            self.websocket_tracker.websocket = None
+            response_factory = cast(type[aiohttp.ClientWebSocketResponse], self.websocket_tracker.create_response)
+            # Engine.IO still owns this session and closes it during its normal reset path.
+            self.http: aiohttp.ClientSession = aiohttp.ClientSession(ws_response_class=response_factory)
+        connected = await super()._connect_websocket(url, headers, engineio_path)
+        if connected:
+            self.websocket_tracker.published.set()
+        return connected
+
+
+def _bind_engineio_client(
+    tracker: _WebSocketConnectionTracker,
+) -> type[_TrackedEngineIOClient]:
+    class _BoundTrackedEngineIOClient(_TrackedEngineIOClient):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(tracker, *args, **kwargs)
+
+    return _BoundTrackedEngineIOClient
+
+
+@final
+class _TrackedSocketIOClient(socketio.AsyncClient):
+    """Socket.IO client backed by an Engine.IO client with connection tracking."""
+
+    eio: _TrackedEngineIOClient
+
+    def __init__(self, tracker: _WebSocketConnectionTracker, *args: Any, **kwargs: Any) -> None:
+        self.websocket_tracker: _WebSocketConnectionTracker = tracker
+        super().__init__(*args, **kwargs)
+
+    def _engineio_client_class(  # pyright: ignore[reportImplicitOverride]
+        self,
+    ) -> type[engineio.AsyncClient]:
+        return _bind_engineio_client(self.websocket_tracker)
 
 
 class AsyncEventDispatcher:
@@ -138,7 +206,9 @@ class AsyncEventDispatcher:
         origin = f"{parsed.scheme}://{parsed.netloc}"
         socketio_path = f"{parsed.path.rstrip('/')}/socket.io/"
 
-        sio = socketio.AsyncClient(
+        websocket_tracker = _WebSocketConnectionTracker()
+        sio = _TrackedSocketIOClient(
+            websocket_tracker,
             reconnection=True,
             reconnection_attempts=0,
             reconnection_delay=1,
@@ -335,9 +405,43 @@ class AsyncEventDispatcher:
         self._closed = True
         await self._disconnect()
 
+    async def _wait_for_websocket_publication(
+        self,
+        connect_task: asyncio.Task[None],
+        tracker: _WebSocketConnectionTracker,
+    ) -> None:
+        published = asyncio.create_task(tracker.published.wait())
+        try:
+            _ = await asyncio.wait(
+                [connect_task, published],
+                timeout=self._CLOSE_TIMEOUT,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            if not published.done():
+                _ = published.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await published
+
     async def _disconnect(self, expected_generation: int | None = None) -> None:
         current = asyncio.current_task()
         cancelled: list[asyncio.Task[None]] = []
+
+        # Between aiohttp's WebSocket upgrade and Engine.IO's OPEN packet, the new WebSocket lives
+        # only in python-engineio's connect coroutine. Wait only during that ownership gap, and stop
+        # as soon as Engine.IO publishes eio.ws or the connection attempt finishes. A still-pending
+        # task falls through to the existing bounded cancellation path.
+        connect_task = self._connect_task
+        sio = self._sio
+        if (
+            connect_task is not None
+            and not connect_task.done()
+            and connect_task is not current
+            and isinstance(sio, _TrackedSocketIOClient)
+            and sio.websocket_tracker.upgraded.is_set()
+            and sio.eio.ws is None  # pyright: ignore[reportUnnecessaryComparison]
+        ):
+            await self._wait_for_websocket_publication(connect_task, sio.websocket_tracker)
 
         if self._connect_task and not self._connect_task.done() and self._connect_task is not current:
             _ = self._connect_task.cancel()

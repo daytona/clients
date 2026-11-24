@@ -33,7 +33,7 @@ MANY_IDS = [f"sb-{i}" for i in range(10_001)]
 @pytest.fixture
 def async_sio(monkeypatch: pytest.MonkeyPatch) -> type[FakeAsyncClient]:
     FakeAsyncClient.instances = []
-    monkeypatch.setattr(event_dispatcher_module.socketio, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(event_dispatcher_module, "_TrackedSocketIOClient", FakeAsyncClient)
     return FakeAsyncClient
 
 

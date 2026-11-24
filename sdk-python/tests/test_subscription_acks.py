@@ -47,7 +47,7 @@ def _stub_jitter(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def async_sio(monkeypatch: pytest.MonkeyPatch) -> type[FakeAsyncClient]:
     FakeAsyncClient.instances = []
-    monkeypatch.setattr(event_dispatcher_module.socketio, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(event_dispatcher_module, "_TrackedSocketIOClient", FakeAsyncClient)
     return FakeAsyncClient
 
 
