@@ -392,6 +392,18 @@ RSpec.describe 'Daytona::NodeLogStream' do
     expect(stream.instance_variable_get(:@completion).pop(true)).to be_nil
   end
 
+  it 'emits held-back bytes before reporting a WebSocket error' do
+    chunks = []
+    deadline = double('deadline', remaining: 10)
+    stream = stream_class.new(node, 'session', 'command', deadline, { stdout: ->(_, chunk) { chunks << chunk } })
+    stream.send(:on_message, double(type: :binary, data: "\x01\x01\x01out\x01"))
+
+    stream.send(:on_error, StandardError.new('reset'))
+
+    expect(chunks.join).to eq("out\x01")
+    expect(stream.instance_variable_get(:@completion).pop(true).message).to eq('WebSocket error: reset')
+  end
+
   it 'still reports the deadline when a close has held-back output to emit' do
     stream = stream_class.new(node, 'session', 'command', expired_deadline, { stdout: ->(_, _) {} })
     stream.send(:on_message, double(type: :binary, data: "\x01\x01\x01out\x01"))

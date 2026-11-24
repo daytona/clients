@@ -557,7 +557,7 @@ module Daytona
         @socket = socket
         socket.on(:message) { |message| on_message(message) }
         socket.on(:close) { on_close }
-        socket.on(:error) { |error| @completion.push(Sdk::Error.new("WebSocket error: #{error.message}")) }
+        socket.on(:error) { |error| on_error(error) }
       end
       failure = @completion.pop
       raise failure if failure
@@ -576,6 +576,14 @@ module Daytona
       @completion.push(nil)
     rescue StandardError => e
       @completion.push(e)
+    end
+
+    def on_error(error)
+      emit { @demuxer.flush }
+    rescue StandardError
+      nil
+    ensure
+      @completion.push(Sdk::Error.new("WebSocket error: #{error.message}"))
     end
 
     def emit
