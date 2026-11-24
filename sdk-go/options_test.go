@@ -106,7 +106,9 @@ func TestNew_whenCredentialIsMalformed(t *testing.T) {
 			_, err := New(WithProjectID("project"))
 			// Then
 			require.ErrorIs(t, err, ErrBadRequest)
-			require.Contains(t, err.Error(), variable+" must be printable ASCII")
+			var detail *Error
+			require.ErrorAs(t, err, &detail)
+			require.Equal(t, variable+" must be printable ASCII", detail.Message)
 			require.NotContains(t, err.Error(), secret)
 		})
 	}

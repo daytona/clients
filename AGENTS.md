@@ -329,15 +329,17 @@ major version; Go uses its module path's `/v2` suffix instead:
   `BAD_REQUEST`, source `SDK`), like every invalid-configuration error,
   including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. The
   API key or JWT is the one explicit value that is trimmed: surrounding HTTP
-  whitespace (space, tab, CR, LF) is removed, as the HTTP clients did on the
-  wire before 2.x checked it (ambient ones are trimmed as above). An empty
-  explicit credential is the non-empty-string error above (checked before
-  trimming); a whitespace-only one is `must not be blank`; a trimmed one that
-  is not printable ASCII fails the header rule (`header_text` / `headerText`,
-  Go `headerText`: `must be printable ASCII`, or for an untrimmed header value
+  whitespace (space, tab, CR, LF) is removed, as the TypeScript and Go HTTP
+  stacks did on the wire before the SDK checked it (Python's refused a padded
+  value; ambient ones are trimmed as above). An empty explicit credential is
+  the non-empty-string error above (checked before trimming); a
+  whitespace-only one is `must not be blank`; a trimmed one that is not
+  printable ASCII fails the header rule (`header_text` / `headerText`, Go
+  `headerText`: `must be printable ASCII`, or for an untrimmed header value
   such as an idempotency key `must have no leading or trailing whitespace`).
-  Each is that error, naming the field or variable, never the value. An
-  explicit credential of either kind leaves both ambient credentials unread.
+  Each is that error, naming the field, option or variable, never the value.
+  An explicit credential of either kind leaves both ambient credentials
+  unread.
   Python redacts a header the HTTP client refuses from every error text it
   raises or chains (`_transport_errors.py`, spans included) and refuses a
   non-ASCII bearer before encoding it (`bearer`). In TypeScript, credentials and the fields
