@@ -23,8 +23,8 @@ installed only when you ask for them, with a channel (`--channel rc` or
 `--channel alpha`) or an exact version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --channel rc
-curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --version 2.2.0
+curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --channel alpha
+curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --version 2.0.0
 ```
 
 On Windows set `$env:DAYTONA_CHANNEL` (`stable`, `rc` or `alpha`) or
@@ -87,7 +87,7 @@ profile is active, and the CLI asks you to select one or log in.
 ```sh
 daytona image create py312 --ref python:3.12
 daytona sandbox create --image py312 --cpu 2 --memory 2048   # CPU in cores (1 core = 2 vCPUs)
-daytona sandbox create                   # no --image: boots the platform default image
+daytona sandbox create                   # no --image: boots the platform default image, where the deployment has one
 daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete
 daytona image list --platform true       # the platform images every project can boot
 daytona sandbox list
@@ -100,7 +100,7 @@ daytona sandbox cp ./data.csv <id>:/work/data.csv
 daytona sandbox port expose <id> 8080 --public   # a preview URL anyone can open, with no credential
 daytona sandbox port preview-url <id> 8080 --signed --ttl 10m
 daytona volume create shared --type bucket
-daytona sandbox create --image py312 --volume shared:/models:ro
+daytona sandbox create --image py312 --volume shared:/models:ro   # read-only: bucket volumes only; needs a region that can mount buckets
 daytona snapshot create <id> --name saved-state
 daytona sandbox create-from-snapshot saved-state --name resumed   # resume a memory snapshot
 daytona image build my-app --context .  # honours .dockerignore
@@ -353,7 +353,8 @@ never prompts:
   --auto-renew=true`) prompt at a
   terminal; in non-interactive mode (no terminal, `-o json|yaml`, or `CI`
   set) they refuse unless `--yes` or `DAYTONA_YES=1` is given, before
-  anything reaches the server. `daytona config set confirm false`
+  anything reaches the server. `CI` turns off prompts only: at a terminal the
+  default output is still a table, so scripts pass `-o json` explicitly. `daytona config set confirm false`
   turns the terminal prompts off; it never consents off a terminal.
 - Every list returns one page and prints the list envelope. `--limit` (1 to
   200, default 100; the billing lists have their own: `billing balances`,
@@ -376,7 +377,10 @@ never prompts:
   images); the list API has no region filter and regions can share an API,
   so a page can then hold fewer than `--limit` items while the cursor still
   advances over each API's page. Saved cursors resume
-  unfinished pages.
+  unfinished pages. A `--cursor` token is opaque and belongs to the command
+  and filters that printed it: pass it back to the same command with the same
+  flags. A regional token (several regions' cursors in one) is not an SDK
+  `cursor`, and the SDKs' cursors are not CLI tokens.
   Results merge regional cursors and de-duplicate resources by ID. The
   catalogs (`region`, `cpu-type`, `mac-model`, `role`, `billing plan`) and the
   in-sandbox lists (`sandbox port list`, `sandbox process list`) are returned
@@ -391,6 +395,22 @@ never prompts:
   `--created-end-at`, `--updated-start-at` / `--updated-end-at`, and
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
   inclusive; end bounds are exclusive. Values are RFC3339 timestamps.
+- `sandbox search --status` takes the API's statuses (`running`, `stopped`,
+  `paused`, …), not the SDKs' sandbox states (`started`, `destroyed`, …),
+  which the SDKs map to these statuses. Search is eventually consistent: for a
+  few seconds after a change a sandbox can still show its old status or
+  labels. Deleted sandboxes are never returned, even with `--status
+  deleted`; `deleting`, `failed` and `lost` ones are returned until the
+  platform removes their records. `--image-ref` and `--image-ref-prefix`
+  match the project image the sandbox was created from (by its name), not
+  the registry reference that image was pulled or built from. `--spot`
+  selects spot sandboxes and `--spot=false` on-demand ones.
+- Sizes are MiB in the CLI (`--memory`, `--disk`, `--memory-max`,
+  `--disk-max`, and `sandbox search --min-memory` / `--max-disk` …), while
+  the SDKs take GiB (`--memory 2048` is `memory=2` / `memory: 2`). Volume
+  sizes are GiB everywhere (`volume create --size-gib`). Linux sandboxes take
+  `--cpu` (cores, 1 core = 2 vCPUs); macOS sandboxes take `--cores` (one Mac
+  CPU each).
 - Sandbox search accepts repeatable `--label KEY=VALUE`, merged with
   `--labels '{"key":"value"}'`; conflicting values across the two flags,
   or an empty label key, are a usage error (exit 2). `--region` is checked against the region
@@ -410,7 +430,7 @@ never prompts:
   refused: the stored value cannot be read back, so an unset variable or an
   empty file would otherwise erase it silently. `--allowed-domain` rejects
   empty entries, including in comma-separated lists. Omit it to preserve an
-  existing scope; use `--allowed-domain '*'` to remove domain restrictions
+  existing scope (creating a secret requires it); use `--allowed-domain '*'` to remove domain restrictions
   (the value can then reach any verified HTTPS host). An empty scope is not
   supported by the API; delete the secret to remove it entirely.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
@@ -445,7 +465,13 @@ never prompts:
 - `audit list --start-at` and `--end-at` require RFC3339 timestamps and reject
   invalid values locally, before any request.
 - `sandbox create --volume` accepts `VOLUME:MOUNT_PATH`,
-  `VOLUME:MOUNT_PATH:ro`, or `VOLUME:MOUNT_PATH:SUBPATH[:ro]`.
+  `VOLUME:MOUNT_PATH:ro`, or `VOLUME:MOUNT_PATH:SUBPATH[:ro]`. Read-only
+  (`:ro`) is for bucket volumes: a disk volume refuses it, and a bucket mount
+  needs a region that can mount buckets. A third segment `ro` (any case)
+  always means read-only, so a subpath named `ro` is
+  `VOLUME:MOUNT_PATH:ro:ro` read-only, and read-write only through the
+  `volumes` array of `--file`; there is no `:rw` (a third segment `rw` is a
+  subpath named `rw`, and a fourth segment other than `ro` is refused).
   `sandbox create-macos --volume` takes `VOLUME:MOUNT_PATH[:SUBPATH]`:
   a macOS sandbox mounts disk volumes read-write only. Use the `volumes`
   array in `--file` JSON for the same options; an explicit `--volume`
@@ -501,7 +527,9 @@ whole seconds where the API stores seconds:
 | `--expires` | `key mint`, `org-key mint` | key lifetime in whole seconds, or an RFC3339 timestamp |
 
 Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` only on
-a persistent macOS sandbox. Pause a sandbox with `daytona sandbox pause`; a
+a persistent macOS sandbox. A lifecycle or idle timeout is when the action
+becomes due, not an exact time: the platform runs it on its next check, so
+it can fire somewhat later than the configured duration. Pause a sandbox with `daytona sandbox pause`; a
 lifecycle policy never pauses. A refused action is a usage error before any
 request. While a sandbox is stopped, commands that work inside it
 (`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409

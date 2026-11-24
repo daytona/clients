@@ -44,7 +44,8 @@ func newVolumeCreateCommand() *cobra.Command {
 	pathStyle := false
 	cmd := &cobra.Command{
 		Use: "create <name>", Short: "Create a volume",
-		Long: "Create a volume. Without --type the server chooses the volume's type.\nExamples:\n  daytona volume create data\n  daytona volume create data --type disk --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
+		Long: "Create a volume. Without --type the server chooses the volume's type.\n" +
+			"The positional <name> is required even with --file, and it replaces any name in the file.\nExamples:\n  daytona volume create data\n  daytona volume create data --type disk --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -145,7 +146,7 @@ func newVolumeListCommand() *cobra.Command {
 
 func newVolumeGetCommand() *cobra.Command {
 	return &cobra.Command{
-		Use: "get <id>", Short: "Get one volume", Long: "Get one volume.\nExample:\n  daytona volume get <id>", Args: cobra.ExactArgs(1),
+		Use: "get <id-or-name>", Short: "Get one volume", Long: "Get one volume by its vol_… id or its name.\nExamples:\n  daytona volume get vol_123\n  daytona volume get data", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
