@@ -12,7 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWait_whenFrameArrivesDuringDecisiveProbe_settlesFromRead(t *testing.T) {
+// A frame during the probe's read means the socket is alive, so the socket
+// decides even when the read shows the target or a terminal state (as the
+// TypeScript and Python hubs do): the read is dropped and the next probe waits
+// for another quiet period.
+func TestWait_whenFrameArrivesDuringDecisiveProbe_letsSocketDecide(t *testing.T) {
 	for _, status := range []string{"running", "failed", "lost", "deleting", "deleted"} {
 		t.Run(status, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -44,9 +48,10 @@ func TestWait_whenFrameArrivesDuringDecisiveProbe_settlesFromRead(t *testing.T) 
 				// When
 				err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: 5 * time.Minute})
 
-				// Then: settle at completion, with read-backed metadata and no confirming GET.
-				require.Equal(t, []time.Duration{10 * time.Second}, reads)
-				require.Equal(t, 12*time.Second, time.Since(began))
+				// Then: the overlapped read is dropped; the next probe runs after
+				// 10s of quiet from the 11s frame, and settles from its own read.
+				require.Equal(t, []time.Duration{10 * time.Second, 21 * time.Second}, reads)
+				require.Equal(t, 21*time.Second, time.Since(began))
 				if status == "running" {
 					require.NoError(t, err)
 				} else {
