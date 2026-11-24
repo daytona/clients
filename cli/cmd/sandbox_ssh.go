@@ -17,6 +17,7 @@ import (
 
 	"github.com/daytona/clients/cli/internal/cerr"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
+	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/spf13/cobra"
 )
 
@@ -34,8 +35,21 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			sshBinary, err := exec.LookPath("ssh")
+			if err != nil {
+				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
+			}
 			a := FromContext(cmd.Context())
-			toolClient, target, apiClient, err := sandboxToolboxClient(cmd.Context(), a, args[0])
+			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
+			if err != nil {
+				return err
+			}
+			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
+			if err != nil {
+				return err
+			}
+			apiClient := resolved.Client
+			target, err := toolboxclient.TargetFromDetail(resolved.Detail)
 			if err != nil {
 				return err
 			}
@@ -45,23 +59,22 @@ func newSandboxSSHSubcommand() *cobra.Command {
 			if target.SSHHost == "" || target.SSHPort == 0 {
 				return cerr.New(cerr.ExitConflict, "sandbox %s has no SSH gateway", args[0])
 			}
-			sshBinary, err := exec.LookPath("ssh")
+			token, err := toolboxclient.MintSSHAccessToken(cmd.Context(), apiClient, target.Detail.Id)
 			if err != nil {
-				return cerr.Usage("ssh is not installed or not on PATH").WithHint("install OpenSSH and retry")
+				return err
 			}
 			invocation, err := toolboxclient.BuildSSHInvocation(
-				toolboxclient.SSHTarget{Host: target.SSHHost, Port: target.SSHPort, SandboxID: target.Detail.Id, Credential: toolClient.Credential()},
+				toolboxclient.SSHTarget{Host: target.SSHHost, Port: target.SSHPort, SandboxID: target.Detail.Id, Credential: token},
 				toolboxclient.SSHCommand{Options: sshArgs, Args: remoteCommand},
 			)
 			if err != nil {
 				return err
 			}
 			defer invocation.Cleanup()
-			// OpenSSH prints the gateway username, which carries the
-			// credential, in its own messages (an authentication failure,
-			// -v output): its stderr is passed through with the credential
-			// replaced.
-			stderr := newSecretRedactor(os.Stderr, toolClient.Credential())
+			// OpenSSH prints the gateway username, which carries a short-lived
+			// sandbox access token, in its own messages (an authentication
+			// failure, -v output): replace that token in its stderr.
+			stderr := newSecretRedactor(os.Stderr, token)
 			runErr := runSSHCommand(cmd.Context(), sshBinary, invocation.Args, stderr)
 			_ = stderr.Flush()
 			return sshExitError(cmd.Context(), runErr)

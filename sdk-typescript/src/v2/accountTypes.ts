@@ -46,13 +46,6 @@ export interface ProjectBudget {
   readonly stopAt?: string
 }
 
-/**
- * A limit and the usage counted against it. An undefined `limit` means
- * unlimited, except on the counts whose organization limit is not returned:
- * `SandboxLimits.total` and the `StorageLimits` counts. Daytona sets those
- * limits for each organization and they still apply: a create that reaches
- * one throws `LimitExceededError`.
- */
 export interface UsageLimit {
   readonly limit?: number
   readonly usage: number
@@ -60,7 +53,10 @@ export interface UsageLimit {
 
 export interface SandboxLimits {
   readonly concurrent: UsageLimit
-  /** The total sandbox count. Its organization limit is not returned: `limit` is undefined. */
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly total: UsageLimit
 }
 
@@ -68,10 +64,21 @@ export interface ImageBuildLimits {
   readonly concurrent: UsageLimit
 }
 
-/** Volume, image and snapshot counts. Their organization limits are not returned: `limit` is undefined. */
 export interface StorageLimits {
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly volumes: UsageLimit
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly images: UsageLimit
+  /**
+   * @deprecated The limit is not returned: `limit` is always `undefined`. Daytona determines
+   * this limit for each organization; contact support to request a higher limit.
+   */
   readonly snapshots: UsageLimit
 }
 

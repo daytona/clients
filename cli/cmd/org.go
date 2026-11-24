@@ -182,17 +182,18 @@ func newOrgCmd() *cobra.Command {
 	})
 	c.AddCommand(&cobra.Command{
 		Use: "limits [id|name]", Short: "Show the organization's limits and current usage (default: the selected one)", Args: cobra.MaximumNArgs(1),
-		Long: `Show the organization's limits — sandboxes, image
-builds, Mac reservations, members, images, snapshots, volumes, secrets and API
-keys — each with the current usage it is checked against; "unlimited" means no
-limit applies. Total sandboxes, images, snapshots and volumes show the count
-only: Daytona sets those organization limits for each organization and does
-not return them, but they still apply. A request refused by one of them — a Mac reservation purchase
-included (reservation create or renew, or a sandbox create-macos or start
-that buys a Mac) — exits 6 with "LIMIT_EXCEEDED" naming the limit, the current count and the
-maximum. Requires read:organization, or read:limits with an API key. An API
-key reads its own organization when none is named, and its read leaves out
-the member counts.`,
+		Long: `Show the organization's limits — concurrent sandboxes, image builds, Mac
+reservations, members, secrets and API keys — each with the current usage it
+is checked against; "unlimited" means no limit applies.
+Some organization limits are not returned: Daytona determines them for each
+organization, so the table has no row for them. A request refused by one of
+them — a Mac reservation purchase included (reservation create or renew, or a
+sandbox create-macos or start that buys a Mac) — exits 6 with
+"LIMIT_EXCEEDED" naming the limit, with the current count and the maximum
+when the refusal reports them; contact support to request a higher limit.
+Requires read:organization, or read:limits with an API key. An API key reads
+its own organization when none is named, and its read leaves out the member
+counts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			ctx := cmd.Context()
@@ -564,11 +565,8 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 	// Fields the response omits are not printed as zero.
 	rows := [][2]string{
 		{"Concurrent sandboxes", usageLimitString(l.Sandboxes.Concurrent)},
-		{"Total sandboxes", unreturnedLimitString(l.Sandboxes.Total)},
+		{"Concurrent image builds", usageLimitString(l.ImageBuilds.Concurrent)},
 	}
-	rows = append(rows,
-		[2]string{"Concurrent image builds", usageLimitString(l.ImageBuilds.Concurrent)},
-	)
 	// Per-sandbox maximums of a Linux sandbox: the plan's cap, bounded by
 	// the platform maximum. Omit the group when it is absent from the response.
 	if r := l.SandboxResources; r != nil {
@@ -582,13 +580,6 @@ func limitsKV(l *mgmt.OrgLimits) [][2]string {
 	// key's read carries no member group.
 	if l.Members != nil {
 		rows = append(rows, [2]string{"Members", membersLimit(*l.Members)})
-	}
-	if l.HasStorage {
-		rows = append(rows,
-			[2]string{"Images", unreturnedLimitString(l.Storage.Images)},
-			[2]string{"Snapshots", unreturnedLimitString(l.Storage.Snapshots)},
-			[2]string{"Volumes", unreturnedLimitString(l.Storage.Volumes)},
-		)
 	}
 	if m := l.MacReservations; m != nil {
 		rows = append(rows, [2]string{"Mac reservations", usageLimitString(*m)})
@@ -606,16 +597,6 @@ func usageLimitString(q gen.UsageLimit) string {
 		return fmt.Sprintf("%d / unlimited", q.Usage)
 	}
 	return fmt.Sprintf("%d / %d", q.Usage, *q.Limit)
-}
-
-// unreturnedLimitString renders a count whose organization limit the API does
-// not return: a null limit there does not mean unlimited, so only the count is
-// shown. A deployment that still returns the limit gets "current / max".
-func unreturnedLimitString(q gen.UsageLimit) string {
-	if q.Limit == nil {
-		return strconv.FormatInt(q.Usage, 10)
-	}
-	return usageLimitString(q)
 }
 
 func membersLimit(m gen.MemberLimits) string {

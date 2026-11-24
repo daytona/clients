@@ -172,8 +172,15 @@ means no limit, and any other value is a `BadRequestError`)** to cap every
 response body the SDK holds in memory whole: a larger body raises
 `PayloadTooLargeError` before it is read in full (an error response keeps its
 status's error).
-Set `connection_pool_maxsize=` to cap both live and keep-alive HTTP connections,
-and `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
+Set `connection_pool_maxsize=` to cap the HTTP connections of each pool the
+`v2` client keeps (one for API calls, one for calls into sandboxes; default 100,
+all of them reusable while idle; `d.v0` keeps its own default unless you set it).
+Every call, streams and watches included, holds one connection of its pool
+until it returns or closes, long `exec` runs and waits too; build-log follows
+use connections of their own. A call beyond the cap waits for a free
+connection and raises `ClientTimeoutError` if none frees up in time, so raise
+the cap when you keep more calls than that open
+at once. Set `otel_enabled=True` to emit client spans when `daytona[otel]` is installed.
 The extra brings only `opentelemetry-api`; spans are exported only once your
 application configures an OpenTelemetry SDK tracer provider (and exporter) —
 the SDK never installs one itself.
@@ -1220,8 +1227,11 @@ from positional identity arguments instead:
 A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
-and counts as `limit`, `current` and `max`. Other rate-limited requests keep
-raising plain `RateLimitError`.
+as `limit`, and the counts as `current` and `max` when the refusal reports
+them. For the limits Daytona determines for each organization (total and
+persistent sandboxes, volumes, images and snapshots) the refusal still names
+the limit but leaves out the counts, so `current` and `max` are `None`;
+contact support to request a higher one. Other rate-limited requests keep raising plain `RateLimitError`.
 
 On a sandbox that is deleted or being deleted, `set_labels()`,
 `update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls

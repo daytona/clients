@@ -1,0 +1,109 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package daytona
+
+import (
+	"context"
+	"io"
+	"time"
+)
+
+// ExecOptions configures a blocking command. Nil selects defaults.
+type ExecOptions struct {
+	// Cwd overrides the working directory. Empty starts in the user's home
+	// directory when it is available (not with an explicit User), otherwise the
+	// sandbox's working directory.
+	Cwd string
+	// Env adds environment variables. Nil omits env; an empty non-nil map sends {}.
+	Env map[string]string
+	// User overrides the OS user.
+	User string
+	// Shell overrides automatic bash/sh selection for shell commands.
+	Shell string
+	// Login selects a login shell; nil leaves it to the sandbox.
+	Login *bool
+	// Name is an optional live process alias.
+	Name string
+	// Tag groups this process for List and KillAll.
+	Tag string
+	// Timeout bounds waiting, not execution. Zero, WaitForever or NoTimeout waits indefinitely.
+	// Expiry returns reason timed_out; reconnect ProcessID to observe or stop the process.
+	// With output writers, the wait budget starts after creation. The create request
+	// uses the client timeout unless Timeout is explicitly unlimited.
+	Timeout time.Duration
+	// ExecutionTimeout is a server deadline that kills the process tree. Zero,
+	// NoTimeout, or a value above the longest timer every SDK shares (about
+	// 24.8 days) means no deadline, as in the other SDKs.
+	ExecutionTimeout time.Duration
+	// KeepLogs defaults to on_exit_ttl. none is refused because output requires logs.
+	KeepLogs ProcessKeepLogs
+	// Stdout receives live stdout and newly recovered timeout snapshot output.
+	// Calls are synchronous; writers must not block indefinitely.
+	// A writer error stops delivery, attempts to stop the process with a detached
+	// five-second budget, and returns a partial result with ProcessID alongside an
+	// SDK error preserving the writer's cause through errors.Is. Cleanup failure
+	// does not replace that error or confirm the process stopped; Reason is unknown.
+	// Any failure after process creation returns a partial result with ProcessID
+	// and unknown Reason, including without writers. Non-writer failures do not
+	// stop the process or retry the stream. Reconnect ProcessID
+	// to wait, resume logs from the last delivered cursor, or stop the process.
+	Stdout io.Writer
+	// Stderr receives live stderr, serialized with Stdout calls (the same writer is safe).
+	// Writer failures have the same result and best-effort cleanup semantics as Stdout.
+	Stderr io.Writer
+}
+
+// Exec runs a shell command and collects Stdout, Stderr, interleaved Output and Logs.
+// A non-zero ExitCode is NOT an error: inspect res.ExitCode (nil means unreported).
+// err means invalid input, cancellation, a local writer failure, a transport/protocol failure or a server
+// error; use errors.Is with ErrProcessNotFound, ErrSessionEnded, etc.
+// Timeout limits observation without killing; ExecutionTimeout stops the tree.
+// Any failure after creation returns a partial result with ProcessID and unknown Reason.
+// For untrusted arguments use ExecArgs; for persistent shell state use CreateSession.
+func (s *Sandbox) Exec(ctx context.Context, command string, opts *ExecOptions) (*ProcessResult, error) {
+	return s.Process().Run(ctx, command, opts)
+}
+
+// ExecArgs runs an argument vector without shell interpolation.
+// argv must contain a non-empty executable. Results and timeout semantics match Exec.
+func (s *Sandbox) ExecArgs(ctx context.Context, argv []string, opts *ExecOptions) (*ProcessResult, error) {
+	return s.Process().RunArgs(ctx, argv, opts)
+}
+
+// Run is the process namespace form of Sandbox.Exec.
+func (s *Processes) Run(ctx context.Context, command string, opts *ExecOptions) (*ProcessResult, error) {
+	options := execOptions(opts)
+	body, err := processStartBody(&command, nil, options.startOptions())
+	if err != nil {
+		return nil, err
+	}
+	return s.run(ctx, body, options)
+}
+
+// RunArgs is the process namespace form of Sandbox.ExecArgs.
+func (s *Processes) RunArgs(ctx context.Context, argv []string, opts *ExecOptions) (*ProcessResult, error) {
+	if len(argv) == 0 {
+		return nil, badRequest("argv must not be empty")
+	}
+	options := execOptions(opts)
+	body, err := processStartBody(nil, argv, options.startOptions())
+	if err != nil {
+		return nil, err
+	}
+	return s.run(ctx, body, options)
+}
+
+func execOptions(opts *ExecOptions) ExecOptions {
+	if opts == nil {
+		return ExecOptions{}
+	}
+	return *opts
+}
+
+func (o ExecOptions) startOptions() *ProcessStartOptions {
+	return &ProcessStartOptions{
+		Cwd: o.Cwd, Env: o.Env, User: o.User, Shell: o.Shell, Login: o.Login,
+		Name: o.Name, Tag: o.Tag, ExecutionTimeout: o.ExecutionTimeout, KeepLogs: o.KeepLogs,
+	}
+}

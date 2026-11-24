@@ -112,14 +112,16 @@ test('parseEvals', () => {
 test('selectByTokens: surfaces, tasks, single evals, aliases and all', () => {
   assert.deepEqual(plan.selectByTokens(config, ['all']).names, ALL)
   assert.deepEqual(plan.selectByTokens(config, ['py']).names, onSurface('python'))
-  assert.deepEqual(plan.selectByTokens(config, ['preview-url']).names, ['python-preview-url', 'typescript-preview-url', 'cli-preview-url'])
+  assert.deepEqual(plan.selectByTokens(config, ['preview-url']).names, ['python-preview-url', 'typescript-preview-url', 'cli-preview-url', 'go-preview-url'])
   assert.deepEqual(plan.selectByTokens(config, ['cli-git-commit', 'ts']).names, [...onSurface('typescript'), 'cli-git-commit'])
-  assert.deepEqual(plan.selectByTokens(config, ['go']), { unknown: 'go' })
+  assert.deepEqual(plan.selectByTokens(config, ['go']).names, onSurface('go'))
+  assert.deepEqual(plan.selectByTokens(config, ['rust']), { unknown: 'rust' })
 })
 
 test('selectByPaths', () => {
   assert.deepEqual(plan.selectByPaths(config, ['sdk-python/src/x.py', 'README.md']), onSurface('python'))
   assert.deepEqual(plan.selectByPaths(config, ['cli/main.go', 'sdk-typescript/src/a.ts']), [...onSurface('typescript'), ...onSurface('cli')])
+  assert.deepEqual(plan.selectByPaths(config, ['sdk-go/sandbox.go']), onSurface('go'))
   assert.deepEqual(plan.selectByPaths(config, ['docs/x.md', 'examples/a.py']), [])
   assert.deepEqual(plan.selectByPaths(config, ['contract/api-openapi.json']), ALL)
   assert.deepEqual(plan.selectByPaths(config, ['scripts/ax-evals/evals.json']), [])
@@ -183,6 +185,7 @@ test('plan: forks, other bases, unknown evals, selection, renames, nothing chang
     'python-preview-url',
     'typescript-preview-url',
     'cli-preview-url',
+    'go-preview-url',
   ])
   assert.equal(JSON.parse((await runPlan(mockGithub(), dispatchContext('all'))).matrix).length, ALL.length)
   const renamed = mockGithub({ files: [{ filename: 'legacy/x.py', previous_filename: 'sdk-python/x.py' }] })

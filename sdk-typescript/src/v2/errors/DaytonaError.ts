@@ -388,9 +388,15 @@ export class LimitExceededError extends RateLimitError {
   }
 }
 
-/** `IMAGE_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the image's size. */
+/**
+ * `IMAGE_TOO_LARGE` (409): `maxBytes` is the limit and `bytes` the image's size.
+ * Each is `undefined` when the refusal omits it or carries a malformed value.
+ */
 export class ImageTooLargeError extends ConflictError {}
-/** `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the snapshot's size. */
+/**
+ * `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit and `bytes` the snapshot's
+ * size. Each is `undefined` when the refusal omits it or carries a malformed value.
+ */
 export class SnapshotTooLargeError extends ConflictError {}
 
 export class PreconditionRequiredError extends DaytonaError {}

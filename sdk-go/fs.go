@@ -1,0 +1,159 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package daytona
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
+// FileSystem accesses a sandbox's files. Obtain it from Sandbox.FS.
+// All remote paths must start with "/" and are sent without normalization.
+// Handles are safe for concurrent use; returned data belongs to the caller.
+type FileSystem struct{ sandbox *Sandbox }
+
+// FS returns the sandbox filesystem service without making a request.
+func (s *Sandbox) FS() *FileSystem { return &FileSystem{sandbox: s} }
+
+// ListFilesOptions controls directory traversal.
+type ListFilesOptions struct {
+	// Depth is the number of levels; zero uses the server default (1).
+	Depth int
+}
+
+// MkdirOptions configures a new directory.
+type MkdirOptions struct {
+	// Mode is an octal permission string; empty means "0755".
+	Mode string
+}
+
+// RemoveFileOptions controls directory removal.
+type RemoveFileOptions struct {
+	// Recursive removes directory contents too; default false.
+	Recursive bool
+}
+
+// FilePermissionsOptions selects permissions or ownership to change.
+type FilePermissionsOptions struct {
+	// Mode is an octal permission string; empty leaves it unchanged.
+	Mode string
+	// Owner is a user name or ID; empty leaves it unchanged.
+	Owner string
+	// Group is a group name or ID; empty leaves it unchanged.
+	Group string
+}
+
+func filePath(path string) (url.Values, error) {
+	if !strings.HasPrefix(path, "/") {
+		return nil, badRequest("path must be absolute (starting with '/')")
+	}
+	return url.Values{"path": {path}}, nil
+}
+
+func filePaths(paths []string) ([]string, error) {
+	result := make([]string, len(paths))
+	for i, path := range paths {
+		if _, err := filePath(path); err != nil {
+			return nil, err
+		}
+		result[i] = path
+	}
+	return result, nil
+}
+
+// List returns one directory listing, accepting legacy arrays and page envelopes.
+// There is no cursor input on the server's directory endpoint, so the page
+// holds the whole listing and its NextCursor cannot be followed.
+func (f *FileSystem) List(ctx context.Context, path string, opts *ListFilesOptions) (*Page[FileInfo], error) {
+	query, err := filePath(path)
+	if err != nil {
+		return nil, err
+	}
+	if opts != nil && opts.Depth != 0 {
+		query.Set("depth", strconv.Itoa(opts.Depth))
+	}
+	var raw json.RawMessage
+	spec := toolboxRequest{Path: "/files", Query: query, Result: &raw}
+	if requestErr := f.sandbox.toolbox().do(ctx, spec); requestErr != nil {
+		return nil, requestErr
+	}
+	return filePage(raw, parseFileInfo)
+}
+
+// Stat returns file metadata, or ErrFileNotFound when the path does not exist.
+func (f *FileSystem) Stat(ctx context.Context, path string) (*FileInfo, error) {
+	query, err := filePath(path)
+	if err != nil {
+		return nil, err
+	}
+	var raw json.RawMessage
+	spec := toolboxRequest{Path: "/files/info", Query: query, Result: &raw}
+	if requestErr := f.sandbox.toolbox().do(ctx, spec); requestErr != nil {
+		return nil, requestErr
+	}
+	info, err := parseFileInfo(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
+// Mkdir creates a directory, using mode 0755 by default.
+func (f *FileSystem) Mkdir(ctx context.Context, path string, opts *MkdirOptions) error {
+	query, err := filePath(path)
+	if err != nil {
+		return err
+	}
+	mode := "0755"
+	if opts != nil && opts.Mode != "" {
+		mode = opts.Mode
+	}
+	query.Set("mode", mode)
+	return f.sandbox.toolbox().do(ctx, toolboxRequest{Method: http.MethodPost, Path: "/files/folder", Query: query})
+}
+
+// Remove deletes a file, or recursively deletes a directory when requested.
+func (f *FileSystem) Remove(ctx context.Context, path string, opts *RemoveFileOptions) error {
+	query, err := filePath(path)
+	if err != nil {
+		return err
+	}
+	if opts != nil {
+		query.Set("recursive", strconv.FormatBool(opts.Recursive))
+	}
+	return f.sandbox.toolbox().do(ctx, toolboxRequest{Method: http.MethodDelete, Path: "/files", Query: query})
+}
+
+// Move moves or renames a file between absolute sandbox paths.
+func (f *FileSystem) Move(ctx context.Context, source, destination string) error {
+	if _, err := filePaths([]string{source, destination}); err != nil {
+		return err
+	}
+	return f.sandbox.toolbox().do(ctx, toolboxRequest{
+		Method: http.MethodPost, Path: "/files/move",
+		Query: url.Values{"source": {source}, "destination": {destination}},
+	})
+}
+
+// Chmod changes permissions and ownership. Nil opts leaves all fields unspecified.
+func (f *FileSystem) Chmod(ctx context.Context, path string, opts *FilePermissionsOptions) error {
+	query, err := filePath(path)
+	if err != nil {
+		return err
+	}
+	if opts != nil {
+		for name, value := range map[string]string{"mode": opts.Mode, "owner": opts.Owner, "group": opts.Group} {
+			if value != "" {
+				query.Set(name, value)
+			}
+		}
+	}
+	return f.sandbox.toolbox().do(ctx, toolboxRequest{
+		Method: http.MethodPost, Path: "/files/permissions", Query: query,
+	})
+}

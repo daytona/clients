@@ -1,0 +1,185 @@
+// Copyright Daytona Platforms Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package daytona
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestErrors_whenSourceAndCodeDisagreeWithHTTPStatus(t *testing.T) {
+	for _, test := range []struct {
+		source, code string
+		status       int
+		want         error
+	}{
+		{SourceDaemon, "FILE_NOT_FOUND", 500, ErrNotFound},
+		{"FUTURE_SOURCE", "FILE_NOT_FOUND", 500, ErrInternalServer},
+		{SourceAPI, "FILE_NOT_FOUND", 409, ErrConflict},
+		{"FUTURE_SOURCE", "NOT_FOUND", 500, ErrNotFound},
+		{SourceAPI, "BILLING_DISABLED", 500, ErrNotSupported},
+		{SourceProxy, "SANDBOX_NOT_RUNNING", 500, ErrConflict},
+		{SourceRouter, "REGION_MISMATCH", 500, ErrBadRequest},
+		{SourceAPI, "FUTURE_CODE", 429, ErrRateLimit},
+		{SourceSDK, "FILE_NOT_FOUND", 500, ErrNotFound},
+	} {
+		t.Run(test.source+"/"+test.code, func(t *testing.T) {
+			// Given
+			response := &http.Response{StatusCode: test.status, Header: http.Header{"Content-Type": {"application/json"}}}
+			body, err := json.Marshal(map[string]string{"code": test.code, "source": test.source, "message": "failed"})
+			require.NoError(t, err)
+			// When
+			err = errorFromResponse(response, body)
+			// Then
+			require.ErrorIs(t, err, test.want)
+			var detail *Error
+			require.ErrorAs(t, err, &detail)
+			require.Equal(t, test.status, detail.StatusCode)
+			require.Equal(t, test.code, detail.Code)
+		})
+	}
+}
+
+func TestErrors_whenMatchingCodeSentinels(t *testing.T) {
+	// Given
+	cause := &Error{StatusCode: 404, Source: SourceDaemon, Code: CodeFileNotFound, Message: "missing"}
+	// When/Then
+	require.ErrorIs(t, cause, ErrFileNotFound)
+	require.ErrorIs(t, ErrFileNotFound, ErrNotFound)
+	require.ErrorIs(t, ErrSandboxNotRunning, ErrConflict)
+	require.ErrorIs(t, ErrBillingDisabled, ErrInternalServer)
+	require.NotErrorIs(t, cause, ErrGitRepoNotFound)
+}
+
+func TestErrors_whenEnvelopeCarriesDetails(t *testing.T) {
+	// Given
+	response := &http.Response{StatusCode: 429, Header: http.Header{
+		"Content-Type": {"Application/JSON; charset=utf-8"}, "Retry-After": {"9"},
+	}}
+	body := []byte(`{"code":"LIMIT_EXCEEDED","source":"DAYTONA_API","message":"quota",
+		"trace_id":"trace","requestId":"request","limit":"sandboxes","current":5,"max":6,
+		"max_bytes":100,"bytes":200,"retryAfterMs":1250,"feature":"f","entitlement":"e",
+		"replacement":"new","firstAvailableCursor":"oldest","stated":"a","actual":"b","region":"c"}`)
+	// When
+	err := errorFromResponse(response, body)
+	// Then
+	var detail *Error
+	require.ErrorAs(t, err, &detail)
+	require.ErrorIs(t, err, ErrLimitExceeded)
+	require.Equal(t, "trace", detail.TraceID)
+	require.Equal(t, "request", detail.RequestID)
+	require.Equal(t, 1250*time.Millisecond, detail.RetryAfter)
+	require.EqualValues(t, 5, *detail.Details.LimitCurrent)
+	require.EqualValues(t, 6, *detail.Details.LimitMax)
+	require.EqualValues(t, 100, *detail.Details.MaxBytes)
+	require.Equal(t, "oldest", detail.Details.FirstAvailableCursor)
+}
+
+func TestErrors_whenMediaTypeIsNotJSON(t *testing.T) {
+	// Given
+	body := []byte(`{"code":"FILE_NOT_FOUND","source":"DAYTONA_DAEMON","message":"missing"}`)
+	response := &http.Response{StatusCode: 404, Header: http.Header{"Content-Type": {"application/problem+json"}}}
+	// When
+	err := errorFromResponse(response, body)
+	// Then
+	require.ErrorIs(t, err, ErrNotFound)
+	require.NotErrorIs(t, err, ErrFileNotFound)
+	var detail *Error
+	require.ErrorAs(t, err, &detail)
+	require.Equal(t, string(body), detail.Message)
+}
+
+func TestErrorString_namesTheCodeAndStatus(t *testing.T) {
+	cases := map[string]struct {
+		err  *Error
+		want string
+	}{
+		"server error":   {&Error{Message: "image not found", Code: "IMAGE_NOT_FOUND", StatusCode: 404}, "daytona: image not found (IMAGE_NOT_FOUND, HTTP 404)"},
+		"no status":      {&Error{Message: "stream ended", Code: "CONNECTION_ERROR"}, "daytona: stream ended (CONNECTION_ERROR)"},
+		"no code":        {&Error{Message: "bad gateway", StatusCode: 502}, "daytona: bad gateway (HTTP 502)"},
+		"no message":     {&Error{Code: "GONE", StatusCode: 410}, "daytona: GONE, HTTP 410"},
+		"nothing at all": {&Error{}, "daytona: error"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.err.Error())
+		})
+	}
+}
+
+func TestCatalog_whenReferenceAddsCode(t *testing.T) {
+	// Given: a drift guard on the sibling's contract-checked catalog, not copied expectations.
+	source, err := os.ReadFile("../sdk-typescript/src/v2/codes.ts")
+	if errors.Is(err, os.ErrNotExist) && os.Getenv("DAYTONA_SDK_GO_REQUIRE_FIXTURES") == "" {
+		t.Skip("catalog drift requires the repository's TypeScript source")
+	}
+	require.NoError(t, err)
+	catalogs := regexp.MustCompile(`(?s)export const (\w+)_ERROR_CODES = Object.freeze\(\[(.*?)\] as const\)`)
+	codes := regexp.MustCompile(`'([A-Z][A-Z0-9_]+)'`)
+	statuses := regexp.MustCompile(`(?m)^  ([A-Z][A-Z0-9_]+): (\d+),`)
+	statusByCode := make(map[string]int)
+	for _, match := range statuses.FindAllStringSubmatch(string(source), -1) {
+		status, parseErr := strconv.Atoi(match[2])
+		require.NoError(t, parseErr)
+		statusByCode[match[1]] = status
+	}
+	parsedCatalogs := catalogs.FindAllStringSubmatch(string(source), -1)
+	require.NotEmpty(t, parsedCatalogs, "TypeScript catalog parser matched no catalogs")
+	require.NotEmpty(t, statusByCode, "TypeScript status parser matched no entries")
+	parsedCodes := make(map[string]struct{})
+	for _, catalog := range parsedCatalogs {
+		for _, code := range codes.FindAllStringSubmatch(catalog[2], -1) {
+			parsedCodes[code[1]] = struct{}{}
+			// When
+			got := catalogStatus("DAYTONA_"+catalog[1], code[1])
+			// Then
+			require.Equal(t, statusByCode[code[1]], got, "%s/%s", catalog[1], code[1])
+		}
+	}
+	// REQUEST_CANCELLED is a Go-only cancellation sentinel. CLIENT_CLOSED is
+	// in the TS SDK catalog but has no HTTP status in either SDK.
+	require.NotEmpty(t, parsedCodes, "TypeScript catalog parser matched no codes")
+	require.Len(t, parsedCodes, len(statusByCode)+1)
+	generatedCodes := generatedCatalogCodes(t)
+	require.Len(t, generatedCodes, len(parsedCodes)+1)
+	parsedCodes[CodeRequestCancelled] = struct{}{}
+	require.Equal(t, parsedCodes, generatedCodes, "catalog entries must agree in both directions")
+	// When: the sibling adds a per-code envelope extra, Go must retain it too.
+	extras := regexp.MustCompile(`(?s)export const (\w+)_CODE_EXTRAS:[^\n]+ = frozenExtras\(\{(.*?)\}\)`)
+	extraNames := regexp.MustCompile(`'([^']+)'`)
+	parsedExtras := extras.FindAllStringSubmatch(string(source), -1)
+	require.Len(t, parsedExtras, 4, "TypeScript extras parser must cover every source")
+	// These keys are handled by populateErrorDetails (including RetryAfter).
+	handled := []string{
+		"entitlement", "feature", "replacement", "firstAvailableCursor", "stated", "actual",
+		"region", "limit", "current", "max", "max_bytes", "bytes", "retry_after_seconds",
+	}
+	for _, catalog := range parsedExtras {
+		for _, extra := range extraNames.FindAllStringSubmatch(catalog[2], -1) {
+			// Then
+			require.Contains(t, handled, extra[1], "%s extra needs an envelope mapping", catalog[1])
+		}
+	}
+}
+
+func TestErrors_whenJSONDepthExceedsLimit(t *testing.T) {
+	// Given
+	body := []byte(`{"code":"FILE_NOT_FOUND","details":` + strings.Repeat("[", 600) + strings.Repeat("]", 600) + `}`)
+	response := &http.Response{StatusCode: 404, Header: http.Header{"Content-Type": {"application/json"}}}
+	// When
+	err := errorFromResponse(response, body)
+	// Then
+	require.ErrorIs(t, err, ErrNotFound)
+	require.NotErrorIs(t, err, ErrFileNotFound)
+	require.Contains(t, err.Error(), "nested too deeply")
+}

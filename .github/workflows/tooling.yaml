@@ -11,8 +11,14 @@ on:
       - '.gitignore'
       - 'scripts/gitignore_test.sh'
       - 'scripts/sdk-version*.sh'
+      - 'scripts/sdk-go-publish_test.sh'
       - 'scripts/release-channel*.sh'
+      - 'scripts/patch_coverage*'
+      - 'scripts/e2e-run_test.sh'
+      - 'e2e/run.sh'
+      - 'scripts/ax-evals/setup/**'
       - '.github/workflows/sdk_publish.yaml'
+      - '.github/workflows/sdk-go-ci.yaml'
       - '.github/workflows/tooling.yaml'
 
 permissions:
@@ -39,4 +45,10 @@ jobs:
       - name: Release helpers (registry versions, release channel)
         run: |
           bash scripts/sdk-version_test.sh
+          bash scripts/sdk-go-publish_test.sh
           bash scripts/release-channel_test.sh
+      - name: Patch coverage, e2e runner and AX setup helpers
+        run: |
+          bash scripts/patch_coverage_test.sh
+          bash scripts/e2e-run_test.sh
+          bash scripts/ax-evals/setup/go_test.sh

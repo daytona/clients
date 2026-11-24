@@ -1,6 +1,6 @@
 name: E2E
 
-# Live end-to-end tests of both SDKs against a Daytona deployment. They need
+# Live end-to-end tests of the SDKs against a Daytona deployment. They need
 # the DAYTONA_API_KEY secret and, for a deployment other than the default, the
 # DAYTONA_V2_API_URL repository variable (the only URL variable the 2.x SDKs
 # read). DAYTONA_API_URL belongs to the 0.x line's workflows and is not read
@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sdk: [py, ts]
+        sdk: [py, ts, go]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -68,4 +68,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.sdk == 'go'
+        with:
+          go-version-file: sdk-go/go.mod
+          cache-dependency-path: sdk-go/go.sum
       - run: ./e2e/run.sh ${{ matrix.sdk }}
