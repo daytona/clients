@@ -1,0 +1,39 @@
+changelog.d/organization-limits-cli-table.changed.md
+  s_67b025aa04a837::t_d2cba442521117 1-4
+changelog.d/organization-limits-not-returned.deprecated.md
+  s_2ccf818e69eda3::t_d0c8e25b804d61 6-10
+cli/cmd/org_limits_test.go
+  s_2ccf818e69eda3::t_8044f32c0e5cfa 226-243,246,276-278
+sdk-python/README.md
+  s_2ccf818e69eda3::t_fafb619a8f1dac 1224-1227
+sdk-python/src/daytona/v2/errors.py
+  s_2ccf818e69eda3::t_812e68a0b7b447 283-284,289
+sdk-typescript/README.md
+  s_2ccf818e69eda3::t_bf29524e5ea3c1 1140-1143
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_2ccf818e69eda3::t_bcb6fb3b7a7cd6 392-393,398
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a292d456dc1a057625a0d00845355bc3fef1d82",
+  "prompts": {},
+  "sessions": {
+    "s_2ccf818e69eda3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df747089cffePGRu9hL6QGLu3u",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    },
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
