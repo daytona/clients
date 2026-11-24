@@ -1,0 +1,26 @@
+sdk-go/e2e/account_test.go
+  h_e7759ddd73fa65 153
+sdk-go/limits.go
+  h_e7759ddd73fa65 17-19
+sdk-go/limits_cache_regression_test.go
+  h_e7759ddd73fa65 38
+sdk-go/limits_lookup_test.go
+  h_e7759ddd73fa65 47,84
+sdk-go/limits_not_returned_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/limits_test.go
+  h_e7759ddd73fa65 120
+sdk-go/limits_types.go
+  h_e7759ddd73fa65 17-18,29-32,53-56,59-62,65-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "30ee857e47d428654fdd8785d12c00cb7090944c",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
