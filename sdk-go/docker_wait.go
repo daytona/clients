@@ -22,6 +22,9 @@ type DockerWaitOptions struct {
 // WaitUntilReady polls until Docker is ready, without starting it.
 // Terminal states return *DockerNotReadyError; a spent SDK budget returns
 // *DockerWaitTimeoutError, carrying the last status if one arrived.
+// A status read that fails transiently (no response, a client read timeout,
+// HTTP 429, or a 5xx other than 501) is retried with backoff within the
+// budget; the timeout then wraps the last failure. Other failures return at once.
 // Caller cancellation/deadlines and Client.Close interrupt both polls and pauses.
 func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (*DockerStatus, error) {
 	if err := d.sandbox.client.ensureOpen(); err != nil {
@@ -43,6 +46,7 @@ func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (*
 
 func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (*DockerStatus, error) {
 	var last *DockerStatus
+	var retry readBackoff
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, transportError(ctx, err)
@@ -51,10 +55,18 @@ func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (*DockerStat
 			return nil, err
 		}
 		pollStarted := time.Now()
-		status, err := d.poll(ctx, deadline, last)
+		status, err := d.poll(ctx, deadline, last, retry.lastErr)
 		if err != nil {
-			return nil, err
+			pause, retryable := retry.next(ctx, err)
+			if !retryable {
+				return nil, err
+			}
+			if err = d.pause(ctx, deadline, pause); err != nil {
+				return nil, err
+			}
+			continue
 		}
+		retry.succeeded()
 		last = status
 		switch status.State {
 		case DockerStateReady:
@@ -69,27 +81,37 @@ func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (*DockerStat
 		case DockerStateStarting, DockerStateDeferred, DockerStateUnknown:
 			// Unknown future states remain eligible for polling.
 		}
-		pause := 500*time.Millisecond - time.Since(pollStarted)
-		if !deadline.IsZero() {
-			pause = min(pause, time.Until(deadline))
-		}
-		timer := time.NewTimer(max(0, pause))
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return nil, transportError(ctx, ctx.Err())
-		case <-d.sandbox.client.ctx.Done():
-			timer.Stop()
-			return nil, closedError()
-		case <-timer.C:
+		if err = d.pause(ctx, deadline, 500*time.Millisecond-time.Since(pollStarted)); err != nil {
+			return nil, err
 		}
 	}
 }
 
-func (d *Docker) poll(ctx context.Context, deadline time.Time, last *DockerStatus) (*DockerStatus, error) {
+// pause sleeps up to the deadline, interrupted by the caller and Client.Close.
+func (d *Docker) pause(ctx context.Context, deadline time.Time, pause time.Duration) error {
+	if !deadline.IsZero() {
+		pause = min(pause, time.Until(deadline))
+	}
+	timer := time.NewTimer(max(0, pause))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return transportError(ctx, ctx.Err())
+	case <-d.sandbox.client.ctx.Done():
+		return closedError()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// poll reads the status once; a spent budget wraps lastErr, the wait's last
+// failed read, when no request was made.
+func (d *Docker) poll(
+	ctx context.Context, deadline time.Time, last *DockerStatus, lastErr error,
+) (*DockerStatus, error) {
 	hold, timeout := dockerPollBudget(deadline, time.Now())
 	if hold <= 0 {
-		return nil, dockerWaitTimeout(last, nil)
+		return nil, dockerWaitTimeout(last, lastErr)
 	}
 	status, err := d.readStatus(ctx, toolboxRequest{
 		Path: "/docker/status", Query: url.Values{"waitMs": {strconv.FormatInt(wireMilliseconds(hold), 10)}},

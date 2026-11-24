@@ -17,7 +17,10 @@ type GetArtifactOptions struct {
 	Wait bool
 	// Timeout is the total readiness budget. Zero performs one server-default
 	// hold, returning its observation. Positive budgets repeat holds until ready,
-	// failed or error; WaitForever repeats without an SDK deadline.
+	// failed or error; WaitForever repeats without an SDK deadline. A hold that
+	// fails transiently (no response, a client read timeout, HTTP 429, or a 5xx
+	// other than 501) is retried with backoff within the budget, and the
+	// timeout then wraps the last failure.
 	// Values above 2,147,483.647 seconds also mean forever.
 	// Without Wait this field is validated but unused.
 	Timeout time.Duration
@@ -66,9 +69,10 @@ func (r artifactReader[T]) read(ctx context.Context, request apiRequest) (T, err
 
 func (r artifactReader[T]) wait(ctx context.Context) (T, error) {
 	var zero T
+	var retry readBackoff
 	for {
 		if err := ctx.Err(); err != nil {
-			return zero, artifactWaitError(ctx, transportError(ctx, err))
+			return zero, artifactRetryError(ctx, transportError(ctx, err), retry.lastErr)
 		}
 		started := time.Now()
 		hold, timeout := artifactHold(ctx)
@@ -77,14 +81,22 @@ func (r artifactReader[T]) wait(ctx context.Context) (T, error) {
 			Timeout: timeout,
 		})
 		if err != nil {
-			return zero, artifactWaitError(ctx, err)
+			pause, retryable := retry.next(ctx, err)
+			if !retryable {
+				return zero, artifactRetryError(ctx, err, retry.lastErr)
+			}
+			if err = artifactPause(ctx, r.client, pause); err != nil {
+				return zero, artifactRetryError(ctx, err, retry.lastErr)
+			}
+			continue
 		}
+		retry.succeeded()
 		switch value.artifactStatus() {
 		case "ready", "failed", "error":
 			return value, nil
 		default:
 			if err = artifactPause(ctx, r.client, time.Second-time.Since(started)); err != nil {
-				return zero, artifactWaitError(ctx, err)
+				return zero, artifactRetryError(ctx, err, retry.lastErr)
 			}
 		}
 	}
@@ -114,6 +126,19 @@ func artifactWaitError(ctx context.Context, err error) error {
 		return sdkError
 	}
 	return err
+}
+
+// artifactRetryError is artifactWaitError whose spent budget also wraps
+// lastErr, the wait's last failed read.
+func artifactRetryError(ctx context.Context, err, lastErr error) error {
+	result := artifactWaitError(ctx, err)
+	var budget *Error
+	if lastErr == nil || !errors.As(context.Cause(ctx), &budget) || !errors.Is(result, budget) {
+		return result
+	}
+	timeout := *budget
+	timeout.Err = errors.Join(budget.Err, lastErr)
+	return &timeout
 }
 
 func artifactHold(ctx context.Context) (time.Duration, time.Duration) {

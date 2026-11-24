@@ -70,6 +70,9 @@ func TestDockerAndVolumes_whenServerReturnsError(t *testing.T) {
 			{409, "CONFLICT", ErrConflict},
 			{400, "UNSUPPORTED_OPERATION", ErrUnsupportedOperation},
 		} {
+			if operation == "wait" && readRetryable(&Error{StatusCode: test.status, Code: test.code}) {
+				continue // A readiness wait retries these (docker_wait_retry_test.go).
+			}
 			t.Run(operation+"/"+test.code, func(t *testing.T) {
 				// Given
 				fake := newFakeServer(t, map[string]http.HandlerFunc{"/": func(w http.ResponseWriter, _ *http.Request) {

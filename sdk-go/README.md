@@ -209,6 +209,13 @@ Every duration is a `time.Duration`:
   `Timeout` covers submission, lookup and readiness together.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
+- Waits that read the server (sandbox waits, `Docker.WaitUntilReady`,
+  `Images.Get` / `Snapshots.Get` with `Wait`, `Images.Pull` and
+  `Images.BuildAndWait`) retry a read that fails transiently (no response, a
+  client read timeout, HTTP 429 or a 5xx other than 501) with backoff (200 ms
+  doubling to 5 s, or the server's `RetryAfter` when longer) within the same
+  budget. The timeout then wraps the last failed read; any other failure
+  returns at once.
 
 The caller's context always applies, including to unbounded waits.
 

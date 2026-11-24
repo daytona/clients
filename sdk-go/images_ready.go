@@ -69,9 +69,10 @@ func (s *Images) BuildAndWait(ctx context.Context, builder *ImageBuilder, opts *
 // server recorded no error for.
 func (s *Images) ready(ctx context.Context, initial *Image, failed string) (*Image, error) {
 	image := initial
+	var retry readBackoff
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, artifactWaitError(ctx, transportError(ctx, err))
+			return nil, artifactRetryError(ctx, transportError(ctx, err), retry.lastErr)
 		}
 		switch image.Status {
 		case ImageStatusReady:
@@ -90,14 +91,22 @@ func (s *Images) ready(ctx context.Context, initial *Image, failed string) (*Ima
 		started := time.Now()
 		next, err := s.hold(ctx, image.ID)
 		if err != nil {
-			return nil, artifactWaitError(ctx, err)
+			pause, retryable := retry.next(ctx, err)
+			if !retryable {
+				return nil, artifactRetryError(ctx, err, retry.lastErr)
+			}
+			if err = artifactPause(ctx, s.client, pause); err != nil {
+				return nil, artifactRetryError(ctx, err, retry.lastErr)
+			}
+			continue
 		}
+		retry.succeeded()
 		image = next
 		switch image.Status {
 		case ImageStatusReady, ImageStatusFailed, ImageStatusError:
 		case ImageStatusUnknown, ImageStatusPending, ImageStatusBuilding:
 			if err = artifactPause(ctx, s.client, time.Second-time.Since(started)); err != nil {
-				return nil, artifactWaitError(ctx, err)
+				return nil, artifactRetryError(ctx, err, retry.lastErr)
 			}
 		}
 	}

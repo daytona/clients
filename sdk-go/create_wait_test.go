@@ -14,7 +14,7 @@ import (
 
 func TestCreateWaitReturnsLastHandleAfterReadFailure(t *testing.T) {
 	for _, route := range createTestCases() {
-		for _, status := range []int{403, 404, 408, 503} {
+		for _, status := range []int{400, 403, 404, 408} {
 			t.Run(route.name+"/"+http.StatusText(status), func(t *testing.T) {
 				// Given
 				fake := newFakeServer(t, map[string]http.HandlerFunc{
