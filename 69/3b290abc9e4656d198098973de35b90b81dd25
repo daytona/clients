@@ -1,0 +1,22 @@
+cli/README.md
+  s_680d0d36c83fce::t_01b1c916d80bbc 132-135,533-536,622,646
+  s_680d0d36c83fce::t_ed17bcf6a710b6 647-655
+  s_680d0d36c83fce::t_fbf8f3f920202c 687-692
+  s_680d0d36c83fce::t_0f3452ab19485b 693
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "693b290abc9e4656d198098973de35b90b81dd25",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
