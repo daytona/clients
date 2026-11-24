@@ -56,4 +56,16 @@ func TestLegacyConfigFile(t *testing.T) {
 	if got, ok := LegacyConfigFile(env); !ok || got != filepath.Join(other, "config.json") {
 		t.Fatalf("got %q %v", got, ok)
 	}
+	// A relative DAYTONA_CONFIG_DIR is reported as an absolute path, as the
+	// CLI resolves its own directory.
+	t.Chdir(filepath.Dir(other))
+	rel := func(k string) string {
+		if k == "DAYTONA_CONFIG_DIR" {
+			return filepath.Base(other)
+		}
+		return ""
+	}
+	if got, ok := LegacyConfigFile(rel); !ok || got != filepath.Join(other, "config.json") {
+		t.Fatalf("relative dir: got %q %v, want %q", got, ok, filepath.Join(other, "config.json"))
+	}
 }

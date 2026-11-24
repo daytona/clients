@@ -26,7 +26,10 @@ func LegacyConfigFile(getenv func(string) string) (string, bool) {
 		}
 		dir = filepath.Join(base, "daytona")
 	}
-	path := filepath.Join(dir, "config.json")
+	path, err := filepath.Abs(filepath.Join(dir, "config.json"))
+	if err != nil {
+		return "", false
+	}
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
 		return "", false
