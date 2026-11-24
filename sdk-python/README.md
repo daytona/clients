@@ -1143,13 +1143,15 @@ completion: `stop()` returns at `stopped`, and `delete()` returns at
 Client methods accept a sandbox or its id and the same options, for example
 `d.v2.stop(sandbox.id, timeout=120)`. Once the target state has been
 observed, a failed metadata refresh afterwards does not turn that success into
-an error; a refresh that shows another state decides instead (`destroying`,
-`destroyed` or `error` raises, any other state keeps the wait going under the
+an error; a refresh that shows another state decides instead (a state
+terminal for that wait raises, any other state keeps the wait going under the
 same budget), so a lifecycle wait that returns leaves the handle in a
 requested state. `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and raises
-`SandboxTerminalStateError` as soon as a read shows it failed and the sandbox
-returned to `stopped` or `paused`. The server decides which
+`SandboxTerminalStateError` once the wait's reads confirm it failed and the
+sandbox returned to `stopped` or `paused` (back at `paused`, after up to one
+30-second long-poll read). A `pause()` that fails is reported the same way,
+after up to one 30-second long-poll read. The server decides which
 lifecycle actions the sandbox supports.
 
 `fork(wait_seconds=60)` has its own wait budget; fractions are allowed,

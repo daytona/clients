@@ -204,12 +204,14 @@ Every duration is a `time.Duration`:
   60 seconds by default. `daytona.NoWait` skips waiting where supported;
   `daytona.WaitForever` removes the SDK's wait deadline. When `Sandbox.Wait`
   or a lifecycle operation returns, the handle reports a requested state:
-  when the read after a target event shows another state, destroying,
-  destroyed or error fails the wait and any other state keeps it going under
-  the same deadline. `Start` on a sandbox that is already starting (another
-  caller started or resumed it) joins that operation and returns
-  `*daytona.SandboxTerminalStateError` as soon as a read shows it failed and
-  the sandbox returned to stopped or paused. `Resume` of a paused macOS
+  when the read after a target event shows another state, a state terminal
+  for that wait fails it and any other state keeps it going under the same
+  deadline. `Start` on a sandbox that is already starting (another caller
+  started or resumed it) joins that operation and returns
+  `*daytona.SandboxTerminalStateError` once the wait's reads confirm it
+  failed and the sandbox returned to stopped or paused (back at paused, after
+  up to one 30-second long-poll read). A failed `Pause` is reported the same
+  way, after up to one 30-second long-poll read. `Resume` of a paused macOS
   sandbox whose Mac reservation is ending returns
   `daytona.ErrNoActiveReservation`.
 - `Images.BuildAndWait` has no readiness deadline by default. Its `Timeout`

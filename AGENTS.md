@@ -976,15 +976,20 @@ skipping exist only in the TypeScript tool).
   403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
   target was observed, a failed
   metadata refresh afterwards does not turn that success into an error; a
-  refresh that succeeds decides too: a target returns, `destroying` /
-  `destroyed` / `error` raises with the read's reason, and any other state
-  polls on under the same deadline, so a lifecycle wait never returns a
-  handle outside its targets (create and fork still return theirs however
-  the wait ends). An operation's own failure state (`started` for a pause,
-  `stopped` / `paused` for a joined start) is also the state before it, which
-  a lagging plain read shows; it is decided only by long-poll reads, on this
-  read and on the read that confirms a terminal state the events hub
-  reports. `start()` that finds the sandbox `starting` (a start or resume
+  refresh that succeeds decides too: a target returns, a state terminal for
+  that wait that no lag can show (`destroyed`, `error`, and `destroying`
+  unless the wait targets `destroyed`) raises with the read's reason, and
+  any other state polls on under the same deadline, so a lifecycle wait
+  never returns a handle outside its targets (create and fork still return
+  theirs however the wait ends). An operation's own failure state (`started`
+  for a pause, `stopped` / `paused` for a joined start) is also the state
+  before it, which a lagging plain read shows; on this read and on the read
+  that confirms a terminal state the events hub reports, it is left to the
+  long-poll reads that follow. The server holds a loose `wait=paused` on
+  `started` and `wait=running` on `paused` for the whole slice, so such a
+  failure is reported up to one 30-second slice later; a loose
+  `wait=running` answers `stopped` at once, so a lagging `stopped` row can
+  still fail a joined start (an accepted residual risk). `start()` that finds the sandbox `starting` (a start or resume
   another caller sent) sends nothing and waits with `stopped` and `paused`
   as terminal states too; a `start()` that sends start keeps the default
   terminal states, since its first reads may still show `stopped`.

@@ -1000,11 +1000,14 @@ class AsyncSandbox:
         sandbox state attached as ``error.state``. A terminal state the events
         hub reports is confirmed with one read while the wait has budget left,
         unless that state already came from a full read or is ``destroyed``;
-        the read decides: a target state returns, ``destroying``,
-        ``destroyed`` or ``error`` raises, and any other state (the report or
-        the read may be stale, and an operation's own failure state, such as
-        ``started`` for a pause, is also the state before it) polls on under
-        the same deadline, where long-poll reads decide. Without that read, or
+        the read decides: a target state returns, ``destroyed`` or ``error``
+        raises (``destroying`` too, unless the wait targets ``destroyed``),
+        and any other state (the report or the read may be stale, and an
+        operation's own failure state, such as ``started`` for a pause, is
+        also the state before it) polls on under the same deadline; the
+        long-poll reads that follow decide, and the server may hold one of
+        them for up to one slice (``WAIT_FOR_STATE_SLICE_MS``) before it
+        answers with such a state. Without that read, or
         when it fails, the reported state raises. A target state the events
         hub reports is followed by one read that fills in the handle; that
         read decides the same way (a failed read keeps the reported target),
@@ -1174,7 +1177,9 @@ class AsyncSandbox:
                     ) from None
                 # Anything else, the state before the operation included (the
                 # hub may hold it from an earlier wait, and the read may lag
-                # as well): long-poll reads decide, under the same deadline.
+                # as well): the long-poll reads that follow decide, under the
+                # same deadline. They are no proof against a lagging row: a
+                # loose `wait=running` still answers `stopped` at once.
             else:
                 _observe_outcome(resolved)
                 # A socket frame carries only the state. Callers (create, start,
@@ -1194,10 +1199,12 @@ class AsyncSandbox:
                 except DaytonaError:
                     return
                 # The read the handle now carries decides: a lifecycle wait
-                # never returns a handle outside its targets. A state no lag
-                # can show raises; any other state (a read behind the event,
-                # the state before the operation, or a later transition) polls
-                # on under the same deadline, where long-poll reads decide.
+                # never returns a handle outside its targets. A terminal state
+                # no lag can show raises; any other state (a read behind the
+                # event, the state before the operation, or a later transition)
+                # polls on under the same deadline, and the long-poll reads
+                # decide (a loose `wait=running` still answers `stopped` at
+                # once, so they are no proof against a lagging row).
                 if self.state in target_states:
                     return
                 if self.state in confirmed_terminal:
@@ -1317,15 +1324,16 @@ class AsyncSandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
-        reaching ``destroying``, ``destroyed`` or ``error`` first raises
+        reaching ``destroyed`` or ``error`` first (or ``destroying``, unless
+        ``until`` includes ``destroyed``) raises
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
         ``destroyed``. A target state the events hub reports is followed by
         one read of the sandbox's details; when that read shows another state,
-        it decides instead: ``destroying``, ``destroyed`` or ``error`` raises,
-        and any other state keeps the wait going under the same deadline,
-        where long-poll reads decide, so the returned handle is in a
+        it decides instead: a state terminal for this wait raises, and any
+        other state keeps the wait going under the same deadline, so the
+        returned handle is in a
         requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
@@ -1348,7 +1356,8 @@ class AsyncSandbox:
         is already ``starting`` (a start or resume another caller sent) is
         waited for without a new request; when that operation fails and the
         sandbox returns to ``stopped`` or ``paused``, this raises
-        :class:`SandboxTerminalStateError` as soon as a read shows it.
+        :class:`SandboxTerminalStateError` once the wait's reads confirm it
+        (back at ``paused``, after up to one 30-second long-poll read).
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -1415,7 +1424,8 @@ class AsyncSandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
-        then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
+        then raises :class:`SandboxTerminalStateError` once the wait's reads
+        confirm it, after up to one 30-second long-poll read. A paused macOS sandbox
         keeps its memory on its Mac. With auto-renew on, it keeps its
         reservation renewing; otherwise the sandbox is stopped, with its disk,
         before the reservation ends. Which sandboxes can pause is the API's

@@ -158,11 +158,16 @@ and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
 response (id, status, `forked_from`, class) and no wait follows. Once a
 lifecycle wait has observed its target, a failed metadata refresh is
-suppressed; a successful one decides too (a target returns, `destroying`,
-`destroyed` or `error` raises, any other state polls on under the same
-deadline). An operation's own failure state (`started` for a pause, `stopped`
-/ `paused` for a joined start) is also the state before it, so a plain read
-that confirms an events report never raises on it; the long polls decide. Create uses whole-second `wait_seconds`;
+suppressed; a successful one decides too (a target returns, `destroyed` or
+`error` raises, and `destroying` too unless the wait targets `destroyed`; any
+other state polls on under the same deadline). An operation's own failure
+state (`started` for a pause, `stopped` / `paused` for a joined start) is also
+the state before it, so a plain read that confirms an events report never
+raises on it; the long polls that follow decide. The server holds a loose
+`wait=paused` on `started`, and `wait=running` on `paused`, for the whole
+slice, so such a failure is reported up to one 30-second slice later; a loose
+`wait=running` answers `stopped` at once, so a lagging `stopped` row can still
+fail a joined start (an accepted residual risk). Create uses whole-second `wait_seconds`;
 fork permits fractions and uses `0` to skip waiting. Linux forks refresh the
 source before submission when waiting: running sources wait for `started`,
 paused sources retaining memory wait for `paused`, and other sources wait for

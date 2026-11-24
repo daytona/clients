@@ -354,3 +354,22 @@ async def test_a_read_showing_an_irreversible_state_after_a_target_event_raises_
 
     assert (raised.value.state, raised.value.raw_state) == ("destroying", "deleting")
     assert len(api.reads()) == 1
+
+
+@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _PRE_OPERATION)
+async def test_a_held_failure_state_that_every_read_confirms_is_reported_by_the_long_poll(
+    verb: str, state: str, before: list[object], frame: str, stale: str, target: str
+) -> None:
+    # The operation failed: the hub reports the state before it (for a pause,
+    # `started`), and every read agrees. The confirming plain read does not
+    # decide it; the long poll for the target does.
+    del target
+    api = _Api([*before, stale])
+    sandbox = _sandbox(api, _ScriptedHub(stale), state=state)
+
+    with pytest.raises(SandboxTerminalStateError) as raised:
+        await getattr(sandbox, verb)(timeout=30)
+
+    assert raised.value.raw_state == stale
+    reads = api.reads()[len(before) :]
+    assert [read.params.get("wait") for read in reads] == [None, frame]

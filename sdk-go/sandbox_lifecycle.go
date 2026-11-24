@@ -16,7 +16,8 @@ func (s *Sandbox) Stop(ctx context.Context, opts *LifecycleWaitOptions) error {
 }
 
 // Pause saves sandbox memory and waits for paused (default 60 seconds).
-// Returning to started is a *SandboxTerminalStateError. NoWait skips waiting.
+// Returning to started is a *SandboxTerminalStateError, once the wait's reads
+// confirm it (after up to one 30-second long-poll read). NoWait skips waiting.
 // The server decides whether the sandbox supports pausing.
 func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{

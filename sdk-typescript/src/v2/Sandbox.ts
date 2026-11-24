@@ -715,8 +715,9 @@ export class Sandbox {
    * sending start or resume, using the same timeout budget. A sandbox that is
    * already `starting` (a start or resume another caller sent) is waited for
    * without a new request; when that operation fails and the sandbox returns
-   * to `stopped` or `paused`, this throws `SandboxTerminalStateError` as soon
-   * as a read shows it.
+   * to `stopped` or `paused`, this throws `SandboxTerminalStateError` once the
+   * wait's reads confirm it (back at `paused`, after up to one 30-second
+   * long-poll read).
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to
@@ -787,7 +788,9 @@ export class Sandbox {
 
   /**
    * Pause the sandbox with its memory and wait until it is paused.
-   * A return to started means the pause failed. A paused macOS sandbox keeps
+   * A return to started means the pause failed; this then throws
+   * `SandboxTerminalStateError` once the wait's reads confirm it, after up to
+   * one 30-second long-poll read. A paused macOS sandbox keeps
    * its memory on its Mac. With auto-renew on, it keeps its reservation
    * renewing; otherwise the sandbox is stopped, with its disk, before the
    * reservation ends.
@@ -1131,8 +1134,8 @@ export class Sandbox {
    * while the wait has budget left, unless that state already came from a full read or
    * is `destroyed`. A target state the events hub reports is followed by one read of
    * the sandbox's details; when that read shows another state, it decides instead:
-   * `destroying`, `destroyed` or `error` throws, and any other state keeps the wait
-   * going under the same deadline, where long-poll reads decide, so the returned handle is in a requested state (a failed read keeps the
+   * a state terminal for this wait throws, and any other state keeps the wait
+   * going under the same deadline, so the returned handle is in a requested state (a failed read keeps the
    * reported one). When the events hub has reported nothing decisive, the last part
    * of a bounded budget (up to 5 s) reads the state from the server, so a state the
    * hub missed still ends the wait; the same holds for the other lifecycle waits and

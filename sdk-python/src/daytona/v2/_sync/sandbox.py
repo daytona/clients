@@ -306,7 +306,8 @@ class Sandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
-        then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
+        then raises :class:`SandboxTerminalStateError` once the wait's reads
+        confirm it, after up to one 30-second long-poll read. A paused macOS sandbox
         keeps its memory on its Mac. With auto-renew on, it keeps its
         reservation renewing; otherwise the sandbox is stopped, with its disk,
         before the reservation ends. Which sandboxes can pause is the API's
@@ -444,7 +445,8 @@ class Sandbox:
         is already ``starting`` (a start or resume another caller sent) is
         waited for without a new request; when that operation fails and the
         sandbox returns to ``stopped`` or ``paused``, this raises
-        :class:`SandboxTerminalStateError` as soon as a read shows it.
+        :class:`SandboxTerminalStateError` once the wait's reads confirm it
+        (back at ``paused``, after up to one 30-second long-poll read).
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -537,15 +539,16 @@ class Sandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
-        reaching ``destroying``, ``destroyed`` or ``error`` first raises
+        reaching ``destroyed`` or ``error`` first (or ``destroying``, unless
+        ``until`` includes ``destroyed``) raises
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
         ``destroyed``. A target state the events hub reports is followed by
         one read of the sandbox's details; when that read shows another state,
-        it decides instead: ``destroying``, ``destroyed`` or ``error`` raises,
-        and any other state keeps the wait going under the same deadline,
-        where long-poll reads decide, so the returned handle is in a
+        it decides instead: a state terminal for this wait raises, and any
+        other state keeps the wait going under the same deadline, so the
+        returned handle is in a
         requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds

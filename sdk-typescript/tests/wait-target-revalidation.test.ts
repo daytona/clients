@@ -229,6 +229,20 @@ describe.each(PRE_OPERATION)('$method with a read showing $stale, the state befo
     expect(readParams(get).at(-1)).toEqual(expect.objectContaining({ wait: frame }))
   })
 
+  it('throws through the long poll when the hub holds that state and every read confirms it', async () => {
+    // The operation failed: the hub reports the state before it (for a pause,
+    // `started`), and every read agrees. The confirming plain read does not
+    // decide it; the long poll for the target does.
+    const { sandbox, get } = fixture([...before, stale], [stale])
+
+    const error = await sandbox[method]({ timeoutSeconds: 30 }).catch((failure: unknown) => failure)
+
+    expect(error).toBeInstanceOf(SandboxTerminalStateError)
+    expect((error as SandboxTerminalStateError).rawState).toBe(stale)
+    const params = readParams(get).slice(before.length)
+    expect(params).toEqual([undefined, expect.objectContaining({ wait: frame })])
+  })
+
   it('throws when the long poll shows the operation failed', async () => {
     const { sandbox, get } = fixture([...before, stale], [frame])
 

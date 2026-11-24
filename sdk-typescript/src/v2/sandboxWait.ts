@@ -227,8 +227,10 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (states.some((target) => target === outcome.state)) return
       if (confirmedTerminal.includes(outcome.state)) throw terminalError(outcome)
       // Anything else, the state before the operation included (the hub may
-      // hold it from an earlier wait, and the read may lag as well): long-poll
-      // reads decide, under the same deadline.
+      // hold it from an earlier wait, and the read may lag as well): the
+      // long-poll reads that follow decide, under the same deadline. They are
+      // no proof against a lagging row: a loose `wait=running` still answers
+      // `stopped` at once.
     }
     if (resolved !== undefined) {
       context.observe(resolved)
@@ -248,10 +250,11 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         return
       }
       // The read the handle now carries decides: a lifecycle wait never
-      // returns a handle outside its targets. A state no lag can show throws;
-      // any other state (a read behind the event, the state before the
+      // returns a handle outside its targets. A terminal state no lag can show
+      // throws; any other state (a read behind the event, the state before the
       // operation, or a later transition) polls on under the same deadline,
-      // where long-poll reads decide.
+      // and the long-poll reads decide (a loose `wait=running` still answers
+      // `stopped` at once, so they are no proof against a lagging row).
       if (states.some((target) => target === outcome.state)) return
       if (confirmedTerminal.includes(outcome.state)) throw terminalError(outcome)
       await pollForState(Date.now())

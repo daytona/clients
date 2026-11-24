@@ -134,8 +134,9 @@ func (w *sandboxWait) raceRead(
 
 // A terminal event can predate this operation. Only a full read decides that
 // failure. A target event is followed by a metadata refresh that also decides:
-// a target returns, destroying, destroyed or error fails, and any other state
-// polls on under the same deadline; a failed refresh keeps the observed success.
+// a target returns, a terminal state no lag can show fails, and any other
+// state polls on under the same deadline; a failed refresh keeps the observed
+// success.
 // A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
 	if event.NotFound {
@@ -172,7 +173,8 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 	// Only a state no lag can show decides here. Anything else (a read behind
 	// the event, a stale terminal event, the state before the operation, which
 	// is also its failure state, or a later transition) polls for the rest of
-	// the budget, where long-poll reads decide.
+	// the budget, and the long-poll reads decide. They are no proof against a
+	// lagging row: a loose wait=running still answers stopped at once.
 	if slices.Contains(w.terminal, fresh.State) && irreversibleState(fresh.State) {
 		return true, w.terminalError(fresh)
 	}

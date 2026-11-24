@@ -315,6 +315,29 @@ func TestLifecycle_whenLongPollShowsPreOperationState_returnsTerminalError(t *te
 	}
 }
 
+func TestLifecycle_whenHeldFailureStateIsConfirmedByEveryRead_longPollReturnsTerminalError(t *testing.T) {
+	for _, test := range preOperationCases {
+		t.Run(test.name, func(t *testing.T) {
+			// Given: the operation failed; the hub reports the state before it
+			// (for a pause, started) and every read agrees.
+			held := stateObservation{State: map[string]SandboxState{
+				"running": SandboxStateStarted, "stopped": SandboxStateStopped, "paused": SandboxStatePaused,
+			}[test.stale], RawState: test.stale}
+			statuses := append(append([]string{}, test.before...), test.stale)
+			// When
+			_, fake, err := runPreOperation(t, test.verb, statuses, held)
+			// Then: the confirming plain read does not decide it; the long poll does.
+			var terminal *SandboxTerminalStateError
+			require.ErrorAs(t, err, &terminal)
+			require.Equal(t, test.stale, terminal.RawState)
+			got := reads(fake)[len(test.before):]
+			require.Len(t, got, 2)
+			require.Empty(t, got[0].Query)
+			require.Equal(t, test.frame.RawState, got[1].Query.Get("wait"))
+		})
+	}
+}
+
 func TestLifecycle_whenTargetEventReadIsIrreversible_returnsTerminalErrorAtOnce(t *testing.T) {
 	// Given
 	sandbox, fake, err := runPreOperation(t, "pause", []string{"deleting"},
