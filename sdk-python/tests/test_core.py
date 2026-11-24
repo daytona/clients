@@ -260,7 +260,9 @@ _CONTRACT_ROUTE_PREFIXES: Final = (
     "/volumes",
 )
 
-_API_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {}
+_API_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
+    ("GET", "/volumes/search"): "volume search is not exposed by the SDK yet",
+}
 
 
 async def _no_sleep(_seconds: float) -> None:

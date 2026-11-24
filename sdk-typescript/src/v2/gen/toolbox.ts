@@ -519,7 +519,7 @@ export interface paths {
         put?: never;
         /**
          * Restart the desktop
-         * @description Restarts the desktop and returns its ready status. The body is optional: `resolution` restarts the desktop at that size (1024x768, 1280x720 or 1920x1080) and keeps it for later starts; omitted, the desktop restarts at its current resolution. Linux only: other platforms refuse a `resolution`.
+         * @description Restarts the desktop and returns its ready status. The optional body selects `environment` (xfce or gnome) and `resolution` (1024x768, 1280x720 or 1920x1080) and keeps them for later starts. Omitted fields reuse the last selection, defaulting to xfce and to 1280x720 on Linux or 1024x768 on Windows. GNOME availability, preflight and resource checks run before replacing the desktop or saving settings; a refusal leaves the current desktop unchanged. Windows refuses an `environment`; macOS refuses either setting.
          */
         post: operations["restart"];
         delete?: never;
@@ -619,7 +619,7 @@ export interface paths {
         put?: never;
         /**
          * Start the desktop
-         * @description Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution last selected, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.
+         * @description Starts the desktop and returns its process statuses. The optional body selects `environment` (xfce or gnome) and `resolution` (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts. Omitted fields reuse the last selection, defaulting to xfce and to 1280x720 on Linux or 1024x768 on Windows. Starting a running desktop with different settings is refused; use restart instead. GNOME requires a system layer with GNOME, a successful preflight, at least 4 vCPUs and 8192 MiB. Windows refuses an `environment`; macOS refuses either setting.
          */
         post: operations["start"];
         delete?: never;
@@ -637,7 +637,7 @@ export interface paths {
         };
         /**
          * Desktop status
-         * @description Returns the desktop state and activity `status`.
+         * @description Returns the desktop state and activity `status`. Linux also reports the running desktop's environment and resolution, otherwise the settings the next plain start or restart uses.
          */
         get: operations["status"];
         put?: never;
@@ -1866,6 +1866,8 @@ export interface components {
         };
         /** @description Activity status: `active` when the desktop is ready, otherwise `inactive`. */
         ComputerUseActivityStatus: ("active" | "inactive") | (string & {});
+        /** @description The Linux desktop environment. */
+        ComputerUseDesktopEnvironment: ("xfce" | "gnome") | (string & {});
         /** @description The failure attached to a `failed` desktop state. */
         ComputerUseDesktopFailure: {
             /** @description The stable failure code callers branch on. */
@@ -2193,6 +2195,7 @@ export interface components {
         };
         /** @description The optional body of `POST /computeruse/start` and `/restart`. */
         ComputerUseStartRequest: {
+            environment?: null | components["schemas"]["ComputerUseDesktopEnvironment"];
             resolution?: null | components["schemas"]["ComputerUseResolution"];
         };
         /** @description The public desktop status surface. */
@@ -2200,6 +2203,8 @@ export interface components {
             cause?: null | components["schemas"]["ComputerUseDesktopFailure"];
             /** @description The current desktop state. */
             desktop: components["schemas"]["ComputerUseDesktopState"];
+            environment?: null | components["schemas"]["ComputerUseDesktopEnvironment"];
+            resolution?: null | components["schemas"]["ComputerUseResolution"];
             /** @description Activity status corresponding to `desktop`. */
             status: components["schemas"]["ComputerUseActivityStatus"];
         };
@@ -4379,7 +4384,7 @@ export interface operations {
                     "application/json": components["schemas"]["ComputerUseRestartResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — unsupported resolution; `UNSUPPORTED_OPERATION` — this platform cannot set the resolution */
+            /** @description `BAD_REQUEST` — unsupported settings or insufficient GNOME resources; `UNSUPPORTED_OPERATION` — this platform cannot set desktop settings or the system layer has no GNOME desktop */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4388,7 +4393,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `CONFLICT` — a concurrent restart brought the desktop up at a different resolution; retry the restart */
+            /** @description `CONFLICT` — a concurrent restart brought the desktop up with different settings; retry the restart */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4433,7 +4438,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `ADDON_UNAVAILABLE` — desktop automation is unavailable */
+            /** @description `ADDON_UNAVAILABLE` — desktop automation is unavailable, GNOME preflight failed or timed out, or GNOME did not become ready */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4761,7 +4766,7 @@ export interface operations {
                     "application/json": components["schemas"]["ComputerUseLifecycleResponse"];
                 };
             };
-            /** @description `BAD_REQUEST` — unsupported resolution; `UNSUPPORTED_OPERATION` — this platform cannot set the resolution */
+            /** @description `BAD_REQUEST` — unsupported settings or insufficient GNOME resources; `UNSUPPORTED_OPERATION` — this platform cannot set desktop settings or the system layer has no GNOME desktop */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4770,7 +4775,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `DESKTOP_NOT_READY` — the desktop is already starting or failed and needs restart; `CONFLICT` — the desktop is running at a different resolution */
+            /** @description `DESKTOP_NOT_READY` — the desktop is already starting or failed and needs restart; `CONFLICT` — the desktop is running with different settings */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4815,7 +4820,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description `ADDON_UNAVAILABLE` — desktop automation is unavailable */
+            /** @description `ADDON_UNAVAILABLE` — desktop automation is unavailable, GNOME preflight failed or timed out, or GNOME did not become ready */
             503: {
                 headers: {
                     [name: string]: unknown;
