@@ -1087,9 +1087,10 @@ exported from `daytona.v2`) with its requests.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. An app that reaches the sandbox through its own
-transport can decode a status response body with
+transport can decode a status response with
 `parse_computer_use_status(body)` (from `daytona.v2`), which returns what
-`status()` returns for the same body. `screen.screenshot()` captures the whole screen or a
+`status()` returns for the same body. `body` is the decoded JSON object
+(`response.json()`), not the raw bytes or text. `screen.screenshot()` captures the whole screen or a
 `region=ComputerUseRegion(...)`; any of `format=`, `quality=` or `scale=`
 returns a compressed image. `a11y.tree(scope="focused")` returns at most 256 levels below
 the root (`max_depth`, an integer from 0 to 256, default 256); a deeper UI

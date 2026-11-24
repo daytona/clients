@@ -33,10 +33,12 @@ def parse_computer_use_status(body: object) -> ComputerUseStatusResponse:
     """Decode a computer-use status response body exactly as ``sandbox.computer_use.status()`` does.
 
     For apps that reach the toolbox through their own transport: ``body`` is the
-    parsed JSON of the toolbox's ``GET /computeruse/status``. An unrecognized
-    status/desktop pair comes back as ``ComputerUseUnknownStatus`` with the raw
-    values; a body that breaks the contract raises ``BadRequestError`` (400,
-    ``BAD_REQUEST``, source ``SDK``) naming the field.
+    decoded JSON value of the toolbox's ``GET /computeruse/status`` response
+    (``json.loads(text)``, a mapping), not the response bytes or text, which
+    are refused as not an object. An unrecognized status/desktop pair comes
+    back as ``ComputerUseUnknownStatus`` with the raw values; a body that
+    breaks the contract raises ``BadRequestError`` (400, ``BAD_REQUEST``,
+    source ``SDK``) naming the field.
     """
     return _parse_status(body)
 
