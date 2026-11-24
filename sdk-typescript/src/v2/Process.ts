@@ -127,8 +127,12 @@ export class ProcessService {
   /**
    * Run a command, wait for its shell to exit, and collect its output.
    *
-   * Normally one round trip: starts, waits, and returns inline logs. Larger
-   * output or a process outliving the wait window falls back to split calls.
+   * Normally one round trip: starts, waits (at most 30 seconds, or
+   * `timeoutSeconds` if shorter), and returns inline logs. A process that
+   * outlives that window is waited for in further rounds of at most 30
+   * seconds each until `timeoutSeconds`, and larger output is read in further
+   * calls. The start request itself is never retried: a failed start may
+   * still have started the process.
    * Output is bounded by per-process retention; a timed-out result collects
    * only the first few log pages rather than chasing a live writer.
    *

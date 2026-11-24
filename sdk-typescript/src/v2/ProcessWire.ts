@@ -63,6 +63,20 @@ export const KILL_ALL_MAX_TIMEOUT_SECONDS = 60
 
 /** Extra HTTP read budget for a bounded process long-poll. */
 export const WAIT_READ_SLACK_MS = 5_000
+
+/**
+ * Longest server hold of one process wait request: the create hold of `run()`
+ * and every `/wait` round. A longer caller budget, or none, is waited out in
+ * rounds, so no request stays open (and quiet) for the whole wait; a
+ * connection an intermediary drops then costs one round, which the wait
+ * retries, not the whole wait.
+ */
+export const PROCESS_WAIT_ROUND_MS = 30_000
+
+/** The server hold of one wait round in ms: the remaining budget (`undefined`: no deadline) capped at one round. */
+export function processWaitHoldMs(remainingMs: number | undefined): number {
+  return remainingMs === undefined ? PROCESS_WAIT_ROUND_MS : Math.min(remainingMs, PROCESS_WAIT_ROUND_MS)
+}
 export const WAIT_TRANSPORT_RETRY_LIMIT = 3
 
 /**

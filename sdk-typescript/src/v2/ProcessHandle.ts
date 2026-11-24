@@ -12,7 +12,7 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { ConnectionError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
-  remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
+  processWaitHoldMs, remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
   WAIT_READ_SLACK_MS, WAIT_TRANSPORT_RETRY_LIMIT,
 } from './ProcessWire.js'
 import type { LogFrameWire, LogsWire } from './ProcessWire.js'
@@ -142,19 +142,25 @@ export class ProcessHandle {
   /**
    * Wait until the process ends. `timeoutSeconds` is the caller's wait budget
    * (omitted or `0` waits until it ends); on expiry the result is
-   * `{ reason: 'timed_out' }` and the process keeps running.
+   * `{ reason: 'timed_out' }` and the process keeps running. The wait is a
+   * series of requests that each hold for at most 30 seconds, so no single
+   * request stays open for the whole budget; a dropped or stalled round is
+   * retried.
    */
   public async wait(options: WaitProcessOptions = {}): Promise<WaitResult> {
     assertKnownOptions('WaitProcessOptions', options, WAIT_OPTION_KEYS)
     const deadline = waitDeadline(options.timeoutSeconds)
     let consecutiveTransportFailures = 0
     for (;;) {
-      const requestTimeout = deadline === undefined ? 0 : remainingWaitBudgetMs(deadline)
-      if (deadline !== undefined && requestTimeout <= 0) return deepFrozen({ reason: 'timed_out' })
+      const remaining = deadline === undefined ? undefined : remainingWaitBudgetMs(deadline)
+      if (remaining !== undefined && remaining <= 0) return deepFrozen({ reason: 'timed_out' })
+      // One bounded round: its read ends with the hold plus slack, so a
+      // stalled request costs one round, never the whole wait.
+      const holdMs = processWaitHoldMs(remaining)
       try {
         const data = await this.transport.get<toolbox.ExitResult>(
-          `/processes/${pathSegment(this.id, 'process id')}/wait${encodeQuery({ timeoutMs: requestTimeout })}`,
-          { timeout: deadline === undefined ? 0 : requestTimeout + WAIT_READ_SLACK_MS },
+          `/processes/${pathSegment(this.id, 'process id')}/wait${encodeQuery({ timeoutMs: holdMs })}`,
+          { timeout: holdMs + WAIT_READ_SLACK_MS },
         )
         // One retried unit: the long-poll plus, on `timed_out`, the record
         // read; the failure streak resets only when both succeed.

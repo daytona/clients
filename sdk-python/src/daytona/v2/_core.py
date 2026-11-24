@@ -1130,6 +1130,21 @@ def expect_status_response(value: TransportPayload) -> GitStatus:
 # the caller past its budget by more than this.
 WAIT_READ_SLACK_SECONDS = 5.0
 
+# Longest server hold of one process wait request: the create hold of
+# ``run()`` and every ``/wait`` round. A longer caller budget, or none, is
+# waited out in rounds, so no request stays open (and quiet) for the whole
+# wait; a connection an intermediary drops then costs one round, which the
+# wait retries, not the whole wait.
+PROCESS_WAIT_ROUND_SECONDS = 30.0
+
+
+def process_wait_hold(remaining: Optional[float]) -> float:
+    """The server hold of one wait round in seconds: the remaining caller
+    budget (``None``: no deadline) capped at :data:`PROCESS_WAIT_ROUND_SECONDS`."""
+    if remaining is None:
+        return PROCESS_WAIT_ROUND_SECONDS
+    return min(remaining, PROCESS_WAIT_ROUND_SECONDS)
+
 
 def bounded_request_timeout(timeout: Optional[float]) -> Optional[float]:
     """Per-request HTTP timeout for a caller budget.
@@ -1237,10 +1252,11 @@ def process_create_spec(
             timeout=bounded_request_timeout(request_timeout),
             unbounded_read=request_timeout == 0,
         )
-    # waitMs holds the request for the caller budget. The HTTP
-    # read must outlive that hold (budget + slack) so the server's expiry
-    # answers first — but a positive budget still bounds it, so a stalled
-    # request cannot hold the caller indefinitely. waitMs=0 = unbounded read.
+    # waitMs holds the request for one wait round (``run()`` caps it at
+    # PROCESS_WAIT_ROUND_SECONDS). The HTTP read must outlive that hold
+    # (hold + slack) so the server's expiry answers first, but the hold still
+    # bounds it, so a stalled request cannot hold the caller indefinitely.
+    # waitMs=0 = unbounded read.
     params: Dict[str, JsonValue] = {"waitMs": wait_ms}
     if inline_logs:
         params["logs"] = "text"
@@ -1517,21 +1533,18 @@ def timeout_seconds_from_millis(timeout_millis: JsonValue | None) -> Optional[fl
     return None
 
 
-def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = False) -> RequestSpec:
-    params: Dict[str, JsonValue] = {}
-    timeout_millis = 0 if unbounded else timeout_millis_from_seconds(timeout)
-    if timeout_millis is not None:
-        params["timeoutMs"] = timeout_millis
-    # A positive caller budget bounds the transport read too — a stalled
-    # request must not block wait() past its documented budget. Unbounded
-    # waits keep the unbounded read.
-    bounded = None if unbounded or timeout is None or timeout == 0 else timeout + WAIT_READ_SLACK_SECONDS
+def wait_spec(process_id: str, *, timeout: Optional[float]) -> RequestSpec:
+    """One ``/wait`` round. ``timeout`` is the caller's remaining budget in
+    seconds (``None``: no deadline); the round holds at most
+    :data:`PROCESS_WAIT_ROUND_SECONDS`, and its read is bounded by that hold
+    plus slack, so a stalled request ends with the round."""
+    hold = process_wait_hold(timeout)
+    timeout_millis = timeout_millis_from_seconds(hold)
     return RequestSpec(
         "GET",
         f"/processes/{path_segment(process_id, 'process id')}/wait",
-        params=params,
-        timeout=bounded,
-        unbounded_read=bounded is None,
+        params={"timeoutMs": timeout_millis},
+        timeout=hold + WAIT_READ_SLACK_SECONDS,
     )
 
 

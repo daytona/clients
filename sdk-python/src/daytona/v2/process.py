@@ -28,6 +28,7 @@ from ._core import (
     process_create_spec,
     process_kill_spec,
     process_list_spec,
+    process_wait_hold,
     refuse_dot_segment,
     resize_spec,
     signal_spec,
@@ -115,11 +116,6 @@ def _run_stdin(stdin: StdinMode) -> StdinMode:
             "SDK",
         )
     return stdin
-
-
-# Wait budget for run() when the caller set no process timeout: the server's
-# long-poll cap, after which run() re-issues the wait.
-RUN_WAIT_SECONDS = 60.0
 
 
 def _remaining_timeout(timeout: Optional[float], started: float) -> Optional[float]:
@@ -286,8 +282,10 @@ class AsyncProcessHandle:
     async def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
         """Wait for terminal state using the process long-poll contract.
 
-        ``timeout`` is the caller wait budget in seconds; ``0`` waits
-        unbounded.
+        ``timeout`` is the caller wait budget in seconds; omitted or ``0``
+        waits until the process ends. The wait is a series of requests that
+        each hold for at most 30 seconds, so no single request stays open for
+        the whole budget; a dropped or stalled round is retried.
         """
         timeout = wait_budget(timeout)
         deadline = None if timeout is None or timeout == 0 else _clock.monotonic() + timeout
@@ -303,15 +301,7 @@ class AsyncProcessHandle:
             # record read; the failure streak resets only when both succeed.
             try:
                 result = parse_wait(
-                    expect_exit_result(
-                        await self._send(
-                            wait_spec(
-                                self.id,
-                                timeout=remaining_timeout,
-                                unbounded=deadline is None,
-                            )
-                        )
-                    )
+                    expect_exit_result(await self._send(wait_spec(self.id, timeout=remaining_timeout)))
                 )
                 if result.reason != "timed_out":
                     return result
@@ -702,9 +692,12 @@ class AsyncProcessService:
         """Start a process, wait for its shell to exit, and collect its output.
 
         The common case is one round trip: the sandbox starts the process, holds
-        the request until it exits (or ``timeout`` expires), and returns the
-        output inline. A process that outlives the wait window or produces more
-        output than fits in one page falls back to split calls automatically.
+        the request until it exits (for at most 30 seconds, or ``timeout`` if
+        shorter), and returns the output inline. A process that outlives that
+        window is waited for in further rounds of at most 30 seconds each until
+        ``timeout``, and output larger than one page is read in further calls.
+        The start request itself is never retried: a failed start may still
+        have started the process.
 
         The result holds the output available when the call returns:
         its per-process log is bounded, so very large output loses its oldest
@@ -767,9 +760,7 @@ class AsyncProcessService:
             execution_timeout=execution_timeout,
             terminal=None,
             keep_logs=_run_keep_logs(keep_logs),
-            wait_ms=timeout_millis_from_seconds(timeout)
-            if timeout is not None
-            else int(RUN_WAIT_SECONDS * 1000),
+            wait_ms=timeout_millis_from_seconds(process_wait_hold(timeout or None)),
             inline_logs=True,
         )
         started = _clock.monotonic()

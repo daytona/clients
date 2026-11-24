@@ -754,6 +754,13 @@ skipping exist only in the TypeScript tool).
   `SDK`, no HTTP status) for every new request through it or its handles, in
   Python sync, async and TypeScript; `root.v2` after `root.close()` builds a
   fresh client. A shared events hub is not closed by one of its clients.
+- **Process waits hold at most 30 s per request.** The create hold of
+  `run()` / `session.run()` (`waitMs`) and every `/wait` round (`timeoutMs`)
+  are capped at one round (Python `PROCESS_WAIT_ROUND_SECONDS`, TS
+  `PROCESS_WAIT_ROUND_MS`, Go `processWaitRound`), each read bounded by its
+  hold plus the wait slack; a longer or unlimited caller budget is waited out
+  in rounds, and a dropped round is retried within the wait's transport retry
+  limit. The create request is never retried.
 - **Blocking runs refuse `stdin="open"`**; `start()` / `session.start()` send
   `keep_logs` `on_exit_ttl` when none is given; an execution timeout of `0` is
   omitted (no deadline); PTYs get `TERM=xterm-256color` unless `env` sets it.
