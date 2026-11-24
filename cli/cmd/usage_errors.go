@@ -13,7 +13,8 @@ import (
 )
 
 // usageArgs wraps a command's positional-argument validator so that every
-// arity mistake is a usage error (exit 2).
+// arity mistake is a usage error (exit 2), and so that a blank argument in a
+// position the command's Use line names is one too (see refuseBlankArgs).
 func usageArgs(validate cobra.PositionalArgs) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
 		if validate == nil {
@@ -26,8 +27,54 @@ func usageArgs(validate cobra.PositionalArgs) cobra.PositionalArgs {
 			}
 			return cerr.Usage("%s", err.Error()).WithHint("run `%s --help` for usage", cmd.CommandPath())
 		}
+		return refuseBlankArgs(cmd, args)
+	}
+}
+
+// refuseBlankArgs refuses an empty or whitespace-only argument given for a
+// named positional (an id, a name, a host, a path): no command accepts one,
+// and sent as given it would reach the API as a collection path or an
+// unknown name. Free-text and pass-through positionals are not checked: the
+// search query, a setting's value, everything after `--`, and a variadic placeholder and the
+// arguments after it (ssh and exec arguments may be legitimately empty).
+func refuseBlankArgs(cmd *cobra.Command, args []string) error {
+	placeholders := namedPositionals(cmd.Use)
+	if dash := cmd.ArgsLenAtDash(); dash >= 0 && dash < len(args) {
+		args = args[:dash]
+	}
+	for i, arg := range args {
+		if i >= len(placeholders) {
+			break
+		}
+		if strings.TrimSpace(arg) == "" {
+			return cerr.Usage("argument %s is empty", placeholders[i]).WithHint("run `%s --help` for usage", cmd.CommandPath())
+		}
+	}
+	return nil
+}
+
+// namedPositionals reads the positional placeholders of a Use line in order
+// ("get <id>" → ["<id>"]), stopping at the first flag, `--` or variadic
+// placeholder. `[flags]` is skipped; the free-text `[query]` and `<value>`
+// (checked by their commands) end the list.
+func namedPositionals(use string) []string {
+	fields := strings.Fields(use)
+	if len(fields) < 2 {
 		return nil
 	}
+	var out []string
+	for _, field := range fields[1:] {
+		switch {
+		case field == "[flags]":
+			continue
+		case strings.HasPrefix(field, "-"), strings.Contains(field, "..."), field == "[query]", field == "<value>":
+			return out
+		case strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]"):
+			field = "<" + field[1:len(field)-1] + ">"
+		}
+		out = append(out, field)
+	}
+	return out
 }
 
 // rejectUnknownSubcommand is the argument validator of a command group: any

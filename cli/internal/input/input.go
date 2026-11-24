@@ -9,9 +9,11 @@ package input
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -41,19 +43,39 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 		defer f.Close()
 		r = f
 	}
-	var b Body
+	var v any
 	dec := json.NewDecoder(r)
 	dec.UseNumber()
-	if err := dec.Decode(&b); err != nil {
-		return nil, cerr.Usage("--file %s: invalid JSON object: %v", path, err)
+	if err := dec.Decode(&v); err != nil {
+		return nil, cerr.Usage("--file %s: invalid JSON: %v", path, err)
 	}
-	if b == nil {
-		return nil, cerr.Usage("--file %s: JSON object required", path)
+	b, ok := v.(map[string]any)
+	if !ok {
+		return nil, cerr.Usage("--file %s must contain a JSON object, got %s", path, jsonKind(v))
 	}
-	if err := dec.Decode(new(struct{})); err != io.EOF {
+	if err := dec.Decode(new(json.RawMessage)); err != io.EOF {
 		return nil, cerr.Usage("--file %s: trailing data after the JSON object", path)
 	}
-	return b, nil
+	return Body(b), nil
+}
+
+// jsonKind names the JSON type of a decoded value, for messages.
+func jsonKind(v any) string {
+	switch v.(type) {
+	case nil:
+		return "null"
+	case []any:
+		return "an array"
+	case string:
+		return "a string"
+	case bool:
+		return "a boolean"
+	case json.Number, float64:
+		return "a number"
+	case map[string]any:
+		return "an object"
+	}
+	return fmt.Sprintf("%T", v)
 }
 
 // Set writes a field unconditionally.
@@ -147,7 +169,26 @@ func Decode[T any](b Body) (T, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&out); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) && typeErr.Field != "" {
+			return out, cerr.Usage("invalid request body: field %q cannot be %s", typeErr.Field, jsonValueKind(typeErr.Value))
+		}
 		return out, cerr.Usage("invalid request body: %v", err)
 	}
 	return out, nil
+}
+
+// jsonValueKind names the JSON value encoding/json reports in
+// UnmarshalTypeError.Value ("string", "number 1.5", "array", ...).
+func jsonValueKind(value string) string {
+	kind, _, _ := strings.Cut(value, " ")
+	switch kind {
+	case "array", "object":
+		return "an " + kind
+	case "bool":
+		return "a boolean"
+	case "":
+		return "another type"
+	}
+	return "a " + kind
 }

@@ -171,6 +171,54 @@ func TestDecode_mapKeysAreKeptAsGiven(t *testing.T) {
 	}
 }
 
+// A --file that is valid JSON but not an object names what it holds, in JSON
+// terms; syntax and trailing-data errors keep their own messages.
+func TestLoad_nonObjectNamesTheJSONType(t *testing.T) {
+	for body, kind := range map[string]string{
+		`[]`:        "an array",
+		`[{"a":1}]`: "an array",
+		`null`:      "null",
+		`"x"`:       "a string",
+		`3`:         "a number",
+		`true`:      "a boolean",
+	} {
+		_, err := loadBody(t, body)
+		if cerr.ExitCode(err) != cerr.ExitUsage {
+			t.Fatalf("%s: exit %d (%v)", body, cerr.ExitCode(err), err)
+		}
+		if msg := err.Error(); !strings.Contains(msg, "must contain a JSON object, got "+kind) || strings.Contains(msg, "Go value") || strings.Contains(msg, "input.Body") {
+			t.Fatalf("%s: %q", body, msg)
+		}
+	}
+	if _, err := loadBody(t, `{"a":`); err == nil || !strings.Contains(err.Error(), "invalid JSON") {
+		t.Fatalf("syntax error: %v", err)
+	}
+	if _, err := loadBody(t, `{"a":1} []`); err == nil || !strings.Contains(err.Error(), "trailing data") {
+		t.Fatalf("trailing array: %v", err)
+	}
+}
+
+// A field of the wrong JSON type is named with the JSON type it was given,
+// not the Go type it decodes into.
+func TestDecode_typeMismatchNamesTheField(t *testing.T) {
+	registerFields[caseRequest](t)
+	for body, want := range map[string]string{
+		`{"cores_max":"1"}`:                        `field "cores_max" cannot be a string`,
+		`{"labels":["a"]}`:                         `field "labels" cannot be an array`,
+		`{"volumes":[{"volume":1}]}`:               `field "volumes.volume" cannot be a number`,
+		`{"lifecycle_policy":{"on_timeout":true}}`: `field "lifecycle_policy.on_timeout" cannot be a boolean`,
+	} {
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+		_, err = Decode[caseRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), want) || strings.Contains(err.Error(), "Go struct") {
+			t.Fatalf("Decode %s: %v", body, err)
+		}
+	}
+}
+
 // A type without a table is a bug, reported rather than decoded unchecked.
 func TestDecode_needsAFieldTable(t *testing.T) {
 	type unregistered struct{}
