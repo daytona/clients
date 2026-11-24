@@ -975,7 +975,14 @@ skipping exist only in the TypeScript tool).
   the read's error as its cause (a server's 408 included), except a 401 /
   403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
   target was observed, a failed
-  metadata refresh afterwards does not turn that success into an error.
+  metadata refresh afterwards does not turn that success into an error; a
+  refresh that succeeds decides like any other read (a target returns, a
+  terminal state raises with the read's reason, any other state polls on
+  under the same deadline), so a wait never returns a handle outside its
+  targets. `start()` that finds the sandbox `starting` (a start or resume
+  another caller sent) sends nothing and waits with `stopped` and `paused`
+  as terminal states too; a `start()` that sends start keeps the default
+  terminal states, since its first reads may still show `stopped`.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:
   budget spent, terminal state, or a failed read (any `DaytonaError`). A

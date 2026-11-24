@@ -50,7 +50,7 @@ import { deepFrozen } from './frozen.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
 import { SandboxAuth, rfc3339EpochMs } from './sandboxAuth.js'
-import { DEFAULT_SANDBOX_TERMINAL_STATES, PAUSE_TERMINAL_STATES, RESUME_TERMINAL_STATES, WAIT_FOR_STATE_SLICE_MS, waitForSandboxState, waitQueryState } from './sandboxWait.js'
+import { DEFAULT_SANDBOX_TERMINAL_STATES, JOINED_START_TERMINAL_STATES, PAUSE_TERMINAL_STATES, RESUME_TERMINAL_STATES, WAIT_FOR_STATE_SLICE_MS, waitForSandboxState, waitQueryState } from './sandboxWait.js'
 import type { SandboxStateWaitOptions } from './sandboxWait.js'
 import type {
   CreateAccessTokenOptions,
@@ -712,7 +712,10 @@ export class Sandbox {
   /**
    * Start a stopped sandbox, or resume a paused one, and wait until it is started.
    * If stop or pause is still in progress, wait for it to settle before
-   * sending start or resume, using the same timeout budget.
+   * sending start or resume, using the same timeout budget. A sandbox that is
+   * already `starting` (a start or resume another caller sent) is waited for
+   * without a new request; when that operation fails and the sandbox returns
+   * to `stopped` or `paused`, this throws `SandboxTerminalStateError`.
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to
@@ -759,6 +762,10 @@ export class Sandbox {
     } else if (this.state === 'stopped') {
       const r = await this.api.post(`/sandboxes/${strictUriEncode(this.id)}/start`)
       this.learnEventDestination(eventDestinationFromHeaders(r.headers))
+    } else if (this.state === 'starting') {
+      // Joining a start or resume another caller sent: when it fails, the
+      // sandbox goes back to stopped or paused.
+      terminalStates = JOINED_START_TERMINAL_STATES
     }
     await this.waitForState(['started'], { timeoutSeconds, terminalStates })
   }
@@ -795,7 +802,21 @@ export class Sandbox {
 
   /**
    * Resume a paused sandbox and wait until it is started.
-   * A return to stopped means the resume failed.
+   * A return to stopped means the resume failed; this then throws
+   * `SandboxTerminalStateError`.
+   *
+   * Whether the sandbox can resume is the API's decision; a refusal surfaces
+   * as its typed error. A sandbox that is not paused, or whose saved state is
+   * unavailable, throws `ConflictError` with `CONFLICT`, and a sandbox class
+   * that cannot resume `NotSupportedForClassError`
+   * (`NOT_SUPPORTED_FOR_CLASS`). A paused macOS sandbox whose Mac reservation
+   * is ending throws `ConflictError` with `NO_ACTIVE_RESERVATION`: its memory
+   * is on that Mac, so another reservation cannot take it over. The sandbox
+   * is stopped with its disk when the reservation ends, and `start()` can then
+   * start it under another reservation. A suspended organization throws
+   * `OrgSuspendedError`, a project at its monthly budget
+   * `ProjectBudgetExceededError`, and a resume the platform cannot take now
+   * `ServiceUnavailableError`.
    */
   public async resume(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -1107,7 +1128,11 @@ export class Sandbox {
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
    * A terminal state the events hub reports is confirmed with one read before it raises,
    * while the wait has budget left, unless that state already came from a full read or
-   * is `destroyed`. When the events hub has reported nothing decisive, the last part
+   * is `destroyed`. A target state the events hub reports is followed by one read of
+   * the sandbox's details; when that read shows another state, it decides instead: a
+   * terminal state raises, and any other state keeps the wait going under the same
+   * deadline, so the returned handle is in a requested state (a failed read keeps the
+   * reported one). When the events hub has reported nothing decisive, the last part
    * of a bounded budget (up to 5 s) reads the state from the server, so a state the
    * hub missed still ends the wait; the same holds for the other lifecycle waits and
    * the create and fork waits.

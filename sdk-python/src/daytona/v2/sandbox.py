@@ -152,6 +152,7 @@ WAIT_FINAL_READ_RESERVE_S = 5.0
 # after those requests each state means failure, not something to keep waiting past.
 _PAUSE_TERMINAL_STATES: tuple[SandboxState, ...] = (*DEFAULT_SANDBOX_TERMINAL_STATES, "started")
 _RESUME_TERMINAL_STATES: tuple[SandboxState, ...] = (*DEFAULT_SANDBOX_TERMINAL_STATES, "stopped")
+_JOINED_START_TERMINAL_STATES: tuple[SandboxState, ...] = (*_RESUME_TERMINAL_STATES, "paused")
 SANDBOX_TOKEN_REFRESH_LEAD_SECONDS = 60.0
 
 
@@ -997,7 +998,10 @@ class AsyncSandbox:
         the read decides: a target state returns, another terminal state
         raises, and any other state means the report was stale, so the wait
         polls on under the same deadline. Without that read, or when it fails,
-        the reported state raises. The events hub gets the budget less a final
+        the reported state raises. A target state the events hub reports is
+        followed by one read that fills in the handle; that read decides the
+        same way (a failed read keeps the reported target), so the handle never
+        returns outside the target states. The events hub gets the budget less a final
         reserve (``WAIT_FINAL_READ_RESERVE_S``, at most a quarter of it); when
         it has decided nothing by then, the reserve is a long-poll read of the
         server, so a state the stream never reported still ends the wait.
@@ -1170,11 +1174,33 @@ class AsyncSandbox:
                 # nothing to fill in (the GET would be a 404). The target was
                 # observed, so neither a spent budget nor a failed refresh turns
                 # that success into an error.
-                if not refreshed_by_poll and resolved.state != "destroyed":
-                    remaining = None if deadline is None else deadline - _clock.monotonic()
-                    if remaining is None or remaining > 0:
-                        with contextlib.suppress(DaytonaError):
-                            await self._refresh_data_within(timeout=remaining, deadline=deadline)
+                if refreshed_by_poll or resolved.state == "destroyed":
+                    return
+                remaining = None if deadline is None else deadline - _clock.monotonic()
+                if remaining is not None and remaining <= 0:
+                    return
+                try:
+                    await self._refresh_data_within(timeout=remaining, deadline=deadline)
+                except DaytonaError:
+                    return
+                # The read the handle now carries decides, as any other read
+                # does: the wait never returns a handle outside its targets. A
+                # terminal state raises; any other state (a read behind the
+                # event, or a later transition) polls on under the same deadline.
+                if self.state in target_states:
+                    return
+                if self.state in effective_terminal:
+                    raise _sandbox_terminal_state_error(
+                        self.id, self.state, raw_state=self.raw_state or None, reason=self.error
+                    )
+                await self._poll_for_state(
+                    target_states,
+                    effective_terminal,
+                    wait_target,
+                    deadline,
+                    exact,
+                    last_read_end=_clock.monotonic(),
+                )
                 return
 
         await self._poll_for_state(target_states, effective_terminal, wait_target, deadline, exact)
@@ -1284,7 +1310,11 @@ class AsyncSandbox:
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
-        ``destroyed``. When the events hub has reported nothing decisive, the
+        ``destroyed``. A target state the events hub reports is followed by
+        one read of the sandbox's details; when that read shows another state,
+        it decides instead: a terminal state raises, and any other state keeps
+        the wait going under the same deadline, so the returned handle is in a
+        requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits.
@@ -1302,7 +1332,11 @@ class AsyncSandbox:
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
         If a stop or pause is still in progress, wait for it to settle before
-        sending start or resume, using the same timeout budget.
+        sending start or resume, using the same timeout budget. A sandbox that
+        is already ``starting`` (a start or resume another caller sent) is
+        waited for without a new request; when that operation fails and the
+        sandbox returns to ``stopped`` or ``paused``, this raises
+        :class:`SandboxTerminalStateError`.
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -1342,6 +1376,10 @@ class AsyncSandbox:
             terminal_states = _RESUME_TERMINAL_STATES
         elif self.state == "stopped":
             await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/start"))
+        elif self.state == "starting":
+            # Joining a start or resume another caller sent: when it fails,
+            # the sandbox goes back to stopped or paused.
+            terminal_states = _JOINED_START_TERMINAL_STATES
         await self._wait_for_state(["started"], terminal_states, timeout=timeout)
 
     async def stop(self, *, timeout: float = 60) -> None:
@@ -1381,6 +1419,21 @@ class AsyncSandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
         raises :class:`SandboxTerminalStateError`.
+
+        Whether the sandbox can resume is the API's decision; a refusal
+        surfaces as its typed error. A sandbox that is not paused, or whose
+        saved state is unavailable, raises :class:`ConflictError` with
+        ``CONFLICT``, and a sandbox class that cannot resume
+        :class:`NotSupportedForClassError` (``NOT_SUPPORTED_FOR_CLASS``). A
+        paused macOS sandbox whose Mac reservation is ending raises
+        :class:`ConflictError` with
+        ``NO_ACTIVE_RESERVATION``: its memory is on that Mac, so another
+        reservation cannot take it over. The sandbox is stopped with its disk
+        when the reservation ends, and :meth:`start` can then start it under
+        another reservation. A suspended organization raises
+        :class:`OrgSuspendedError`, a project at its monthly budget
+        :class:`ProjectBudgetExceededError`, and a resume the platform cannot
+        take now :class:`ServiceUnavailableError`.
         """
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/resume"))

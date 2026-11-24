@@ -133,7 +133,9 @@ func (w *sandboxWait) raceRead(
 }
 
 // A terminal event can predate this operation. Only a full read decides that
-// failure; a successful target event needs just a best-effort metadata refresh.
+// failure. A target event is followed by a metadata refresh that also decides:
+// a target returns, a terminal state fails, and any other state polls on under
+// the same deadline; a failed refresh keeps the observed success.
 // A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
 	if event.NotFound {
@@ -157,19 +159,15 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 	if err != nil && (ctx.Err() != nil || errors.Is(err, ErrClientClosed)) {
 		return true, err
 	}
-	if success {
-		// All read failures are SDK errors at this boundary. Success survives.
-		return true, nil
-	}
 	if err != nil {
+		if success {
+			// All read failures are SDK errors at this boundary. Success survives.
+			return true, nil
+		}
 		return true, w.terminalError(reported)
 	}
-	if w.target(fresh.State) {
-		return true, nil
-	}
-	if slices.Contains(w.terminal, fresh.State) {
-		return true, w.terminalError(fresh)
-	}
-	// A stale terminal event is discarded; poll for the rest of the budget.
-	return false, nil
+	// A read that disagrees with the event and decides nothing (a read behind
+	// it, a stale terminal event, or a later transition) polls for the rest of
+	// the budget.
+	return w.readOutcome(fresh)
 }

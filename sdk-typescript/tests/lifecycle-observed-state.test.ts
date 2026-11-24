@@ -45,12 +45,15 @@ it('keeps the state a successful refresh reads after the hub observed the target
   const api = createHttpClient('http://api.invalid')
   const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
   jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
-  jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'stopping', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+  jest.spyOn(api, 'get')
+    .mockResolvedValueOnce({ data: { id: 'sbx', class: 'linux', status: 'stopping', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
+    .mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 2, cores_max: 2, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
   const sandbox = createSandbox('sbx', api, undefined, undefined, undefined, {}, undefined, undefined, hub)
   // When the wait resolves and the refresh succeeds.
   await sandbox.wait()
-  // Then the handle reports what the server said last, not the event-time state.
-  expect([sandbox.state, sandbox.rawState]).toEqual(['stopping', 'stopping'])
+  // Then the handle reports what the server said last, not the event-time
+  // state; a read outside the targets kept the wait going until one showed a target.
+  expect([sandbox.state, sandbox.rawState, sandbox.cpu]).toEqual(['started', 'running', 2])
 })
 
 it('does not refresh or time out when the hub observes its target at the deadline', async () => {

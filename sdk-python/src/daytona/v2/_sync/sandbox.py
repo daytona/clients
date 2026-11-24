@@ -358,6 +358,21 @@ class Sandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
         raises :class:`SandboxTerminalStateError`.
+
+        Whether the sandbox can resume is the API's decision; a refusal
+        surfaces as its typed error. A sandbox that is not paused, or whose
+        saved state is unavailable, raises :class:`ConflictError` with
+        ``CONFLICT``, and a sandbox class that cannot resume
+        :class:`NotSupportedForClassError` (``NOT_SUPPORTED_FOR_CLASS``). A
+        paused macOS sandbox whose Mac reservation is ending raises
+        :class:`ConflictError` with
+        ``NO_ACTIVE_RESERVATION``: its memory is on that Mac, so another
+        reservation cannot take it over. The sandbox is stopped with its disk
+        when the reservation ends, and :meth:`start` can then start it under
+        another reservation. A suspended organization raises
+        :class:`OrgSuspendedError`, a project at its monthly budget
+        :class:`ProjectBudgetExceededError`, and a resume the platform cannot
+        take now :class:`ServiceUnavailableError`.
         """
         return self._bridge.call(lambda: self._impl.resume(timeout=timeout))
 
@@ -425,7 +440,11 @@ class Sandbox:
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
         If a stop or pause is still in progress, wait for it to settle before
-        sending start or resume, using the same timeout budget.
+        sending start or resume, using the same timeout budget. A sandbox that
+        is already ``starting`` (a start or resume another caller sent) is
+        waited for without a new request; when that operation fails and the
+        sandbox returns to ``stopped`` or ``paused``, this raises
+        :class:`SandboxTerminalStateError`.
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -522,7 +541,11 @@ class Sandbox:
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
-        ``destroyed``. When the events hub has reported nothing decisive, the
+        ``destroyed``. A target state the events hub reports is followed by
+        one read of the sandbox's details; when that read shows another state,
+        it decides instead: a terminal state raises, and any other state keeps
+        the wait going under the same deadline, so the returned handle is in a
+        requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits.

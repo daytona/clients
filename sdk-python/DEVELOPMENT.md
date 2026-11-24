@@ -158,7 +158,8 @@ and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
 response (id, status, `forked_from`, class) and no wait follows. Once a
 lifecycle wait has observed its target, a failed metadata refresh is
-suppressed. Create uses whole-second `wait_seconds`;
+suppressed; a successful one decides like any other read (a target returns,
+a terminal state raises, any other state polls on under the same deadline). Create uses whole-second `wait_seconds`;
 fork permits fractions and uses `0` to skip waiting. Linux forks refresh the
 source before submission when waiting: running sources wait for `started`,
 paused sources retaining memory wait for `paused`, and other sources wait for
