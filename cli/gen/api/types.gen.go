@@ -40,6 +40,7 @@ const (
 	CREATEBODYTOOLARGE                  ApiErrorCode = "CREATE_BODY_TOO_LARGE"
 	CREATETTLOUTOFRANGE                 ApiErrorCode = "CREATE_TTL_OUT_OF_RANGE"
 	DEFAULTIMAGENOTCONFIGURED           ApiErrorCode = "DEFAULT_IMAGE_NOT_CONFIGURED"
+	DELETELOCKTIMEOUT                   ApiErrorCode = "DELETE_LOCK_TIMEOUT"
 	DISKNOTREADY                        ApiErrorCode = "DISK_NOT_READY"
 	ECRACCOUNTMISMATCH                  ApiErrorCode = "ECR_ACCOUNT_MISMATCH"
 	ECRCREDENTIALSINVALID               ApiErrorCode = "ECR_CREDENTIALS_INVALID"
@@ -138,6 +139,7 @@ const (
 	V0MIGRATIONDEFAULTPROJECTONLY       ApiErrorCode = "V0_MIGRATION_DEFAULT_PROJECT_ONLY"
 	V0SANDBOXNOTFOUND                   ApiErrorCode = "V0_SANDBOX_NOT_FOUND"
 	V0SANDBOXNOTIMPORTABLE              ApiErrorCode = "V0_SANDBOX_NOT_IMPORTABLE"
+	VOLUMENOTFOUND                      ApiErrorCode = "VOLUME_NOT_FOUND"
 	WORKLOADPLANEELSEWHERE              ApiErrorCode = "WORKLOAD_PLANE_ELSEWHERE"
 )
 
@@ -197,6 +199,8 @@ func (e ApiErrorCode) Valid() bool {
 	case CREATETTLOUTOFRANGE:
 		return true
 	case DEFAULTIMAGENOTCONFIGURED:
+		return true
+	case DELETELOCKTIMEOUT:
 		return true
 	case DISKNOTREADY:
 		return true
@@ -393,6 +397,8 @@ func (e ApiErrorCode) Valid() bool {
 	case V0SANDBOXNOTFOUND:
 		return true
 	case V0SANDBOXNOTIMPORTABLE:
+		return true
+	case VOLUMENOTFOUND:
 		return true
 	case WORKLOADPLANEELSEWHERE:
 		return true
@@ -841,13 +847,13 @@ func (e CpuArchitecture) Valid() bool {
 
 // Defines values for ExternalBucketOrigin.
 const (
-	External ExternalBucketOrigin = "external"
+	ExternalBucketOriginExternal ExternalBucketOrigin = "external"
 )
 
 // Valid indicates whether the value is a known member of the ExternalBucketOrigin enum.
 func (e ExternalBucketOrigin) Valid() bool {
 	switch e {
-	case External:
+	case ExternalBucketOriginExternal:
 		return true
 	default:
 		return false
@@ -1670,6 +1676,27 @@ func (e SearchTotalRelation) Valid() bool {
 	}
 }
 
+// Defines values for SecretSearchSort.
+const (
+	SecretSearchSortCreatedAt SecretSearchSort = "created_at"
+	SecretSearchSortName      SecretSearchSort = "name"
+	SecretSearchSortUpdatedAt SecretSearchSort = "updated_at"
+)
+
+// Valid indicates whether the value is a known member of the SecretSearchSort enum.
+func (e SecretSearchSort) Valid() bool {
+	switch e {
+	case SecretSearchSortCreatedAt:
+		return true
+	case SecretSearchSortName:
+		return true
+	case SecretSearchSortUpdatedAt:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetRegistryRequestKind.
 const (
 	SetRegistryRequestKindBasic   SetRegistryRequestKind = "basic"
@@ -1883,6 +1910,78 @@ func (e UsageReportResolution) Valid() bool {
 	case UsageReportResolutionDay:
 		return true
 	case UsageReportResolutionHour:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VolumeBucketOrigin.
+const (
+	VolumeBucketOriginClaimed  VolumeBucketOrigin = "claimed"
+	VolumeBucketOriginExternal VolumeBucketOrigin = "external"
+	VolumeBucketOriginPlatform VolumeBucketOrigin = "platform"
+)
+
+// Valid indicates whether the value is a known member of the VolumeBucketOrigin enum.
+func (e VolumeBucketOrigin) Valid() bool {
+	switch e {
+	case VolumeBucketOriginClaimed:
+		return true
+	case VolumeBucketOriginExternal:
+		return true
+	case VolumeBucketOriginPlatform:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VolumeSearchSort.
+const (
+	VolumeSearchSortCreatedAt  VolumeSearchSort = "created_at"
+	VolumeSearchSortLastUsedAt VolumeSearchSort = "last_used_at"
+	VolumeSearchSortName       VolumeSearchSort = "name"
+	VolumeSearchSortSizeGib    VolumeSearchSort = "size_gib"
+	VolumeSearchSortUpdatedAt  VolumeSearchSort = "updated_at"
+	VolumeSearchSortUsedBytes  VolumeSearchSort = "used_bytes"
+)
+
+// Valid indicates whether the value is a known member of the VolumeSearchSort enum.
+func (e VolumeSearchSort) Valid() bool {
+	switch e {
+	case VolumeSearchSortCreatedAt:
+		return true
+	case VolumeSearchSortLastUsedAt:
+		return true
+	case VolumeSearchSortName:
+		return true
+	case VolumeSearchSortSizeGib:
+		return true
+	case VolumeSearchSortUpdatedAt:
+		return true
+	case VolumeSearchSortUsedBytes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VolumeSearchStatus.
+const (
+	VolumeSearchStatusDeleting VolumeSearchStatus = "deleting"
+	VolumeSearchStatusError    VolumeSearchStatus = "error"
+	VolumeSearchStatusReady    VolumeSearchStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the VolumeSearchStatus enum.
+func (e VolumeSearchStatus) Valid() bool {
+	switch e {
+	case VolumeSearchStatusDeleting:
+		return true
+	case VolumeSearchStatusError:
+		return true
+	case VolumeSearchStatusReady:
 		return true
 	default:
 		return false
@@ -4057,8 +4156,9 @@ type MacosSettings struct {
 
 // MemberLimits defines model for MemberLimits.
 type MemberLimits struct {
-	// Limit The effective cap; `null` means no limit. A ceiling, not a
-	// reservation: reaching it refuses new work, but nothing is set aside.
+	// Limit The effective cap; `null` means no limit, except on a count whose
+	// limit is not returned. A ceiling, not a reservation: reaching it
+	// refuses new work, but nothing is set aside.
 	Limit *int64 `json:"limit"`
 
 	// PendingInvitations Invitations that reserve a member slot until accepted or declined.
@@ -4416,7 +4516,7 @@ type OrganizationFeatureFlags struct {
 	Flags map[string]bool `json:"flags"`
 }
 
-// OrganizationLimits defines model for OrganizationLimits.
+// OrganizationLimits An organization's limits and current usage. Some organization limits are not returned. Daytona determines them for each organization to keep the platform available for everyone. A create that reaches one is refused with `LIMIT_EXCEEDED`; contact support to request a higher limit.
 type OrganizationLimits struct {
 	// ApiKeysPerOrganization The organization's live API-key limit and current usage.
 	ApiKeysPerOrganization UsageLimit `json:"api_keys_per_organization"`
@@ -4445,7 +4545,7 @@ type OrganizationLimits struct {
 	// SecretsPerProject The maximum number of secrets in any one project and the highest current usage.
 	SecretsPerProject UsageLimit `json:"secrets_per_project"`
 
-	// Storage Volume, image, and snapshot count limits.
+	// Storage Volume, image, and snapshot counts. Their organization limits are not returned.
 	Storage StorageLimits `json:"storage"`
 }
 
@@ -5255,6 +5355,12 @@ type ProjectBudget struct {
 	UpdatedAt *time.Time `json:"updated_at"`
 }
 
+// ProjectImageBuildLimits The project's concurrent image-build limit and current usage.
+type ProjectImageBuildLimits struct {
+	// Concurrent The project's concurrent image-build limit and current usage.
+	Concurrent UsageLimit `json:"concurrent"`
+}
+
 // ProjectLifecycleDefaults defines model for ProjectLifecycleDefaults.
 type ProjectLifecycleDefaults struct {
 	// Ephemeral Defaults for ephemeral sandboxes.
@@ -5270,11 +5376,14 @@ type ProjectLifecyclePolicy struct {
 	Policy ProjectLifecycleDefaults `json:"policy"`
 }
 
-// ProjectLimits The project's own sandbox limits, each with the project's current usage
-// against it.
+// ProjectLimits The project's own limits on sandboxes and image builds, each with the
+// project's current usage against it.
 type ProjectLimits struct {
-	// Sandboxes The project's sandbox count limits. A stored limit is always returned,
-	// and takes effect only while limit enforcement is turned on.
+	// ImageBuilds The project's image-build limits.
+	ImageBuilds ProjectImageBuildLimits `json:"image_builds"`
+
+	// Sandboxes The project's sandbox counts. Only the concurrent count can carry a
+	// project limit.
 	Sandboxes ProjectSandboxLimits `json:"sandboxes"`
 }
 
@@ -5320,17 +5429,21 @@ type ProjectPage struct {
 	Projects []Project `json:"projects"`
 }
 
-// ProjectSandboxLimits The three sandbox counts a project can be limited on, each with its
-// limit and current usage.
+// ProjectSandboxLimits The project's sandbox counts, each with its current usage. Only the
+// concurrent count can carry a project limit.
 type ProjectSandboxLimits struct {
 	// Concurrent The project's concurrent sandbox limit and current usage.
 	Concurrent UsageLimit `json:"concurrent"`
 
-	// Persistent The project's persistent sandbox limit and current usage. Stopped and
-	// paused persistent sandboxes count.
+	// Persistent The project's persistent sandbox count. Stopped and paused persistent
+	// sandboxes count. Projects have no persistent sandbox limit of their
+	// own, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Persistent UsageLimit `json:"persistent"`
 
-	// Total The project's total sandbox limit and current usage.
+	// Total The project's total sandbox count. Projects have no total sandbox
+	// limit of their own, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Total UsageLimit `json:"total"`
 }
 
@@ -5878,6 +5991,14 @@ type SandboxCreateOperation struct {
 	// platform default image; omitted for a sandbox restored from a snapshot.
 	Image *ImageReference `json:"image,omitempty"`
 
+	// LifecyclePolicy Automatic timeout and idle-expiry behavior: the object
+	// `GET /sandboxes/{id}` returns, as the create set it (on an idempotent
+	// replay, as the sandbox has it now). Starting the sandbox restarts
+	// `timeout_at` and `idle_timeout_at`, so after a start, even one `status`
+	// already reports as `running`, `GET /sandboxes/{id}` returns the new
+	// deadlines. Null when the policy could not be read.
+	LifecyclePolicy *LifecyclePolicy `json:"lifecycle_policy,omitempty"`
+
 	// Name Sandbox name (caller-provided or the generated `sandbox-<short-id>`).
 	Name string `json:"name"`
 
@@ -5933,7 +6054,8 @@ type SandboxLimits struct {
 	// Concurrent The concurrent sandbox limit and current usage.
 	Concurrent UsageLimit `json:"concurrent"`
 
-	// Total The total sandbox limit and current usage.
+	// Total The total sandbox count. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Total UsageLimit `json:"total"`
 }
 
@@ -6272,6 +6394,47 @@ type SecretPage struct {
 	// Secrets The secrets in this page.
 	Secrets []Secret `json:"secrets"`
 }
+
+// SecretSearchListItem defines model for SecretSearchListItem.
+type SecretSearchListItem struct {
+	// AllowedDomains The hosts the secret's value may be sent to. `["*"]` means any host
+	// the platform has verified; an empty list means the secret is sent
+	// nowhere.
+	AllowedDomains []string `json:"allowed_domains"`
+
+	// CreatedAt When the secret was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Cursor Opaque cursor for this item.
+	Cursor string `json:"cursor"`
+
+	// Description The user-facing description, or null when absent.
+	Description *string `json:"description,omitempty"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+
+	// UpdatedAt When the secret was last updated.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// SecretSearchPage A page of matching secrets.
+type SecretSearchPage struct {
+	// NextCursor Continuation token; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Secrets Matching secrets in this page.
+	Secrets []SecretSearchListItem `json:"secrets"`
+
+	// Total Number of matching secrets, exact when `total_relation` is `eq`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether total is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+}
+
+// SecretSearchSort defines model for SecretSearchSort.
+type SecretSearchSort string
 
 // SetAutomaticTopUpRequest defines model for SetAutomaticTopUpRequest.
 type SetAutomaticTopUpRequest struct {
@@ -6634,13 +6797,16 @@ type SsoSetupLink struct {
 
 // StorageLimits defines model for StorageLimits.
 type StorageLimits struct {
-	// Images The image limit and current usage. Captured, built, and imported images count; failed images do not.
+	// Images The image count. Captured, built, and imported images count; failed images do not. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Images UsageLimit `json:"images"`
 
-	// Snapshots The snapshot limit and current usage. Failed snapshots do not count.
+	// Snapshots The snapshot count. Failed snapshots do not count. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Snapshots UsageLimit `json:"snapshots"`
 
-	// Volumes The volume limit and current usage. Deleted volumes do not count.
+	// Volumes The volume count. Deleted volumes do not count. Its organization limit is not returned, so `limit` is always `null`.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Volumes UsageLimit `json:"volumes"`
 }
 
@@ -6771,16 +6937,22 @@ type UpdateProjectLifecyclePolicyRequest struct {
 // stored value, `null` removes it, and an integer sets it. Unknown fields
 // are refused.
 type UpdateProjectLimitsRequest struct {
+	// MaxConcurrentBuilds The most image builds the project may run at once, or null for no
+	// project limit.
+	MaxConcurrentBuilds *int64 `json:"max_concurrent_builds,omitempty"`
+
 	// MaxConcurrentVms The most sandboxes the project may run at once, or null for no project
 	// limit.
 	MaxConcurrentVms *int64 `json:"max_concurrent_vms,omitempty"`
 
-	// MaxPersistentVms The most persistent sandboxes the project may have, or null for no
-	// project limit.
+	// MaxPersistentVms Cannot be set on a project: projects do not limit their persistent sandbox count. Send null
+	// or omit it; an integer is refused.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxPersistentVms *int64 `json:"max_persistent_vms,omitempty"`
 
-	// MaxTotalVms The most sandboxes the project may have, resting ones included, or null
-	// for no project limit.
+	// MaxTotalVms Cannot be set on a project: projects do not limit their total sandbox count. Send null or
+	// omit it; an integer is refused.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	MaxTotalVms *int64 `json:"max_total_vms,omitempty"`
 }
 
@@ -6851,8 +7023,9 @@ type UsageHistoryResolution string
 
 // UsageLimit defines model for UsageLimit.
 type UsageLimit struct {
-	// Limit The effective cap; `null` means no limit. A ceiling, not a
-	// reservation: reaching it refuses new work, but nothing is set aside.
+	// Limit The effective cap; `null` means no limit, except on a count whose
+	// limit is not returned. A ceiling, not a reservation: reaching it
+	// refuses new work, but nothing is set aside.
 	Limit *int64 `json:"limit"`
 
 	// Usage The current usage counted against the limit.
@@ -7134,6 +7307,9 @@ type Volume struct {
 	UsedBytesAt *time.Time `json:"used_bytes_at,omitempty"`
 }
 
+// VolumeBucketOrigin defines model for VolumeBucketOrigin.
+type VolumeBucketOrigin string
+
 // VolumeMount A volume attachment as requested on `POST /sandboxes`.
 type VolumeMount struct {
 	// MountPath The absolute path inside the sandbox, with no `..`. It is normalized
@@ -7152,7 +7328,7 @@ type VolumeMount struct {
 	// no empty or `..` segments and no control characters.
 	Subpath *string `json:"subpath,omitempty"`
 
-	// Volume The volume name or a `vol_` id.
+	// Volume The volume name or a `vol_` id. A sandbox can mount a volume once.
 	Volume string `json:"volume"`
 }
 
@@ -7164,6 +7340,74 @@ type VolumePage struct {
 	// Volumes The volumes in this page.
 	Volumes []Volume `json:"volumes"`
 }
+
+// VolumeSearchListItem defines model for VolumeSearchListItem.
+type VolumeSearchListItem struct {
+	// CreatedAt When the volume was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Cursor Opaque cursor for this item.
+	Cursor string `json:"cursor"`
+
+	// Error The failure detail, or null when the volume has not failed.
+	Error *string `json:"error,omitempty"`
+
+	// Id The volume ID.
+	Id string `json:"id"`
+
+	// ImportedFrom The source platform and resource ID when this volume was imported.
+	ImportedFrom *ImportedFrom `json:"imported_from,omitempty"`
+
+	// LastUsedAt When the volume was last attached, or null when it has not been used.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+
+	// Name The project-unique volume name.
+	Name string `json:"name"`
+
+	// Options Type-specific options. Disk volumes use an empty object; bucket volumes
+	// include their bucket settings and credential secret names.
+	Options *map[string]interface{} `json:"options,omitempty"`
+
+	// SizeGib Scratch capacity in GiB. Disk volumes only — a bucket volume has no
+	// capacity of its own and reports `null`.
+	SizeGib *int32 `json:"size_gib,omitempty"`
+
+	// Status The volume status.
+	Status VolumeStatus `json:"status"`
+
+	// Type The volume type.
+	Type VolumeType `json:"type"`
+
+	// UpdatedAt When the volume metadata last changed.
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// UsedBytes Logical file usage in bytes, or null before the first usage report.
+	UsedBytes *int64 `json:"used_bytes,omitempty"`
+
+	// UsedBytesAt When `used_bytes` was observed, or null when usage is unknown.
+	UsedBytesAt *time.Time `json:"used_bytes_at,omitempty"`
+}
+
+// VolumeSearchPage A page of matching volumes.
+type VolumeSearchPage struct {
+	// NextCursor Continuation token; null on the last page.
+	NextCursor *string `json:"next_cursor,omitempty"`
+
+	// Total Number of matching volumes, exact when `total_relation` is `eq`.
+	Total int64 `json:"total"`
+
+	// TotalRelation Whether total is exact (`eq`) or a lower bound (`gte`).
+	TotalRelation SearchTotalRelation `json:"total_relation"`
+
+	// Volumes Matching volumes in this page.
+	Volumes []VolumeSearchListItem `json:"volumes"`
+}
+
+// VolumeSearchSort defines model for VolumeSearchSort.
+type VolumeSearchSort string
+
+// VolumeSearchStatus defines model for VolumeSearchStatus.
+type VolumeSearchStatus string
 
 // VolumeStatus defines model for VolumeStatus.
 type VolumeStatus string
@@ -7290,7 +7534,7 @@ type GetCpuCatalogParams struct {
 
 // ListImagesParams defines parameters for ListImages.
 type ListImagesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7365,7 +7609,7 @@ type SearchImagesParams struct {
 	// Order Sort order. Defaults to `desc`.
 	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
 
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7416,7 +7660,7 @@ type GetMacCatalogParams struct {
 
 // ListV0SandboxesParams defines parameters for ListV0Sandboxes.
 type ListV0SandboxesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7428,7 +7672,7 @@ type CreateV0SandboxImportJSONBody = CreateV0SandboxImportRequest
 
 // ListOrgsParams defines parameters for ListOrgs.
 type ListOrgsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7437,7 +7681,7 @@ type ListOrgsParams struct {
 
 // ListOrgApiKeysParams defines parameters for ListOrgApiKeys.
 type ListOrgApiKeysParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7446,7 +7690,7 @@ type ListOrgApiKeysParams struct {
 
 // ListAuditLogsParams defines parameters for ListAuditLogs.
 type ListAuditLogsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7479,8 +7723,8 @@ type ListAuditLogsParams struct {
 
 // ListBalancesParams defines parameters for ListBalances.
 type ListBalancesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit The maximum number of balances to return (default 25, maximum 100)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7488,8 +7732,8 @@ type ListBalancesParams struct {
 
 // ListChargesParams defines parameters for ListCharges.
 type ListChargesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit The maximum number of charges to return (default 25, maximum 100)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7497,8 +7741,8 @@ type ListChargesParams struct {
 
 // ListInvoicesParams defines parameters for ListInvoices.
 type ListInvoicesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit The maximum number of invoices to return (default 25, maximum 100)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7509,8 +7753,8 @@ type ListInvoicesParams struct {
 
 // ListPaymentMethodsParams defines parameters for ListPaymentMethods.
 type ListPaymentMethodsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit The maximum number of payment methods to return (default 20, maximum 100)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7518,8 +7762,8 @@ type ListPaymentMethodsParams struct {
 
 // ListUsagePeriodsParams defines parameters for ListUsagePeriods.
 type ListUsagePeriodsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit The maximum number of usage periods to return (default 12, maximum 60)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7527,7 +7771,7 @@ type ListUsagePeriodsParams struct {
 
 // ListOrgInvitationsParams defines parameters for ListOrgInvitations.
 type ListOrgInvitationsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7536,7 +7780,7 @@ type ListOrgInvitationsParams struct {
 
 // ListMembersParams defines parameters for ListMembers.
 type ListMembersParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7545,7 +7789,7 @@ type ListMembersParams struct {
 
 // ListProjectsParams defines parameters for ListProjects.
 type ListProjectsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7554,8 +7798,8 @@ type ListProjectsParams struct {
 
 // ListOrganizationRegionsParams defines parameters for ListOrganizationRegions.
 type ListOrganizationRegionsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit Maximum number of items to return (1–100, default 50)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7563,8 +7807,8 @@ type ListOrganizationRegionsParams struct {
 
 // ListRegionProxyTokensParams defines parameters for ListRegionProxyTokens.
 type ListRegionProxyTokensParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit Maximum number of items to return (1–100, default 50)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7572,8 +7816,8 @@ type ListRegionProxyTokensParams struct {
 
 // ListRegionRegistrationTokensParams defines parameters for ListRegionRegistrationTokens.
 type ListRegionRegistrationTokensParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit Maximum number of items to return (1–100, default 50)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7581,8 +7825,8 @@ type ListRegionRegistrationTokensParams struct {
 
 // ListRegionRunnersParams defines parameters for ListRegionRunners.
 type ListRegionRunnersParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
-	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	// Limit Maximum number of items to return (1–100, default 50)
+	Limit *int64 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7590,7 +7834,7 @@ type ListRegionRunnersParams struct {
 
 // ListServiceAccountsParams defines parameters for ListServiceAccounts.
 type ListServiceAccountsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7599,7 +7843,7 @@ type ListServiceAccountsParams struct {
 
 // ListSsoConnectionsParams defines parameters for ListSsoConnections.
 type ListSsoConnectionsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7617,7 +7861,7 @@ type ListPermissionsParamsScope string
 
 // ListProjectApiKeysParams defines parameters for ListProjectApiKeys.
 type ListProjectApiKeysParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7626,7 +7870,7 @@ type ListProjectApiKeysParams struct {
 
 // ListProjectMembersParams defines parameters for ListProjectMembers.
 type ListProjectMembersParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7635,7 +7879,7 @@ type ListProjectMembersParams struct {
 
 // ListProjectServiceAccountsParams defines parameters for ListProjectServiceAccounts.
 type ListProjectServiceAccountsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7644,7 +7888,7 @@ type ListProjectServiceAccountsParams struct {
 
 // ListRegistriesParams defines parameters for ListRegistries.
 type ListRegistriesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7653,7 +7897,7 @@ type ListRegistriesParams struct {
 
 // ListReservationsParams defines parameters for ListReservations.
 type ListReservationsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7680,7 +7924,7 @@ type CreateReservationRenewalParams struct {
 
 // ListSandboxesParams defines parameters for ListSandboxes.
 type ListSandboxesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7791,7 +8035,7 @@ type SearchSandboxesParams struct {
 	// Order Sort order. Defaults to `desc`.
 	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
 
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7827,7 +8071,7 @@ type SetSandboxNetworkPolicyParams struct {
 
 // ListSandboxPortsParams defines parameters for ListSandboxPorts.
 type ListSandboxPortsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7860,7 +8104,46 @@ type GetSandboxUsageHistoryParamsResolution string
 
 // ListSecretsParams defines parameters for ListSecrets.
 type ListSecretsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// SearchSecretsParams defines parameters for SearchSecrets.
+type SearchSecretsParams struct {
+	// Q Free text over the secret name (any substring, case-insensitive) and description.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact secret name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix Match names starting with this case-sensitive prefix.
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// AllowedDomain Match an allowed domain exactly.
+	AllowedDomain *string `form:"allowed_domain,omitempty" json:"allowed_domain,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `name`.
+	Sort *SecretSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `asc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7875,7 +8158,7 @@ type SetSecretParams struct {
 
 // ListSnapshotsParams defines parameters for ListSnapshots.
 type ListSnapshotsParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7935,7 +8218,7 @@ type SearchSnapshotsParams struct {
 	// Order Sort order. Defaults to `desc`.
 	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
 
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
@@ -7977,7 +8260,61 @@ type GetUsageReportParamsResolution string
 
 // ListVolumesParams defines parameters for ListVolumes.
 type ListVolumesParams struct {
-	// Limit Maximum number of items to return, 1–200 (default 100)
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// SearchVolumesParams defines parameters for SearchVolumes.
+type SearchVolumesParams struct {
+	// Q Free text over the volume name (any substring, case-insensitive); a volume ID matches exactly.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Name Match this exact volume name.
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// NamePrefix Match names starting with this case-sensitive prefix.
+	NamePrefix *string `form:"name_prefix,omitempty" json:"name_prefix,omitempty"`
+
+	// Type Comma-separated volume types.
+	Type *[]VolumeType `form:"type,omitempty" json:"type,omitempty"`
+
+	// Status Comma-separated non-deleted volume statuses.
+	Status *[]VolumeSearchStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Origin Comma-separated bucket origins. Only bucket volumes match.
+	Origin *[]VolumeBucketOrigin `form:"origin,omitempty" json:"origin,omitempty"`
+
+	// Imported True returns imported volumes, false returns native volumes, absent returns both.
+	Imported *bool `form:"imported,omitempty" json:"imported,omitempty"`
+
+	// CreatedStartAt Inclusive lower bound on creation time.
+	CreatedStartAt *time.Time `form:"created_start_at,omitempty" json:"created_start_at,omitempty"`
+
+	// CreatedEndAt Exclusive upper bound on creation time.
+	CreatedEndAt *time.Time `form:"created_end_at,omitempty" json:"created_end_at,omitempty"`
+
+	// UpdatedStartAt Inclusive lower bound on last-modified time.
+	UpdatedStartAt *time.Time `form:"updated_start_at,omitempty" json:"updated_start_at,omitempty"`
+
+	// UpdatedEndAt Exclusive upper bound on last-modified time.
+	UpdatedEndAt *time.Time `form:"updated_end_at,omitempty" json:"updated_end_at,omitempty"`
+
+	// LastUsedStartAt Inclusive lower bound on last-used time.
+	LastUsedStartAt *time.Time `form:"last_used_start_at,omitempty" json:"last_used_start_at,omitempty"`
+
+	// LastUsedEndAt Exclusive upper bound on last-used time.
+	LastUsedEndAt *time.Time `form:"last_used_end_at,omitempty" json:"last_used_end_at,omitempty"`
+
+	// Sort Sort field. Defaults to `created_at`.
+	Sort *VolumeSearchSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order Sort order. Defaults to `desc`.
+	Order *SortOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Limit Maximum number of items to return, 1–200 (default 100). A value below 1 is treated as 1, and a value above 200 as 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Cursor Opaque continuation token returned as `next_cursor` by a previous request
