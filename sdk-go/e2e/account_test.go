@@ -150,7 +150,7 @@ func TestAccountReads(t *testing.T) {
 		limits, err := client.Limits(ctx, nil)
 		// Then
 		require.NoError(t, skipIfServerLacks(t, err, "reading organization limits (read:limits)"))
-		require.GreaterOrEqual(t, limits.Sandboxes.Total.Usage, int64(0))
+		require.GreaterOrEqual(t, limits.Sandboxes.Concurrent.Usage, int64(0))
 	})
 	t.Run("budget", func(t *testing.T) {
 		// Given: the budget endpoint requires this independently granted scope.
