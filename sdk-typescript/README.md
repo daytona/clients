@@ -473,7 +473,7 @@ const sandbox = await daytona.v2.create('py312', {
 if (sandbox.state !== 'started') await sandbox.wait()
 const result = await sandbox.volumes.pull(volume.id, {
   requestId: 'refresh-42', // retain this caller-owned ID for retries/checks
-  timeoutSeconds: 5, // 0–30 seconds; default 30; fractions are allowed
+  timeoutSeconds: 5, // seconds; default 30; fractions are allowed
 })
 ```
 
@@ -500,11 +500,15 @@ contain 1–128 ASCII letters, digits, underscores or hyphens. The result has `r
 an optional `manifestId` (`undefined` when there is none). Unknown statuses map to `unknown` with the original
 value in `rawStatus`.
 
-Zero timeout submits a new request, or returns a known request's last
-outcome without retrying it; expiry does not cancel accepted work. Retry a
-`pending` result, or a caught `ServiceUnavailableError` / `RateLimitError`,
-with the **same requestId** and a timeout above zero. The SDK never retries
-automatically or generates an identity. Rate-limit errors expose `requestId`
+`timeoutSeconds` defaults to 30. Zero submits a new request, or returns a
+known request's last outcome without retrying it; expiry does not cancel
+accepted work. Up to 30 seconds is one request the sandbox holds for that long.
+A longer wait is spent in rounds of at most 30 seconds with the same
+`requestId` while the result is `pending` (a value above 2,147,483.647, about
+24.8 days, has no deadline), so no request stays open for the whole wait.
+Retry a `pending` result, or a caught `ServiceUnavailableError` /
+`RateLimitError`, with the **same requestId** and a timeout above zero. The SDK
+never retries an error automatically or generates an identity. Rate-limit errors expose `requestId`
 and `retryAfterMs` when supplied by the API.
 
 Availability depends on API support and may return

@@ -557,7 +557,7 @@ result = sandbox.volumes.pull(
     "volume-id",
     request_id="refresh-42",
     timeout=5,
-)  # server wait in seconds, 0–30; default 30
+)  # wait in seconds; default 30
 ```
 
 On `AsyncDaytona` use `await sandbox.volumes.pull(...)`.
@@ -571,9 +571,13 @@ status string.
 Fractional seconds round down to whole milliseconds, but any positive timeout
 waits at least 1 ms. Zero timeout submits a new request, or returns a known
 request's last outcome without retrying it; expiry does not cancel accepted
-work. Retry a `pending` result, or a caught `ServiceUnavailableError` /
+work. A timeout up to 30 seconds is one request the sandbox holds for that
+long. A longer one is waited out in rounds of at most 30 seconds with the same
+`request_id` while the result is `pending` (a value above 2,147,483.647, about
+24.8 days, has no deadline), so no request stays open for the whole wait.
+Retry a `pending` result, or a caught `ServiceUnavailableError` /
 `RateLimitError`, with the **same request_id** and a timeout above zero. The
-SDK never retries automatically or generates an identity. Rate-limit errors
+SDK never retries an error automatically or generates an identity. Rate-limit errors
 expose `request_id` and `retry_after_ms` when supplied by the server.
 
 Availability depends on server support: a server may return

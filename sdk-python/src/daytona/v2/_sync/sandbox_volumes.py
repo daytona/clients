@@ -39,12 +39,17 @@ class SandboxVolumesService:
     def pull(
         self, volume_id: str, /, *, request_id: str, timeout: Optional[float] = None
     ) -> PullVolumeResult:
-        """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
+        """Submit/check a pull; ``timeout`` is the wait in seconds (default 30).
 
         ``volume_id`` is the attached volume's ``vol_`` ID or its UUID. Zero
         does not wait: it submits a new request_id, or returns a known one's
         last outcome without retrying it; a timeout above zero retries pending,
-        unavailable or rate-limited work. Expiry does not cancel work. Neither
-        retries nor identities are automatic.
+        unavailable or rate-limited work. Up to 30 seconds is one request that
+        the sandbox holds for that long. A longer timeout is waited out in
+        rounds of at most 30 seconds with the same ``request_id`` while the
+        result is ``pending`` (a value above 2,147,483.647, about 24.8 days,
+        means no deadline), so no request stays open for the whole wait.
+        Expiry does not cancel work. Errors are never retried, and identities
+        are never generated.
         """
         return self._bridge.call(lambda: self._impl.pull(volume_id, request_id=request_id, timeout=timeout))

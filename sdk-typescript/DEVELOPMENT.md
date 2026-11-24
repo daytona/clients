@@ -94,10 +94,11 @@ macOS accepts read-write disk volumes only, without `persistent: true`.
 when the sandbox connection is refreshed. `pull()` preserves the caller's
 request identity, maps the generated wire type's nullable `manifestId` to
 the public `PullVolumeResult`'s optional `manifestId` (`undefined` for
-`null`), and makes one request
-without automatic retries. Its HTTP deadline includes read slack beyond the
-requested wait. `timeoutSeconds` accepts 0–30 seconds, including fractions;
-the wire `waitMs` is floored, with every positive input producing at least 1 ms.
+`null`). A wait up to 30 seconds is one request; a longer one is spent in
+rounds of at most 30 seconds (`PULL_ROUND_MS`) while the result is `pending`,
+and errors are never retried. Each request's HTTP deadline includes read
+slack beyond its wait. Fractions are allowed; the wire `waitMs` is floored,
+with every positive input producing at least 1 ms.
 `tests/volume-pull.test.ts` exercises these behaviors over HTTP;
 `tests/unit.test.ts` covers management, create mappings and route telemetry.
 

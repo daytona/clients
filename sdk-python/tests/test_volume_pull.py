@@ -240,3 +240,129 @@ def test_errors_propagate_without_retry(
     assert caught.value.request_id == "r"
     assert caught.value.retry_after_ms == 1000
     assert len(requests) == 1
+
+
+class _FakeClock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.sleeps: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    async def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+@pytest.fixture
+def fake_clock(monkeypatch: pytest.MonkeyPatch) -> _FakeClock:
+    clock = _FakeClock()
+    monkeypatch.setattr("daytona.v2._clock.monotonic", clock.monotonic)
+    monkeypatch.setattr("daytona.v2.sandbox_volumes._sleep", clock.sleep)
+    return clock
+
+
+def _rounds(
+    statuses: list[str], clock: _FakeClock, *, held: bool = True
+) -> tuple[Callable[[httpx.Request], httpx.Response], list[httpx.Request]]:
+    """A sandbox that holds each round for its waitMs (``held``) and answers
+    the next status; the last status repeats."""
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if held:
+            clock.now += json.loads(request.content)["waitMs"] / 1000
+        status = statuses[min(len(requests), len(statuses)) - 1]
+        pending = status == "pending"
+        return httpx.Response(
+            202 if pending else 200,
+            json={"requestId": "r", "status": status, "manifestId": None if pending else "m"},
+        )
+
+    return handler, requests
+
+
+async def _pull(handler: Callable[[httpx.Request], httpx.Response], timeout: float) -> PullVolumeResult:
+    transport = async_transport(handler, "http://sandbox.invalid")
+    try:
+        return await AsyncSandboxVolumesService(transport).pull("v", request_id="r", timeout=timeout)
+    finally:
+        await transport._client.aclose()
+
+
+def _read_bounds(requests: list[httpx.Request]) -> list[float]:
+    return [request.extensions["timeout"]["read"] for request in requests]
+
+
+@pytest.mark.anyio
+async def test_a_long_pull_waits_in_rounds_until_a_result(fake_clock: _FakeClock) -> None:
+    # Given a pull that stays pending for two 30-second rounds.
+    handler, requests = _rounds(["pending", "pending", "pulled"], fake_clock)
+    # When the caller waits up to 120 seconds.
+    result = await _pull(handler, 120)
+    # Then each request holds at most 30 s with the same identity, bounded at hold + slack.
+    assert result.status == "pulled"
+    assert [json.loads(request.content) for request in requests] == [{"requestId": "r", "waitMs": 30000}] * 3
+    assert _read_bounds(requests) == [30 + WAIT_READ_SLACK_SECONDS] * 3
+    assert fake_clock.sleeps == []
+
+
+@pytest.mark.anyio
+async def test_a_long_pull_ends_pending_at_the_caller_deadline(fake_clock: _FakeClock) -> None:
+    handler, requests = _rounds(["pending"], fake_clock)
+    result = await _pull(handler, 70)
+    assert result.status == "pending"
+    # 30 + 30 + the 10 seconds left: the last round never outlives the budget.
+    assert [json.loads(request.content)["waitMs"] for request in requests] == [30000, 30000, 10000]
+    assert _read_bounds(requests) == [35.0, 35.0, 15.0]
+
+
+@pytest.mark.anyio
+async def test_a_pull_without_a_deadline_keeps_waiting_in_rounds(fake_clock: _FakeClock) -> None:
+    handler, requests = _rounds(["pending"] * 4 + ["unchanged"], fake_clock)
+    result = await _pull(handler, 3_000_000.0)
+    assert result.status == "unchanged"
+    assert [json.loads(request.content)["waitMs"] for request in requests] == [30000] * 5
+
+
+@pytest.mark.anyio
+async def test_a_round_answered_early_is_paced(fake_clock: _FakeClock) -> None:
+    # A sandbox that answers pending without holding never makes a busy loop.
+    handler, requests = _rounds(["pending", "pending", "pulled"], fake_clock, held=False)
+    result = await _pull(handler, 60)
+    assert result.status == "pulled"
+    assert len(requests) == 3
+    assert fake_clock.sleeps == [1.0, 1.0]
+
+
+@pytest.mark.anyio
+async def test_a_failed_round_is_not_retried(fake_clock: _FakeClock) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            fake_clock.now += 30
+            return httpx.Response(202, json={"requestId": "r", "status": "pending", "manifestId": None})
+        return httpx.Response(
+            503, json={"code": "SERVICE_UNAVAILABLE", "message": "busy", "source": "DAYTONA_DAEMON"}
+        )
+
+    with pytest.raises(ServiceUnavailableError):
+        await _pull(handler, 120)
+    assert len(requests) == 2
+
+
+@pytest.mark.parametrize("timeout", [-1, float("nan"), float("inf"), True, "60"])
+def test_invalid_long_wait_is_refused_before_any_request(timeout: object) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(500)
+
+    with pytest.raises(BadRequestError):
+        anyio.run(_pull, handler, timeout)
+    assert requests == []

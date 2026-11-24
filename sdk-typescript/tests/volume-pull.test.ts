@@ -4,6 +4,7 @@
  */
 
 import { createServer, type Server } from 'node:http'
+import { AxiosError } from 'axios'
 import { Sandbox } from '../src/v2/Sandbox'
 import { SandboxVolumesService } from '../src/v2/SandboxVolumes'
 import { INTERNAL } from '../src/v2/internal'
@@ -102,7 +103,7 @@ describe('sandbox volume pull', () => {
     expect(requests).toHaveLength(0)
   })
 
-  test.each([-1, 30.001, NaN, Infinity])('rejects wait %s', async (timeoutSeconds) => {
+  test.each([-1, NaN, Infinity])('rejects wait %s', async (timeoutSeconds) => {
     const volumes = new SandboxVolumesService(INTERNAL, new HttpTransport(base))
     await expect(volumes.pull('v', { requestId: 'r', timeoutSeconds })).rejects.toBeInstanceOf(BadRequestError)
     expect(requests).toHaveLength(0)
@@ -127,5 +128,96 @@ describe('sandbox volume pull', () => {
     const volumes = sandbox.volumes
     expect(sandbox.volumes).toBe(volumes)
     expect(requests).toHaveLength(0)
+  })
+})
+
+describe('sandbox volume pull rounds', () => {
+  type Round = { readonly waitMs: number | undefined, readonly readBound: number | undefined }
+
+  afterEach(() => { jest.useRealTimers() })
+
+  /** A sandbox that holds each round for its waitMs (`held`) and answers the next status; the last one repeats. */
+  function rounds(statuses: readonly string[], held = true) {
+    const transport = new HttpTransport('http://sandbox.invalid')
+    const seen: Round[] = []
+    transport.http.defaults.adapter = async (config) => {
+      const body = JSON.parse(String(config.data)) as { requestId: string, waitMs?: number }
+      expect(body.requestId).toBe('r')
+      seen.push({ waitMs: body.waitMs, readBound: config.timeout })
+      if (held) jest.advanceTimersByTime(body.waitMs ?? 30_000)
+      const status = statuses[Math.min(seen.length, statuses.length) - 1]
+      return {
+        data: { requestId: 'r', status, manifestId: status === 'pending' ? null : 'm' },
+        status: status === 'pending' ? 202 : 200, statusText: '', headers: {}, config,
+      }
+    }
+    return { volumes: new SandboxVolumesService(INTERNAL, transport), seen }
+  }
+
+  async function settle<T>(pending: Promise<T>): Promise<T> {
+    const observed = pending.then(value => ({ value }), error => ({ error: error as Error }))
+    await jest.runAllTimersAsync()
+    const result = await observed
+    if ('error' in result) throw result.error
+    return result.value
+  }
+
+  beforeEach(() => { jest.useFakeTimers() })
+
+  it('waits a long pull out in 30-second rounds until a result', async () => {
+    const { volumes, seen } = rounds(['pending', 'pending', 'pulled'])
+    const result = await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 120 }))
+    expect(result.status).toBe('pulled')
+    expect(seen).toEqual(Array(3).fill({ waitMs: 30_000, readBound: 30_000 + WAIT_READ_SLACK_MS }))
+  })
+
+  it('ends pending at the caller deadline, the last round never outliving it', async () => {
+    const { volumes, seen } = rounds(['pending'])
+    const result = await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 70 }))
+    expect(result.status).toBe('pending')
+    expect(seen).toEqual([
+      { waitMs: 30_000, readBound: 35_000 },
+      { waitMs: 30_000, readBound: 35_000 },
+      { waitMs: 10_000, readBound: 15_000 },
+    ])
+  })
+
+  it('keeps waiting in rounds with no deadline', async () => {
+    const { volumes, seen } = rounds(['pending', 'pending', 'pending', 'pending', 'unchanged'])
+    const result = await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 3_000_000 }))
+    expect(result.status).toBe('unchanged')
+    expect(seen.map(round => round.waitMs)).toEqual(Array(5).fill(30_000))
+  })
+
+  it('paces rounds a sandbox answers early', async () => {
+    const { volumes, seen } = rounds(['pending', 'pending', 'pulled'], false)
+    const start = performance.now()
+    const result = await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 60 }))
+    expect(result.status).toBe('pulled')
+    expect(seen).toHaveLength(3)
+    expect(performance.now() - start).toBe(2_000)
+  })
+
+  it('accepts a wait just above one round', async () => {
+    const { volumes, seen } = rounds(['pending'])
+    await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 30.001 }))
+    expect(seen.map(round => round.waitMs)).toEqual([30_000, 1])
+  })
+
+  it('never retries a failed round', async () => {
+    const transport = new HttpTransport('http://sandbox.invalid')
+    let calls = 0
+    transport.http.defaults.adapter = async (config) => {
+      calls++
+      if (calls === 1) {
+        jest.advanceTimersByTime(30_000)
+        return { data: { requestId: 'r', status: 'pending', manifestId: null }, status: 202, statusText: '', headers: {}, config }
+      }
+      const response = { data: { code: 'SERVICE_UNAVAILABLE', message: 'busy', source: 'DAYTONA_DAEMON' }, status: 503, statusText: '', headers: { 'content-type': 'application/json' }, config }
+      throw new AxiosError('busy', AxiosError.ERR_BAD_RESPONSE, config, null, response)
+    }
+    const volumes = new SandboxVolumesService(INTERNAL, transport)
+    await expect(settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 120 }))).rejects.toBeInstanceOf(ServiceUnavailableError)
+    expect(calls).toBe(2)
   })
 })
