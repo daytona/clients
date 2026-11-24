@@ -130,3 +130,30 @@ def test_caller_subclasses_round_trip() -> None:
     restored = pickle.loads(pickle.dumps(_CallerError("db", 3)))
     assert type(restored) is _CallerError
     assert (restored.resource, restored.attempt, restored.source) == ("db", 3, "APP")
+
+
+def _raised_from(cause: BaseException) -> errors.DaytonaError:
+    try:
+        raise errors.SandboxCreateConnectionError("key-1", "reset") from cause
+    except errors.DaytonaError as error:
+        return error
+
+
+def test_copy_keeps_the_exception_chain() -> None:
+    cause = OSError("connection reset")
+    original = _raised_from(cause)
+    duplicate = copy.copy(original)
+    assert duplicate.__cause__ is cause
+    assert duplicate.__suppress_context__ is True
+    assert duplicate.__traceback__ is original.__traceback__
+    assert duplicate.idempotency_key == "key-1"
+
+
+def test_pickle_leaves_the_chain_out_like_builtin_exceptions() -> None:
+    class _Unpicklable(Exception):
+        def __reduce__(self) -> tuple[object, ...]:
+            raise TypeError("not picklable")
+
+    restored = pickle.loads(pickle.dumps(_raised_from(_Unpicklable("holds a credential"))))
+    assert restored.__cause__ is None
+    assert restored.idempotency_key == "key-1"

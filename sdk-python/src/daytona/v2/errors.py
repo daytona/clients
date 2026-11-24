@@ -109,6 +109,19 @@ class DaytonaError(_shared.DaytonaError):
         # corrupts their fields. pickle and copy restore the attributes after.
         return (_rebuild_error, (type(self), self.args), self.__dict__)
 
+    def __copy__(self) -> DaytonaError:
+        # A shallow copy keeps the exception chain by reference. pickle and
+        # deepcopy leave it out, as for every built-in exception: a chained
+        # transport error can hold the request and its credential, and may not
+        # be picklable at all.
+        duplicate = _rebuild_error(type(self), self.args)
+        duplicate.__dict__.update(self.__dict__)
+        duplicate.__cause__ = self.__cause__
+        duplicate.__context__ = self.__context__
+        duplicate.__suppress_context__ = self.__suppress_context__
+        duplicate.__traceback__ = self.__traceback__
+        return duplicate
+
 
 def _rebuild_error(cls: Type[DaytonaError], args: tuple[object, ...]) -> DaytonaError:
     """An instance of ``cls`` with ``args`` and no state yet (internal; see ``DaytonaError.__reduce__``)."""
