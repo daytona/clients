@@ -1,1 +1,1 @@
-**Persistent sandboxes** — `stop`, `pause`, `resume` and `fork` (Python, TypeScript, Go and the CLI help) say they need a persistent sandbox, and `persistent` on the handle is documented for every class.
+**Persistent sandboxes** — `stop`, `pause`, `resume` and `fork` (Python, TypeScript, Go and the CLI help) say they need a persistent sandbox; `persistent` on the Python and TypeScript handles, and `Info().Persistent` in Go, is documented for every class.

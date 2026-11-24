@@ -1,0 +1,1 @@
+**Image regions** — image creates refuse a region that is a group of other regions (a geo area, or `earth`) with 400; the SDKs do not list regions or CPU types (use `daytona region list` / `daytona cpu-type list`).

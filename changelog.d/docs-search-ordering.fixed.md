@@ -1,0 +1,1 @@
+**Search ordering and lag** — `search()` and `find_by_name()` return results in `sort` order (creation time by default), not by relevance, and can lag a create, delete or label change by a few seconds.
