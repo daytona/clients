@@ -97,9 +97,10 @@
 // # Configuration
 //
 // [New] reads DAYTONA_API_KEY, or DAYTONA_JWT_TOKEN with DAYTONA_PROJECT_ID;
-// options such as [WithAPIKey] take precedence. A credential must be printable
-// ASCII with no leading or trailing whitespace (environment values are trimmed
-// first); [New] returns [ErrBadRequest] otherwise. DAYTONA_V2_API_URL selects a
+// options such as [WithAPIKey] take precedence. A credential is trimmed of
+// surrounding whitespace (an explicit one of spaces, tabs, CR and LF) and must
+// then be non-empty printable ASCII; [New] returns [ErrBadRequest] otherwise,
+// without the value in the message. DAYTONA_V2_API_URL selects a
 // different API endpoint. A [Client] is safe for concurrent use; close it when
 // done.
 package daytona

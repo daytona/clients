@@ -328,16 +328,23 @@ major version; Go uses its module path's `/v2` suffix instead:
   (`apiKey` / `jwtToken` / `projectId`) is a `BadRequestError` (400,
   `BAD_REQUEST`, source `SDK`), like every invalid-configuration error,
   including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. The
-  API key or JWT the v2 client resolves (explicit, or ambient after trimming)
-  follows the header rule (`header_text` / `headerText`, Go `headerText`);
-  otherwise it is that error, naming the field or variable, never the value.
-  Python redacts a header the HTTP client refuses from every error text it
-  raises or chains (`_transport_errors.py`, spans included). In TypeScript,
-  credentials and the fields holding them are non-enumerable
-  (`concealFields` in `src/diagnostics.ts`), and SDK-built axios instances
-  add the bearer per request instead of keeping it in `defaults.headers`; a
-  test walks every enumerable property of the clients, handles, transports and
-  auth providers for a credential. Missing
+  API key or JWT is the one explicit value that is trimmed: surrounding HTTP
+  whitespace (space, tab, CR, LF) is removed, as the HTTP clients did on the
+  wire before 2.x checked it (ambient ones are trimmed as above). The result
+  follows the header rule (`header_text` / `headerText`, Go `headerText`) and
+  a blank explicit one is `must not be blank`; either is that error, naming
+  the field or variable, never the value. An explicit credential of either
+  kind leaves both ambient credentials unread. Python redacts a header the HTTP
+  client refuses from every error text it raises or chains
+  (`_transport_errors.py`, spans included) and refuses a non-ASCII bearer
+  before encoding it (`bearer`). In TypeScript, credentials and the fields
+  holding them on the root and v2 clients, handles, transports and auth
+  providers are non-enumerable (`concealFields` in `src/diagnostics.ts`), and
+  SDK-built axios instances add the bearer per request (unless the request
+  names `Authorization`, `null` included) instead of keeping it in
+  `defaults.headers`; a test walks every enumerable property of those objects
+  for a credential. `d.v0` is the bundled 0.x client, which keeps its own
+  credential handling and storage. Missing
   credentials are `AuthenticationError` (401, `UNAUTHORIZED`, `SDK`). The
   TS root validates the copy it keeps: every enumerable key (own or
   inherited) must be known, each known key and the nested `events` are read

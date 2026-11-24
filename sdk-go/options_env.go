@@ -56,26 +56,34 @@ func (c *clientConfig) resolveEnvironment() error {
 	return err
 }
 
-// checkCredentials refuses a credential no header can carry, before any
-// request and in a message without its value: it is sent as
-// "Authorization: Bearer <credential>".
+// checkCredentials trims surrounding HTTP whitespace (space, tab, CR, LF) from
+// an explicit credential, as nonBlankEnv trims an ambient one, so a key read
+// from a file with its trailing newline works. It then refuses a credential no
+// header can carry ("Authorization: Bearer <credential>"), before any request
+// and in a message without its value.
 func (c *clientConfig) checkCredentials(explicitKey, explicitJWT bool) error {
 	for _, credential := range []struct {
-		value       *string
+		field       **string
 		explicit    bool
 		option, env string
 	}{
-		{c.apiKey, explicitKey, "WithAPIKey", "DAYTONA_API_KEY"},
-		{c.jwtToken, explicitJWT, "WithJWTToken", "DAYTONA_JWT_TOKEN"},
+		{&c.apiKey, explicitKey, "WithAPIKey", "DAYTONA_API_KEY"},
+		{&c.jwtToken, explicitJWT, "WithJWTToken", "DAYTONA_JWT_TOKEN"},
 	} {
-		if credential.value == nil {
+		if *credential.field == nil {
 			continue
 		}
+		value := **credential.field
 		name := credential.env
 		if credential.explicit {
 			name = credential.option
+			value = strings.Trim(value, " \t\r\n")
+			if value == "" {
+				return badRequest(name + " must not be blank")
+			}
+			*credential.field = &value
 		}
-		if err := headerText(*credential.value, name); err != nil {
+		if err := headerText(value, name); err != nil {
 			return err
 		}
 	}

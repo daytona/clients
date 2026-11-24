@@ -101,9 +101,11 @@ The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 Environment values are trimmed, and a blank one counts as unset; values you
 pass in the config are used as given, and an empty one (`apiKey: ''`, …)
 throws `BadRequestError` instead of falling back to the environment. The API
-key or JWT, from the config or the environment, must be printable ASCII with
-no leading or trailing whitespace: `daytona.v2` throws `BadRequestError`
-otherwise, before any request, and the message never contains the value.
+key or JWT is the exception to "as given": surrounding spaces, tabs and line
+breaks are trimmed from it too (a key read from a file keeps its newline). What
+remains must be non-empty printable ASCII; otherwise `daytona.v2` throws
+`BadRequestError`, before any request, and the message never contains the
+value. `daytona.v0` keeps the 0.x SDK's own handling of the credential.
 `DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint, as
 `daytona region list` in the CLI shows them, or a test environment);
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`

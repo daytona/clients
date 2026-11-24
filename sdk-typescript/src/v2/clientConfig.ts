@@ -46,13 +46,20 @@ function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', va
 }
 
 /**
- * A credential is sent as `Authorization: Bearer <credential>`, so it follows
- * the header rule (printable ASCII, no leading or trailing whitespace), checked
- * before any request with a message that never contains the value. An explicit
- * value is checked as given; an ambient one after trimming, under its variable's name.
+ * The credential sent as `Authorization: Bearer <credential>`. Surrounding HTTP
+ * whitespace (space, tab, CR, LF) is trimmed from an explicit value, as from an
+ * ambient one, so a key read from a file with its trailing newline works. What
+ * remains must be printable ASCII: otherwise `BadRequestError` naming the field
+ * or the variable, never the value, before any request (Python and Go check
+ * the same way).
  */
-function credential(explicitName: 'apiKey' | 'jwtToken', explicit: string | undefined, envName: string, ambient: string | undefined): string | undefined {
-  if (explicit !== undefined) return headerText(explicit, explicitName)
+function credential(explicitName: 'apiKey' | 'jwtToken', explicit: string | undefined, envName: string, readAmbient: boolean): string | undefined {
+  if (explicit !== undefined) {
+    const trimmed = explicit.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '')
+    if (trimmed.length === 0) throw badRequest(`${explicitName} must not be blank`)
+    return headerText(trimmed, explicitName)
+  }
+  const ambient = readAmbient ? optionalNonBlankEnv(envName) : undefined
   return ambient === undefined ? undefined : headerText(ambient, envName)
 }
 
@@ -114,7 +121,8 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   // Ambient values are trimmed and a blank one is unset; a slash-only URL
   // is unset too.
   const apiUrl = optionalNonBlankEnv('DAYTONA_V2_API_URL')?.replace(/\/+$/, '') || DEFAULT_V2_API_URL
-  // Explicit values are used as given; an explicitly empty one is an error,
+  // Explicit values are used as given (a credential trimmed of surrounding
+  // whitespace, see `credential`); an explicitly empty one is an error,
   // never "unset". An explicit credential wins over the ambient environment:
   // config.jwtToken suppresses DAYTONA_API_KEY and config.apiKey suppresses
   // DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
@@ -122,8 +130,11 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   assertPresentStringOption('apiKey', config.apiKey)
   assertPresentStringOption('jwtToken', config.jwtToken)
   assertPresentStringOption('projectId', config.projectId)
-  const apiKey = credential('apiKey', config.apiKey, 'DAYTONA_API_KEY', config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
-  const jwtToken = credential('jwtToken', config.jwtToken, 'DAYTONA_JWT_TOKEN', config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
+  // An explicit credential of either kind suppresses both ambient ones,
+  // which are then never read.
+  const readAmbient = config.apiKey === undefined && config.jwtToken === undefined
+  const apiKey = credential('apiKey', config.apiKey, 'DAYTONA_API_KEY', readAmbient)
+  const jwtToken = credential('jwtToken', config.jwtToken, 'DAYTONA_JWT_TOKEN', readAmbient)
   const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
   const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
   // Above the timer maximum (about 24.8 days) means no bound, like 0.

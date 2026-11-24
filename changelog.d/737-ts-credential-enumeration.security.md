@@ -4,4 +4,4 @@ access tokens are no longer enumerable properties of the client, the
 SDK-built HTTP clients no longer keep the bearer in their default headers, so
 object spread, `Object.keys` / `Object.entries`, deep-clone helpers and error
 reporters that walk objects do not pick them up. `sandbox.accessToken` still
-returns the sandbox token.
+returns the sandbox token. `daytona.v0`, the bundled 0.x client, is unchanged.

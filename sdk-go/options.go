@@ -36,8 +36,8 @@ type SandboxEventsConfig struct {
 }
 
 // WithAPIKey selects API-key authentication, suppressing an ambient JWT.
-// An empty value, or one that is not printable ASCII without leading or
-// trailing whitespace, returns ErrBadRequest.
+// Surrounding spaces, tabs, CR and LF are trimmed; an empty value, a blank
+// one, or one that is not printable ASCII returns ErrBadRequest.
 func WithAPIKey(key string) Option {
 	return func(c *clientConfig) error {
 		c.apiKey = &key

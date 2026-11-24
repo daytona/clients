@@ -23,6 +23,7 @@ import respx
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
 from daytona.v2 import AuthenticationError, BadRequestError, ClientTimeoutError, ConnectionError
+from daytona.v2 import daytona as daytona_module
 from daytona.v2._core import RequestSpec, file_download_spec
 from daytona.v2._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 
@@ -102,37 +103,63 @@ def test_explicit_values_are_used_as_given(clean_env: pytest.MonkeyPatch) -> Non
     assert v2._auth._project_id == " p "  # type: ignore[attr-defined]
 
 
+@pytest.mark.parametrize("padded", [" key", "key\n", "\tkey\r\n", "key \n"])
+def test_an_explicit_credential_is_trimmed_of_surrounding_whitespace(
+    clean_env: pytest.MonkeyPatch, padded: str
+) -> None:
+    # A key read from a file keeps its trailing newline; it works, as it did
+    # through the HTTP clients that trimmed it on the wire.
+    assert _v2(DaytonaConfig(api_key=padded))._api_key == "key"  # type: ignore[attr-defined]
+    v2 = _v2(DaytonaConfig(jwt_token=padded.replace("key", "jwt"), project_id="p"))
+    assert v2._auth._jwt_token == "jwt"  # type: ignore[attr-defined]
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_a_padded_explicit_key_is_sent_trimmed(clean_env: pytest.MonkeyPatch) -> None:
+    route = respx.get(f"{BASE}/audit/actions").mock(
+        return_value=httpx.Response(200, json={"target_types": []})
+    )
+    async with AsyncDaytona(DaytonaConfig(api_key=" dtn_file_key\n")) as root:
+        with contextlib.suppress(Exception):
+            await root.v2.list_audit_actions()
+    assert route.calls.last.request.headers["authorization"] == "Bearer dtn_file_key"
+
+
 _SECRET = "dtn_config_secret"
-# Values an HTTP header cannot carry: they used to fail inside the HTTP client
+_NOT_PRINTABLE = "must be printable ASCII with no leading or trailing whitespace"
+# Values no HTTP header can carry: they used to fail inside the HTTP client
 # with an error that quoted the whole `Bearer <credential>` header.
 _MALFORMED = [
-    f"{_SECRET}\n",
-    f" {_SECRET}",
-    f"{_SECRET} ",
-    "   ",
-    "\t",
-    f"{_SECRET}\u00e9",
-    f"{_SECRET}\x00x",
+    ("   ", "must not be blank"),
+    ("\t\r\n", "must not be blank"),
+    (f"{_SECRET}\u00e9", _NOT_PRINTABLE),
+    (f"{_SECRET}\x00x", _NOT_PRINTABLE),
+    (f" {_SECRET}\x7f\n", _NOT_PRINTABLE),
+    (f"{_SECRET}\r\nX-Injected: 1", _NOT_PRINTABLE),
 ]
 
 
 @pytest.mark.parametrize("name", ["api_key", "jwt_token"])
-@pytest.mark.parametrize("value", _MALFORMED)
+@pytest.mark.parametrize(("value", "message"), _MALFORMED)
 def test_a_malformed_explicit_credential_is_rejected_without_its_value(
-    clean_env: pytest.MonkeyPatch, name: str, value: str
+    clean_env: pytest.MonkeyPatch, name: str, value: str, message: str
 ) -> None:
     fields: dict[str, object] = {name: value}
     if name == "jwt_token":
         fields["project_id"] = "project"
     with pytest.raises(BadRequestError) as excinfo:
         _v2(DaytonaConfig(**fields))  # type: ignore[arg-type]
-    assert str(excinfo.value) == f"{name} must be printable ASCII with no leading or trailing whitespace"
+    assert str(excinfo.value) == f"{name} {message}"
     assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
         400,
         "BAD_REQUEST",
         "SDK",
     )
-    assert value.strip() == "" or _SECRET not in "".join(traceback.format_exception(excinfo.value))
+    diagnostics = (
+        "".join(traceback.format_exception(excinfo.value)) + repr(excinfo.value) + repr(vars(excinfo.value))
+    )
+    assert _SECRET not in diagnostics
 
 
 @pytest.mark.parametrize(
@@ -146,14 +173,23 @@ def test_a_malformed_ambient_credential_is_rejected_after_trimming(
     clean_env.setenv("DAYTONA_PROJECT_ID", "project")
     with pytest.raises(BadRequestError) as excinfo:
         _v2(DaytonaConfig())
-    assert str(excinfo.value) == f"{variable} must be printable ASCII with no leading or trailing whitespace"
+    assert str(excinfo.value) == f"{variable} {_NOT_PRINTABLE}"
     assert _SECRET not in "".join(traceback.format_exception(excinfo.value))
-    # The ambient value the caller's credential suppresses is never read.
-    other = {
-        "api_key": DaytonaConfig(jwt_token="jwt", project_id="p"),
-        "jwt_token": DaytonaConfig(api_key="k"),
-    }
-    _v2(other[name])
+
+
+@pytest.mark.parametrize(
+    "config", [DaytonaConfig(api_key="k"), DaytonaConfig(jwt_token="jwt", project_id="p")]
+)
+def test_an_explicit_credential_leaves_both_ambient_credentials_unread(
+    clean_env: pytest.MonkeyPatch, config: DaytonaConfig
+) -> None:
+    clean_env.setenv("DAYTONA_API_KEY", f"{_SECRET}\u00e9")
+    clean_env.setenv("DAYTONA_JWT_TOKEN", f"{_SECRET}\u00e9")
+    read: list[str] = []
+    real = daytona_module._ambient
+    clean_env.setattr(daytona_module, "_ambient", lambda name: read.append(name) or real(name))
+    _v2(config)
+    assert not {"DAYTONA_API_KEY", "DAYTONA_JWT_TOKEN"} & set(read)
 
 
 def test_v2_never_reads_daytona_api_url(monkeypatch: pytest.MonkeyPatch) -> None:

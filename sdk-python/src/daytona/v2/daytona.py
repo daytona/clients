@@ -1433,7 +1433,8 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     # the 0.x SDK). Ambient values are trimmed and a blank one is unset; a
     # slash-only URL is unset too.
     api_url = (_ambient("DAYTONA_V2_API_URL") or "").rstrip("/") or DEFAULT_V2_API_URL
-    # Explicit values are used as given; an explicitly empty one is an error,
+    # Explicit values are used as given (a credential trimmed of surrounding
+    # whitespace, see _credential); an explicitly empty one is an error,
     # never "unset". An explicit credential wins over the ambient environment:
     # jwt_token suppresses DAYTONA_API_KEY and api_key suppresses
     # DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
@@ -1442,18 +1443,11 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
         value: object = getattr(config, name)
         if value is not None and (not isinstance(value, str) or value == ""):
             raise create_error(f"{name} must be a non-empty string when provided", 400, "BAD_REQUEST", "SDK")
-    api_key = _credential(
-        "api_key",
-        config.api_key,
-        "DAYTONA_API_KEY",
-        None if config.jwt_token is not None else _ambient("DAYTONA_API_KEY"),
-    )
-    jwt_token = _credential(
-        "jwt_token",
-        config.jwt_token,
-        "DAYTONA_JWT_TOKEN",
-        None if config.api_key is not None else _ambient("DAYTONA_JWT_TOKEN"),
-    )
+    # An explicit credential of either kind suppresses both ambient ones,
+    # which are then never read.
+    explicit = config.api_key is not None or config.jwt_token is not None
+    api_key = _credential("api_key", config.api_key, "DAYTONA_API_KEY", read_ambient=not explicit)
+    jwt_token = _credential("jwt_token", config.jwt_token, "DAYTONA_JWT_TOKEN", read_ambient=not explicit)
     if api_key and jwt_token:
         raise create_error(
             "exactly one of api_key or jwt_token must be configured",
@@ -1485,17 +1479,26 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     )
 
 
-def _credential(name: str, explicit: Optional[str], env_var: str, ambient: Optional[str]) -> Optional[str]:
+def _credential(name: str, explicit: Optional[str], env_var: str, *, read_ambient: bool) -> Optional[str]:
     """The credential the client sends as ``Authorization: Bearer <credential>``.
 
-    It follows the header rule (printable ASCII, no leading or trailing
-    whitespace), checked before any request with a message that never contains
-    the value, as TypeScript checks it. An explicit value is checked as given;
-    an ambient one after trimming, under its variable's name.
+    Surrounding HTTP whitespace (space, tab, CR, LF) is trimmed from an explicit
+    value, as from an ambient one (which ``_ambient`` trims), so a key read
+    from a file with its trailing newline works. What remains must be
+    printable ASCII: otherwise a ``BadRequestError`` naming the field or the
+    variable, never the value, before any request (TypeScript and Go check the
+    same way).
     """
     if explicit is not None:
-        return header_text(explicit, name)
+        trimmed = explicit.strip(_HTTP_WHITESPACE)
+        if not trimmed:
+            raise create_error(f"{name} must not be blank", 400, "BAD_REQUEST", "SDK")
+        return header_text(trimmed, name)
+    ambient = _ambient(env_var) if read_ambient else None
     return None if ambient is None else header_text(ambient, env_var)
+
+
+_HTTP_WHITESPACE: Final = " \t\r\n"
 
 
 def _ambient(env_var: str) -> Optional[str]:

@@ -4,7 +4,9 @@
 package daytona
 
 import (
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -30,8 +32,10 @@ func TestNew_whenCredentialConfigurationVaries(t *testing.T) {
 		{name: "empty jwt", options: []Option{WithJWTToken("")}, want: ErrBadRequest},
 		{name: "empty project", key: "key", project: "p", options: []Option{WithProjectID("")}, want: ErrBadRequest},
 		{name: "jwt missing project", jwt: "jwt", want: ErrBadRequest},
-		{name: "explicit untrimmed", options: []Option{WithAPIKey(" key ")}, want: ErrBadRequest},
+		{name: "explicit padded", options: []Option{WithAPIKey(" key\t\r\n")}, wantKey: "key"},
+		{name: "explicit padded jwt", options: []Option{WithJWTToken("jwt\n"), WithProjectID("p")}, wantJWT: "jwt"},
 		{name: "explicit internal space", options: []Option{WithAPIKey("k ey")}, wantKey: "k ey"},
+		{name: "explicit blank", key: "ambient", options: []Option{WithAPIKey(" \t\n")}, want: ErrBadRequest},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -64,28 +68,31 @@ func TestNew_whenCredentialConfigurationVaries(t *testing.T) {
 
 func TestNew_whenCredentialIsMalformed(t *testing.T) {
 	const secret = "dtn_config_secret"
-	malformed := []string{secret + "\n", " " + secret, secret + " ", "   ", "\t", secret + "\u00e9", secret + "\x00x"}
-	for _, value := range malformed {
-		for _, test := range []struct {
-			option  Option
-			message string
-		}{
-			{WithAPIKey(value), "WithAPIKey must be printable ASCII with no leading or trailing whitespace"},
-			{WithJWTToken(value), "WithJWTToken must be printable ASCII with no leading or trailing whitespace"},
-		} {
-			t.Run(test.message[:12]+"/"+value, func(t *testing.T) {
+	cases := []struct{ value, suffix string }{
+		{" \t\n", " must not be blank"},
+		{secret + "\u00e9", " must be printable ASCII with no leading or trailing whitespace"},
+		{secret + "\x00x", " must be printable ASCII with no leading or trailing whitespace"},
+		{"dtn_\x01" + secret, " must be printable ASCII with no leading or trailing whitespace"},
+		{secret + "\r\nX-Injected: 1", " must be printable ASCII with no leading or trailing whitespace"},
+	}
+	for _, test := range cases {
+		for _, option := range []struct {
+			name   string
+			option Option
+		}{{"WithAPIKey", WithAPIKey(test.value)}, {"WithJWTToken", WithJWTToken(test.value)}} {
+			t.Run(option.name+"/"+test.value, func(t *testing.T) {
 				// Given
 				t.Setenv("DAYTONA_API_KEY", "")
 				t.Setenv("DAYTONA_JWT_TOKEN", "")
 				// When
-				_, err := New(test.option, WithProjectID("project"))
+				_, err := New(option.option, WithProjectID("project"))
 				// Then
 				require.ErrorIs(t, err, ErrBadRequest)
 				var detail *Error
 				require.ErrorAs(t, err, &detail)
-				require.Equal(t, test.message, detail.Message)
+				require.Equal(t, option.name+test.suffix, detail.Message)
 				require.Equal(t, SourceSDK, detail.Source)
-				require.NotContains(t, err.Error(), secret)
+				require.NotContains(t, fmt.Sprintf("%+v %#v", err, detail), secret)
 			})
 		}
 	}
@@ -103,6 +110,22 @@ func TestNew_whenCredentialIsMalformed(t *testing.T) {
 			require.NotContains(t, err.Error(), secret)
 		})
 	}
+}
+
+func TestNew_sendsAPaddedExplicitKeyTrimmed(t *testing.T) {
+	// Given: a key read from a file, with its trailing newline
+	var authorization string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		writeJSON(t, w, map[string]any{"targets": []any{}})
+	}))
+	defer server.Close()
+	client := newTestClient(t, server, WithAPIKey(" dtn_file_key\n"))
+	// When
+	_, err := client.ListAuditActions(t.Context())
+	// Then
+	require.NoError(t, err)
+	require.Equal(t, "Bearer dtn_file_key", authorization)
 }
 
 func TestNew_whenEndpointEnvironmentVaries(t *testing.T) {
