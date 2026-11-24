@@ -600,7 +600,8 @@ skipping exist only in the TypeScript tool).
   healthy hold is never cut, with no bound when the request timeout is `0`
   or the hold is above the timer maximum, while a create with no hold stays
   an ordinary request; a git remote call, `fs.move()`'s `timeout` /
-  `timeoutSeconds` (Go `MoveOptions.Timeout`), the
+  `timeoutSeconds` (Go `MoveOptions.Timeout`, where zero keeps the request
+  timeout and `NoTimeout` is no limit), the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same
