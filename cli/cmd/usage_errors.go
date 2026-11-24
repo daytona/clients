@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,14 +32,19 @@ func usageArgs(validate cobra.PositionalArgs) cobra.PositionalArgs {
 	}
 }
 
+// annotationFreeTextFrom marks a command whose positionals from this index
+// on are free text a blank value is meaningful for, or that the command
+// checks itself (`sandbox search [query]`, `config set <key> <value>`).
+const annotationFreeTextFrom = "daytona/free-text-from"
+
 // refuseBlankArgs refuses an empty or whitespace-only argument given for a
 // named positional (an id, a name, a host, a path): no command accepts one,
 // and sent as given it would reach the API as a collection path or an
-// unknown name. Free-text and pass-through positionals are not checked: the
-// search query, a setting's value, everything after `--`, and a variadic placeholder and the
-// arguments after it (ssh and exec arguments may be legitimately empty).
+// unknown name. Not checked: positionals annotationFreeTextFrom marks,
+// everything after `--`, and a variadic placeholder and the arguments after
+// it (ssh and exec arguments may be legitimately empty).
 func refuseBlankArgs(cmd *cobra.Command, args []string) error {
-	placeholders := namedPositionals(cmd.Use)
+	placeholders := namedPositionals(cmd)
 	if dash := cmd.ArgsLenAtDash(); dash >= 0 && dash < len(args) {
 		args = args[:dash]
 	}
@@ -53,11 +59,21 @@ func refuseBlankArgs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// namedPositionals reads the positional placeholders of a Use line in order
-// ("get <id>" → ["<id>"]), stopping at the first flag, `--` or variadic
-// placeholder. `[flags]` is skipped; the free-text `[query]` and `<value>`
-// (checked by their commands) end the list.
-func namedPositionals(use string) []string {
+// namedPositionals returns the placeholders refuseBlankArgs checks: the
+// positionals of cmd's Use line (usePositionals) before the index
+// annotationFreeTextFrom names.
+func namedPositionals(cmd *cobra.Command) []string {
+	out := usePositionals(cmd.Use)
+	if from, err := strconv.Atoi(cmd.Annotations[annotationFreeTextFrom]); err == nil && from < len(out) {
+		out = out[:from]
+	}
+	return out
+}
+
+// usePositionals reads the positional placeholders of a Use line in order
+// ("get <id>" → ["<id>"], "use [id|name]" → ["<id|name>"]), stopping at the
+// first flag, `--` or variadic placeholder; `[flags]` is skipped.
+func usePositionals(use string) []string {
 	fields := strings.Fields(use)
 	if len(fields) < 2 {
 		return nil
@@ -67,7 +83,7 @@ func namedPositionals(use string) []string {
 		switch {
 		case field == "[flags]":
 			continue
-		case strings.HasPrefix(field, "-"), strings.Contains(field, "..."), field == "[query]", field == "<value>":
+		case strings.HasPrefix(field, "-"), strings.Contains(field, "..."):
 			return out
 		case strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]"):
 			field = "<" + field[1:len(field)-1] + ">"

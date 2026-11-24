@@ -30,8 +30,10 @@ func init() {
 			},
 		})
 		c.AddCommand(&cobra.Command{
-			Use:   "set <key> <value>",
-			Short: "Change a setting (confirm true|false — prompts before destructive verbs)",
+			Use: "set <key> <value>",
+			// The value is checked below, with a message naming true|false.
+			Annotations: map[string]string{annotationFreeTextFrom: "1"},
+			Short:       "Change a setting (confirm true|false — prompts before destructive verbs)",
 			Long: "Change a setting.\n\n" +
 				"confirm true|false: whether destructive and billable commands ask for confirmation at a terminal.\n" +
 				"It affects prompts only: off a terminal (and with --output json or yaml) those commands always\n" +

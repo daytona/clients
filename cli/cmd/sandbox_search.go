@@ -54,10 +54,12 @@ type sandboxSearchFlags struct {
 func newSandboxSearchCommand() *cobra.Command {
 	flags := sandboxSearchFlags{}
 	cmd := &cobra.Command{
-		Use:   "search [query]",
-		Short: "Search sandboxes across regions",
-		Long:  "Search sandboxes across regions. The query is optional: filters alone select a set.\nExamples:\n  daytona sandbox search python\n  daytona sandbox search worker --status running --class linux --region region-a\n  daytona sandbox search --status running\n  daytona sandbox search sandbox-example",
-		Args:  cobra.MaximumNArgs(1),
+		Use: "search [query]",
+		// An empty query is meaningful: filters alone select a set.
+		Annotations: map[string]string{annotationFreeTextFrom: "0"},
+		Short:       "Search sandboxes across regions",
+		Long:        "Search sandboxes across regions. The query is optional: filters alone select a set.\nExamples:\n  daytona sandbox search python\n  daytona sandbox search worker --status running --class linux --region region-a\n  daytona sandbox search --status running\n  daytona sandbox search sandbox-example",
+		Args:        cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			if strings.TrimSpace(flags.labels) != "" || cmd.Flags().Changed("label") {
