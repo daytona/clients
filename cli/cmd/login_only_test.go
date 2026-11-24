@@ -6,6 +6,7 @@ package cmd
 import (
 	"encoding/json"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -211,7 +212,10 @@ var loginOnlyRoutes = []struct {
 	{path: "/projects", prefix: true},
 }
 
-func TestLoginOnlyCommandsCallLoginOnlyRoutes(t *testing.T) {
+// contractSecurity returns the security schemes each operation of
+// contract/api-openapi.json admits, by path template and lower-case method.
+func contractSecurity(t *testing.T) func(path, method string) []string {
+	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "contract", "api-openapi.json"))
 	require.NoError(t, err)
 	var doc struct {
@@ -220,7 +224,7 @@ func TestLoginOnlyCommandsCallLoginOnlyRoutes(t *testing.T) {
 		} `json:"paths"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &doc))
-	schemes := func(path, method string) []string {
+	return func(path, method string) []string {
 		seen := map[string]bool{}
 		var names []string
 		for _, req := range doc.Paths[path][method].Security {
@@ -234,6 +238,16 @@ func TestLoginOnlyCommandsCallLoginOnlyRoutes(t *testing.T) {
 		sort.Strings(names)
 		return names
 	}
+}
+
+func TestLoginOnlyCommandsCallLoginOnlyRoutes(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "contract", "api-openapi.json"))
+	require.NoError(t, err)
+	var doc struct {
+		Paths map[string]map[string]json.RawMessage `json:"paths"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	schemes := contractSecurity(t)
 	for _, route := range loginOnlyRoutes {
 		matched := 0
 		for path, ops := range doc.Paths {
@@ -263,4 +277,32 @@ func TestLoginOnlyCommandsCallLoginOnlyRoutes(t *testing.T) {
 	// key, and the region multipliers (read by region list) an org key.
 	require.Contains(t, schemes("/orgs/{org_id}/limits", "get"), "api_key")
 	require.Contains(t, schemes("/orgs/{org_id}/billing/region-multipliers", "get"), "org_key")
+}
+
+// Every request a login-only command sends goes to an operation that admits
+// only a login session. Each command runs with a login's access token, an
+// organization, a project, --yes and placeholder arguments against an API that
+// answers 404, so at least its first request is checked; one whose arguments
+// fail local validation sends none.
+func TestLoginOnlyCommandsSendOnlyToLoginOnlyOperations(t *testing.T) {
+	apiRouter, _ := loadContracts(t)
+	schemes := contractSecurity(t)
+	leaves := loginOnlyLeaves(t)
+	sent := 0
+	for path, args := range leaves {
+		f := newFakeAPI(t)
+		cmdArgs := append([]string{"--api-key", testLoginBearer, "--api-url", f.srv.URL, "--org", testOrgA, "--project", testProjP1, "--yes"}, strings.Fields(path)...)
+		_, _, _ = run(t, cfgDir(t), nil, append(cmdArgs, args...)...)
+		if len(f.requests) > 0 {
+			sent++
+		}
+		for _, r := range f.requests {
+			req, err := http.NewRequest(r.Method, "http://contract"+r.Path, nil)
+			require.NoError(t, err)
+			route, _, err := apiRouter.FindRoute(req)
+			require.NoError(t, err, "%s: %s %s is not in the contract", path, r.Method, r.Path)
+			require.Equal(t, []string{"user_jwt"}, schemes(route.Path, strings.ToLower(r.Method)), "%s sends %s %s, which admits an API key", path, r.Method, route.Path)
+		}
+	}
+	require.Greater(t, sent, len(leaves)/2, "too few login-only commands reached the API for the check to mean anything")
 }

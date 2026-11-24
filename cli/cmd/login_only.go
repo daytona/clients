@@ -14,9 +14,9 @@ import (
 
 // loginOnlyFamilies are the command groups whose requests go only to
 // operations that admit a user login session and no API key (user_jwt alone
-// in contract/api-openapi.json; TestLoginOnlyCommandsCallLoginOnlyRoutes holds
-// the contract to this list). loginOnlyExceptions are the commands in those
-// groups that accept an API key.
+// in contract/api-openapi.json). loginOnlyExceptions are the commands in
+// those groups that accept an API key. TestLoginOnlyCommandsSendOnlyToLoginOnlyOperations
+// fails when a command covered here sends a request an API key could make.
 var (
 	loginOnlyFamilies   = map[string]bool{"billing": true, "invite": true, "key": true, "member": true, "org": true, "org-key": true, "project": true, "service-account": true}
 	loginOnlyExceptions = map[string]bool{"org limits": true}
