@@ -892,7 +892,13 @@ export class Daytona implements AsyncDisposable {
   }
 
   /**
-   * Iterates over Sandboxes matching the given query.
+   * Returns an async iterator over the Sandboxes matching the given query, fetching pages as it goes.
+   * The result is not an array or a Promise: consume it with `for await`, or collect it into an array
+   * with `Array.fromAsync` (Node.js 22+) or a `for await` loop.
+   *
+   * Before 0.180.0 this method returned `Promise<PaginatedSandboxes>` and took `(labels, page, limit)`;
+   * code that awaits it and reads `.items` must iterate instead.
+   *
    * The iterator makes one additional request for each sandbox with more than 8 GPUs to fetch its nodes. A gang deleted
    * between listing and fetching its node details is skipped.
    *
@@ -903,6 +909,14 @@ export class Daytona implements AsyncDisposable {
    * for await (const sandbox of daytona.list({ labels: { env: 'dev' } })) {
    *   console.log(sandbox.id)
    * }
+   *
+   * @example
+   * // Collect every matching Sandbox into an array
+   * const sandboxes = await Array.fromAsync(daytona.list({ labels: { env: 'dev' } })) // Node.js 22+
+   *
+   * // Without Array.fromAsync
+   * const all: Sandbox[] = []
+   * for await (const sandbox of daytona.list()) all.push(sandbox)
    */
   public list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox> {
     const { sandboxApi, clientConfig, eventSubscriptionManager, requestTimeoutMs } = this

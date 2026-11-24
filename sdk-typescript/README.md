@@ -230,4 +230,9 @@ volumes.forEach(vol => console.log(vol.name))
 for await (const sandbox of daytona.list({ labels: { env: 'dev' } })) {
   console.log(sandbox.id)
 }
+
+// collect every sandbox into an array
+const sandboxes = await Array.fromAsync(daytona.list()) // Node.js 22+
 ```
+
+`daytona.list()` returns `Promise<PaginatedSandboxes>` up to SDK 0.179.0 and an async iterator from 0.180.0. Code that does `(await daytona.list()).items` needs to iterate or collect instead.
