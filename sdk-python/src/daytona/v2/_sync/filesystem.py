@@ -102,9 +102,20 @@ class FileSystemService:
         """Create a directory."""
         return self._bridge.call(lambda: self._impl.mkdir(path, mode=mode))
 
-    def move(self, source: str, destination: str, /) -> None:
-        """Move or rename files."""
-        return self._bridge.call(lambda: self._impl.move(source, destination))
+    def move(self, source: str, destination: str, /, *, timeout: Optional[float] = None) -> None:
+        """Move or rename a file or directory.
+
+        A move to another file system is a copy in the sandbox and can take
+        longer than the client's ``request_timeout``. ``timeout`` replaces it
+        for this call: a total deadline in seconds, ``0`` for no limit;
+        omitted, the client's request timeout applies.
+
+        The SDK never retries a move. A timeout ends the call, not the move:
+        the move may still be running in the sandbox, or have finished, so
+        check the destination (for example with :meth:`stat`) before moving
+        again.
+        """
+        return self._bridge.call(lambda: self._impl.move(source, destination, timeout=timeout))
 
     def presigned_download_url(self, path: str, /, *, expires_in_seconds: int = 3600) -> str:
         """Return a pre-signed download URL for a sandbox file.

@@ -209,6 +209,14 @@ Every duration is a `time.Duration`:
   `Timeout` covers submission, lookup and readiness together.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
+  `FileSystem.Move` takes `&daytona.MoveOptions{Timeout: ...}` to replace it
+  for one move (`daytona.NoTimeout` for no limit): a move to another file
+  system is a copy in the sandbox. Moves are never retried, and a timeout ends
+  the call, not the move; check the destination before moving again.
+- Process runs (`Exec`, `Run`, `Session.Run`) and `ProcessHandle.Wait` wait in
+  rounds: no request holds for more than 30 seconds, whatever the `Timeout`
+  (or `WaitForever`), so a dropped quiet connection costs one retried round,
+  not the whole wait. The request that starts a process is never retried.
 
 The caller's context always applies, including to unbounded waits.
 

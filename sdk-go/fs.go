@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // FileSystem accesses a sandbox's files. Obtain it from Sandbox.FS.
@@ -36,6 +37,14 @@ type MkdirOptions struct {
 type RemoveFileOptions struct {
 	// Recursive removes directory contents too; default false.
 	Recursive bool
+}
+
+// MoveOptions controls a move.
+type MoveOptions struct {
+	// Timeout replaces the client's request timeout for this move as its total
+	// deadline; zero keeps the request timeout, NoTimeout (or a duration above
+	// 2,147,483.647 seconds) disables it. The context always bounds the move.
+	Timeout time.Duration
 }
 
 // FilePermissionsOptions selects permissions or ownership to change.
@@ -130,13 +139,31 @@ func (f *FileSystem) Remove(ctx context.Context, path string, opts *RemoveFileOp
 }
 
 // Move moves or renames a file between absolute sandbox paths.
-func (f *FileSystem) Move(ctx context.Context, source, destination string) error {
+//
+// A move to another file system is a copy in the sandbox and can take longer
+// than the client's request timeout; MoveOptions.Timeout replaces it for this
+// call. Pass at most one options value. The SDK never retries a move. A
+// timeout or cancellation ends the call, not the move: the move may still be
+// running in the sandbox, or have finished, so check the destination (for
+// example with Stat) before moving again.
+func (f *FileSystem) Move(ctx context.Context, source, destination string, opts ...*MoveOptions) error {
 	if _, err := filePaths([]string{source, destination}); err != nil {
 		return err
 	}
+	if len(opts) > 1 {
+		return badRequest("Move takes at most one MoveOptions")
+	}
+	var timeout time.Duration
+	if len(opts) == 1 && opts[0] != nil {
+		timeout = opts[0].Timeout
+		if err := checkDuration("Timeout", timeout, NoTimeout); err != nil {
+			return err
+		}
+	}
 	return f.sandbox.toolbox().do(ctx, toolboxRequest{
 		Method: http.MethodPost, Path: "/files/move",
-		Query: url.Values{"source": {source}, "destination": {destination}},
+		Query:   url.Values{"source": {source}, "destination": {destination}},
+		Timeout: timeout,
 	})
 }
 

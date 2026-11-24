@@ -37,7 +37,9 @@ from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
     TransportPayload,
+    above_timer_maximum,
     bulk_download_spec,
+    checked_seconds,
     expect_file_info,
     file_bulk_upload_spec,
     file_download_spec,
@@ -602,18 +604,31 @@ class AsyncFileSystemService:
             RequestSpec("DELETE", "/files", params={"path": sandbox_path(path), "recursive": recursive})
         )
 
-    async def move(self, source: str, destination: str, /) -> None:
-        """Move or rename files."""
-        await self._transport.send(
-            RequestSpec(
-                "POST",
-                "/files/move",
-                params={
-                    "source": sandbox_path(source, "source"),
-                    "destination": sandbox_path(destination, "destination"),
-                },
-            )
+    async def move(self, source: str, destination: str, /, *, timeout: Optional[float] = None) -> None:
+        """Move or rename a file or directory.
+
+        A move to another file system is a copy in the sandbox and can take
+        longer than the client's ``request_timeout``. ``timeout`` replaces it
+        for this call: a total deadline in seconds, ``0`` for no limit;
+        omitted, the client's request timeout applies.
+
+        The SDK never retries a move. A timeout ends the call, not the move:
+        the move may still be running in the sandbox, or have finished, so
+        check the destination (for example with :meth:`stat`) before moving
+        again.
+        """
+        spec = RequestSpec(
+            "POST",
+            "/files/move",
+            params={
+                "source": sandbox_path(source, "source"),
+                "destination": sandbox_path(destination, "destination"),
+            },
         )
+        if timeout is not None:
+            seconds = checked_seconds(timeout)
+            spec = replace(spec, timeout=0 if seconds == 0 or above_timer_maximum(seconds) else seconds)
+        await self._transport.send(spec)
 
     async def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
