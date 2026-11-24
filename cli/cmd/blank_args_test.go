@@ -35,7 +35,9 @@ func leafCommands() []*cobra.Command {
 // Every named positional of every command refuses an empty or whitespace-only
 // value as a usage error before any credential, picker or request: sent as
 // given, `sandbox get ""` asked for the sandbox collection and
-// `create-from-snapshot ""` for a snapshot named "".
+// `create-from-snapshot ""` for a snapshot named "". A `--` before the
+// arguments (`get -- "$ID"`, `exec -- "$ID" cmd`) only ends the options and
+// changes nothing.
 func TestBlankPositionalArgumentsFailLocally(t *testing.T) {
 	type invocation struct {
 		path, name string
@@ -47,15 +49,23 @@ func TestBlankPositionalArgumentsFailLocally(t *testing.T) {
 		count := len(usePositionals(c.Use))
 		for i, placeholder := range namedPositionals(c) {
 			for _, blank := range []string{"", "  "} {
-				args := make([]string, count)
-				for j := range args {
-					args[j] = "x"
+				for _, dashFirst := range []bool{false, true} {
+					args := make([]string, count)
+					for j := range args {
+						args[j] = "x"
+					}
+					args[i] = blank
+					switch {
+					case dashFirst:
+						args = append([]string{"--"}, args...)
+						if c.Name() == "exec" {
+							args = append(args, "true")
+						}
+					case c.Name() == "exec":
+						args = append(args, "--", "true")
+					}
+					cases = append(cases, invocation{path: strings.Join(path, " "), name: placeholder, argv: append(append([]string{}, path...), args...)})
 				}
-				args[i] = blank
-				if c.Name() == "exec" {
-					args = append(args, "--", "true")
-				}
-				cases = append(cases, invocation{path: strings.Join(path, " "), name: placeholder, argv: append(append([]string{}, path...), args...)})
 			}
 		}
 	}
@@ -124,7 +134,7 @@ func TestPositionalPlaceholdersAreKnown(t *testing.T) {
 
 // Free-text and pass-through positionals stay as given: an empty search
 // query, a setting's value (its command names the allowed values), and the
-// arguments of the command `sandbox exec` runs.
+// arguments of the command `sandbox exec` runs after its `--`.
 func TestUsePositionals(t *testing.T) {
 	for use, want := range map[string][]string{
 		"get <id>":                      {"<id>"},
@@ -146,6 +156,10 @@ func TestUsePositionals(t *testing.T) {
 	require.Equal(t, cerr.ExitUsage, code, stderr)
 	require.Contains(t, stderr, "true|false")
 	require.Empty(t, f.requests)
+
+	_, stderr, code = run(t, cfgDir(t), env, "sandbox", "exec", "x", "--", "")
+	require.NotContains(t, stderr, "is empty", "the command after -- is passed through")
+	require.NotEqual(t, cerr.ExitUsage, code, stderr)
 
 	f.on("GET", "/sandboxes/search", 200, `{"total":0,"total_relation":"eq","sandboxes":[]}`)
 	_, stderr, code = run(t, cfgDir(t), env, "sandbox", "search", "")

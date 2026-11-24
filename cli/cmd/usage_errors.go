@@ -40,14 +40,12 @@ const annotationFreeTextFrom = "daytona/free-text-from"
 // refuseBlankArgs refuses an empty or whitespace-only argument given for a
 // named positional (an id, a name, a host, a path): no command accepts one,
 // and sent as given it would reach the API as a collection path or an
-// unknown name. Not checked: positionals annotationFreeTextFrom marks,
-// everything after `--`, and a variadic placeholder and the arguments after
-// it (ssh and exec arguments may be legitimately empty).
+// unknown name. Not checked: positionals annotationFreeTextFrom marks, and
+// the positions from the Use line's `--` or variadic placeholder on (ssh and
+// exec arguments may be legitimately empty). A `--` on the command line only
+// ends the options: `get -- ""` still gives the <id>, so it is checked.
 func refuseBlankArgs(cmd *cobra.Command, args []string) error {
 	placeholders := namedPositionals(cmd)
-	if dash := cmd.ArgsLenAtDash(); dash >= 0 && dash < len(args) {
-		args = args[:dash]
-	}
 	for i, arg := range args {
 		if i >= len(placeholders) {
 			break
