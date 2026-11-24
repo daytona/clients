@@ -716,8 +716,7 @@ export class Sandbox {
    * already `starting` (a start or resume another caller sent) is waited for
    * without a new request; when that operation fails and the sandbox returns
    * to `stopped` or `paused`, this throws `SandboxTerminalStateError` once the
-   * wait's reads confirm it (back at `paused`, after up to one 30-second
-   * long-poll read).
+   * wait's long-poll reads confirm either state (up to one 30-second slice).
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to

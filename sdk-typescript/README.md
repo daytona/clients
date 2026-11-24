@@ -1071,9 +1071,8 @@ success into an error; a refresh that shows another state decides instead
 under the same budget), so a lifecycle wait that returns leaves the handle in
 a requested state. `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and throws
-`SandboxTerminalStateError` once the wait's reads confirm it failed and the
-sandbox returned to `stopped` or `paused` (back at `paused`, after up to one
-30-second long-poll read). A `pause()` that fails is reported the same way,
+`SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
+once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,
 after up to one 30-second long-poll read. The server decides which lifecycle actions the sandbox supports.
 
 `fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed,

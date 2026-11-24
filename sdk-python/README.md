@@ -1148,9 +1148,8 @@ terminal for that wait raises, any other state keeps the wait going under the
 same budget), so a lifecycle wait that returns leaves the handle in a
 requested state. `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and raises
-`SandboxTerminalStateError` once the wait's reads confirm it failed and the
-sandbox returned to `stopped` or `paused` (back at `paused`, after up to one
-30-second long-poll read). A `pause()` that fails is reported the same way,
+`SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
+once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,
 after up to one 30-second long-poll read. The server decides which
 lifecycle actions the sandbox supports.
 
