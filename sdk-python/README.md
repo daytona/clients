@@ -75,6 +75,25 @@ finish — teardown drops the sockets. In a long-lived process, prefer one
 you drop without closing keeps its idle keep-alive connections open until
 interpreter exit.
 
+Closing a client releases its connections; it does not delete or stop the
+sandboxes it created. Clean up sandboxes while the program still runs, for
+example in a `try`/`finally` around the code that uses them:
+
+```python
+sandbox = d.v2.create()
+try:
+    sandbox.process.run("echo hello")
+finally:
+    sandbox.delete()
+```
+
+Requests cannot run once the interpreter is shutting down, so cleanup
+registered with `atexit` (or run from a finalizer) does not work: the SDK
+refuses a request made from an `atexit` handler with `ClientClosedError`
+before sending it, and a request from a thread still running after the program
+ended raises the same error when it needs one of the thread pools Python has
+already stopped.
+
 `d.v2` on the sync `Daytona` runs the async implementation on a private
 background event loop and blocks the calling thread. Calling it from inside a
 running event loop raises immediately instead of silently stalling that loop —

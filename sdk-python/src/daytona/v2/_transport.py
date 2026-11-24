@@ -48,6 +48,7 @@ from ._core import (
     parse_json_bytes,
 )
 from ._otel import OpenTelemetrySupport
+from ._shutdown import refuse_during_interpreter_shutdown
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
@@ -778,6 +779,7 @@ class AsyncTransport:
 
     async def _request_token(self) -> Optional[str]:
         self._stream_owners.ensure_open()
+        refuse_during_interpreter_shutdown()
         if self.auth_provider is not None:
             return await self.auth_provider.bearer()
         if self._auth is not None:

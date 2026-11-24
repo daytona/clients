@@ -27,6 +27,7 @@ import anyio
 from anyio.from_thread import BlockingPortal, start_blocking_portal
 from typing_extensions import Self
 
+from ._shutdown import refuse_during_interpreter_shutdown, shutdown_refusal_for
 from .errors import ClientClosedError, DaytonaError, _interrupt_error_of
 
 T = TypeVar("T")
@@ -116,6 +117,7 @@ class SyncBridge:
         """
         if self._closed:
             raise ClientClosedError(f"{self._name} is closed")
+        refuse_during_interpreter_shutdown()
         if _in_running_loop():
             raise BridgeError(_IN_EVENT_LOOP.format(name=self._name, async_name=self._async_name))
         unwound = threading.Event()
@@ -158,6 +160,11 @@ class SyncBridge:
             with self._lock:
                 future = self._portal_locked().start_task_soon(run_and_signal)
             return future.result()
+        except RuntimeError as error:
+            refusal = shutdown_refusal_for(error)
+            if refusal is None:
+                raise
+            raise refusal from error
         except KeyboardInterrupt as interrupt:
             if future is None:
                 raise  # interrupted before anything was submitted; nothing to cancel
