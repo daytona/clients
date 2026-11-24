@@ -1,0 +1,99 @@
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 52,56
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_state_event_dto.py
+  s_24803b7d9359b3::t_a2f5236091409f 58,69,74,169-173,209-213,234-237
+  s_24803b7d9359b3::t_080e691779ce67 238
+sdk-python/src/daytona/v2/_gen/api/models/update_project_lifecycle_policy_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 20,38
+sdk-python/src/daytona/v2/_gen/api/models/network_policy.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 38,41
+sdk-python/gen-contract.sh
+  s_24803b7d9359b3::t_9bbbeaeb9ffcf8 89-91
+sdk-python/src/daytona/v2/_gen/toolbox/models/list_query.py
+  s_24803b7d9359b3::t_a2f5236091409f 38
+sdk-python/pyproject.toml
+  s_24803b7d9359b3::t_dea52a458f6d84 78-80,83
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_dto.py
+  s_24803b7d9359b3::t_a2f5236091409f 58,69,74,168-172,208-211
+  s_24803b7d9359b3::t_2ea457df757020 212
+sdk-python/src/daytona/v2/_gen/api/models/usage_report.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 43
+sdk-python/src/daytona/v2/_gen/api/models/config.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 41,48-49
+sdk-python/src/daytona/v2/_gen/api/models/update_sandbox_lifecycle_policy_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 40-41
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  s_24803b7d9359b3::t_a2f5236091409f 20,40
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 55,61,70,177-181,202-206,227-230
+  s_24803b7d9359b3::t_5b860fbdc32762 231
+sdk-python/src/daytona/v2/_gen/api/models/create_image_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 44
+sdk-python/gen/nullable_refs.py
+  s_24803b7d9359b3::t_7bfea9bbc00486 26-28,37-39,53-55
+  s_24803b7d9359b3::t_f2bbc57af132e7 1-25,29-35,41-52,56-77
+  s_24803b7d9359b3::t_707bfc6d7536f9 36,40
+sdk-python/src/daytona/v2/_gen/api/models/lifecycle_policy.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 43-44
+sdk-python/src/daytona/v2/_gen/api/models/bucket_options.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 39,42
+sdk-python/src/daytona/v2/_gen/api/models/mac_model.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 39
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_record.py
+  s_24803b7d9359b3::t_a2f5236091409f 57,68
+sdk-python/src/daytona/v2/_gen/api/models/image.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 61
+sdk-python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 44,46
+sdk-python/src/daytona/v2/_gen/api/models/mac_catalog_model.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 41
+sdk-python/tests/test_generated_nullable_fields.py
+  s_24803b7d9359b3::t_cdfef863ce5aa1 122-127,134
+  s_24803b7d9359b3::t_7df3f8645bc164 140-142
+  s_24803b7d9359b3::t_55ac7d5f1c16db 1-43,45-121,128-133,135-139,143
+  s_24803b7d9359b3::t_8b5ab386544ed9 44
+sdk-python/src/daytona/v2/_gen/api/models/effective_lifecycle_policy.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 40-41
+sdk-python/src/daytona/v2/_gen/api/models/image_list_item.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 62
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  s_24803b7d9359b3::t_a2f5236091409f 46-47,54,56
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_start_request.py
+  s_24803b7d9359b3::t_a2f5236091409f 20,38
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_response.py
+  s_24803b7d9359b3::t_a2f5236091409f 39
+sdk-python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 50,53
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_usage_history.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 41
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_from_snapshot_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 42
+sdk-python/src/daytona/v2/_gen/api/models/billing_plan.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 42,47
+sdk-python/src/daytona/v2/_gen/toolbox/models/exit_result.py
+  s_24803b7d9359b3::t_a2f5236091409f 39
+sdk-python/src/daytona/v2/_gen/api/models/sandbox.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 55,61,70
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 81-82
+sdk-python/src/daytona/v2/_gen/api/models/create_volume_request.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 39,42
+sdk-python/src/daytona/v2/_gen/api/models/balance.py
+  s_24803b7d9359b3::t_5b72afb6db4eb9 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1016f981f1bcd90284b874d45f6da99fdb6a3d48",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
