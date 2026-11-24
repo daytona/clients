@@ -2,8 +2,10 @@
 """git — clone a repo, stage a change, commit, branch, and read status.
 
 Shows clone / status / add / commit / list_branches / create_branch /
-checkout_branch / delete_branch. It never pushes or pulls: that needs a remote
-you can write to and its credentials (``git.push`` / ``git.pull``).
+checkout_branch / delete_branch. It never pushes or pulls (``git.push`` /
+``git.pull``): pushing needs a remote you can write to and its credentials,
+and pulling needs new commits on the configured remote (a public remote needs
+no credentials).
 
 Run (from examples):
     DAYTONA_API_KEY=dtn_... \\

@@ -10,7 +10,10 @@ Two source variants are supported:
 Use ``images.follow_build_logs()`` to read build output. This example builds
 an image from a Dockerfile, waits for it by reading the image itself
 (``images.get(id, wait="ready")``), boots a sandbox from it, and deletes both
-the sandbox and the image the run built, also when a step fails.
+the sandbox and the image the run built, also when a step fails. A build whose
+submission succeeded but whose reply was lost is found by its unique name, and
+an image delete refused while the sandbox still releases it (409) is retried
+for a short while.
 
 Run (from examples):
     DAYTONA_API_KEY=dtn_... \\
@@ -19,12 +22,18 @@ Run (from examples):
 
 from __future__ import annotations
 
+import os
 import sys
+import time
+from typing import Optional
 
 from _common import IMAGE, IMAGE_WAIT_SECONDS, RUN, client, failed, info, passed, require_started, section
 
 from daytona import DaytonaV2Client
-from daytona.v2 import Image, ImageBuilder, RequestTimeoutError
+from daytona.v2 import ConflictError, Image, ImageBuilder, NotFoundError, RequestTimeoutError
+
+DELETE_ATTEMPTS = 10
+DELETE_RETRY_SECONDS = float(os.environ.get("EXAMPLE_RETRY_DELAY_SECONDS", "3"))
 
 
 def wait_for_build(daytona: DaytonaV2Client, image: Image) -> Image:
@@ -38,15 +47,41 @@ def wait_for_build(daytona: DaytonaV2Client, image: Image) -> Image:
     return settled
 
 
+def built_image_id(daytona: DaytonaV2Client, built: Optional[Image], image_name: str) -> Optional[str]:
+    """The id of the image this run built: the build's reply, else a lookup by its unique name."""
+    if built is not None:
+        return built.id
+    try:
+        found: Image = daytona.images.get(image_name)
+    except NotFoundError:
+        return None
+    return found.id
+
+
+def delete_image(daytona: DaytonaV2Client, image_id: str) -> None:
+    """Delete the image, retrying while the API still holds it for a deleted sandbox (409)."""
+    for attempt in range(1, DELETE_ATTEMPTS + 1):
+        try:
+            daytona.images.delete(image_id)
+            return
+        except ConflictError:
+            if attempt >= DELETE_ATTEMPTS:
+                raise
+            info(f"image {image_id} still in use; retrying the delete")
+            time.sleep(DELETE_RETRY_SECONDS)
+
+
 def main() -> int:
     daytona = client()
     image_name = f"example-img-{RUN}"
+    built: Optional[Image] = None
 
-    section("images.build (build from a Dockerfile)")
-    dockerfile = f"FROM {IMAGE}\nRUN pip install --no-cache-dir requests\n"
-    built = daytona.images.build(ImageBuilder.from_dockerfile(dockerfile), name=image_name)
-    info(f"image status={built.status} id={built.id}")
     try:
+        section("images.build (build from a Dockerfile)")
+        dockerfile = f"FROM {IMAGE}\nRUN pip install --no-cache-dir requests\n"
+        built = daytona.images.build(ImageBuilder.from_dockerfile(dockerfile), name=image_name)
+        info(f"image status={built.status} id={built.id}")
+
         section("images.get (wait for the build)")
         image = wait_for_build(daytona, built)
         if image.status != "ready":
@@ -72,8 +107,12 @@ def main() -> int:
             info(f"deleted sandbox {sandbox.id}")
     finally:
         section("cleanup image")
-        daytona.images.delete(built.id)
-        info(f"deleted image {built.id}")
+        image_id = built_image_id(daytona, built, image_name)
+        if image_id is None:
+            info(f"no image {image_name} to delete")
+        else:
+            delete_image(daytona, image_id)
+            info(f"deleted image {image_id}")
 
 
 if __name__ == "__main__":

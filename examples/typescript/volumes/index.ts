@@ -6,10 +6,12 @@
  * Run from examples with DAYTONA_API_KEY set:
  *   npx tsx typescript/volumes/index.ts
  *
- * A sandbox does not see another sandbox's later writes to the volume by
- * itself, so sandbox 2 may list nothing yet: a running sandbox refreshes its
- * mount with `sandbox.volumes.pull()` (where the deployment supports it). See
- * volumes_share.ts for a persistence round-trip across sandbox deletion.
+ * Sandbox 2 is created after sandbox 1 wrote, but sandbox 1's writes are not
+ * guaranteed to be visible in it yet, so it may list nothing: a running
+ * sandbox refreshes its mount with
+ * `sandbox.volumes.pull(volume.id, { requestId: 'refresh-1' })` (where the
+ * deployment supports it). See volumes_share.ts for a persistence round-trip
+ * across sandbox deletion.
  */
 
 import { DaytonaError } from '@daytona/sdk'

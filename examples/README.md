@@ -71,7 +71,7 @@ The examples exercise the V2 SDK surface in both languages.
 |---|---|---|
 | process | `exec-command` | ✅ `process.run()` plus `interpreter.run()` code execution. |
 | files | `file-operations` | ✅ `fs.*` single-file upload, list, search, replace and download. |
-| git | `git` | ✅ clone/status/add/commit and branch create/checkout/list/delete (no push or pull: those need a writable remote and credentials). |
+| git | `git` | ✅ clone/status/add/commit and branch create/checkout/list/delete (no push or pull: pushing needs a writable remote and credentials). |
 | lifecycle | `lifecycle` | ✅ create/get/list/run/delete. |
 | images | `images` | ✅ `images.build(ImageBuilder.fromDockerfile(...), { name })` / `images.build(ImageBuilder.from_dockerfile(...), name=...)`, a direct wait on that image (`images.get(id, { wait: 'ready' })` / `images.get(id, wait="ready")`), then create from it; the run deletes the image it built, also when a step fails. |
 | dynamic build | `dynamic-build` | ✅ Create sandboxes from inline Dockerfiles, read their build logs, and verify the files produced by each Dockerfile. Reports create durations without assuming a speedup. Requires image-build support. |

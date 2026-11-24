@@ -42,6 +42,7 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
           EXAMPLE_FAKE_SCENARIO: JSON.stringify(scenario),
           EXAMPLE_FAKE_RECORD: recordPath,
           EXAMPLE_SYNC_WAIT_SECONDS: '0',
+          EXAMPLE_RETRY_DELAY_SECONDS: '0',
         },
         timeout: 60_000,
       },
@@ -344,6 +345,24 @@ for (const [label, scenario] of [
     assertCleanedUp(record)
   })
 }
+
+test('images finds and deletes an image whose build reply was lost', () => {
+  // Given a build the API accepted but whose reply never arrived.
+  const { code, record, output } = runExample(example('images'), { buildReplyLost: true })
+  // Then the run fails, and the image is found by its unique name and deleted.
+  assert.equal(code, 1, output)
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assert.deepEqual(record.sandboxes, [])
+})
+
+test('images retries the image delete while the API still holds the image', () => {
+  // Given an image delete refused twice with 409 after the sandbox delete.
+  const { code, record, output } = runExample(example('images'), { imageDeleteConflicts: 2 })
+  // Then the run still succeeds and the image is deleted.
+  assert.equal(code, 0, output)
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assertCleanedUp(record)
+})
 
 test('volumes_share round-trips through the volume', () => {
   // The fake keeps /data on a sandbox's own disk unless a volume is mounted

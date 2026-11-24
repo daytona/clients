@@ -9,7 +9,7 @@
 # DAYTONA_API_KEY (required), DAYTONA_IMAGE (default python:3.12-slim).
 #
 # Notes:
-#   - `dynamic-build`, `dockerfile-sandbox`, `local-files` and `build-logs` build a
+#   - `images`, `dynamic-build`, `dockerfile-sandbox`, `local-files` and `build-logs` build a
 #     Dockerfile, so the deployment must support image builds. It is
 #     slower than the others: the first create waits for a real build.
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
