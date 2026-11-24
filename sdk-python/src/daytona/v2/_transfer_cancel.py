@@ -70,7 +70,14 @@ class _ThreadEventWatch:
 
     @staticmethod
     def condition_of(event: object) -> Optional[threading.Condition]:
-        """The condition a plain ``threading.Event`` notifies, else None."""
+        """The condition a plain ``threading.Event`` notifies, else None.
+
+        ``threading.Event`` has no public notification hook, and a thread
+        blocked in its ``wait()`` cannot be released when the transfer ends,
+        so the watch queues a lock on the event's condition the way
+        ``Condition.wait()`` does. An event built any other way gets None
+        here and is polled.
+        """
         if type(event) is not threading.Event:
             return None
         condition = getattr(event, "_cond", None)
