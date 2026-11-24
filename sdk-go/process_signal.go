@@ -57,9 +57,19 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 // processSignalWire spells a bare signal name (matched case-insensitively) as
 // the wire does, with the SIG prefix.
 func processSignalWire(signal ProcessSignal) (string, error) {
-	name := strings.ToUpper(string(signal))
+	// ASCII only: Unicode case mapping would read "kıll" as KILL.
+	name := asciiUpper(string(signal))
 	if processSignal(name) == ProcessSignalUnknown || name == "" {
 		return "", badRequest("Signal must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
 	}
 	return "SIG" + name, nil
+}
+
+func asciiUpper(value string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' {
+			return r - ('a' - 'A')
+		}
+		return r
+	}, value)
 }

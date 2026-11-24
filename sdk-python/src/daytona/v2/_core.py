@@ -1884,7 +1884,8 @@ ESCALATE_AFTER_MAX_MS: Final = 600_000
 def process_signal_name(value: object, name: str) -> str:
     """A signal the SDK can send: a bare name (``TERM``, not ``SIGTERM``),
     matched case-insensitively and sent upper-case."""
-    signal = value.upper() if isinstance(value, str) else None
+    # ASCII only: Unicode case mapping would read "kıll" as KILL.
+    signal = value.upper() if isinstance(value, str) and value.isascii() else None
     if signal not in PROCESS_SIGNALS:
         raise create_error(
             f"{name} must be one of {', '.join(PROCESS_SIGNALS)} (a bare name, without the SIG prefix), "

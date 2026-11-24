@@ -113,7 +113,8 @@ export const PROCESS_SIGNALS: readonly ProcessSignal[] = ['TERM', 'KILL', 'INT',
  * (`TERM`, not `SIGTERM`), matched case-insensitively.
  */
 export function signalWire(value: unknown, name: 'signal' | 'escalateTo'): string {
-  const upper = typeof value === 'string' ? value.toUpperCase() : undefined
+  // ASCII only: Unicode case mapping would read 'kıll' as KILL.
+  const upper = typeof value === 'string' && /^[\x00-\x7f]*$/.test(value) ? value.toUpperCase() : undefined
   const signal = PROCESS_SIGNALS.find((candidate) => candidate === upper)
   if (signal === undefined) {
     const shown = typeof value === 'string' ? `'${value}'` : String(value)

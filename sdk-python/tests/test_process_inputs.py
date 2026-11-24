@@ -125,6 +125,7 @@ def test_connect_context_refuses_a_conflicting_language_like_run() -> None:
         ({"signal": ""}, "signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2"),
         ({"signal": "SIGTERM"}, "signal must be one of"),
         ({"signal": "STOP"}, "signal must be one of"),
+        ({"signal": "k\u0131ll"}, "signal must be one of"),
         ({"signal": None}, "signal must be one of"),
         ({"escalate_to": "KILL"}, "escalate_to needs escalate_after"),
         ({"escalate_after": 1, "escalate_to": "SIGKILL"}, "escalate_to must be one of"),

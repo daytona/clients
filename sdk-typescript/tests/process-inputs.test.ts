@@ -97,6 +97,7 @@ describe('kill signals', () => {
     [{ signal: '' as never }, "signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2 (a bare name, without the SIG prefix), got ''"],
     [{ signal: 'SIGTERM' as never }, "signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2 (a bare name, without the SIG prefix), got 'SIGTERM'"],
     [{ signal: 'STOP' as never }, "signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2 (a bare name, without the SIG prefix), got 'STOP'"],
+    [{ signal: 'k\u0131ll' as never }, "signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2 (a bare name, without the SIG prefix), got 'k\u0131ll'"],
     [{ escalateTo: 'KILL' }, 'escalateTo needs escalateAfterSeconds'],
     [{ escalateAfterSeconds: 1, escalateTo: 'SIGKILL' as never }, "escalateTo must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2 (a bare name, without the SIG prefix), got 'SIGKILL'"],
     [{ escalateAfterSeconds: 601 }, 'escalateAfterSeconds must be at most 600 seconds'],

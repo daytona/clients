@@ -17,6 +17,7 @@ func TestKillRefusesInvalidSignalsBeforeAnyRequest(t *testing.T) {
 		"escalation target without a delay": {EscalateTo: ProcessSignalKill},
 		"prefixed signal":                   {Signal: "SIGTERM"},
 		"unknown signal":                    {Signal: "STOP"},
+		"non-ASCII signal":                  {Signal: "k\u0131ll"},
 		"prefixed escalation target":        {EscalateAfter: new(time.Duration), EscalateTo: "SIGKILL"},
 		"delay over 600 seconds":            {EscalateAfter: &delay},
 	}
