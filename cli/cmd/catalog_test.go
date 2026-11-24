@@ -283,12 +283,12 @@ func TestCPUTypeList_regionUsesCatalog(t *testing.T) {
 		require.JSONEq(t, string(want), stdout)
 	})
 
-	t.Run("empty catalog prints no results", func(t *testing.T) {
+	t.Run("empty catalog prints no results and still the region defaults", func(t *testing.T) {
 		empty := catalog
 		empty.response = `{"regions":[{"id":"region-b","default_arch":"amd64"}],"arches":[{"id":"amd64","available":false,"region_ids":[]},{"id":"arm64","available":false,"region_ids":[]}],"cpu_types":[]}`
 		stdout, _, err := runCLIWithOutput(t, "table", []string{"cpu-type", "list", "--region", "region-b"}, []expectedRequest{routing, empty})
 		require.NoError(t, err)
-		require.Equal(t, "No results.\n", stdout)
+		require.Equal(t, "No results.\n\nDefaults for a create that names no CPU type:\n  region-b: amd64\n", stdout)
 	})
 
 	// The CLI normalizes region inputs before requests and comparisons; it must

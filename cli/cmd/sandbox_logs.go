@@ -91,8 +91,13 @@ func newSandboxUsageCommand() *cobra.Command {
 					return err
 				}
 				p := a.Printer()
-				if p.Format == output.FormatTable && !resp.V.Available {
-					return p.Raw(fmt.Sprintf("Usage history is not available for sandbox %s.", resolved.Detail.Id), resp)
+				if p.Format == output.FormatTable {
+					if !resp.V.Available {
+						return p.Raw(fmt.Sprintf("Usage history is not available for sandbox %s.", resolved.Detail.Id), resp)
+					}
+					if resp.V.Resolution != nil && len(resp.V.Periods) > 0 {
+						fmt.Fprintf(p.W, "Resolution: one row per %s\n\n", output.SanitizeLine(string(*resp.V.Resolution)))
+					}
 				}
 				return p.TableOf(resp, usageHistoryTable(resp.V))
 			}

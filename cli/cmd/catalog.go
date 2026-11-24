@@ -179,7 +179,7 @@ func newCPUTypeListCommand() *cobra.Command {
 			if err := p.TableOf(out, table); err != nil {
 				return err
 			}
-			if p.Format == output.FormatTable && len(items) > 0 {
+			if p.Format == output.FormatTable {
 				printCPURegionDefaults(p.W, resp.Regions)
 			}
 			return nil
@@ -421,7 +421,7 @@ func printCPURegionDefaults(w io.Writer, regionDefaults []gen.CpuCatalogRegion) 
 		if r.DefaultType != nil && *r.DefaultType != "" {
 			line += ", " + *r.DefaultType
 		}
-		fmt.Fprintln(w, output.Sanitize(line))
+		fmt.Fprintln(w, output.SanitizeLine(line))
 	}
 }
 

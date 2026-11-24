@@ -70,25 +70,43 @@ func TestCPUTypeListKeepsTheCatalogDefaults(t *testing.T) {
 	require.Len(t, lines, 4)
 }
 
-// `sandbox usage --history` prints one table row per period; before, the
-// table showed only the request's `history true` switch. JSON stays the
-// API's body.
+// A region default is server text: a line break in it cannot add a line of
+// its own under the table.
+func TestCPUTypeListRegionDefaultsStayOnOneLinePerRegion(t *testing.T) {
+	body := `{"regions":[{"id":"region-b\nfake: line","default_arch":"amd64","default_type":"zen5\nx"}],"arches":[],"cpu_types":[]}`
+	stdout, _, err := runCLIWithOutput(t, "table", []string{"cpu-type", "list"}, []expectedRequest{{method: http.MethodGet, path: "/cpu-catalog", status: 200, response: body}})
+	require.NoError(t, err)
+	require.Equal(t, "No results.\n\nDefaults for a create that names no CPU type:\n  region-b fake: line: amd64, zen5 x\n", stdout)
+}
+
+// `sandbox usage --history` prints the bucket size and one table row per
+// period, every period in order; before, the table showed only the request's
+// `history true` switch. JSON stays the API's body.
 func TestSandboxUsageHistoryTableShowsThePeriods(t *testing.T) {
 	const id = "11111111-1111-1111-1111-111111111111"
 	detail := expectedRequest{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "running")}
-	history := expectedRequest{method: http.MethodGet, path: "/sandboxes/" + id + "/usage/history", status: 200, response: fixtureJSON(usageHistoryFixture(id))}
+	body := usageHistoryFixture(id)
+	body["periods"] = append(body["periods"].([]map[string]any), map[string]any{
+		"start_at": "2026-09-13T00:01:00Z", "duration_ms": 30500, "cpu_core_seconds": 0.25,
+		"memory_byte_seconds": 1, "memory_peak_bytes": 2048, "disk_used_bytes": 4096, "disk_read_bytes": 10,
+		"disk_written_bytes": 20, "network_received_bytes": 30, "network_sent_bytes": 40,
+	})
+	history := expectedRequest{method: http.MethodGet, path: "/sandboxes/" + id + "/usage/history", status: 200, response: fixtureJSON(body)}
 
 	stdout, _, err := runCLIWithOutput(t, "table", []string{"sandbox", "usage", id, "--history"}, []expectedRequest{detail, history})
 	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(stdout), "\n")
-	require.Len(t, lines, 2)
-	require.Equal(t, []string{"START", "DURATION", "CPU", "CORE-SECONDS", "MEMORY", "PEAK", "BYTES", "DISK", "USED", "BYTES", "DISK", "READ", "BYTES", "DISK", "WRITTEN", "BYTES", "NET", "RECEIVED", "BYTES", "NET", "SENT", "BYTES"}, strings.Fields(lines[0]))
-	require.Equal(t, []string{"2026-09-13T00:00:00Z", "1m0s", "1", "512", "1024", "0", "0", "0", "0"}, strings.Fields(lines[1]))
+	require.Len(t, lines, 5)
+	require.Equal(t, "Resolution: one row per minute", lines[0])
+	require.Empty(t, lines[1])
+	require.Equal(t, []string{"START", "DURATION", "CPU", "CORE-SECONDS", "MEMORY", "PEAK", "BYTES", "DISK", "USED", "BYTES", "DISK", "READ", "BYTES", "DISK", "WRITTEN", "BYTES", "NET", "RECEIVED", "BYTES", "NET", "SENT", "BYTES"}, strings.Fields(lines[2]))
+	require.Equal(t, []string{"2026-09-13T00:00:00Z", "1m0s", "1", "512", "1024", "0", "0", "0", "0"}, strings.Fields(lines[3]))
+	require.Equal(t, []string{"2026-09-13T00:01:00Z", "30.5s", "0.25", "2048", "4096", "10", "20", "30", "40"}, strings.Fields(lines[4]))
 	require.NotContains(t, stdout, "history")
 
 	stdout, _, err = runCLI(t, []string{"sandbox", "usage", id, "--history"}, []expectedRequest{detail, history})
 	require.NoError(t, err)
-	require.JSONEq(t, fixtureJSON(usageHistoryFixture(id)), stdout)
+	require.JSONEq(t, fixtureJSON(body), stdout)
 
 	unavailable := history
 	unavailable.response = `{"available":false,"sandbox_id":"` + id + `","periods":[]}`
