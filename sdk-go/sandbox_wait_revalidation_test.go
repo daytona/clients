@@ -227,3 +227,102 @@ func TestStart_whenStoppedSandboxStillReadsStopped_keepsWaiting(t *testing.T) {
 	require.Equal(t, SandboxStateStarted, sandbox.State())
 	require.Equal(t, []string{"/sandboxes/sbx/start"}, posts(fake))
 }
+
+// A read can lag back to the state the sandbox was in before the operation, and
+// for a pause or a joined start that state is also the operation's own failure
+// state. Only long-poll reads decide it.
+var preOperationCases = []struct {
+	name   string
+	verb   string
+	before []string
+	frame  stateObservation
+	stale  string
+	target SandboxState
+}{
+	{"pause/running", "pause", nil, stateObservation{State: SandboxStatePaused, RawState: "paused"}, "running", SandboxStatePaused},
+	{"joined-start/stopped", "start", []string{"booting"}, stateObservation{State: SandboxStateStarted, RawState: "running"}, "stopped", SandboxStateStarted},
+	{"joined-start/paused", "start", []string{"booting"}, stateObservation{State: SandboxStateStarted, RawState: "running"}, "paused", SandboxStateStarted},
+}
+
+func runPreOperation(t *testing.T, verb string, statuses []string, frames ...stateObservation) (*Sandbox, *fakeServer, error) {
+	t.Helper()
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"GET /sandboxes/sbx":          scriptedReads(t, statuses...),
+		"POST /sandboxes/sbx/" + verb: jsonHandler(t, map[string]string{}),
+	})
+	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+	require.NoError(t, err)
+	sandbox.client.stateSource = eventSource(frames...)
+	options := &LifecycleWaitOptions{Timeout: 30 * time.Second}
+	if verb == "pause" {
+		return sandbox, fake, sandbox.Pause(t.Context(), options)
+	}
+	return sandbox, fake, sandbox.Start(t.Context(), options)
+}
+
+func TestLifecycle_whenTargetEventReadShowsPreOperationState_waitsForTarget(t *testing.T) {
+	for _, test := range preOperationCases {
+		t.Run(test.name, func(t *testing.T) {
+			// Given: the read after the target event shows the state before the operation.
+			statuses := append(append([]string{}, test.before...), test.stale, test.frame.RawState)
+			// When
+			sandbox, fake, err := runPreOperation(t, test.verb, statuses, test.frame)
+			// Then: a long poll decides, and it shows the target.
+			require.NoError(t, err)
+			require.Equal(t, test.target, sandbox.State())
+			got := reads(fake)[len(test.before):]
+			require.Len(t, got, 2)
+			require.Empty(t, got[0].Query)
+			require.Equal(t, test.frame.RawState, got[1].Query.Get("wait"))
+		})
+	}
+}
+
+func TestLifecycle_whenHeldEventShowsPreOperationState_longPollsDecide(t *testing.T) {
+	for _, test := range preOperationCases {
+		t.Run(test.name, func(t *testing.T) {
+			// Given: the hub still holds the state before the operation, and the
+			// read that confirms it lags too.
+			held := stateObservation{State: map[string]SandboxState{
+				"running": SandboxStateStarted, "stopped": SandboxStateStopped, "paused": SandboxStatePaused,
+			}[test.stale], RawState: test.stale}
+			statuses := append(append([]string{}, test.before...), test.stale, test.frame.RawState)
+			// When
+			sandbox, fake, err := runPreOperation(t, test.verb, statuses, held)
+			// Then
+			require.NoError(t, err)
+			require.Equal(t, test.target, sandbox.State())
+			got := reads(fake)
+			require.Equal(t, test.frame.RawState, got[len(got)-1].Query.Get("wait"))
+		})
+	}
+}
+
+func TestLifecycle_whenLongPollShowsPreOperationState_returnsTerminalError(t *testing.T) {
+	for _, test := range preOperationCases {
+		t.Run(test.name, func(t *testing.T) {
+			// Given: the operation failed; every read shows the state before it.
+			statuses := append(append([]string{}, test.before...), test.stale)
+			// When
+			_, fake, err := runPreOperation(t, test.verb, statuses, test.frame)
+			// Then: the long poll reports the failure.
+			var terminal *SandboxTerminalStateError
+			require.ErrorAs(t, err, &terminal)
+			require.Equal(t, test.stale, terminal.RawState)
+			got := reads(fake)
+			require.Equal(t, test.frame.RawState, got[len(got)-1].Query.Get("wait"))
+		})
+	}
+}
+
+func TestLifecycle_whenTargetEventReadIsIrreversible_returnsTerminalErrorAtOnce(t *testing.T) {
+	// Given
+	sandbox, fake, err := runPreOperation(t, "pause", []string{"deleting"},
+		stateObservation{State: SandboxStatePaused, RawState: "paused"})
+	// Then
+	var terminal *SandboxTerminalStateError
+	require.ErrorAs(t, err, &terminal)
+	require.Equal(t, SandboxStateDestroying, terminal.State)
+	require.Equal(t, SandboxStateDestroying, sandbox.State())
+	require.Len(t, reads(fake), 1)
+}

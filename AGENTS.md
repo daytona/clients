@@ -976,10 +976,15 @@ skipping exist only in the TypeScript tool).
   403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
   target was observed, a failed
   metadata refresh afterwards does not turn that success into an error; a
-  refresh that succeeds decides like any other read (a target returns, a
-  terminal state raises with the read's reason, any other state polls on
-  under the same deadline), so a wait never returns a handle outside its
-  targets. `start()` that finds the sandbox `starting` (a start or resume
+  refresh that succeeds decides too: a target returns, `destroying` /
+  `destroyed` / `error` raises with the read's reason, and any other state
+  polls on under the same deadline, so a lifecycle wait never returns a
+  handle outside its targets (create and fork still return theirs however
+  the wait ends). An operation's own failure state (`started` for a pause,
+  `stopped` / `paused` for a joined start) is also the state before it, which
+  a lagging plain read shows; it is decided only by long-poll reads, on this
+  read and on the read that confirms a terminal state the events hub
+  reports. `start()` that finds the sandbox `starting` (a start or resume
   another caller sent) sends nothing and waits with `stopped` and `paused`
   as terminal states too; a `start()` that sends start keeps the default
   terminal states, since its first reads may still show `stopped`.

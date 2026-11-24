@@ -715,7 +715,8 @@ export class Sandbox {
    * sending start or resume, using the same timeout budget. A sandbox that is
    * already `starting` (a start or resume another caller sent) is waited for
    * without a new request; when that operation fails and the sandbox returns
-   * to `stopped` or `paused`, this throws `SandboxTerminalStateError`.
+   * to `stopped` or `paused`, this throws `SandboxTerminalStateError` as soon
+   * as a read shows it.
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to
@@ -808,7 +809,7 @@ export class Sandbox {
    * Whether the sandbox can resume is the API's decision; a refusal surfaces
    * as its typed error. A sandbox that is not paused, or whose saved state is
    * unavailable, throws `ConflictError` with `CONFLICT`, and a sandbox class
-   * that cannot resume `NotSupportedForClassError`
+   * that cannot resume throws `NotSupportedForClassError`
    * (`NOT_SUPPORTED_FOR_CLASS`). A paused macOS sandbox whose Mac reservation
    * is ending throws `ConflictError` with `NO_ACTIVE_RESERVATION`: its memory
    * is on that Mac, so another reservation cannot take it over. The sandbox
@@ -1129,9 +1130,9 @@ export class Sandbox {
    * A terminal state the events hub reports is confirmed with one read before it raises,
    * while the wait has budget left, unless that state already came from a full read or
    * is `destroyed`. A target state the events hub reports is followed by one read of
-   * the sandbox's details; when that read shows another state, it decides instead: a
-   * terminal state raises, and any other state keeps the wait going under the same
-   * deadline, so the returned handle is in a requested state (a failed read keeps the
+   * the sandbox's details; when that read shows another state, it decides instead:
+   * `destroying`, `destroyed` or `error` throws, and any other state keeps the wait
+   * going under the same deadline, where long-poll reads decide, so the returned handle is in a requested state (a failed read keeps the
    * reported one). When the events hub has reported nothing decisive, the last part
    * of a bounded budget (up to 5 s) reads the state from the server, so a state the
    * hub missed still ends the wait; the same holds for the other lifecycle waits and

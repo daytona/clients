@@ -26,6 +26,7 @@ const PUBLIC: Record<string, SandboxState> = {
   pausing: 'pausing',
   paused: 'paused',
   failed: 'error',
+  deleting: 'destroying',
 }
 
 const eventsSetting = process.env.DAYTONA_SANDBOX_EVENTS
@@ -195,4 +196,56 @@ it('start() of a stopped sandbox waits through a read that still shows it stoppe
 
   expect(sandbox.state).toBe('started')
   expect(post).toHaveBeenCalledWith('/sandboxes/sbx/start')
+})
+
+// A read can lag back to the state the sandbox was in before the operation,
+// and for a pause or a joined start that state is also the operation's own
+// failure state. Only long-poll reads decide it.
+const PRE_OPERATION = [
+  { method: 'pause', before: [], frame: 'paused', stale: 'running', target: 'paused' },
+  { method: 'start', before: ['booting'], frame: 'running', stale: 'stopped', target: 'started' },
+  { method: 'start', before: ['booting'], frame: 'running', stale: 'paused', target: 'started' },
+] as const
+
+describe.each(PRE_OPERATION)('$method with a read showing $stale, the state before it', ({ method, before, frame, stale, target }) => {
+  it('waits for the target when that read follows a target event', async () => {
+    const { sandbox, get } = fixture([...before, stale, frame], [frame])
+
+    await sandbox[method]({ timeoutSeconds: 30 })
+
+    expect(sandbox.state).toBe(target)
+    const params = readParams(get).slice(before.length)
+    expect(params).toHaveLength(2)
+    expect(params[0]).toBeUndefined()
+    expect(params[1]).toEqual(expect.objectContaining({ wait: frame }))
+  })
+
+  it('lets long polls decide when the hub still holds that state', async () => {
+    const { sandbox, get } = fixture([...before, stale, frame], [stale])
+
+    await sandbox[method]({ timeoutSeconds: 30 })
+
+    expect(sandbox.state).toBe(target)
+    expect(readParams(get).at(-1)).toEqual(expect.objectContaining({ wait: frame }))
+  })
+
+  it('throws when the long poll shows the operation failed', async () => {
+    const { sandbox, get } = fixture([...before, stale], [frame])
+
+    const error = await sandbox[method]({ timeoutSeconds: 30 }).catch((failure: unknown) => failure)
+
+    expect(error).toBeInstanceOf(SandboxTerminalStateError)
+    expect((error as SandboxTerminalStateError).rawState).toBe(stale)
+    expect(readParams(get).at(-1)).toEqual(expect.objectContaining({ wait: frame }))
+  })
+})
+
+it('throws at once when the read after a target event shows a state no lag can show', async () => {
+  const { sandbox, get } = fixture(['deleting'], ['paused'])
+  // `deleting` reads as `destroying`.
+  const error = await sandbox.pause({ timeoutSeconds: 30 }).catch((failure: unknown) => failure)
+
+  expect(error).toBeInstanceOf(SandboxTerminalStateError)
+  expect([(error as SandboxTerminalStateError).state, (error as SandboxTerminalStateError).rawState]).toEqual(['destroying', 'deleting'])
+  expect(get).toHaveBeenCalledTimes(1)
 })

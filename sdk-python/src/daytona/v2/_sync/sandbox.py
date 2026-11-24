@@ -362,7 +362,7 @@ class Sandbox:
         Whether the sandbox can resume is the API's decision; a refusal
         surfaces as its typed error. A sandbox that is not paused, or whose
         saved state is unavailable, raises :class:`ConflictError` with
-        ``CONFLICT``, and a sandbox class that cannot resume
+        ``CONFLICT``, and a sandbox class that cannot resume raises
         :class:`NotSupportedForClassError` (``NOT_SUPPORTED_FOR_CLASS``). A
         paused macOS sandbox whose Mac reservation is ending raises
         :class:`ConflictError` with
@@ -444,7 +444,7 @@ class Sandbox:
         is already ``starting`` (a start or resume another caller sent) is
         waited for without a new request; when that operation fails and the
         sandbox returns to ``stopped`` or ``paused``, this raises
-        :class:`SandboxTerminalStateError`.
+        :class:`SandboxTerminalStateError` as soon as a read shows it.
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -543,8 +543,9 @@ class Sandbox:
         budget left, unless that state already came from a full read or is
         ``destroyed``. A target state the events hub reports is followed by
         one read of the sandbox's details; when that read shows another state,
-        it decides instead: a terminal state raises, and any other state keeps
-        the wait going under the same deadline, so the returned handle is in a
+        it decides instead: ``destroying``, ``destroyed`` or ``error`` raises,
+        and any other state keeps the wait going under the same deadline,
+        where long-poll reads decide, so the returned handle is in a
         requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds

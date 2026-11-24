@@ -30,7 +30,7 @@ func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 // Whether the sandbox can resume is the API's decision; a refusal returns its
 // typed error. A sandbox that is not paused, or whose saved state is
 // unavailable, returns ErrConflict with CodeConflict, and a sandbox class that
-// cannot resume ErrNotSupportedForClass. A paused macOS sandbox whose Mac
+// cannot resume returns ErrNotSupportedForClass. A paused macOS sandbox whose Mac
 // reservation is ending returns ErrNoActiveReservation (409): its memory is on
 // that Mac, so another reservation cannot take it over. The sandbox is stopped
 // with its disk when the reservation ends, and Start can then start it under

@@ -1066,13 +1066,13 @@ completion: `stop()` returns at `stopped`, and `delete()` returns at
 Client methods accept a sandbox or its ID and the same options, for example
 `daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. Once the target state
 has been observed, a failed metadata refresh afterwards does not turn that
-success into an error; a refresh that shows another state decides instead (a
-terminal state throws, any other state keeps the wait going under the same
-budget), so a wait that returns leaves the handle in a requested state.
-`start()` on a sandbox that is already `starting`, because another caller
-started or resumed it, joins that operation and throws
-`SandboxTerminalStateError` when it fails and the sandbox returns to `stopped`
-or `paused`. The server decides which lifecycle actions the sandbox supports.
+success into an error; a refresh that shows another state decides instead
+(`destroying`, `destroyed` or `error` throws, any other state keeps the wait
+going under the same budget), so a lifecycle wait that returns leaves the
+handle in a requested state. `start()` on a sandbox that is already
+`starting`, because another caller started or resumed it, joins that
+operation and throws `SandboxTerminalStateError` as soon as a read shows it
+failed and the sandbox returned to `stopped` or `paused`. The server decides which lifecycle actions the sandbox supports.
 
 `fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed,
 `0` skips waiting, and a value above about 24.8 days waits with no deadline. Once their create or fork request succeeds, these calls

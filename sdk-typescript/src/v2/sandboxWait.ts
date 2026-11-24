@@ -16,6 +16,11 @@ export const DEFAULT_SANDBOX_TERMINAL_STATES = ['destroying', 'destroyed', 'erro
 export const PAUSE_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'started'] as const
 export const RESUME_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'stopped'] as const
 export const JOINED_START_TERMINAL_STATES = [...RESUME_TERMINAL_STATES, 'paused'] as const
+// The terminal states a read that lags behind an events report cannot show by
+// lagging. The operation-specific ones (`started` for a pause, `stopped` /
+// `paused` for a start) are also the state before the operation, so only a
+// long-poll read decides them.
+const IRREVERSIBLE_STATES: ReadonlySet<SandboxState> = new Set(DEFAULT_SANDBOX_TERMINAL_STATES)
 export const WAIT_FOR_STATE_SLICE_MS = 30_000
 // The end of a sandbox wait's budget kept for a read of the server when the
 // events stream has decided nothing: at most 5 s, at most a quarter of it.
@@ -88,6 +93,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   const deadline = waitDeadline(seconds)
   const terminalStates = options.terminalStates ?? DEFAULT_SANDBOX_TERMINAL_STATES
   const effectiveTerminal = states.includes('destroyed') ? terminalStates.filter((s) => s !== 'destroying') : terminalStates
+  // What a plain read that confirms an events report may throw on its own.
+  const confirmedTerminal = effectiveTerminal.filter((s) => IRREVERSIBLE_STATES.has(s))
   const waitTarget = new Set(states).size === 1 ? states[0] : undefined
   // A wait for `destroyed` alone holds its long polls with `wait_exact=deleted`.
   const waitValue = waitQueryState(waitTarget)
@@ -218,9 +225,10 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         throw error
       }
       if (states.some((target) => target === outcome.state)) return
-      if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
-      // Neither a target nor terminal: the hub's report was stale. Poll for
-      // the rest of the budget, under the same deadline.
+      if (confirmedTerminal.includes(outcome.state)) throw terminalError(outcome)
+      // Anything else, the state before the operation included (the hub may
+      // hold it from an earlier wait, and the read may lag as well): long-poll
+      // reads decide, under the same deadline.
     }
     if (resolved !== undefined) {
       context.observe(resolved)
@@ -239,12 +247,13 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         if (!(error instanceof DaytonaError)) throw error
         return
       }
-      // The read the handle now carries decides, as any other read does: the
-      // wait never returns a handle outside its targets. A terminal state
-      // throws; any other state (a read behind the event, or a later
-      // transition) polls on under the same deadline.
+      // The read the handle now carries decides: a lifecycle wait never
+      // returns a handle outside its targets. A state no lag can show throws;
+      // any other state (a read behind the event, the state before the
+      // operation, or a later transition) polls on under the same deadline,
+      // where long-poll reads decide.
       if (states.some((target) => target === outcome.state)) return
-      if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
+      if (confirmedTerminal.includes(outcome.state)) throw terminalError(outcome)
       await pollForState(Date.now())
       return
     }

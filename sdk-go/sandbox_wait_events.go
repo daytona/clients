@@ -134,8 +134,8 @@ func (w *sandboxWait) raceRead(
 
 // A terminal event can predate this operation. Only a full read decides that
 // failure. A target event is followed by a metadata refresh that also decides:
-// a target returns, a terminal state fails, and any other state polls on under
-// the same deadline; a failed refresh keeps the observed success.
+// a target returns, destroying, destroyed or error fails, and any other state
+// polls on under the same deadline; a failed refresh keeps the observed success.
 // A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
 	if event.NotFound {
@@ -166,8 +166,30 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 		}
 		return true, w.terminalError(reported)
 	}
-	// A read that disagrees with the event and decides nothing (a read behind
-	// it, a stale terminal event, or a later transition) polls for the rest of
-	// the budget.
-	return w.readOutcome(fresh)
+	if w.target(fresh.State) {
+		return true, nil
+	}
+	// Only a state no lag can show decides here. Anything else (a read behind
+	// the event, a stale terminal event, the state before the operation, which
+	// is also its failure state, or a later transition) polls for the rest of
+	// the budget, where long-poll reads decide.
+	if slices.Contains(w.terminal, fresh.State) && irreversibleState(fresh.State) {
+		return true, w.terminalError(fresh)
+	}
+	return false, nil
+}
+
+// irreversibleState reports the terminal states a lagging read cannot show by
+// lagging; operation-specific ones (started for a pause, stopped or paused for
+// a start) are also the state before the operation.
+func irreversibleState(state SandboxState) bool {
+	switch state {
+	case SandboxStateDestroying, SandboxStateDestroyed, SandboxStateError:
+		return true
+	case SandboxStateQueued, SandboxStateCreating, SandboxStateStarting, SandboxStateStarted,
+		SandboxStateStopping, SandboxStateStopped, SandboxStatePausing, SandboxStatePaused,
+		SandboxStateUnknown:
+		return false
+	}
+	return false
 }

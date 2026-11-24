@@ -13,7 +13,7 @@ import (
 // the same budget (default 60 seconds). Already-started sandboxes need no action.
 // A sandbox already starting (a start or resume another caller sent) is joined
 // without a request; its return to stopped or paused is a
-// *SandboxTerminalStateError.
+// *SandboxTerminalStateError as soon as a read shows it.
 // NoWait skips settling and completion; for an in-progress stop/pause it sends
 // start immediately and lets the API decide whether it can accept the request.
 // Timeout returns ErrRequestTimeout; terminal failures return *SandboxTerminalStateError.

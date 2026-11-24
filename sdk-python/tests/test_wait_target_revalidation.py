@@ -286,3 +286,71 @@ async def test_start_of_a_stopped_sandbox_waits_through_a_read_that_still_shows_
         ("GET", "/sandboxes/sbx"),
         ("POST", "/sandboxes/sbx/start"),
     ]
+
+
+# A read can lag back to the state the sandbox was in before the operation,
+# and for a pause or a joined start that state is also the operation's own
+# failure state. Only long-poll reads decide it.
+_PRE_OPERATION = [
+    # (verb, handle state, reads before the event's read, frame, the stale state, target)
+    ("pause", "started", [], "paused", "running", "paused"),
+    ("start", "starting", ["booting"], "running", "stopped", "started"),
+    ("start", "starting", ["booting"], "running", "paused", "started"),
+]
+
+
+@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _PRE_OPERATION)
+async def test_a_read_showing_the_state_before_the_operation_after_a_target_event_waits_for_the_target(
+    verb: str, state: str, before: list[object], frame: str, stale: str, target: str
+) -> None:
+    api = _Api([*before, stale, frame])
+    sandbox = _sandbox(api, _ScriptedHub(frame), state=state)
+
+    await getattr(sandbox, verb)(timeout=30)
+
+    assert sandbox.state == target
+    reads = api.reads()[len(before) :]
+    assert len(reads) == 2
+    assert reads[0].params == {}
+    assert reads[1].params.get("wait") == frame
+
+
+@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _PRE_OPERATION)
+async def test_a_held_state_before_the_operation_is_decided_by_long_polls(
+    verb: str, state: str, before: list[object], frame: str, stale: str, target: str
+) -> None:
+    # The hub still holds the state from before the operation, and the read
+    # that confirms it lags too.
+    api = _Api([*before, stale, frame])
+    sandbox = _sandbox(api, _ScriptedHub(stale), state=state)
+
+    await getattr(sandbox, verb)(timeout=30)
+
+    assert sandbox.state == target
+    assert api.reads()[-1].params.get("wait") == frame
+
+
+@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _PRE_OPERATION)
+async def test_an_operation_that_failed_is_reported_by_the_long_poll(
+    verb: str, state: str, before: list[object], frame: str, stale: str, target: str
+) -> None:
+    del target
+    api = _Api([*before, stale])
+    sandbox = _sandbox(api, _ScriptedHub(frame), state=state)
+
+    with pytest.raises(SandboxTerminalStateError) as raised:
+        await getattr(sandbox, verb)(timeout=30)
+
+    assert raised.value.raw_state == stale
+    assert api.reads()[-1].params.get("wait") == frame
+
+
+async def test_a_read_showing_an_irreversible_state_after_a_target_event_raises_at_once() -> None:
+    api = _Api(["deleting"])
+    sandbox = _sandbox(api, _ScriptedHub("paused"), state="started")
+
+    with pytest.raises(SandboxTerminalStateError) as raised:
+        await sandbox.pause(timeout=30)
+
+    assert (raised.value.state, raised.value.raw_state) == ("destroying", "deleting")
+    assert len(api.reads()) == 1
