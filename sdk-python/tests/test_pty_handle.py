@@ -469,6 +469,8 @@ async def _chatty_pty(request: web.Request) -> web.WebSocketResponse:
                 await ws.close(code=1000, message=b'{"exitCode":3}')
     finally:
         _ = ticking.cancel()
+        with contextlib.suppress(asyncio.CancelledError, ConnectionResetError, aiohttp.ClientError, RuntimeError):
+            await ticking
     return ws
 
 

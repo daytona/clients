@@ -132,7 +132,7 @@ module Daytona
       _create(params, timeout:, on_snapshot_create_logs:)
     end
 
-    # Requests deletion of a Sandbox and returns before it is destroyed, unless +wait+ is true.
+    # Requests deletion of a Sandbox and returns without waiting for it to be destroyed, unless +wait+ is true.
     #
     # By default returns as soon as the deletion request is accepted, so the Sandbox can
     # still be returned by +get+ and +list+ for a short time.
@@ -142,6 +142,9 @@ module Daytona
     # @return [void]
     #
     # @example
+    #   daytona = Daytona::Daytona.new
+    #   sandbox = daytona.create
+    #   # ... use sandbox ...
     #   daytona.delete(sandbox) # Returns once the deletion request is accepted
     #   # Or, to return once the Sandbox is destroyed:
     #   # daytona.delete(sandbox, wait: true)

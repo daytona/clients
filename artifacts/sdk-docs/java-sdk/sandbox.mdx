@@ -154,7 +154,7 @@ Waits until Sandbox reaches `stopped` (or `destroyed`) state.
 public void delete()
 ```
 
-Requests deletion of this Sandbox and returns before it is destroyed.
+Requests deletion of this Sandbox and returns without waiting for it to be destroyed.
 
 Returns as soon as the deletion request is accepted, so the Sandbox can still be
 returned by `get` and `list` for a short time. Use `#delete(long, boolean)`
@@ -169,7 +169,7 @@ with `wait=true` to block until the Sandbox reaches the `destroyed` state.
 public void delete(long timeoutSeconds)
 ```
 
-Requests deletion of this Sandbox and returns before it is destroyed.
+Requests deletion of this Sandbox and returns without waiting for it to be destroyed.
 
 Returns as soon as the deletion request is accepted. Use
 `#delete(long, boolean)` with `wait=true` to block until destroyed.

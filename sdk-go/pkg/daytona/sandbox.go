@@ -1574,7 +1574,7 @@ func (s *Sandbox) doStopWithTimeout(ctx context.Context, timeout time.Duration, 
 	})
 }
 
-// Delete requests deletion of the sandbox and returns before it is destroyed.
+// Delete requests deletion of the sandbox and returns without waiting for it to be destroyed.
 // The API call has a default timeout of 60 seconds.
 //
 // The method returns as soon as the deletion request is accepted, so the
@@ -1592,7 +1592,7 @@ func (s *Sandbox) Delete(ctx context.Context) error {
 }
 
 // DeleteWithTimeout requests deletion of the sandbox, with a custom timeout for
-// the API call, and returns before it is destroyed. 0 means no timeout.
+// the API call, and returns without waiting for it to be destroyed. 0 means no timeout.
 //
 // Like [Sandbox.Delete], this returns as soon as the API call completes
 // without waiting for the "destroyed" state. Use [Sandbox.DeleteAndWait]

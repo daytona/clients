@@ -396,7 +396,7 @@ public class Sandbox {
     }
 
     /**
-     * Requests deletion of this Sandbox and returns before it is destroyed.
+     * Requests deletion of this Sandbox and returns without waiting for it to be destroyed.
      *
      * <p>Returns as soon as the deletion request is accepted, so the Sandbox can still be
      * returned by {@code get} and {@code list} for a short time. Use {@link #delete(long, boolean)}
@@ -409,7 +409,7 @@ public class Sandbox {
     }
 
     /**
-     * Requests deletion of this Sandbox and returns before it is destroyed.
+     * Requests deletion of this Sandbox and returns without waiting for it to be destroyed.
      *
      * <p>Returns as soon as the deletion request is accepted. Use
      * {@link #delete(long, boolean)} with {@code wait=true} to block until destroyed.

@@ -419,7 +419,7 @@ module Daytona
       sandbox_api.create_ssh_access(id, { expires_in_minutes: })
     end
 
-    # Requests deletion of the Sandbox and returns before it is destroyed, unless +wait+ is true.
+    # Requests deletion of the Sandbox and returns without waiting for it to be destroyed, unless +wait+ is true.
     #
     # By default returns as soon as the deletion request is accepted, so the Sandbox can
     # still be returned by +get+ and +list+ for a short time. Pass +wait: true+ to block
@@ -431,6 +431,7 @@ module Daytona
     # @return [void]
     #
     # @example
+    #   daytona = Daytona::Daytona.new
     #   sandbox = daytona.create
     #   # ... use sandbox ...
     #   sandbox.delete # Returns once the deletion request is accepted

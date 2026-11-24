@@ -654,7 +654,7 @@ class Daytona:
 
     @with_instrumentation()
     def delete(self, sandbox: Sandbox, timeout: float = 60, wait: bool = False) -> None:
-        """Requests deletion of a Sandbox and returns before it is destroyed, unless ``wait`` is True.
+        """Requests deletion of a Sandbox and returns without waiting for it to be destroyed, unless ``wait`` is True.
 
         By default returns as soon as the deletion request is accepted, so the Sandbox can still be
         returned by ``get()`` and ``list()`` for a short time. Pass ``wait=True`` to block until the

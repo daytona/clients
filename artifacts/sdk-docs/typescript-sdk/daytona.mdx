@@ -228,7 +228,7 @@ delete(
 ): Promise<void>;
 ```
 
-Requests deletion of a Sandbox and returns before it is destroyed, unless `wait` is true.
+Requests deletion of a Sandbox and returns without waiting for it to be destroyed, unless `wait` is true.
 
 With the default `wait = false`, the Sandbox can still be returned by `get()` and `list()` for a short
 time after this resolves. Pass `wait = true` to resolve only once it reaches the 'destroyed' state.
