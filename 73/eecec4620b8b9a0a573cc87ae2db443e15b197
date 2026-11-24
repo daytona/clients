@@ -1,0 +1,41 @@
+sdk-python/src/daytona/v2/process.py
+  s_1c8257112609a8::t_4c3907539c5b92 286-292
+changelog.d/process-wait-rounds.fixed.md
+  s_1c8257112609a8::t_5427380636ae34 2-17
+sdk-typescript/README.md
+  s_1c8257112609a8::t_4c3907539c5b92 751-755
+  s_1c8257112609a8::t_5427380636ae34 906-909
+sdk-go/exec.go
+  s_1c8257112609a8::t_1429660c26225d 51-52
+sdk-go/process_wait.go
+  s_1c8257112609a8::t_4c3907539c5b92 25-29
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_1c8257112609a8::t_4c3907539c5b92 146-151
+sdk-go/README.md
+  s_1c8257112609a8::t_4c3907539c5b92 218-225
+  s_1c8257112609a8::t_5427380636ae34 215-216
+changelog.d/fs-move-timeout.added.md
+  s_1c8257112609a8::t_5427380636ae34 8-9,13-15
+sdk-python/README.md
+  s_1c8257112609a8::t_4c3907539c5b92 838-842,985-987
+sdk-python/src/daytona/v2/_sync/process.py
+  s_1c8257112609a8::t_06b73ed797dab0 132-138
+AGENTS.md
+  s_1c8257112609a8::t_5427380636ae34 758-760
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "73eecec4620b8b9a0a573cc87ae2db443e15b197",
+  "prompts": {},
+  "sessions": {
+    "s_1c8257112609a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1bf4bd9ffeVE6HXMU1d1usNI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
