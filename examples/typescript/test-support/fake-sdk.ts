@@ -53,7 +53,7 @@ export interface Scenario {
   pullConflict?: boolean
   /** Statuses the waits on an image built with images.build return (default ['ready']). */
   readonly buildWaits?: readonly string[]
-  /** images.build submits the image, then its follow-up read fails (the reply is lost). */
+  /** images.build registers the image, then throws as if its reply was lost. */
   readonly buildReplyLost?: boolean
   /** images.delete answers 409 this many times before it succeeds. */
   readonly imageDeleteConflicts?: number

@@ -107,7 +107,7 @@ class FakeWorld:
         self.image_waits: list[tuple[object, object]] = []
         # Statuses the waits on an image built with images.build() return.
         self.build_waits: tuple[str, ...] = ("ready",)
-        # images.build() submits the image, then its follow-up read fails.
+        # images.build() registers the image, then raises as if its reply was lost.
         self.build_reply_lost = False
         # images.delete() answers 409 this many times before it succeeds.
         self.image_delete_conflicts = 0

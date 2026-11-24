@@ -330,16 +330,17 @@ test('images builds an image, boots a sandbox from it and deletes both', () => {
   assertCleanedUp(record)
 })
 
-for (const [label, scenario] of [
-  ['a failed build', { buildWaits: ['failed'] }],
-  ['a build that never settles', { buildWaits: [] }],
-  ['a sandbox that does not start', { sandboxStates: ['creating'] }],
+for (const [label, scenario, message] of [
+  ['a failed build', { buildWaits: ['failed'] }, /image example-img-\w+ ended failed/],
+  ['a build that never settles', { buildWaits: [] }, /image example-img-\w+ did not settle within 1200 s/],
+  ['a sandbox that does not start', { sandboxStates: ['creating'] }, /sandbox sbx-0 did not start \(state=creating\)/],
 ] as const) {
   test(`images deletes the image it built after ${label}`, () => {
     // Given a build, wait or create that does not succeed.
     const { code, record, output } = runExample(example('images'), scenario)
-    // Then the run fails, and the image it built and any sandbox are deleted.
+    // Then the run fails for that reason, and the image it built and any sandbox are deleted.
     assert.equal(code, 1, output)
+    assert.match(output, message)
     assert.deepEqual(record.deletedImages, ['img-0'])
     assert.deepEqual(record.commands, [])
     assertCleanedUp(record)
@@ -351,6 +352,7 @@ test('images finds and deletes an image whose build reply was lost', () => {
   const { code, record, output } = runExample(example('images'), { buildReplyLost: true })
   // Then the run fails, and the image is found by its unique name and deleted.
   assert.equal(code, 1, output)
+  assert.match(output, /connection reset reading the built image/)
   assert.deepEqual(record.deletedImages, ['img-0'])
   assert.deepEqual(record.sandboxes, [])
 })

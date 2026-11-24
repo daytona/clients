@@ -10,8 +10,8 @@
 #
 # Notes:
 #   - `images`, `dynamic-build`, `dockerfile-sandbox`, `local-files` and `build-logs` build a
-#     Dockerfile, so the deployment must support image builds. It is
-#     slower than the others: the first create waits for a real build.
+#     Dockerfile, so the deployment must support image builds. They are
+#     slower than the others: each waits for a real image build.
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
 #     volumes_share.{ts,py} are standalone persistence round-trip examples.
 #   - Without API access you can still validate the examples statically:
