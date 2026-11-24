@@ -1,0 +1,36 @@
+examples/go/go.mod
+  h_e7759ddd73fa65 11-23,45
+examples/go/go.sum
+  h_e7759ddd73fa65 1-38,90-91
+package.json
+  h_e7759ddd73fa65 51
+yarn.lock
+  h_e7759ddd73fa65 3052-3054,3056-3058,3077-3079,3081,3083,3089-3090,4979,5021,5360-5366,5618,6795,7293-7301,8124
+analytics-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 5
+analytics-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 5
+api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 5
+api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 5
+hack/python-client/openapi-templates/pyproject.mustache
+  h_e7759ddd73fa65 115
+hack/python-client/openapi-templates/test-requirements.mustache
+  h_e7759ddd73fa65 9
+toolbox-api-client-python-async/test-requirements.txt
+  h_e7759ddd73fa65 5
+toolbox-api-client-python/test-requirements.txt
+  h_e7759ddd73fa65 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c5a95aca4d031d3b3dffe41fb7d90b9b6925fb7",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
