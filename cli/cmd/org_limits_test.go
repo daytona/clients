@@ -235,7 +235,14 @@ func TestOrgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T) {
 		Snapshots: gen.UsageLimit{Usage: 7},
 		Volumes:   gen.UsageLimit{Usage: 2},
 	}
-	for name, fixture := range map[string]map[string]any{"null limits": unreturned, "numeric limits": limitsFixture()} {
+	numeric := limitsFixture()
+	images, snapshots, volumes := int64(1000), int64(100), int64(20)
+	numeric["storage"] = gen.StorageLimits{
+		Images:    gen.UsageLimit{Usage: 5, Limit: &images},
+		Snapshots: gen.UsageLimit{Usage: 7, Limit: &snapshots},
+		Volumes:   gen.UsageLimit{Usage: 2, Limit: &volumes},
+	}
+	for name, fixture := range map[string]map[string]any{"null limits": unreturned, "numeric limits": numeric} {
 		t.Run(name, func(t *testing.T) { orgLimitsHidesCountsWithoutAReturnedLimit(t, fixture) })
 	}
 }
@@ -266,8 +273,15 @@ func orgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T, fixture map[string]
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := got["storage"]; !ok {
+	storage, ok := got["storage"].(map[string]any)
+	if !ok {
 		t.Fatalf("JSON output must keep the storage group the body carried: %s", out)
+	}
+	for key, want := range map[string]float64{"images": 5, "snapshots": 7, "volumes": 2} {
+		count, ok := storage[key].(map[string]any)
+		if !ok || count["usage"] != want {
+			t.Fatalf("JSON output must keep storage.%s and its usage %v: %s", key, want, out)
+		}
 	}
 	sandboxes, ok := got["sandboxes"].(map[string]any)
 	if !ok {
