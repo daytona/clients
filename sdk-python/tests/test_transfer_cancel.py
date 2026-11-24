@@ -323,7 +323,14 @@ async def test_a_completed_transfer_leaves_no_waiter_behind(kind: str, tmp_path:
 async def test_a_set_threading_event_still_wakes_the_other_waiters_on_it() -> None:
     cancel = threading.Event()
     other = asyncio.create_task(asyncio.to_thread(cancel.wait, _BOUND))
+    waiters = cancel._cond._waiters  # type: ignore[attr-defined]
     async with TransferCancelWatch(cancel):
+        # Both the other thread and the watch are parked on the event before it is set.
+        for _ in range(1000):
+            if len(waiters) == 2:
+                break
+            await asyncio.sleep(0.001)
+        assert len(waiters) == 2
         await asyncio.to_thread(cancel.set)
     assert await asyncio.wait_for(other, timeout=_BOUND) is True
     assert _helper_threads() == []
