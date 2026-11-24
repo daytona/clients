@@ -362,7 +362,7 @@ class AsyncDaytona:
                 "sdk-python-async",
                 sdk_version,
             )
-            self._event_dispatcher.ensure_connected()
+            # The event connection opens lazily, when a wait for a sandbox state first needs it.
 
         self._subscription_manager: AsyncEventSubscriptionManager = AsyncEventSubscriptionManager(
             self._event_dispatcher

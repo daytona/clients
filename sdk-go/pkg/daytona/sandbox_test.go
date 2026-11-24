@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -24,6 +25,10 @@ import (
 	toolbox "github.com/daytona/clients/toolbox-api-client-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/metric"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestNewSandboxConstruction(t *testing.T) {
@@ -284,7 +289,7 @@ func TestSandboxWaitForStopTimeoutValidation(t *testing.T) {
 	sandbox := newSandboxForTest(client, "test-id", "test", apiclient.SANDBOXSTATE_STOPPING, "us-east-1", 60, -1, false, nil)
 
 	ctx := context.Background()
-	err = sandbox.doWaitForStop(ctx, -1*time.Second)
+	err = sandbox.doWaitForStop(ctx, -1*time.Second, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Timeout must be a non-negative number")
 
@@ -550,19 +555,177 @@ func TestSandboxCreateLspServer(t *testing.T) {
 }
 
 func TestNextWaitForStatePollInterval(t *testing.T) {
-	t.Run("polling mode stays fast for first five seconds", func(t *testing.T) {
-		assert.Equal(t, waitForStatePollingInitialInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 5*time.Second, false))
+	t.Run("polling stays fast for first five seconds", func(t *testing.T) {
+		assert.Equal(t, waitForStatePollingInitialInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 5*time.Second))
 	})
 
-	t.Run("polling mode backs off like origin main after five seconds", func(t *testing.T) {
-		assert.Equal(t, 110*time.Millisecond, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 6*time.Second, false))
-		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second, false))
+	t.Run("polling backs off after five seconds", func(t *testing.T) {
+		assert.Equal(t, 110*time.Millisecond, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 6*time.Second))
+		assert.Equal(t, waitForStatePollingBackoffMax, nextWaitForStatePollInterval(waitForStatePollingBackoffMax, 10*time.Second))
 	})
 
-	t.Run("streaming mode keeps sparse one second safety polling", func(t *testing.T) {
-		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStatePollingInitialInterval, 10*time.Second, true))
-		assert.Equal(t, waitForStateStreamingSafetyInterval, nextWaitForStatePollInterval(waitForStateStreamingSafetyInterval, 10*time.Second, true))
+}
+
+func stubWaitForStatePollRandom(t *testing.T, value float64) {
+	t.Helper()
+	original := waitForStatePollRandom
+	waitForStatePollRandom = func() float64 { return value }
+	t.Cleanup(func() { waitForStatePollRandom = original })
+}
+
+func TestWaitForStatePollInterval(t *testing.T) {
+	tests := []struct {
+		name   string
+		mode   waitPollMode
+		random float64
+		want   time.Duration
+	}{
+		{"event-backed at the low jitter bound", waitPollEventBacked, 0, 4 * time.Second},
+		{"event-backed without jitter", waitPollEventBacked, 0.5, 5 * time.Second},
+		{"event-backed at the high jitter bound", waitPollEventBacked, 1, 6 * time.Second},
+		{"subscribed but disconnected at the low jitter bound", waitPollSubscribed, 0, 800 * time.Millisecond},
+		{"subscribed but disconnected without jitter", waitPollSubscribed, 0.5, time.Second},
+		{"subscribed but disconnected at the high jitter bound", waitPollSubscribed, 1, 1200 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubWaitForStatePollRandom(t, tt.random)
+			assert.Equal(t, tt.want, newWaitPollSchedule().next(tt.mode))
+		})
+	}
+
+	t.Run("unsubscribed keeps the fast cadence without jitter", func(t *testing.T) {
+		original := waitForStatePollRandom
+		waitForStatePollRandom = func() float64 {
+			t.Error("the fast cadence must not draw jitter")
+			return 0
+		}
+		t.Cleanup(func() { waitForStatePollRandom = original })
+
+		schedule := newWaitPollSchedule()
+		assert.Equal(t, waitForStatePollingInitialInterval, schedule.next(waitPollUnsubscribed))
+		schedule.fast = 110 * time.Millisecond
+		assert.Equal(t, 110*time.Millisecond, schedule.next(waitPollUnsubscribed))
 	})
+}
+
+func TestWaitPollScheduleFallbackBacksOff(t *testing.T) {
+	seconds := func(values ...float64) []time.Duration {
+		out := make([]time.Duration, len(values))
+		for i, v := range values {
+			out[i] = time.Duration(v * float64(time.Second))
+		}
+		return out
+	}
+	sequence := func(random float64, n int) []time.Duration {
+		stubWaitForStatePollRandom(t, random)
+		schedule := newWaitPollSchedule()
+		out := make([]time.Duration, n)
+		for i := range out {
+			out[i] = schedule.next(waitPollSubscribed)
+		}
+		return out
+	}
+	// 1 s growing x1.5 up to 10 s, each with +-20 % jitter.
+	assert.Equal(t, seconds(1, 1.5, 2.25, 3.375, 5.0625, 7.59375, 10, 10), sequence(0.5, 8))
+	assert.Equal(t, seconds(0.8, 1.2, 1.8, 2.7, 4.05, 6.075, 8, 8), sequence(0, 8))
+	assert.Equal(t, seconds(1.2, 1.8, 2.7, 4.05, 6.075, 9.1125, 12, 12), sequence(1, 8))
+
+	t.Run("starts over after a stretch of being event-backed", func(t *testing.T) {
+		stubWaitForStatePollRandom(t, 0.5)
+		schedule := newWaitPollSchedule()
+		var got []time.Duration
+		for _, mode := range []waitPollMode{waitPollSubscribed, waitPollSubscribed, waitPollSubscribed, waitPollEventBacked, waitPollEventBacked, waitPollSubscribed, waitPollSubscribed} {
+			got = append(got, schedule.next(mode))
+		}
+		assert.Equal(t, seconds(1, 1.5, 2.25, 5, 5, 1, 1.5), got)
+	})
+}
+
+func TestStopAppliesStopResponseWithoutRefresh(t *testing.T) {
+	tests := []struct {
+		name     string
+		response func(t *testing.T, w http.ResponseWriter)
+		wantGets int32
+	}{
+		{
+			name: "response already stopped",
+			response: func(t *testing.T, w http.ResponseWriter) {
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED))
+			},
+			wantGets: 0,
+		},
+		{
+			name:     "empty response from an older server",
+			response: func(_ *testing.T, w http.ResponseWriter) { w.WriteHeader(http.StatusOK) },
+			wantGets: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gets int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/stop") {
+					tt.response(t, w)
+					return
+				}
+				if r.Method == http.MethodGet {
+					atomic.AddInt32(&gets, 1)
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STOPPED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+			require.NoError(t, sandbox.doStopWithTimeout(context.Background(), 5*time.Second, false))
+			assert.Equal(t, apiclient.SANDBOXSTATE_STOPPED, sandbox.currentState())
+			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
+		})
+	}
+}
+
+func TestPauseAppliesPauseResponseWithoutRefresh(t *testing.T) {
+	tests := []struct {
+		name     string
+		response func(t *testing.T, w http.ResponseWriter)
+		wantGets int32
+	}{
+		{
+			name: "response already paused",
+			response: func(t *testing.T, w http.ResponseWriter) {
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSED))
+			},
+			wantGets: 0,
+		},
+		{
+			name:     "empty response from an older server",
+			response: func(_ *testing.T, w http.ResponseWriter) { w.WriteHeader(http.StatusOK) },
+			wantGets: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gets int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/pause") {
+					tt.response(t, w)
+					return
+				}
+				if r.Method == http.MethodGet {
+					atomic.AddInt32(&gets, 1)
+				}
+				writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_PAUSED))
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+			require.NoError(t, sandbox.doPauseWithTimeout(context.Background(), 5*time.Second))
+			assert.Equal(t, apiclient.SANDBOXSTATE_PAUSED, sandbox.currentState())
+			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
+		})
+	}
 }
 
 func TestSandboxRefreshDataSuccess(t *testing.T) {
@@ -766,23 +929,81 @@ func TestSandboxLifecycleSuccessPaths(t *testing.T) {
 	})
 }
 
-func TestSandboxPreviewAndLabelOperations(t *testing.T) {
+func TestSandboxSetLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		response func(t *testing.T, w http.ResponseWriter)
+		want     map[string]string
+		wantGets int32
+	}{
+		{
+			name: "applies the labels the replace call returns",
+			response: func(t *testing.T, w http.ResponseWriter) {
+				writeJSONResponse(t, w, http.StatusOK, map[string]any{"labels": map[string]string{"env": "test"}})
+			},
+			want:     map[string]string{"env": "test"},
+			wantGets: 0,
+		},
+		{
+			name:     "refreshes once when an older server returns no body",
+			response: func(_ *testing.T, w http.ResponseWriter) { w.WriteHeader(http.StatusOK) },
+			want:     map[string]string{"from": "refresh"},
+			wantGets: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gets int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case http.MethodPut:
+					tt.response(t, w)
+				case http.MethodGet:
+					atomic.AddInt32(&gets, 1)
+					payload := testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED)
+					payload["labels"] = map[string]string{"from": "refresh"}
+					writeJSONResponse(t, w, http.StatusOK, payload)
+				default:
+					w.WriteHeader(http.StatusOK)
+				}
+			}))
+			defer server.Close()
+
+			client := createTestClientWithServer(t, server)
+			sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
+			require.NoError(t, sandbox.SetLabels(context.Background(), map[string]string{"env": "test"}))
+			assert.Equal(t, tt.want, sandbox.Labels)
+			assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+			assert.Equal(t, tt.wantGets, atomic.LoadInt32(&gets))
+		})
+	}
+}
+
+func TestForkWithStartedResponseRecordsWaitForStartSpan(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPut:
-			writeJSONResponse(t, w, http.StatusOK, map[string]any{"labels": map[string]string{"env": "test"}})
-		case http.MethodGet:
-			writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("sb", "sandbox", apiclient.SANDBOXSTATE_STARTED))
-		default:
-			w.WriteHeader(http.StatusOK)
-		}
+		writeJSONResponse(t, w, http.StatusOK, testSandboxPayload("forked", "forked-name", apiclient.SANDBOXSTATE_STARTED))
 	}))
 	defer server.Close()
 
+	recorder := tracetest.NewSpanRecorder()
+	tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	client := createTestClientWithServer(t, server)
+	client.Otel = &otelState{
+		tracer:     tracerProvider.Tracer("test"),
+		meter:      metricnoop.NewMeterProvider().Meter("test"),
+		histograms: map[string]metric.Float64Histogram{},
+	}
 	sandbox := newSandboxForTest(client, "sb", "sandbox", apiclient.SANDBOXSTATE_STARTED, "us", 0, -1, false, nil)
-	require.NoError(t, sandbox.SetLabels(context.Background(), map[string]string{"env": "test"}))
-	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, sandbox.State)
+
+	forked, err := sandbox.ForkWithTimeout(context.Background(), nil, 3*time.Second)
+	require.NoError(t, err)
+	assert.Equal(t, apiclient.SANDBOXSTATE_STARTED, forked.currentState())
+
+	var names []string
+	for _, span := range recorder.Ended() {
+		names = append(names, span.Name())
+	}
+	assert.Contains(t, names, "Sandbox.WaitForStart")
 }
 
 func TestSandboxForkAndSnapshot(t *testing.T) {

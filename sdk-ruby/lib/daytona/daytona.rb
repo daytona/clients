@@ -81,7 +81,8 @@ module Daytona
           source: SOURCE_RUBY,
           sdk_version: Sdk::VERSION
         )
-        @event_dispatcher.ensure_connected
+        # No connection yet: the dispatcher connects in the background when a sandbox wait first
+        # subscribes to state events.
       end
 
       @subscription_manager = EventSubscriptionManager.new(@event_dispatcher)

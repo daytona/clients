@@ -7,10 +7,14 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"math"
+	"math/rand/v2"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	analyticsclient "github.com/daytona/clients/analytics-api-client-go"
@@ -59,11 +63,15 @@ type Sandbox struct {
 	signingKey          string
 	signingKeyFetchedAt time.Time
 
-	mu                  sync.RWMutex
-	nodeProbes          map[string]*nodeRdmaProbe
-	stateWaiters        []*stateWaiter
+	mu           sync.RWMutex
+	nodeProbes   map[string]*nodeRdmaProbe
+	stateWaiters []*stateWaiter
+	// rejectionWaiters wake the running waits when the server rejects this
+	// sandbox's subscription.
+	rejectionWaiters    []chan struct{}
 	subscriptionManager *common.EventSubscriptionManager
-	subID               string
+	// stateEvents counts state events received; handlers run on the dispatcher's goroutines.
+	stateEvents atomic.Uint64
 
 	ID             string                         // Unique sandbox identifier
 	Name           string                         // Human-readable sandbox name
@@ -165,12 +173,39 @@ type Sandbox struct {
 }
 
 const (
-	waitForStatePollingInitialInterval  = 100 * time.Millisecond
-	waitForStateStreamingSafetyInterval = 1 * time.Second
-	waitForStatePollingBackoffDelay     = 5 * time.Second
-	waitForStatePollingBackoffFactor    = 1.1
-	waitForStatePollingBackoffMax       = 1 * time.Second
+	waitForStatePollingInitialInterval = 100 * time.Millisecond
+	waitForStatePollingBackoffDelay    = 5 * time.Second
+	waitForStatePollingBackoffFactor   = 1.1
+	waitForStatePollingBackoffMax      = 1 * time.Second
+
+	// State events drive event-backed waits; polling is only a safety net.
+	waitForStateEventBackedPollInterval = 5 * time.Second
+	// A subscribed wait without events (connection down, or the subscription
+	// rejected by the server, including past its per-socket limit) starts at
+	// 1 s and backs off, so many such waits do not spend the request budget.
+	waitForStateFallbackPollInterval    = 1 * time.Second
+	waitForStateFallbackPollGrowth      = 1.5
+	waitForStateFallbackPollMaxInterval = 10 * time.Second
+	// A longer Retry-After is capped: the wait's own timeout still decides.
+	waitForStateMaxRetryAfter = 60 * time.Second
+	// Spreads safety-net polls of concurrent waits apart.
+	waitForStatePollJitter = 0.2
 )
+
+// waitForStatePollRandom is the jitter source, uniform in [0, 1). Stubbed in tests.
+var waitForStatePollRandom = rand.Float64
+
+// subscribeStateEvents takes a state-event subscription. Tests stub it to
+// deliver an event from inside the subscribe.
+var subscribeStateEvents = func(manager *common.EventSubscriptionManager, sandboxID string, handler common.SandboxEventHandler) string {
+	return manager.Subscribe(sandboxID, handler, []string{"sandbox.state.updated"})
+}
+
+// waitForStateNextPoll schedules a wait's polls after the first. Tests stub it
+// to tell the immediate read apart from scheduled polls without timing.
+var waitForStateNextPoll = func(schedule *waitPollSchedule, mode waitPollMode) time.Duration {
+	return schedule.next(mode)
+}
 
 // sandboxDTO is the common subset of fields exposed by both [apiclient.Sandbox]
 // (returned by single-sandbox endpoints) and [apiclient.SandboxListItem]
@@ -391,7 +426,6 @@ func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO
 	}
 	s.populateFromDTO(dto)
 	s.State = dto.GetState()
-	s.ensureSubscribed()
 	return s
 }
 
@@ -406,7 +440,11 @@ func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO
 // *[apiclient.SandboxListItem] they remain at their zero values.
 func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	// Fields shared by both apiclient.Sandbox and apiclient.SandboxListItem.
-	s.ID = dto.GetId()
+	// ID is read without the lock (API paths, concurrent waits), so it is only
+	// written when it actually changes.
+	if id := dto.GetId(); id != s.ID {
+		s.ID = id
+	}
 	s.Name = dto.GetName()
 	s.OrganizationId = dto.GetOrganizationId()
 	if v, ok := dto.GetSnapshotOk(); ok {
@@ -505,52 +543,133 @@ func (s *Sandbox) populateFromDTO(dto sandboxDTO) {
 	}
 }
 
-func (s *Sandbox) ensureSubscribed() {
-	if s.subscriptionManager == nil {
+// waitSubscription is the event subscription held by a single waitForState
+// call. Sandboxes only subscribe to state events while a wait is running.
+type waitSubscription struct {
+	sandbox *Sandbox
+	subID   string
+
+	// Set by subscribeForOperation: whether events could reach the wait when the
+	// subscription was taken, and the state-event count at that point.
+	liveBeforeRequest        bool
+	stateEventsBeforeRequest uint64
+	// A reconnect since loses the events emitted while the socket was down.
+	connectionEpochBeforeRequest uint64
+	// retaken is set when ensure had to subscribe again because the
+	// subscription expired: events in the gap went nowhere.
+	retaken bool
+}
+
+func (s *Sandbox) subscribeForWait() *waitSubscription {
+	w := &waitSubscription{sandbox: s}
+	w.ensure()
+	return w
+}
+
+// subscribeForOperation takes the subscription of the wait that follows an
+// operation: before its request, or right after it for a new sandbox (fork).
+// Every later state change arrives as an event, so the wait can skip its first
+// read. Hand it to waitForStateWith; close it if the wait never starts.
+func (s *Sandbox) subscribeForOperation() *waitSubscription {
+	// Snapshot before subscribing: an event delivered once the subscription
+	// exists may apply its state after the operation's response, so it must
+	// change the count. Likewise a reconnect from then on must change the epoch.
+	stateEvents := s.stateEvents.Load()
+	connectionEpoch := s.subscriptionManager.ConnectionEpoch()
+	w := s.subscribeForWait()
+	w.stateEventsBeforeRequest = stateEvents
+	w.connectionEpochBeforeRequest = connectionEpoch
+	w.liveBeforeRequest = w.subID != "" && s.subscriptionManager.IsEventBacked(s.ID)
+	return w
+}
+
+// hasFreshState reports whether an operation's response carries the sandbox's
+// state after the operation. Older servers return no body, or one without a
+// state; neither may stand in for a read.
+func hasFreshState(resp *apiclient.Sandbox) bool {
+	return resp != nil && resp.GetState() != ""
+}
+
+// applyOperationResponse applies an operation's response that carries a state,
+// and otherwise makes sub's wait read first, as for an empty body.
+func (s *Sandbox) applyOperationResponse(resp *apiclient.Sandbox, sub *waitSubscription) {
+	if !hasFreshState(resp) {
+		sub.requireFirstRead()
 		return
 	}
+	s.updateFromAPIResponse(resp)
+}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// requireFirstRead is for operations that returned no sandbox: the cached state
+// is not the one after the request.
+func (w *waitSubscription) requireFirstRead() {
+	w.liveBeforeRequest = false
+}
 
-	if s.subID != "" {
-		if s.subscriptionManager.Refresh(s.subID) {
-			return
+// canSkipFirstRead: the cached state is the operation's response and every
+// later change arrives as an event. An event that arrived meanwhile may be newer
+// than the response that overwrote it, and a reconnect or an expired (re-taken)
+// subscription meanwhile may have lost events, so each forces the read.
+func (w *waitSubscription) canSkipFirstRead() bool {
+	return w.liveBeforeRequest &&
+		w.pollMode() == waitPollEventBacked &&
+		!w.retaken &&
+		w.sandbox.subscriptionManager.ConnectionEpoch() == w.connectionEpochBeforeRequest &&
+		w.sandbox.stateEvents.Load() == w.stateEventsBeforeRequest
+}
+
+// ensure keeps the subscription alive (refreshing its TTL), re-subscribing if
+// it lapsed, and reports whether one is held.
+func (w *waitSubscription) ensure() bool {
+	manager := w.sandbox.subscriptionManager
+	if manager == nil {
+		return false
+	}
+	if w.subID != "" {
+		if manager.Refresh(w.subID) {
+			return true
 		}
-		s.subID = ""
+		w.retaken = true
 	}
-
-	s.subscribeToEventsLocked()
+	w.subID = subscribeStateEvents(manager, w.sandbox.ID, w.sandbox.handleEvent)
+	return w.subID != ""
 }
 
-func (s *Sandbox) subscribeToEventsLocked() {
-	if s.subscriptionManager == nil {
+// waitPollMode is how a wait can currently learn about state changes; it
+// selects the poll cadence.
+type waitPollMode int
+
+const (
+	waitPollUnsubscribed waitPollMode = iota
+	waitPollSubscribed
+	waitPollEventBacked
+)
+
+// pollMode runs before every scheduled poll, so it also keeps the subscription
+// from expiring during long waits.
+func (w *waitSubscription) pollMode() waitPollMode {
+	if !w.ensure() {
+		return waitPollUnsubscribed
+	}
+	if w.sandbox.subscriptionManager.IsEventBacked(w.sandbox.ID) {
+		return waitPollEventBacked
+	}
+	return waitPollSubscribed
+}
+
+func (w *waitSubscription) close() {
+	if w == nil {
 		return
 	}
-
-	if s.subID != "" {
-		return
+	if w.subID != "" && w.sandbox.subscriptionManager != nil {
+		w.sandbox.subscriptionManager.Unsubscribe(w.subID)
 	}
-
-	s.subID = s.subscriptionManager.Subscribe(
-		s.ID,
-		s.handleEvent,
-		[]string{"sandbox.state.updated", "sandbox.created"},
-	)
+	w.subID = ""
 }
 
-func (s *Sandbox) hasActiveSubscription() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.subID != ""
-}
-
-func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration, subscribed bool) time.Duration {
-	if subscribed {
-		return waitForStateStreamingSafetyInterval
-	}
-
+// nextWaitForStatePollInterval returns the next poll interval for a wait that
+// is not receiving state events: fast at first, then backing off.
+func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration) time.Duration {
 	if elapsed <= waitForStatePollingBackoffDelay {
 		return current
 	}
@@ -563,32 +682,109 @@ func nextWaitForStatePollInterval(current time.Duration, elapsed time.Duration, 
 	return next
 }
 
+// waitPollSchedule is the poll cadence of one wait.
+type waitPollSchedule struct {
+	// fast is the cadence without a subscription, used as is.
+	fast time.Duration
+	// fallback is the next fallback interval, before jitter.
+	fallback time.Duration
+}
+
+func newWaitPollSchedule() *waitPollSchedule {
+	return &waitPollSchedule{fast: waitForStatePollingInitialInterval, fallback: waitForStateFallbackPollInterval}
+}
+
+// next returns the delay before the next poll in mode. A subscribed wait
+// without events backs off from 1 s to 10 s; while event-backed it polls every
+// 5 s, and its backoff starts over.
+func (p *waitPollSchedule) next(mode waitPollMode) time.Duration {
+	switch mode {
+	case waitPollEventBacked:
+		p.fallback = waitForStateFallbackPollInterval
+		return jitterWaitForStatePollInterval(waitForStateEventBackedPollInterval)
+	case waitPollSubscribed:
+		delay := jitterWaitForStatePollInterval(p.fallback)
+		p.fallback = min(time.Duration(float64(p.fallback)*waitForStateFallbackPollGrowth), waitForStateFallbackPollMaxInterval)
+		return delay
+	case waitPollUnsubscribed:
+		return p.fast
+	}
+	return p.fast
+}
+
+// nextRateLimited returns the delay after a poll that got a 429, in any mode:
+// no sooner than the mode's interval, the current fallback interval or the
+// server's Retry-After, and the fallback backoff advances one step, so repeated
+// 429s back off even without a subscription. When Retry-After decides, it gets
+// up to 20 % more, so waits that got the same header do not retry together.
+func (p *waitPollSchedule) nextRateLimited(mode waitPollMode, retryAfter time.Duration) time.Duration {
+	fallback := p.fallback
+	delay := p.next(mode)
+	if mode != waitPollSubscribed {
+		delay = max(delay, jitterWaitForStatePollInterval(fallback))
+	}
+	p.fallback = min(time.Duration(float64(fallback)*waitForStateFallbackPollGrowth), waitForStateFallbackPollMaxInterval)
+	if retryAfter > delay {
+		delay = time.Duration(math.Round(float64(retryAfter) * (1 + waitForStatePollJitter*waitForStatePollRandom())))
+	}
+	return delay
+}
+
+// rateLimitRetryAfter reports whether err is a 429, and the delay its
+// Retry-After header asks for: whole seconds or an HTTP date, capped at
+// waitForStateMaxRetryAfter; 0 when absent, negative or unparseable.
+func rateLimitRetryAfter(err error) (time.Duration, bool) {
+	var de *errors.DaytonaError
+	if !stderrors.As(err, &de) || de.StatusCode != http.StatusTooManyRequests {
+		return 0, false
+	}
+	return parseRetryAfter(de.Headers.Get("Retry-After")), true
+}
+
+func parseRetryAfter(value string) time.Duration {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	var delay time.Duration
+	if seconds, convErr := strconv.ParseInt(value, 10, 64); convErr == nil {
+		if seconds <= 0 {
+			return 0
+		}
+		delay = time.Duration(min(seconds, int64(waitForStateMaxRetryAfter/time.Second))) * time.Second
+	} else if stderrors.Is(convErr, strconv.ErrRange) && !strings.HasPrefix(value, "-") {
+		delay = waitForStateMaxRetryAfter
+	} else if at, parseErr := http.ParseTime(value); parseErr == nil {
+		delay = time.Until(at)
+	}
+	return min(max(delay, 0), waitForStateMaxRetryAfter)
+}
+
+func jitterWaitForStatePollInterval(interval time.Duration) time.Duration {
+	factor := 1 + waitForStatePollJitter*(2*waitForStatePollRandom()-1)
+	return time.Duration(math.Round(float64(interval) * factor))
+}
+
 func (s *Sandbox) handleEvent(event common.SandboxEvent) {
 	switch event.Type {
 	case common.SandboxEventStateUpdated:
 		if event.StateEvent != nil {
+			s.stateEvents.Add(1)
 			s.mu.Lock()
 			// Set before the state: a wait that ends on an error state reports this reason.
 			s.ErrorReason = event.StateEvent.Sandbox.ErrorReason
 			s.applyStateLocked(event.StateEvent.NewState)
 			s.mu.Unlock()
 		}
-	case common.SandboxEventCreated:
-		if event.CreatedEvent != nil {
-			s.updateFromAPIResponse(event.CreatedEvent)
+	case common.SandboxEventSubscriptionRejected:
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		for _, waiter := range s.rejectionWaiters {
+			select {
+			case waiter <- struct{}{}:
+			default:
+			}
 		}
-	}
-}
-
-func (s *Sandbox) unsubscribe() {
-	s.mu.Lock()
-	subID := s.subID
-	s.subID = ""
-	manager := s.subscriptionManager
-	s.mu.Unlock()
-
-	if subID != "" && manager != nil {
-		manager.Unsubscribe(subID)
 	}
 }
 
@@ -604,6 +800,17 @@ type stateWaiter struct {
 	ch    chan stateUpdate
 	ends  func(apiclient.SandboxState) bool
 	ended bool
+}
+
+// readErrorReason reads the sandbox once for the error reason of a wait that
+// ended on an error-state event without one; nil if the read fails.
+func (s *Sandbox) readErrorReason(ctx context.Context) *string {
+	if err := s.refreshDataSafe(ctx); err != nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.ErrorReason
 }
 
 // errorStateError reports a wait that ended in an error state.
@@ -690,8 +897,20 @@ func (s *Sandbox) waitForState(
 	errorStates []apiclient.SandboxState,
 	safeRefresh bool,
 ) error {
-	s.ensureSubscribed()
-	subscribed := s.hasActiveSubscription()
+	return s.waitForStateWith(ctx, targetStates, errorStates, safeRefresh, nil)
+}
+
+// waitForStateWith is waitForState for an operation that took its subscription
+// with subscribeForOperation (sub; nil takes one here). It owns sub and
+// releases it on every exit.
+func (s *Sandbox) waitForStateWith(
+	ctx context.Context,
+	targetStates []apiclient.SandboxState,
+	errorStates []apiclient.SandboxState,
+	safeRefresh bool,
+	sub *waitSubscription,
+) error {
+	defer func() { sub.close() }()
 
 	waiter := &stateWaiter{
 		ch: make(chan stateUpdate, 1),
@@ -700,8 +919,10 @@ func (s *Sandbox) waitForState(
 		},
 	}
 	stateCh := waiter.ch
+	rejectedCh := make(chan struct{}, 1)
 	s.mu.Lock()
 	s.stateWaiters = append(s.stateWaiters, waiter)
+	s.rejectionWaiters = append(s.rejectionWaiters, rejectedCh)
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
@@ -710,6 +931,12 @@ func (s *Sandbox) waitForState(
 		for i, w := range s.stateWaiters {
 			if w == waiter {
 				s.stateWaiters = append(s.stateWaiters[:i], s.stateWaiters[i+1:]...)
+				break
+			}
+		}
+		for i, waiter := range s.rejectionWaiters {
+			if waiter == rejectedCh {
+				s.rejectionWaiters = append(s.rejectionWaiters[:i], s.rejectionWaiters[i+1:]...)
 				break
 			}
 		}
@@ -729,16 +956,20 @@ func (s *Sandbox) waitForState(
 		return err
 	}
 
-	refresh := func(rctx context.Context) (done bool, err error) {
-		if safeRefresh {
-			if rerr := s.refreshDataSafe(rctx); rerr != nil {
-				return false, rerr
-			}
-		} else {
-			if rerr := s.doRefreshData(rctx); rerr != nil {
-				return false, rerr
-			}
-		}
+	// State events are subscribed only for the duration of the wait, and before
+	// the first refresh so no transition after it is missed.
+	skipFirstRead := false
+	if sub == nil {
+		sub = s.subscribeForWait()
+	} else {
+		// An error or unexpected destroyed response is read again at once, so it
+		// fails as fast as before instead of at the first poll.
+		failing := containsSandboxState(errorStates, currentState) ||
+			(currentState == apiclient.SANDBOXSTATE_DESTROYED && !containsSandboxState(targetStates, currentState))
+		skipFirstRead = !failing && sub.canSkipFirstRead()
+	}
+
+	evaluate := func() (done bool, err error) {
 		s.mu.RLock()
 		st, reason := s.State, s.ErrorReason
 		s.mu.RUnlock()
@@ -753,17 +984,57 @@ func (s *Sandbox) waitForState(
 		}
 		return false, nil
 	}
+	refresh := func(rctx context.Context) (done bool, err error) {
+		if safeRefresh {
+			if rerr := s.refreshDataSafe(rctx); rerr != nil {
+				return false, rerr
+			}
+		} else {
+			if rerr := s.doRefreshData(rctx); rerr != nil {
+				return false, rerr
+			}
+		}
+		return evaluate()
+	}
 
-	// First poll runs immediately (main refreshed at t=0 before any wait).
-	if done, err := refresh(ctx); done || err != nil {
+	// A 429 on a poll does not end the wait: the next poll comes no sooner than
+	// the server's Retry-After, nor than the regular interval.
+	schedule := newWaitPollSchedule()
+	var retryAfter time.Duration
+	rateLimited := false
+	poll := func() (done bool, err error) {
+		done, err = refresh(ctx)
+		// A rejection that arrived during this read needs no read of its own:
+		// this one covers it, and the next interval, chosen now, is the fallback.
+		select {
+		case <-rejectedCh:
+		default:
+		}
+		if wait, limited := rateLimitRetryAfter(err); limited {
+			retryAfter, rateLimited = wait, true
+			return false, nil
+		}
+		return done, err
+	}
+	nextPoll := func() time.Duration {
+		if rateLimited {
+			rateLimited = false
+			return schedule.nextRateLimited(sub.pollMode(), retryAfter)
+		}
+		return waitForStateNextPoll(schedule, sub.pollMode())
+	}
+
+	// First poll runs immediately (main refreshed at t=0 before any wait),
+	// unless the operation's response stands in for it.
+	if skipFirstRead {
+		if done, err := evaluate(); done || err != nil {
+			return err
+		}
+	} else if done, err := poll(); done || err != nil {
 		return err
 	}
 
-	pollInterval := waitForStatePollingInitialInterval
-	if subscribed {
-		pollInterval = waitForStateStreamingSafetyInterval
-	}
-	pollTimer := time.NewTimer(pollInterval)
+	pollTimer := time.NewTimer(nextPoll())
 	defer pollTimer.Stop()
 	startTime := time.Now()
 
@@ -788,18 +1059,31 @@ func (s *Sandbox) waitForState(
 				}
 			}
 			if containsSandboxState(errorStates, newState) {
-				return errorStateError(newState, update.errorReason)
+				reason := update.errorReason
+				if reason == nil {
+					// The event carried no reason: read it once before failing.
+					reason = s.readErrorReason(ctx)
+				}
+				return errorStateError(newState, reason)
 			}
 			if containsSandboxState(targetStates, newState) {
 				return nil
 			}
+		case <-rejectedCh:
+			// No events will come and no read is in flight: read now, then poll at
+			// the fallback cadence.
+			pollTimer.Stop()
+			if done, err := poll(); done || err != nil {
+				return err
+			}
+			pollTimer.Reset(nextPoll())
 		case <-pollTimer.C:
-			if done, err := refresh(ctx); done || err != nil {
+			if done, err := poll(); done || err != nil {
 				return err
 			}
 
-			pollInterval = nextWaitForStatePollInterval(pollInterval, time.Since(startTime), subscribed)
-			pollTimer.Reset(pollInterval)
+			schedule.fast = nextWaitForStatePollInterval(schedule.fast, time.Since(startTime))
+			pollTimer.Reset(nextPoll())
 		}
 	}
 }
@@ -885,7 +1169,6 @@ func containsSandboxState(states []apiclient.SandboxState, state apiclient.Sandb
 //	}
 //	fmt.Printf("Current state: %s\n", sandbox.State)
 func (s *Sandbox) RefreshData(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "RefreshData", func(ctx context.Context) error {
 		return s.doRefreshData(ctx)
 	})
@@ -935,7 +1218,6 @@ func (s *Sandbox) ensureSigningKey(ctx context.Context) (string, error) {
 //	}
 //	fmt.Printf("Home directory: %s\n", homeDir) // e.g., "/home/daytona"
 func (s *Sandbox) GetUserHomeDir(ctx context.Context) (string, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetUserHomeDir", func(ctx context.Context) (string, error) {
 		resp, httpResp, err := s.ToolboxClient.InfoAPI.GetUserHomeDir(ctx).Execute()
 		if err != nil {
@@ -1151,7 +1433,6 @@ func sandboxMetricsFromSystemMetrics(m *toolbox.SystemMetrics) SandboxMetrics {
 //	}
 //	fmt.Printf("Working directory: %s\n", workDir)
 func (s *Sandbox) GetWorkingDir(ctx context.Context) (string, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetWorkingDir", func(ctx context.Context) (string, error) {
 		resp, httpResp, err := s.ToolboxClient.InfoAPI.GetWorkDir(ctx).Execute()
 		if err != nil {
@@ -1192,7 +1473,6 @@ func (s *Sandbox) CreateLspServer(languageID types.LspLanguageID, pathToProject 
 //	}
 //	// Sandbox is now running
 func (s *Sandbox) Start(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Start", func(ctx context.Context) error {
 		return s.StartWithTimeout(ctx, 60*time.Second)
 	})
@@ -1210,7 +1490,6 @@ func (s *Sandbox) Start(ctx context.Context) error {
 //	    return err
 //	}
 func (s *Sandbox) StartWithTimeout(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "StartWithTimeout", func(ctx context.Context) error {
 		return s.doStartWithTimeout(ctx, timeout)
 	})
@@ -1246,7 +1525,6 @@ func (s *Sandbox) doStartWithTimeout(ctx context.Context, timeout time.Duration)
 //
 //	err := sandbox.Stop(ctx)
 func (s *Sandbox) Stop(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Stop", func(ctx context.Context) error {
 		return s.StopWithTimeout(ctx, 60*time.Second, false)
 	})
@@ -1262,7 +1540,6 @@ func (s *Sandbox) Stop(ctx context.Context) error {
 //
 //	err := sandbox.StopWithTimeout(ctx, 2*time.Minute, false)
 func (s *Sandbox) StopWithTimeout(ctx context.Context, timeout time.Duration, force bool) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "StopWithTimeout", func(ctx context.Context) error {
 		return s.doStopWithTimeout(ctx, timeout, force)
 	})
@@ -1284,13 +1561,17 @@ func (s *Sandbox) doStopWithTimeout(ctx context.Context, timeout time.Duration, 
 	if force {
 		req = req.Force(force)
 	}
+	sub := s.subscribeForOperation()
+	defer sub.close()
 	sandboxResp, httpResp, err := req.Execute()
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	s.updateFromAPIResponse(sandboxResp)
+	s.applyOperationResponse(sandboxResp, sub)
 
-	return s.WaitForStop(ctx, timeout)
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForStop", func(ctx context.Context) error {
+		return s.doWaitForStop(ctx, timeout, sub)
+	})
 }
 
 // Delete deletes the sandbox with a default timeout of 60 seconds.
@@ -1351,7 +1632,6 @@ func (s *Sandbox) doDeleteWithTimeout(ctx context.Context, timeout time.Duration
 //
 //	err := sandbox.DeleteAndWait(ctx, 60*time.Second)
 func (s *Sandbox) DeleteAndWait(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "DeleteAndWait", func(ctx context.Context) error {
 		return s.doDeleteAndWait(ctx, timeout)
 	})
@@ -1369,17 +1649,19 @@ func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) er
 	}
 
 	authCtx := s.client.getAuthContext(ctx)
+	sub := s.subscribeForOperation()
+	defer sub.close()
 	sandboxResp, httpResp, err := s.client.apiClient.SandboxAPI.DeleteSandbox(authCtx, s.ID).Execute()
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	defer s.unsubscribe()
-	s.updateFromAPIResponse(sandboxResp)
+	s.applyOperationResponse(sandboxResp, sub)
 
-	err = s.waitForState(ctx,
+	err = s.waitForStateWith(ctx,
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_DESTROYED},
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED},
 		true,
+		sub,
 	)
 	if err != nil {
 		if stderrors.Is(err, context.DeadlineExceeded) {
@@ -1408,7 +1690,6 @@ func (s *Sandbox) doDeleteAndWait(ctx context.Context, timeout time.Duration) er
 //	}
 //	// Sandbox is now archived and can be restored later
 func (s *Sandbox) Archive(ctx context.Context) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Archive", func(ctx context.Context) error {
 		return s.doArchive(ctx)
 	})
@@ -1420,9 +1701,13 @@ func (s *Sandbox) doArchive(ctx context.Context) error {
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-	s.updateFromAPIResponse(sandboxResp)
-
-	return nil
+	// Older servers return no body, or one without a state: read the sandbox
+	// instead, as the other SDKs do.
+	if hasFreshState(sandboxResp) {
+		s.updateFromAPIResponse(sandboxResp)
+		return nil
+	}
+	return s.RefreshData(ctx)
 }
 
 // WaitForStart waits for the sandbox to reach the "started" state.
@@ -1438,13 +1723,19 @@ func (s *Sandbox) doArchive(ctx context.Context) error {
 //	}
 //	// Sandbox is now running
 func (s *Sandbox) WaitForStart(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForStart", func(ctx context.Context) error {
 		return s.doWaitForStart(ctx, timeout)
 	})
 }
 
 func (s *Sandbox) doWaitForStart(ctx context.Context, timeout time.Duration) error {
+	return s.doWaitForStartWith(ctx, timeout, nil)
+}
+
+// doWaitForStartWith waits with sub, a subscription from subscribeForOperation,
+// or nil to take one (and read at once: a stand-alone wait's cached state can
+// be arbitrarily stale).
+func (s *Sandbox) doWaitForStartWith(ctx context.Context, timeout time.Duration, sub *waitSubscription) error {
 	if timeout < 0 {
 		return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
 	}
@@ -1455,10 +1746,11 @@ func (s *Sandbox) doWaitForStart(ctx context.Context, timeout time.Duration) err
 		defer cancel()
 	}
 
-	err := s.waitForState(ctx,
+	err := s.waitForStateWith(ctx,
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_STARTED},
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED},
 		false,
+		sub,
 	)
 	if err != nil {
 		if stderrors.Is(err, context.DeadlineExceeded) {
@@ -1481,13 +1773,14 @@ func (s *Sandbox) doWaitForStart(ctx context.Context, timeout time.Duration) err
 //
 //	err := sandbox.WaitForStop(ctx, 2*time.Minute)
 func (s *Sandbox) WaitForStop(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForStop", func(ctx context.Context) error {
-		return s.doWaitForStop(ctx, timeout)
+		return s.doWaitForStop(ctx, timeout, nil)
 	})
 }
 
-func (s *Sandbox) doWaitForStop(ctx context.Context, timeout time.Duration) error {
+// doWaitForStop waits with sub, a subscription from subscribeForOperation, or
+// nil to take one.
+func (s *Sandbox) doWaitForStop(ctx context.Context, timeout time.Duration, sub *waitSubscription) error {
 	if timeout < 0 {
 		return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
 	}
@@ -1498,10 +1791,11 @@ func (s *Sandbox) doWaitForStop(ctx context.Context, timeout time.Duration) erro
 		defer cancel()
 	}
 
-	err := s.waitForState(ctx,
+	err := s.waitForStateWith(ctx,
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_STOPPED, apiclient.SANDBOXSTATE_DESTROYED},
 		[]apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED},
 		true,
+		sub,
 	)
 	if err != nil {
 		if stderrors.Is(err, context.DeadlineExceeded) {
@@ -1528,7 +1822,6 @@ func (s *Sandbox) doWaitForStop(ctx context.Context, timeout time.Duration) erro
 //	    "project": "api-server",
 //	})
 func (s *Sandbox) SetLabels(ctx context.Context, labels map[string]string) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetLabels", func(ctx context.Context) error {
 		return s.doSetLabels(ctx, labels)
 	})
@@ -1539,7 +1832,7 @@ func (s *Sandbox) doSetLabels(ctx context.Context, labels map[string]string) err
 		Labels: labels,
 	}
 
-	_, httpResp, err := s.client.apiClient.SandboxAPI.ReplaceLabels(
+	labelsResp, httpResp, err := s.client.apiClient.SandboxAPI.ReplaceLabels(
 		s.client.getAuthContext(ctx),
 		s.ID,
 	).SandboxLabels(sandboxLabels).Execute()
@@ -1548,7 +1841,14 @@ func (s *Sandbox) doSetLabels(ctx context.Context, labels map[string]string) err
 		return s.client.handleAPIError(err, httpResp)
 	}
 
-	return s.RefreshData(ctx)
+	// Older servers return no body; only then is a GET needed.
+	if labelsResp == nil {
+		return s.RefreshData(ctx)
+	}
+	s.mu.Lock()
+	s.Labels = labelsResp.GetLabels()
+	s.mu.Unlock()
+	return nil
 }
 
 // DownloadURL creates a pre-signed URL for downloading a file from the sandbox.
@@ -1637,7 +1937,6 @@ func (s *Sandbox) RotateSigningKey(ctx context.Context) error {
 //	}
 //	defer resp.Body.Close()
 func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetPreviewLink", func(ctx context.Context) (*types.PreviewLink, error) {
 		result, httpResp, err := s.client.apiClient.SandboxAPI.GetPortPreviewUrl(
 			s.client.getAuthContext(ctx),
@@ -1672,7 +1971,6 @@ func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewL
 //	}
 //	fmt.Printf("Sandbox ID: %s\nPort: %d\nURL: %s\nToken: %s\n", preview.SandboxID, preview.Port, preview.URL, preview.Token)
 func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInSeconds int) (*types.SignedPreviewLink, error) {
-	s.ensureSubscribed()
 	return withInstrumentation(ctx, s.otel, "Sandbox", "GetSignedPreviewLink", func(ctx context.Context) (*types.SignedPreviewLink, error) {
 		result, httpResp, err := s.client.apiClient.SandboxAPI.GetSignedPortPreviewUrl(
 			s.client.getAuthContext(ctx),
@@ -1704,7 +2002,6 @@ func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInS
 //	    return err
 //	}
 func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token string) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "ExpireSignedPreviewLink", func(ctx context.Context) error {
 		httpResp, err := s.client.apiClient.SandboxAPI.ExpireSignedPortPreviewUrl(
 			s.client.getAuthContext(ctx),
@@ -1733,7 +2030,6 @@ func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token s
 //	    return err
 //	}
 func (s *Sandbox) SetPublic(ctx context.Context, isPublic bool) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetPublic", func(ctx context.Context) error {
 		return s.doSetPublic(ctx, isPublic)
 	})
@@ -1770,7 +2066,6 @@ func (s *Sandbox) doSetPublic(ctx context.Context, isPublic bool) error {
 //	interval := 0
 //	err := sandbox.SetAutoArchiveInterval(ctx, &interval)
 func (s *Sandbox) SetAutoArchiveInterval(ctx context.Context, intervalMinutes *int) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetAutoArchiveInterval", func(ctx context.Context) error {
 		return s.doSetAutoArchiveInterval(ctx, intervalMinutes)
 	})
@@ -1818,7 +2113,6 @@ func (s *Sandbox) doSetAutoArchiveInterval(ctx context.Context, intervalMinutes 
 //	interval := -1
 //	err := sandbox.SetAutoDeleteInterval(ctx, &interval)
 func (s *Sandbox) SetAutoDeleteInterval(ctx context.Context, intervalMinutes *int) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "SetAutoDeleteInterval", func(ctx context.Context) error {
 		return s.doSetAutoDeleteInterval(ctx, intervalMinutes)
 	})
@@ -2000,8 +2294,21 @@ func (s *Sandbox) doForkWithTimeout(ctx context.Context, name *string, timeout t
 
 	language := types.CodeLanguage(sandboxResp.GetLabels()[types.CodeToolboxLanguageLabel])
 	forked := NewSandbox(s.client, toolboxClient, sandboxResp, language, s.subscriptionManager)
-
-	if err := forked.WaitForStart(ctx, timeout); err != nil {
+	// The fork endpoint returns before the fork starts, so a subscription taken
+	// now sees the transition and the wait can skip its first read. A fork that
+	// already started needs none, but still records the wait.
+	var sub *waitSubscription
+	if forked.currentState() != apiclient.SANDBOXSTATE_STARTED {
+		sub = forked.subscribeForOperation()
+		defer sub.close()
+		if !hasFreshState(sandboxResp) {
+			sub.requireFirstRead()
+		}
+	}
+	err = withInstrumentationVoid(ctx, forked.otel, "Sandbox", "WaitForStart", func(ctx context.Context) error {
+		return forked.doWaitForStartWith(ctx, timeout, sub)
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -2158,12 +2465,19 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 	}
 
 	authCtx := s.client.getAuthContext(ctx)
-	_, httpResp, err := s.client.apiClient.SandboxAPI.PauseSandbox(authCtx, s.ID).Execute()
+	sub := s.subscribeForOperation()
+	defer sub.close()
+	sandboxResp, httpResp, err := s.client.apiClient.SandboxAPI.PauseSandbox(authCtx, s.ID).Execute()
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
 
-	if err := s.RefreshData(ctx); err != nil {
+	// Older servers return no body, or one without a state; only then is a GET
+	// needed. Taken after the subscription, it stands in for the wait's first
+	// read just as the body would.
+	if hasFreshState(sandboxResp) {
+		s.updateFromAPIResponse(sandboxResp)
+	} else if err := s.RefreshData(ctx); err != nil {
 		return err
 	}
 
@@ -2181,7 +2495,7 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 		}
 	}
 
-	err = s.waitForState(ctx, targetStates, errorStates, false)
+	err = s.waitForStateWith(ctx, targetStates, errorStates, false, sub)
 	if err != nil {
 		// Classify on err itself: ctx.Err() would misreport explicit cancellation —
 		// and real failures racing the deadline — as timeouts.
@@ -2211,7 +2525,6 @@ func (s *Sandbox) doPauseWithTimeout(ctx context.Context, timeout time.Duration)
 //	sandbox.Stop(ctx)
 //	err := sandbox.Resize(ctx, &types.Resources{CPU: 2, Memory: 4, Disk: 30})
 func (s *Sandbox) Resize(ctx context.Context, resources *types.Resources) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "Resize", func(ctx context.Context) error {
 		return s.ResizeWithTimeout(ctx, resources, 60*time.Second)
 	})
@@ -2230,7 +2543,6 @@ func (s *Sandbox) Resize(ctx context.Context, resources *types.Resources) error 
 //
 //	err := sandbox.ResizeWithTimeout(ctx, &types.Resources{CPU: 4, Memory: 8}, 2*time.Minute)
 func (s *Sandbox) ResizeWithTimeout(ctx context.Context, resources *types.Resources, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "ResizeWithTimeout", func(ctx context.Context) error {
 		return s.doResizeWithTimeout(ctx, resources, timeout)
 	})
@@ -2270,13 +2582,21 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 	}
 
 	authCtx := s.client.getAuthContext(ctx)
+	sub := s.subscribeForOperation()
+	defer sub.close()
 	sandboxResp, httpResp, err := s.client.apiClient.SandboxAPI.ResizeSandbox(authCtx, s.ID).ResizeSandbox(*resizeRequest).Execute()
 	if err != nil {
 		return errors.ConvertAPIError(err, httpResp)
 	}
-
-	// Update sandbox data from response
-	s.updateFromAPIResponse(sandboxResp)
+	// Older servers return no body, or one without a state: read the sandbox, as
+	// pause does. The cached state from before the request is a resize target, so
+	// keeping it would end the wait before the resize does. Taken after the
+	// subscription, the read stands in for the wait's first read.
+	if hasFreshState(sandboxResp) {
+		s.updateFromAPIResponse(sandboxResp)
+	} else if err := s.RefreshData(ctx); err != nil {
+		return err
+	}
 
 	var remainingTimeout time.Duration
 	if timeout == 0 {
@@ -2289,7 +2609,9 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 		}
 	}
 
-	return s.WaitForResize(ctx, remainingTimeout)
+	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForResize", func(ctx context.Context) error {
+		return s.doWaitForResize(ctx, remainingTimeout, sub)
+	})
 }
 
 // WaitForResize waits for the sandbox resize operation to complete.
@@ -2301,40 +2623,45 @@ func (s *Sandbox) doResizeWithTimeout(ctx context.Context, resources *types.Reso
 //
 //	err := sandbox.WaitForResize(ctx, 2*time.Minute)
 func (s *Sandbox) WaitForResize(ctx context.Context, timeout time.Duration) error {
-	s.ensureSubscribed()
 	return withInstrumentationVoid(ctx, s.otel, "Sandbox", "WaitForResize", func(ctx context.Context) error {
-		if timeout < 0 {
-			return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
-		}
+		return s.doWaitForResize(ctx, timeout, nil)
+	})
+}
 
-		if timeout > 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, timeout)
-			defer cancel()
-		}
+// doWaitForResize waits with sub, a subscription from subscribeForOperation, or
+// nil to take one.
+func (s *Sandbox) doWaitForResize(ctx context.Context, timeout time.Duration, sub *waitSubscription) error {
+	if timeout < 0 {
+		return errors.NewDaytonaError("Timeout must be a non-negative number", 0, nil)
+	}
 
-		errorStates := []apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED}
-		excludeSet := map[apiclient.SandboxState]bool{apiclient.SANDBOXSTATE_RESIZING: true}
-		for _, s := range errorStates {
-			excludeSet[s] = true
-		}
-		var targetStates []apiclient.SandboxState
-		for _, s := range apiclient.AllowedSandboxStateEnumValues {
-			if !excludeSet[s] {
-				targetStates = append(targetStates, s)
-			}
-		}
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 
-		err := s.waitForState(ctx, targetStates, errorStates, false)
-		if err != nil {
-			if stderrors.Is(err, context.DeadlineExceeded) {
-				return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox resize did not complete within %s", timeout))
-			}
-			if stderrors.Is(err, context.Canceled) {
-				return err
-			}
+	errorStates := []apiclient.SandboxState{apiclient.SANDBOXSTATE_ERROR, apiclient.SANDBOXSTATE_BUILD_FAILED}
+	excludeSet := map[apiclient.SandboxState]bool{apiclient.SANDBOXSTATE_RESIZING: true}
+	for _, st := range errorStates {
+		excludeSet[st] = true
+	}
+	var targetStates []apiclient.SandboxState
+	for _, st := range apiclient.AllowedSandboxStateEnumValues {
+		if !excludeSet[st] {
+			targetStates = append(targetStates, st)
+		}
+	}
+
+	err := s.waitForStateWith(ctx, targetStates, errorStates, false, sub)
+	if err != nil {
+		if stderrors.Is(err, context.DeadlineExceeded) {
+			return errors.NewDaytonaTimeoutError(fmt.Sprintf("Sandbox resize did not complete within %s", timeout))
+		}
+		if stderrors.Is(err, context.Canceled) {
 			return err
 		}
-		return nil
-	})
+		return err
+	}
+	return nil
 }

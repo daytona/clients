@@ -267,7 +267,12 @@ module Daytona
         end
         return if worker_rank.nil? && @parent.node_count > 1
 
-        raw = [DaytonaApiClient::SandboxNode.new(id: @parent.id, rank: worker_rank || 0, incarnation: 1, state: @parent.state,
+        # The parent applies the response's state only after this update, so take it from the response. One
+        # without a state (older servers) cannot describe the node; a later refresh will.
+        node_state = sandbox_dto.state if sandbox_dto.respond_to?(:state)
+        return if node_state.nil?
+
+        raw = [DaytonaApiClient::SandboxNode.new(id: @parent.id, rank: worker_rank || 0, incarnation: 1, state: node_state,
                                                  cpu: @parent.cpu.to_i, gpu: @parent.gpu.to_i,
                                                  memory: @parent.memory.to_i, disk: @parent.disk.to_i)]
       end

@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
@@ -176,3 +178,65 @@ def env_with_jwt(monkeypatch):
     monkeypatch.setenv("DAYTONA_ORGANIZATION_ID", "test-org-id")
     monkeypatch.setenv("DAYTONA_API_URL", "https://test.daytona.io/api")
     monkeypatch.setenv("DAYTONA_TARGET", "us")
+
+
+class FakeEventDispatcher:
+    """Event dispatcher stand-in that tracks listeners and the subscribe messages it would send."""
+
+    def __init__(self, connected: bool = True) -> None:
+        self.is_connected: bool = connected
+        self.connection_epoch: int = 1
+        self.listeners: dict[str, list[Any]] = {}
+        self.sent: list[tuple[str, str]] = []
+
+    def subscribe(self, resource_id: str, handler: Any, events: list[str]) -> Any:
+        del events
+        if resource_id not in self.listeners:
+            self.listeners[resource_id] = []
+            self.sent.append(("subscribe", resource_id))
+        self.listeners[resource_id].append(handler)
+
+        def unsubscribe() -> None:
+            handlers = self.listeners.get(resource_id, [])
+            if handler in handlers:
+                handlers.remove(handler)
+                if not handlers:
+                    del self.listeners[resource_id]
+                    self.sent.append(("unsubscribe", resource_id))
+
+        return unsubscribe
+
+    def is_served(self, resource_id: str) -> bool:
+        return resource_id in self.listeners
+
+    def is_event_backed(self, resource_id: str) -> bool:
+        return self.is_connected and self.is_served(resource_id)
+
+
+class OtelRecorder:
+    """Records the spans and duration metrics that the instrumentation decorators emit."""
+
+    def __init__(self) -> None:
+        self.spans: list[tuple[str, dict[str, Any]]] = []
+        self.metrics: list[tuple[str, dict[str, Any]]] = []
+
+    @contextlib.contextmanager
+    def start_as_current_span(self, name: str, attributes: dict[str, Any] | None = None) -> Iterator[MagicMock]:
+        self.spans.append((name, dict(attributes or {})))
+        yield MagicMock()
+
+    def create_histogram(self, name: str, **_kwargs: object) -> MagicMock:
+        histogram = MagicMock()
+        histogram.record.side_effect = lambda _value, labels: self.metrics.append((name, dict(labels)))
+        return histogram
+
+
+@pytest.fixture
+def otel_recorder(monkeypatch: pytest.MonkeyPatch) -> OtelRecorder:
+    from daytona._utils import otel_decorator
+
+    recorder = OtelRecorder()
+    monkeypatch.setattr(otel_decorator, "get_tracer", lambda: recorder)
+    monkeypatch.setattr(otel_decorator, "get_meter", lambda: recorder)
+    monkeypatch.setattr(otel_decorator, "_execution_histograms", {})
+    return recorder

@@ -101,10 +101,10 @@ public class Daytona implements AutoCloseable {
         @SuppressWarnings("deprecation")
         boolean legacyPolling = config.isUseDeprecatedPolling();
         if (!legacyPolling) {
+            // Connects lazily, when a state wait first subscribes to sandbox events.
             String eventSdkVersion = Daytona.class.getPackage().getImplementationVersion();
             this.eventDispatcher = new EventDispatcher(config.getApiUrl(), config.getApiKey(), null,
                     "sdk-java", eventSdkVersion != null ? eventSdkVersion : "dev");
-            this.eventDispatcher.ensureConnected();
         } else {
             this.eventDispatcher = null;
         }
@@ -223,7 +223,8 @@ public class Daytona implements AutoCloseable {
         io.daytona.api.client.model.Sandbox response = ExceptionMapper.callMain(() -> sandboxApi.createSandbox(body, null));
 
         String initialState = response.getState() != null ? response.getState().getValue() : "";
-        if (onSnapshotCreateLogs != null && "pending_build".equals(initialState)) {
+        boolean streamedBuildLogs = onSnapshotCreateLogs != null && "pending_build".equals(initialState);
+        if (streamedBuildLogs) {
             waitForBuildState(response.getId(), timeoutSeconds, startTime);
             try {
                 streamSandboxBuildLogs(response.getId(), onSnapshotCreateLogs, timeoutSeconds, startTime);
@@ -240,9 +241,13 @@ public class Daytona implements AutoCloseable {
             }
         }
 
-        Sandbox sandbox = new Sandbox(sandboxApi, config,
-                ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null)),
-                this::getAnalyticsApiUrl, subscriptionManager);
+        // The create response already carries the sandbox (a missing proxy URL is resolved by the
+        // constructor); re-read only when it lacks a state or went stale while build logs streamed.
+        io.daytona.api.client.model.Sandbox current = response.getState() != null && !streamedBuildLogs
+                ? response
+                : ExceptionMapper.callMain(() -> sandboxApi.getSandbox(response.getId(), null, null));
+        Sandbox sandbox = new Sandbox(sandboxApi, config, current, this::getAnalyticsApiUrl, subscriptionManager);
+        // The wait keeps its immediate read: older servers return a pre-wait state from create.
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
         long remaining = timeoutSeconds > 0 ? Math.max(1, timeoutSeconds - elapsed) : timeoutSeconds;
         sandbox.waitUntilStarted(remaining);
