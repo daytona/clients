@@ -6799,6 +6799,15 @@ export interface components {
              *     platform default image; omitted for a sandbox restored from a snapshot.
              */
             image?: null | components["schemas"]["ImageReference"];
+            /**
+             * @description Automatic timeout and idle-expiry behavior: the object
+             *     `GET /sandboxes/{id}` returns, as the create set it (on an idempotent
+             *     replay, as the sandbox has it now). Starting the sandbox restarts
+             *     `timeout_at` and `idle_timeout_at`, so after a start, even one `status`
+             *     already reports as `running`, `GET /sandboxes/{id}` returns the new
+             *     deadlines. Null when the policy could not be read.
+             */
+            lifecycle_policy?: null | components["schemas"]["LifecyclePolicy"];
             /** @description Sandbox name (caller-provided or the generated `sandbox-<short-id>`). */
             name: string;
             /**

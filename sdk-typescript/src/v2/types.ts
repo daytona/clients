@@ -401,6 +401,14 @@ export interface LifecyclePolicyOptions {
 export interface SandboxLifecycle {
   readonly timeoutSeconds?: number
   readonly onTimeout?: string
+  /**
+   * The current absolute timeout deadline. On a handle `create*()` returned,
+   * it is the value as the create set it. The server restarts the countdown
+   * and the idle clock when the sandbox first starts, which can happen after
+   * the create returned even when the handle's `state` already reads
+   * `started`; then it, `idleTimeoutAt` and `lastActivityAt` move, and
+   * `refreshData()` reads the new values.
+   */
   readonly timeoutAt?: string
   readonly idleExpirySeconds?: number
   readonly onIdleTimeout?: string

@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -153,4 +154,79 @@ func TestCreateResponseImageNameIsNotAnObservedID(t *testing.T) {
 	// Then
 	require.NoError(t, err)
 	require.Nil(t, sandbox.Info().Image)
+}
+
+func TestCreateResponseCarriesTheLifecyclePolicy(t *testing.T) {
+	for _, route := range createTestCases() {
+		t.Run(route.name, func(t *testing.T) {
+			// Given
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"POST " + route.path: jsonHandler(t, map[string]any{
+					"id": "sbx", "status": "pending", "toolbox_proxy_url": "https://toolbox.example.com",
+					"lifecycle_policy": map[string]any{
+						"timeout_seconds": 120, "on_timeout": "delete",
+						"timeout_at":          "2026-11-17T10:02:00.123456Z",
+						"idle_expiry_seconds": nil, "on_idle_timeout": nil, "idle_timeout_at": nil,
+						"wake_on_request":      false,
+						"last_activity_at":     "2026-11-17T10:00:00.123456Z",
+						"last_activity_source": "api",
+					},
+				}),
+			})
+			client := newTestClient(t, fake.Server)
+			// When
+			sandbox, err := route.call(t.Context(), client, &CreateFromSnapshotOptions{Wait: NoWait})
+			// Then
+			require.NoError(t, err)
+			policy := sandbox.Info().LifecyclePolicy
+			require.NotNil(t, policy)
+			require.Equal(t, 120*time.Second, *policy.Timeout)
+			require.Equal(t, LifecycleAction("delete"), policy.OnTimeout)
+			require.Equal(t, time.Date(2026, 11, 17, 10, 2, 0, 123456000, time.UTC), policy.TimeoutAt)
+			encoded, err := json.Marshal(sandbox.ToJSON())
+			require.NoError(t, err)
+			require.Contains(t, string(encoded), `"timeoutAt":"2026-11-17T10:02:00.123456Z"`)
+			// Read from the create response alone: no detail read.
+			require.Len(t, fake.requests(), 1)
+		})
+	}
+}
+
+func TestCreateResponseMalformedLifecyclePolicyIsAbsent(t *testing.T) {
+	valid := map[string]any{"timeout_seconds": 120, "on_timeout": "delete", "timeout_at": "2026-11-17T10:02:00Z"}
+	with := func(key string, value any) map[string]any {
+		out := map[string]any{}
+		for k, v := range valid {
+			out[k] = v
+		}
+		out[key] = value
+		return out
+	}
+	cases := map[string]any{
+		"null": nil, "string": "delete", "array": []any{},
+		"bad timestamp":      with("timeout_at", "not a timestamp"),
+		"mistyped integer":   with("timeout_seconds", map[string]any{}),
+		"out of int32 range": with("timeout_seconds", int64(1)<<31),
+		"mistyped action":    with("on_timeout", 5),
+	}
+	for _, route := range createTestCases() {
+		for name, lifecycle := range cases {
+			t.Run(route.name+"/"+name, func(t *testing.T) {
+				// Given
+				fake := newFakeServer(t, map[string]http.HandlerFunc{
+					"POST " + route.path: jsonHandler(t, map[string]any{
+						"id": "sbx", "status": "pending", "lifecycle_policy": lifecycle,
+					}),
+				})
+				client := newTestClient(t, fake.Server)
+				// When
+				sandbox, err := route.call(t.Context(), client, &CreateFromSnapshotOptions{Wait: NoWait})
+				// Then: the sandbox exists, so the policy is absent, never an error.
+				require.NoError(t, err)
+				require.Equal(t, "sbx", sandbox.ID())
+				require.Nil(t, sandbox.Info().LifecyclePolicy)
+				require.Len(t, fake.requests(), 1)
+			})
+		}
+	}
 }
