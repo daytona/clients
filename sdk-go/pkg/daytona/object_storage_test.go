@@ -494,8 +494,12 @@ func TestNewObjectStorageRegistersRetryBudget(t *testing.T) {
 // A stalled endpoint must be cut off by the budget rather than by the attempt count,
 // and the budget must cancel the attempt that is still in flight when it expires.
 func TestRetryBudgetBoundsStalledConnections(t *testing.T) {
+	// A stall costs one requestTimeout per attempt, so the budget fits about
+	// budget/requestTimeout attempts. Keep that well under uploadMaxAttempts: at
+	// exactly uploadMaxAttempts * requestTimeout the result depends on per-attempt
+	// overhead, which shrank in aws-sdk-go-v2 1.48.
 	const requestTimeout = 100 * time.Millisecond
-	const budget = time.Second
+	const budget = 500 * time.Millisecond
 
 	attempts, elapsed := countRetryAttempts(t, func(_ http.ResponseWriter, r *http.Request) {
 		<-r.Context().Done()
