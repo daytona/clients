@@ -206,10 +206,11 @@ jobs:
           # Typecheck require() and import of every subpath from a node16
           # CommonJS consumer (conditional types for the CJS build).
           cp -r "$pkgdir/scripts/cjs-types-fixture" .
-          npm install --no-audit --no-fund --no-save typescript@5 >/dev/null
+          npm install --no-audit --no-fund --no-save typescript@5 @types/node@22 >/dev/null
           # Plus strict consumers (skipLibCheck: false) importing only the root: the
-          # published declarations must resolve on their own (no #v0-loader, ws types).
-          for config in tsconfig.json tsconfig.node10.json tsconfig.bundler.json tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json; do npx tsc -p "cjs-types-fixture/$config"; done
+          # published declarations must resolve on their own (no #v0-loader, ws types),
+          # also in a Node-only project with no DOM lib (strict.node-only).
+          for config in tsconfig.json tsconfig.node10.json tsconfig.bundler.json tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json tsconfig.strict.node-only.json; do npx tsc -p "cjs-types-fixture/$config"; done
           # Expected failure: @daytona/sdk/v2 exports no client, not even as a
           # type. Each of the three type-only imports must be TS2305.
           if npx tsc -p cjs-types-fixture/tsconfig.no-v2-client.json > no-v2-client.log 2>&1; then echo '@daytona/sdk/v2 exports a client type' >&2; exit 1; fi
@@ -220,8 +221,8 @@ jobs:
           test "$(grep -cE "error TS(2305|2724)" no-v0-client-hint.log)" = 2 || { cat no-v0-client-hint.log >&2; exit 1; }
           if grep -q "Did you mean" no-v0-client-hint.log; then cat no-v0-client-hint.log >&2; exit 1; fi
           # The README's floor for strict root consumers is TypeScript 5.7.
-          npm install --no-audit --no-fund --no-save typescript@5.7 >/dev/null
-          for config in tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json; do npx tsc -p "cjs-types-fixture/$config"; done
+          npm install --no-audit --no-fund --no-save typescript@5.7 @types/node@22 >/dev/null
+          for config in tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json tsconfig.strict.node-only.json; do npx tsc -p "cjs-types-fixture/$config"; done
           # Browser bundles: @daytona/sdk/v2 alone (builders, types, errors),
           # which must contain no v0 code; and the root, whose browser
           # #v0-loader imports v0's ESM build statically so daytona.v0 works
