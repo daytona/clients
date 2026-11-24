@@ -1,0 +1,61 @@
+artifacts/sdk-docs/python-sdk/sync/daytona.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 221
+sdk-go/pkg/daytona/sandbox.go
+  s_10413bdfe4b841::t_5656b89f602a33 1577,1595
+artifacts/sdk-docs/typescript-sdk/sandbox.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 274,295
+sdk-ruby/lib/daytona/sandbox.rb
+  s_10413bdfe4b841::t_5656b89f602a33 422,434
+artifacts/sdk-docs/python-sdk/async/async-daytona.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 274
+sdk-python/src/daytona/_async/sandbox.py
+  s_10413bdfe4b841::t_5656b89f602a33 1032,1045
+sdk-python/src/daytona/_sync/daytona.py
+  s_10413bdfe4b841::t_5656b89f602a33 657
+artifacts/sdk-docs/go-sdk/daytona.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 4799,4831
+artifacts/sdk-docs/python-sdk/async/async-sandbox.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 525,541
+sdk-python/src/daytona/_sync/sandbox.py
+  s_10413bdfe4b841::t_5656b89f602a33 1048,1061
+sdk-python/src/daytona/handle/pty_handle.py
+  s_10413bdfe4b841::t_d91f5302ec7e80 275-278
+artifacts/sdk-docs/ruby-sdk/daytona.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 181,198-200
+sdk-typescript/src/Sandbox.ts
+  s_10413bdfe4b841::t_5656b89f602a33 967,980
+sdk-python/tests/test_pty_handle.py
+  s_10413bdfe4b841::t_d91f5302ec7e80 472-473
+artifacts/sdk-docs/python-sdk/sync/sandbox.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 524,540
+artifacts/sdk-docs/java-sdk/sandbox.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 157,172
+sdk-python/src/daytona/_async/daytona.py
+  s_10413bdfe4b841::t_5656b89f602a33 786
+artifacts/sdk-docs/ruby-sdk/sandbox.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 868,887
+sdk-typescript/src/Daytona.ts
+  s_10413bdfe4b841::t_5656b89f602a33 1109
+artifacts/sdk-docs/typescript-sdk/daytona.mdx
+  s_10413bdfe4b841::t_88ef6340ec5f75 231
+sdk-java/src/main/java/io/daytona/sdk/Sandbox.java
+  s_10413bdfe4b841::t_5656b89f602a33 399,412
+sdk-ruby/lib/daytona/daytona.rb
+  s_10413bdfe4b841::t_5656b89f602a33 135,145-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c93847df95b1e8516b8a8eb3563f67a1717aa42b",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
