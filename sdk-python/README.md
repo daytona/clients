@@ -89,12 +89,13 @@ with Daytona() as d:
 ```
 
 Requests cannot run once the interpreter is shutting down, so cleanup
-registered with `atexit` (or run from a finalizer) never works: the SDK
-refuses a request made from an `atexit` handler with `ClientClosedError`
-before sending it, with the sync or the async client. A request from another
-thread still running after the program ended (or while Python stops its
-thread pools at exit) raises the same error when it needs a thread pool
-Python has already stopped, such as for a DNS lookup.
+registered with `atexit` (or run by a finalizer at interpreter shutdown) never
+works: the SDK refuses a request made from an `atexit` handler with
+`ClientClosedError` before sending it, with the sync or the async client. A
+request or file transfer from another thread still running after the program
+ended (or while Python stops its thread pools at exit) raises the same error
+when it needs a thread pool Python has already stopped, such as for a DNS
+lookup or for writing a downloaded file.
 
 `d.v2` on the sync `Daytona` runs the async implementation on a private
 background event loop and blocks the calling thread. Calling it from inside a
@@ -1033,9 +1034,10 @@ id).
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
 set `atomic=True` to write through a temp file + rename. A `threading.Event`
 stops an upload or download as soon as it is set, from any thread, even while
-the transfer waits on the network. Any other object is checked every 50 ms
-while the transfer waits; an `asyncio.Event` set on the event loop running an
-`AsyncDaytona` transfer also stops it at once. `download_file()`
+the transfer waits on the network (on CPython 3.10 to 3.15; elsewhere, and for
+`Event` subclasses, it is checked every 50 ms). Any other object is checked
+every 50 ms while the transfer waits; an `asyncio.Event` set on the event loop
+running an `AsyncDaytona` transfer also stops it at once. `download_file()`
 streams to a unique temp file in the destination directory, renames it on
 success, reports progress with `Content-Length` when the server sends it, and
 removes that temp file on error or cancellation. `write_bytes()`,

@@ -296,6 +296,139 @@ def test_a_request_while_python_stops_its_thread_pools_is_typed() -> None:
     _assert_mapped(report, ["GET /sandboxes/sbx-1"])
 
 
+# A local server answering 200 (a download body, an empty upload reply) on an
+# IP literal, so the requests themselves need no DNS lookup: what fails after
+# the program ended is the async client's own file I/O on a thread pool.
+_FILE_SERVER = """
+import asyncio, json, os, sys, tempfile, threading, time
+sys.path.insert(0, {src!r})
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+HITS = []
+
+class Handler(BaseHTTPRequestHandler):
+    def _reply(self):
+        HITS.append(self.command + " " + self.path.split("?")[0])
+        length = int(self.headers.get("Content-Length") or 0)
+        if length:
+            self.rfile.read(length)
+        if self.path == "/build-contexts":
+            # A pending upload whose one part goes to a host name: the part
+            # upload needs a DNS lookup.
+            port = SERVER.server_address[1]
+            body = json.dumps({{
+                "id": "bc-1", "region_id": "r", "state": "pending",
+                "parts": [{{"part_number": 1, "bytes": 7, "url": "http://localhost:%d/part-1" % port}}],
+            }}).encode()
+        else:
+            body = b"hello" if self.command == "GET" else b"{{}}"
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream" if self.command == "GET" else "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    do_GET = do_POST = do_PUT = _reply
+
+    def log_message(self, *args):
+        pass
+
+SERVER = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+threading.Thread(target=SERVER.serve_forever, daemon=True).start()
+URL = "http://127.0.0.1:%d" % SERVER.server_address[1]
+WORK = tempfile.mkdtemp()
+
+from daytona.v2._transport import AsyncTransport
+
+def report(error=None):
+    print("RESULT " + json.dumps({{
+        "error": None if error is None else type(error).__name__,
+        "code": getattr(error, "code", None),
+        "message": None if error is None else str(error),
+        "cause": None if error is None or error.__cause__ is None else type(error.__cause__).__name__,
+        "hits": list(HITS),
+    }}), flush=True)
+
+async def call(operation):
+    transport = AsyncTransport(URL, "token")
+    try:
+        await operation(transport)
+    finally:
+        await transport.close()
+
+def after_exit(operation):
+    def worker():
+        deadline = time.monotonic() + 30
+        while threading.main_thread().is_alive() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        try:
+            asyncio.run(call(operation))
+        except Exception as error:
+            report(error)
+        else:
+            report()
+
+    threading.Thread(target=worker).start()
+"""
+
+
+def _run_file_io(body: str) -> Dict[str, object]:
+    script = _FILE_SERVER.format(src=str(ROOT / "src")) + textwrap.dedent(body)
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=60, check=False
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    reports = [
+        json.loads(line[len("RESULT ") :])
+        for line in result.stdout.splitlines()
+        if line.startswith("RESULT ")
+    ]
+    assert len(reports) == 1, result.stdout[-2000:] + result.stderr[-2000:]
+    return reports[0]
+
+
+def _assert_refused_file_io(report: Dict[str, object]) -> None:
+    assert report["error"] == "ClientClosedError", report
+    assert report["code"] == "CLIENT_CLOSED"
+    assert report["message"] == SHUTDOWN_REFUSAL
+    assert report["cause"] == "RuntimeError"
+
+
+def test_an_async_download_after_the_program_ended_is_typed() -> None:
+    report = _run_file_io(
+        """
+        from daytona.v2.filesystem import AsyncFileSystemService
+        after_exit(lambda t: AsyncFileSystemService(t).download_file("/r.bin", os.path.join(WORK, "out.bin")))
+        """
+    )
+    _assert_refused_file_io(report)
+    assert report["hits"] == ["GET /files/download"]
+
+
+def test_an_async_upload_after_the_program_ended_is_typed() -> None:
+    report = _run_file_io(
+        """
+        from daytona.v2.filesystem import AsyncFileSystemService
+        local = os.path.join(WORK, "in.bin")
+        with open(local, "wb") as handle:
+            handle.write(b"hello")
+        after_exit(lambda t: AsyncFileSystemService(t).upload_file(local, "/r.bin"))
+        """
+    )
+    _assert_refused_file_io(report)
+
+
+def test_an_async_build_context_upload_after_the_program_ended_is_typed() -> None:
+    report = _run_file_io(
+        """
+        from daytona.v2._context_upload import upload_build_context
+        after_exit(lambda t: upload_build_context(t, b"context", dockerfile="Dockerfile", region=None))
+        """
+    )
+    _assert_refused_file_io(report)
+    assert report["hits"] == ["POST /build-contexts"], "the part upload must not reach storage"
+
+
 @pytest.mark.parametrize(
     "message",
     [

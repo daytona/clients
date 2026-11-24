@@ -62,8 +62,8 @@ from ._filesystem_watch_events import (
     parse_watch_error,
 )
 from ._timestamps import parse_timestamp
-from ._transfer_cancel import TransferCancelWatch
 from ._transfer_cancel import raise_if_transfer_cancelled as _raise_if_transfer_cancelled
+from ._transfer_cancel import transfer_scope
 from ._transport import AsyncTransport
 from .errors import ConnectionError, DaytonaError, TransferCancelledError, create_error
 from .types import (
@@ -449,7 +449,7 @@ class AsyncFileSystemService:
         # The body generator observes `cancel` while it streams; once it is
         # exhausted the request is still in flight (server-side processing),
         # so the send itself is raced against the signal too.
-        async with TransferCancelWatch(cancel) as watch:
+        async with transfer_scope(cancel) as watch:
             await watch.run(
                 self._transport.request(
                     "POST",
@@ -486,7 +486,8 @@ class AsyncFileSystemService:
         total)`` reports progress (``total`` from ``Content-Length`` when the
         sandbox sends it); ``cancel`` is any object with ``is_set()`` and
         raises ``TransferCancelledError``: a ``threading.Event`` stops a
-        stalled transfer as soon as it is set, from any thread. Any other
+        stalled transfer as soon as it is set, from any thread (on CPython
+        3.10 to 3.15; elsewhere, and for subclasses, within 50 ms). Any other
         object is checked every 50 ms while the transfer waits on the network;
         an ``asyncio.Event`` set on the event loop running the async client's
         transfer also stops it at once.
@@ -497,7 +498,7 @@ class AsyncFileSystemService:
         progress_calls = 0
         temporary_path: Path | None = None
         _raise_if_transfer_cancelled(cancel, operation="download")
-        async with TransferCancelWatch(cancel) as watch:
+        async with transfer_scope(cancel) as watch:
             stream = await watch.run(
                 self._transport.open_stream(file_download_spec(remote_path, timeout=None)),
                 operation="download",

@@ -68,7 +68,8 @@ class FileSystemService:
         total)`` reports progress (``total`` from ``Content-Length`` when the
         sandbox sends it); ``cancel`` is any object with ``is_set()`` and
         raises ``TransferCancelledError``: a ``threading.Event`` stops a
-        stalled transfer as soon as it is set, from any thread. Any other
+        stalled transfer as soon as it is set, from any thread (on CPython
+        3.10 to 3.15; elsewhere, and for subclasses, within 50 ms). Any other
         object is checked every 50 ms while the transfer waits on the network;
         an ``asyncio.Event`` set on the event loop running the async client's
         transfer also stops it at once.

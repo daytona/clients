@@ -3,9 +3,9 @@
 
 """Race a file transfer's network waits against its cancel signal.
 
-A transfer with no signal awaits the network directly. A ``threading.Event``
-wakes the transfer when it is set, from any thread, with no periodic
-wake-ups. An ``asyncio.Event`` wakes it when set on the loop running the
+A transfer with no signal awaits the network directly. A plain
+``threading.Event`` on CPython 3.10 to 3.15 wakes the transfer when it is set,
+from any thread, with no periodic wake-ups; elsewhere it is polled. An ``asyncio.Event`` wakes it when set on the loop running the
 transfer; ``asyncio.Event.set()`` is not thread-safe and does not wake a loop
 it is called off, so the signal is also checked every ``POLL_SECONDS``. Any
 other object with ``is_set()`` cannot notify anyone and is checked every
@@ -20,10 +20,11 @@ import contextlib
 import sys
 import threading
 from types import TracebackType
-from typing import Awaitable, Callable, Final, Optional, Type, TypeVar
+from typing import AsyncIterator, Awaitable, Callable, Final, Optional, Type, TypeVar
 
 from typing_extensions import Self
 
+from ._shutdown import refusing_stopped_pools
 from .errors import TransferCancelledError
 from .types import TransferCancelSignal
 
@@ -105,7 +106,11 @@ class _ThreadEventWatch:
         ``Condition.wait()`` does. An event built any other way gets None
         here and is polled.
         """
-        if type(event) is not threading.Event or sys.version_info[:2] > _THREAD_EVENT_CHECKED_THROUGH:
+        if (
+            type(event) is not threading.Event
+            or sys.implementation.name != "cpython"
+            or sys.version_info[:2] > _THREAD_EVENT_CHECKED_THROUGH
+        ):
             return None
         condition = getattr(event, "_cond", None)
         if not isinstance(condition, threading.Condition):
@@ -115,14 +120,21 @@ class _ThreadEventWatch:
         return condition
 
     def start(self, event: threading.Event) -> None:
-        # The thread first: if it cannot start, nothing is left queued on the
-        # caller's event.
-        self.thread.start()
+        """Start watching ``event``; raises ``RuntimeError`` when no thread can start.
+
+        The thread starts first, so a failure leaves nothing queued on the
+        caller's event.
+        """
+        self._start_thread(self.thread)
         with self._condition:
             if event.is_set():
                 self._wake.release()
             else:
                 self._condition._waiters.append(self._wake)  # type: ignore[attr-defined]
+
+    @staticmethod
+    def _start_thread(thread: threading.Thread) -> None:
+        thread.start()
 
     def _run(self) -> None:
         self._wake.acquire()
@@ -185,7 +197,12 @@ class TransferCancelWatch:
                     loop.call_soon_threadsafe(resolve)
 
             watch = _ThreadEventWatch(condition, on_set)
-            watch.start(cancel)  # type: ignore[arg-type]
+            try:
+                watch.start(cancel)  # type: ignore[arg-type]
+            except RuntimeError:
+                # No thread can start (a thread limit, interpreter shutdown):
+                # the event is polled like any other is_set() object.
+                return self
             self._thread_watch = watch
             self._notifier = self._notified = notified
         return self
@@ -228,3 +245,13 @@ class TransferCancelWatch:
             task.cancel()
             await _settle(task)
             raise
+
+
+@contextlib.asynccontextmanager
+async def transfer_scope(cancel: Optional[TransferCancelSignal]) -> AsyncIterator[TransferCancelWatch]:
+    """One file transfer: its cancel watch, with a stopped thread pool at
+    interpreter shutdown (the transfer's file I/O runs on one) raised as the
+    shutdown ``ClientClosedError``, as the transport's requests are."""
+    with refusing_stopped_pools():
+        async with TransferCancelWatch(cancel) as watch:
+            yield watch

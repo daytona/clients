@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import types
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
@@ -135,6 +136,39 @@ async def test_a_threading_event_with_unknown_internals_falls_back_to_polling(in
     async with TransferCancelWatch(cancel) as watch:
         assert watch.polling is True
     assert _helper_threads() == []
+
+
+@pytest.mark.anyio
+async def test_a_threading_event_on_another_implementation_falls_back_to_polling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(transfer_cancel.sys, "implementation", types.SimpleNamespace(name="pypy"))
+    async with TransferCancelWatch(threading.Event()) as watch:
+        assert watch.notifies is False
+        assert watch.polling is True
+    assert _helper_threads() == []
+
+
+@pytest.mark.anyio
+async def test_a_threading_event_falls_back_to_polling_when_no_thread_can_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", 0.001)
+
+    def refuse(thread: threading.Thread) -> None:
+        raise RuntimeError("can't start new thread")
+
+    monkeypatch.setattr(transfer_cancel._ThreadEventWatch, "_start_thread", staticmethod(refuse))
+    cancel = threading.Event()
+    async with TransferCancelWatch(cancel) as watch:
+        assert watch.notifies is False
+        assert watch.polling is True
+        assert not cancel._cond._waiters  # type: ignore[attr-defined]
+        step = asyncio.ensure_future(watch.run(asyncio.Event().wait(), operation="download"))
+        await asyncio.sleep(0.01)
+        cancel.set()
+        with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
+            await asyncio.wait_for(step, timeout=_BOUND)
 
 
 @pytest.mark.anyio
