@@ -110,6 +110,19 @@ async def test_other_signals_fall_back_to_polling(cancel: object) -> None:
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("internals", ["no condition", "no waiter queue"])
+async def test_a_threading_event_with_unknown_internals_falls_back_to_polling(internals: str) -> None:
+    cancel = threading.Event()
+    if internals == "no condition":
+        cancel._cond = object()  # type: ignore[attr-defined]
+    else:
+        cancel._cond._waiters = []  # type: ignore[attr-defined]
+    async with TransferCancelWatch(cancel) as watch:
+        assert watch.polling is True
+    assert _helper_threads() == []
+
+
+@pytest.mark.anyio
 async def test_asyncio_event_cancels_a_stalled_download_without_polling(
     tmp_path: Path, no_polling: None
 ) -> None:
@@ -208,7 +221,7 @@ async def test_an_is_set_only_signal_still_cancels_a_stalled_download(
 
 @pytest.mark.anyio
 async def test_an_asyncio_event_bound_to_another_loop_falls_back_to_polling(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(transfer_cancel, "POLL_SECONDS", 0.001)
     cancel = asyncio.Event()
@@ -218,15 +231,20 @@ async def test_an_asyncio_event_bound_to_another_loop_falls_back_to_polling(
             await asyncio.wait_for(cancel.wait(), timeout=0.001)
 
     await asyncio.to_thread(asyncio.run, bind())
-    stream = NeverYieldingDownloadStream()
-    fs = AsyncFileSystemService(DownloadTransport(stream))  # type: ignore[arg-type]
-    task = asyncio.create_task(fs.download_file("/remote.bin", tmp_path / "out.bin", cancel=cancel))
-    await asyncio.wait_for(stream.started.wait(), timeout=_BOUND)
+    stalled = asyncio.Event()
+    async with TransferCancelWatch(cancel) as watch:
+        assert watch.polling is False
+        step = asyncio.create_task(watch.run(stalled.wait(), operation="download"))
+        # The notifier fails (the event belongs to the other loop) while the
+        # signal reads unset: the watch checks the signal by polling instead.
+        while not watch.polling:
+            await asyncio.sleep(0)
+        assert not step.done()
 
-    cancel.set()
+        cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
-        await asyncio.wait_for(task, timeout=_BOUND)
+        with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
+            await asyncio.wait_for(step, timeout=_BOUND)
 
 
 @pytest.mark.anyio
