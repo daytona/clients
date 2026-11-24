@@ -1,0 +1,60 @@
+sdk-typescript/src/v2/ProcessWire.ts
+  s_1c8257112609a8::t_06a3eec42df984 70-72,80-87
+  s_1c8257112609a8::t_cee23607a1350b 88
+sdk-python/src/daytona/v2/process.py
+  s_1c8257112609a8::t_0ce5cd5007e317 30,288-289,309-313,319-321,338-339
+sdk-go/process_wait_r3_test.go
+  s_1c8257112609a8::t_79fa6e6c1ee944 9,49-85
+  s_1c8257112609a8::t_f91cbedd068515 8,11,17-37,39-40,42-48
+sdk-go/README.md
+  s_1c8257112609a8::t_4199e5ce9d122a 217-221
+  s_1c8257112609a8::t_901a6842931928 214-216
+changelog.d/538-process-run-wait.fixed.md
+  s_1c8257112609a8::t_1655c9090ee426 3-4
+  s_1c8257112609a8::t_4199e5ce9d122a 2
+sdk-python/src/daytona/v2/_sync/process.py
+  s_1c8257112609a8::t_e27faa35eb471d 134-135
+changelog.d/process-wait-rounds.fixed.md
+  s_1c8257112609a8::t_4199e5ce9d122a 2-12
+AGENTS.md
+  s_1c8257112609a8::t_aa183163da1648 601-602,764-767
+sdk-go/process_cubic_wait_test.go
+  s_1c8257112609a8::t_f91cbedd068515 15,17-18,35-57
+sdk-typescript/tests/toolbox-frozen-results.test.ts
+  s_1c8257112609a8::t_0698d3bbcf871d 188-189
+sdk-python/src/daytona/v2/_core.py
+  s_1c8257112609a8::t_0ce5cd5007e317 1136-1138,1150-1156,1263-1267,1276
+sdk-typescript/tests/unit.test.ts
+  s_1c8257112609a8::t_0698d3bbcf871d 5119-5121,5123,5127-5132,5903,5913,9077
+sdk-python/src/daytona/v2/_transport.py
+  s_1c8257112609a8::t_0ce5cd5007e317 1179-1180,1186,1263
+sdk-go/process_wait.go
+  s_1c8257112609a8::t_8efc7938d330b5 18-20,26-27,95-99
+sdk-python/tests/test_core.py
+  s_1c8257112609a8::t_c992b8d3382d6e 8734,8739-8740,8742,8746
+  s_1c8257112609a8::t_b1a97b1fbd0e77 8743
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_1c8257112609a8::t_06a3eec42df984 15,148,169-173,176,182
+sdk-typescript/tests/process-wait-rounds.test.ts
+  s_1c8257112609a8::t_f550e95f3d07cc 99,133-159
+  s_1c8257112609a8::t_acd989576ee24e 160
+sdk-python/tests/test_process_wait_rounds.py
+  s_1c8257112609a8::t_b1a97b1fbd0e77 130,190-230
+  s_1c8257112609a8::t_429afb8f7b5798 231-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81a9d84cbcda2f46bde66cd6f426b1c41b5a3b90",
+  "prompts": {},
+  "sessions": {
+    "s_1c8257112609a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1bf4bd9ffeVE6HXMU1d1usNI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
