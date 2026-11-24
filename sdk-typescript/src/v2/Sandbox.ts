@@ -817,9 +817,11 @@ export class Sandbox {
 
   /**
    * Fork this sandbox and return the fork handle. Only a persistent sandbox
-   * can be forked: one that is not (`persistent` on the handle) is refused
-   * with `ConflictError` (409). The SDK's Linux creates do not ask for
-   * persistence; `createMacos()` takes `persistent: true`.
+   * can be forked: one that is not (`persistent` on the handle), or one with
+   * an attached volume, is refused with `ConflictError` (409). The SDK's Linux
+   * creates do not ask for persistence, so a Linux sandbox is persistent only
+   * where the platform created it that way; `createMacos()` takes
+   * `persistent: true`.
    *
    * By default the fork continues from the source's memory (running processes
    * included). `memory: false` copies only the disk, after which the fork boots
@@ -1156,8 +1158,10 @@ export class Sandbox {
   /**
    * Capture this sandbox, memory and disk, as a new {@link Snapshot}
    * (`POST /sandboxes/{id}/snapshots`). Linux sandboxes only, and only while
-   * running: a macOS sandbox throws `NotSupportedForClassError` (409; pausing
-   * it keeps its memory instead, or capture its disk with `captureImage()`).
+   * running: a macOS sandbox throws `NotSupportedForClassError` (409). For a
+   * persistent macOS sandbox, pausing it keeps its memory instead, and
+   * `captureImage()` captures its disk once it is stopped; a macOS sandbox
+   * that is not persistent has neither option.
    * The API also refuses with `ConflictError` (409) a sandbox that is not
    * running, one with an attached volume, and one whose saved state the
    * platform cannot resume (it booted the sandbox in a shape that cannot be

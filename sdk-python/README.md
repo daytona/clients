@@ -726,7 +726,7 @@ permanent image from a sandbox; `sandbox.capture_image(idle_expiry_seconds=3600)
 captures an anonymous one that is deleted after that long unused (idle expiry
 applies only to anonymous images: passing both is a 400). Wait for either with
 `images.get(image.id, wait="ready")`. `sandbox.create_snapshot(name)` captures a snapshot of a running Linux sandbox, memory included. A macOS sandbox cannot be
-snapshotted (pausing it keeps its memory), and the API answers 409 for a
+snapshotted (pausing a persistent one keeps its memory), and the API answers 409 for a
 sandbox with an attached volume or one the platform cannot resume. Both need
 `write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
 they raise `ForbiddenError` (403).
@@ -896,7 +896,8 @@ deleted, and `"none"` keeps no log. `process.start()` returns a detached
 `ProcessHandle` with `logs()`,
 `stream_logs()`, `wait()`, `write_stdin()`, `close_stdin()`, signal-aware `kill()`,
 `delete()` and `resize()`. `write_stdin()` is for exec and PTY handles only,
-`close_stdin()` (EOF) for exec handles only: a PTY refuses it, so write
+`close_stdin()` (EOF) for exec handles only: on a PTY the sandbox answers
+`BadRequestError` (400), so write
 `"\x04"` (Ctrl-D) to end a PTY's input instead (that works in the terminal's
 default canonical mode at the start of a line; a raw-mode program reads the
 byte as data). `stream_logs()` yields one `StreamLogEvent` per server
@@ -914,8 +915,8 @@ With `encoding="base64"`, `logs()` and `stream_logs()` return each frame's
 `execution_timeout=` is the process deadline **(seconds)** for server-managed
 runs that support one (omitted or `0`: no deadline); `kill(escalate_after=)` is in seconds too. Signals are
 bare names (`"TERM"`), in `kill()` and in what `wait()` and `get()` report.
-`kill()` sends `TERM` by default, which an interactive shell (a PTY running
-`bash`, for example) ignores: stop one with `signal="HUP"` or `"KILL"`, or
+`kill()` sends `TERM` by default, which an interactive shell (a PTY's default
+shell, from `pty.start()` with no command) ignores: stop one with `signal="HUP"` or `"KILL"`, or
 pass `escalate_after=` to follow `TERM` with `KILL`.
 
 Handles come from the SDK, never from a constructor: `handle.to_json()` returns
@@ -1105,10 +1106,10 @@ the context is created. If an explicit named
 context vanished, `interpreter.run(..., context=...)` / `context.run()` surface
 the typed `SessionNotFoundError`; recreate the context yourself and decide what
 to rerun. `timeout=` is enforced client-side **(seconds)**: on expiry the SDK
-interrupts the kernel (like ^C) and then waits about 10 more seconds for the
-run to stop before returning the interrupted result, so a run takes longer
-than `timeout`: about 10 seconds longer, or up to about 20 when the sandbox
-cannot take the interrupt at once and the SDK keeps retrying it. Results are split into `results[]`, `logs{stdout,stderr}`,
+interrupts the kernel (like ^C) and waits up to about 10 more seconds for the
+run to stop before returning the interrupted result, so a run can take up to
+about 10 seconds longer than `timeout` (up to about 20 when the sandbox cannot
+take the interrupt at once and the SDK keeps retrying it). Results are split into `results[]`, `logs{stdout,stderr}`,
 `error`, and `process`. That rich result shape comes from the interpreter run
 path itself; reconnecting a serialized code-process handle later does not
 recreate it.
@@ -1248,7 +1249,7 @@ an error. The server decides which lifecycle actions the sandbox supports:
 `0` skips waiting, and a value above about 24.8 days waits with no deadline;
 the fork's detail read counts against a finite budget. Like create,
 fork returns its handle once the fork request succeeded, however the wait
-ends. A running Linux source produces a running fork; otherwise
+ends. A running persistent Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.

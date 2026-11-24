@@ -108,7 +108,7 @@ func (h *ProcessHandle) Write(ctx context.Context, data []byte) (int, error) {
 }
 
 // CloseStdin sends EOF. It is separate from deleting or disconnecting the process.
-// A PTY refuses it: write "\x04" (Ctrl-D) instead, which ends the input in the
+// On a PTY the sandbox answers 400 (ErrBadRequest): write "\x04" (Ctrl-D) instead, which ends the input in the
 // terminal's default (canonical) mode at the start of a line; a program that
 // puts the terminal in raw mode receives the byte as data.
 func (h *ProcessHandle) CloseStdin(ctx context.Context) error {

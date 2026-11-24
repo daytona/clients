@@ -1,1 +1,0 @@
-**Operational notes** — search ordering and lag, volume name vs id rules, If-Match errors, Docker `off` with an entrypoint-started daemon, TERM vs interactive shells, tagged sessions in `kill_all()`, asyncio-only support in Python, and computer-use availability are documented.

@@ -1,1 +1,0 @@
-**CLI README** — documents MiB vs GiB and `--cpu` vs `--cores` across surfaces, that cursor tokens belong to the command that printed them, that `CI` does not change table output, and that lifecycle deadlines are not exact times.

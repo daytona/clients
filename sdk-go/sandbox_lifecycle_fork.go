@@ -24,9 +24,10 @@ type ForkOptions struct {
 }
 
 // Fork copies this sandbox and returns the fork's last observed handle.
-// Only a persistent sandbox (Info().Persistent) can stop, pause, resume or fork;
-// on one that is not, the API answers 409 (ErrConflict). Linux creates do not ask
-// for persistence; CreateMacOS can.
+// Only a persistent sandbox (Info().Persistent) without attached volumes can
+// fork; otherwise the API answers 409 (ErrConflict). Linux creates do not ask for
+// persistence, so a Linux sandbox is persistent only where the platform created
+// it that way; CreateMacOS can.
 // A running
 // source waits for Started; a paused Linux memory fork waits for Paused; all
 // other forks wait for Stopped. Waiting forks refresh the source before POST.

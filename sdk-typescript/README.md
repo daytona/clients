@@ -647,7 +647,7 @@ image from a sandbox; `sandbox.captureImage({ idleExpirySeconds: 3600 })`
 captures an anonymous one that is deleted after that long unused (idle expiry
 applies only to anonymous images: passing both is a 400). Wait for either with
 `images.get(image.id, { wait: 'ready' })`. `sandbox.createSnapshot(name)` captures a snapshot of a running Linux sandbox, memory included. A macOS sandbox cannot be
-snapshotted (pausing it keeps its memory), and the API answers 409 for a
+snapshotted (pausing a persistent one keeps its memory), and the API answers 409 for a
 sandbox with an attached volume or one the platform cannot resume. Both need
 `write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
 they throw `ForbiddenError` (403).
@@ -813,7 +813,8 @@ deleted, and `'none'` keeps no log.
 on any worker (`process.connect(json or id)`); handles come from the SDK,
 never from a constructor. Handles offer cursor-replayable `logs()`,
 `streamLogs()` with resume, `wait()`, `writeStdin()` for exec and pty handles,
-`closeStdin()` (EOF) for exec handles (a pty refuses it: write `'\x04'`,
+`closeStdin()` (EOF) for exec handles (on a pty the sandbox answers
+`BadRequestError` (400): write `'\x04'`,
 Ctrl-D, to end its input in the terminal's default canonical mode at the start
 of a line; a raw-mode program reads the byte as data), `delete()` (stopping it first if running; a running interpreter
 execution, or a session command that does not stop within 5 s, is refused:
@@ -834,8 +835,8 @@ deadline for server-managed runs that support one (omitted or `0`: no
 deadline), and
 `kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
 (`'TERM'`), in `kill()` and in what `wait()` and `get()` report. `kill()` sends
-`TERM` by default, which an interactive shell (a pty running `bash`, for
-example) ignores: stop one with `{ signal: 'HUP' }` or `'KILL'`, or pass
+`TERM` by default, which an interactive shell (a pty's default shell, from
+`pty.start()` with no command) ignores: stop one with `{ signal: 'HUP' }` or `'KILL'`, or pass
 `escalateAfterSeconds` to follow `TERM` with `KILL`. Reconnected
 `kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
 `kill()`), not a way to recover a parsed `InterpreterResult` on another worker.
@@ -1027,11 +1028,11 @@ takes no `env`: set it when the context is created. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
 `timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded): on
-expiry the SDK interrupts the kernel (like ^C) and then waits about 10 more
+expiry the SDK interrupts the kernel (like ^C) and waits up to about 10 more
 seconds for the run to stop before returning the interrupted result, so a run
-takes longer than `timeoutSeconds`: about 10 seconds longer, or up to about 20
+can take up to about 10 seconds longer than `timeoutSeconds` (up to about 20
 when the sandbox cannot take the interrupt at once and the SDK keeps retrying
-it. Results are split into
+it). Results are split into
 `results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
@@ -1174,7 +1175,7 @@ read. Caller cancellation still propagates; a cancelled create may already
 have created a sandbox. A raised create or fork means the request itself failed, except for
 `SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
 carry the idempotency key because a sandbox may exist), caller cancellation,
-and an unexpected non-SDK error during the wait. A running Linux source produces a running fork; otherwise
+and an unexpected non-SDK error during the wait. A running persistent Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.

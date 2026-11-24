@@ -1405,10 +1405,11 @@ class AsyncSandbox:
         """Fork this sandbox and return the fork's handle.
 
         Only a persistent sandbox can be forked: one that is not
-        (``persistent`` on the handle) is refused with :class:`ConflictError`
-        (409). The SDK's Linux creates do
-        not ask for persistence; :meth:`AsyncDaytona.create_macos` takes
-        ``persistent=True``.
+        (``persistent`` on the handle), or one with an attached volume, is
+        refused with :class:`ConflictError` (409). The SDK's Linux creates do
+        not ask for persistence, so a Linux sandbox is persistent only where
+        the platform created it that way; :meth:`AsyncDaytona.create_macos`
+        takes ``persistent=True``.
 
         By default the fork continues from the source's memory (running
         processes included). ``memory=False`` copies only the disk, and the
@@ -1423,8 +1424,8 @@ class AsyncSandbox:
         no deadline) bounds the wait for the state the fork settles in: a fork of
         a running source waits for ``started``, even if a macOS fork is
         temporarily ``stopped`` while its source releases the disk. A fork of
-        a paused or stopped macOS source waits for ``stopped``. Linux forks
-        otherwise rest ``paused`` for a memory fork of a paused source, else
+        a paused or stopped macOS source waits for ``stopped``. Forks of a
+        persistent Linux source otherwise rest ``paused`` for a memory fork of a paused source, else
         ``stopped`` (call ``start()``). Like ``create()``, ``fork()`` never raises
         because of how the wait ended: the default 60-second budget may return
         a not-yet-started handle. When the budget runs out or the fork fails,
@@ -1766,8 +1767,10 @@ class AsyncSandbox:
         (``POST /sandboxes/{id}/snapshots``).
 
         Linux sandboxes only, and only while running: a macOS sandbox raises
-        :class:`NotSupportedForClassError` (409; pausing it keeps its memory
-        instead, or capture its disk with :meth:`capture_image`). The API also
+        :class:`NotSupportedForClassError` (409). For a persistent macOS
+        sandbox, pausing it keeps its memory instead, and :meth:`capture_image`
+        captures its disk once it is stopped; a macOS sandbox that is not
+        persistent has neither option. The API also
         refuses with :class:`ConflictError` (409) a sandbox that is not
         running, one with an attached volume, and one whose saved state the
         platform cannot resume (it booted the sandbox in a shape that cannot be

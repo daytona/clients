@@ -355,8 +355,9 @@ never prompts:
   --auto-renew=true`) prompt at a
   terminal; in non-interactive mode (no terminal, `-o json|yaml`, or `CI`
   set) they refuse unless `--yes` or `DAYTONA_YES=1` is given, before
-  anything reaches the server. `CI` turns off prompts only: at a terminal the
-  default output is still a table, so scripts pass `-o json` explicitly. `daytona config set confirm false`
+  anything reaches the server. `CI` makes the CLI non-interactive but does not
+  change the output format: at a terminal it is still a table, so scripts
+  pass `-o json` explicitly. `daytona config set confirm false`
   turns the terminal prompts off; it never consents off a terminal.
 - Every list returns one page and prints the list envelope. `--limit` (1 to
   200, default 100; the billing lists have their own: `billing balances`,

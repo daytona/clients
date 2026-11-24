@@ -1,1 +1,0 @@
-**Filesystem** — `glob()` is documented to match directories and the root, with only `*` and `?`; `list()` documents its depth range (1–32) and its 10,000-entry refusal; uploads without `atomic=True` document that a cancelled upload can leave the destination truncated.

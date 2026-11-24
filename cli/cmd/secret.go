@@ -99,8 +99,8 @@ func newSecretSetCmd() *cobra.Command {
 	cmd.Flags().StringVar(&value, "value", "", "secret value on the command line — visible to other local users via the process list and shell history; prefer --stdin or --from-file")
 	cmd.Flags().StringVar(&fromFile, "from-file", "", "read the secret value from a file; strips exactly one trailing newline (or CRLF)")
 	cmd.Flags().BoolVar(&useStdin, "stdin", false, "read the secret value from stdin; strips exactly one trailing newline (or CRLF)")
-	cmd.Flags().Var((*secretDomainFlag)(&allowedDomains), "allowed-domain", "hosts where this secret's value may be sent (repeatable or comma-separated; no empty entries; required when creating or when the existing secret has none; omitted otherwise keeps the existing secret's), or '*' to remove domain restrictions; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
-	cmd.Flags().StringVar(&description, "description", "", "secret description (omitted keeps an existing secret's; set to an empty string to clear it)")
+	cmd.Flags().Var((*secretDomainFlag)(&allowedDomains), "allowed-domain", "hosts where this secret's value may be sent (repeatable or comma-separated; no empty entries; required when creating or when the existing secret has none; omitted otherwise keeps the existing secret's allowed domains), or '*' to remove domain restrictions; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
+	cmd.Flags().StringVar(&description, "description", "", "secret description (omitted keeps an existing secret's description; set to an empty string to clear it)")
 	return cmd
 }
 
