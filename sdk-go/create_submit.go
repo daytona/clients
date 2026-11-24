@@ -126,6 +126,9 @@ func (c *Client) parseCreated(raw JSONValue, prepared preparedCreate) (*Sandbox,
 			State: sandboxState(status), RawState: status,
 			Class: prepared.class, RawClass: string(prepared.class), Region: prepared.body.Region,
 			ReservationID: createResponseText(object, "reservation_id"),
+			// The lifecycle policy as the create set it. A malformed one is
+			// absent, never an error: the sandbox exists.
+			LifecyclePolicy: createResponseLifecycle(object),
 		},
 		ToolboxURL: createResponseToolboxURL(object, id), FromCreate: true,
 	}
@@ -161,6 +164,14 @@ func setCreateCredential(init *sandboxInit, object jsonObject) {
 	if parsed, err := parseTimestamp(expiry); err == nil {
 		init.AccessTokenExpiresAt = parsed
 	}
+}
+
+func createResponseLifecycle(object jsonObject) *LifecyclePolicy {
+	policy, err := parseLifecycle(object["lifecycle_policy"])
+	if err != nil {
+		return nil
+	}
+	return policy
 }
 
 func createResponseText(object jsonObject, name string) string {
