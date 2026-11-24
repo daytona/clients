@@ -8,5 +8,5 @@
     "skipLibCheck": false,
     "types": ["node"]
   },
-  "files": ["node-only.mts"]
+  "files": ["node-only.mts", "node-only.cts"]
 }

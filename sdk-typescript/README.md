@@ -30,8 +30,8 @@ needs TypeScript 5.7 or later (and `esModuleInterop` under node10 / CommonJS
 resolution, as for the 0.x SDK): the root's `daytona.v0` type comes from the
 vendored v0 SDK, whose declarations use generic `Uint8Array<…>` and a default
 import of `isomorphic-ws`. A Node-only project does not need the `dom` lib:
-`@types/node` (20 or later) declares the fetch and abort-signal types the
-declarations use.
+`@types/node` declares the web types the declarations use from 20.16.3 on
+the 20.x line and from 22.5.2 on the 22.x line (every 24.x release works).
 
 ## Quickstart
 

@@ -59,3 +59,24 @@ it('compiles the published declarations without the DOM lib', () => {
     .map((diagnostic) => `${diagnostic.file ? diagnostic.file.fileName.slice(dirname(outDir).length + 1) : ''}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`)
   expect(errors).toEqual([])
 }, 120_000)
+
+// Types the DOM lib declares that older `@types/node` releases lack: the
+// compile above uses the devDependency's `@types/node`, which declares
+// `DOMException` and the fetch types, so it cannot see these.
+const DOM_ONLY = new Set(['AddEventListenerOptions', 'EventListenerOptions', 'BodyInit', 'DOMException'])
+
+it('names no DOM-only type in a published declaration', () => {
+  const { outDir, files } = emittedDeclarations()
+  const found: string[] = []
+  for (const [fileName, text] of files) {
+    const visit = (node: ts.Node): void => {
+      const reference = ts.isTypeReferenceNode(node) ? node.typeName : ts.isExpressionWithTypeArguments(node) ? node.expression : undefined
+      if (reference !== undefined && ts.isIdentifier(reference) && DOM_ONLY.has(reference.text)) {
+        found.push(`${fileName.slice(outDir.length + 1)}: ${reference.text}`)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2022, true))
+  }
+  expect(found).toEqual([])
+}, 120_000)

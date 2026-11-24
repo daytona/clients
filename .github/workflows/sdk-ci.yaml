@@ -223,6 +223,15 @@ jobs:
           # The README's floor for strict root consumers is TypeScript 5.7.
           npm install --no-audit --no-fund --no-save typescript@5.7 @types/node@22 >/dev/null
           for config in tsconfig.strict.node10.json tsconfig.strict.node16.json tsconfig.strict.bundler.json tsconfig.strict.node-only.json; do npx tsc -p "cjs-types-fixture/$config"; done
+          # And the README's @types/node floor for Node-only projects (no DOM lib):
+          # 20.16.3 on the 20 line, 22.5.2 on the 22 line: the first releases that
+          # declare every web global the published declarations name, the bundled
+          # v0's and axios' included. Checked with TypeScript 5.7: TypeScript 5.9
+          # needs a newer @types/node 20.x / 22.x on its own (Buffer vs Uint8Array).
+          for types in 20.16.3 22.5.2; do
+            npm install --no-audit --no-fund --no-save typescript@5.7 "@types/node@$types" >/dev/null
+            npx tsc -p cjs-types-fixture/tsconfig.strict.node-only.json
+          done
           # Browser bundles: @daytona/sdk/v2 alone (builders, types, errors),
           # which must contain no v0 code; and the root, whose browser
           # #v0-loader imports v0's ESM build statically so daytona.v0 works

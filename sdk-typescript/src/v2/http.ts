@@ -198,9 +198,9 @@ type HeaderGetter = {
   get(name: string): unknown
 }
 
-// Structural, with no DOM-only names (AddEventListenerOptions, BodyInit): these
-// types reach the published declarations, which Node-only consumers compile
-// without the DOM lib.
+// Structural, with no DOM-only names (AddEventListenerOptions, BodyInit,
+// DOMException): these types reach the published declarations, which
+// Node-only consumers compile without the DOM lib.
 type AbortSignalLike = {
   readonly aborted: boolean
   addEventListener?: (type: 'abort', listener: () => void, options?: boolean | { readonly once?: boolean }) => void
@@ -338,11 +338,11 @@ function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error:
  * reject with their own `Error` subclass, and a `DOMException` from another
  * realm fails `instanceof` against this one.
  */
-export function isAbortError(error: unknown): error is DOMException | Error {
+export function isAbortError(error: unknown): error is Error {
   return errorName(error) === 'AbortError'
 }
 
-function abortErrorFromSignal(signal: AbortSignalLike | undefined): DOMException | Error | undefined {
+function abortErrorFromSignal(signal: AbortSignalLike | undefined): Error | undefined {
   return isAbortError(signal?.reason) ? signal.reason : undefined
 }
 

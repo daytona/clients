@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// Typechecked by a Node-only consumer: lib es2022 with no DOM, the Node types,
-// skipLibCheck: false. No published declaration may name a DOM-only type
-// (AddEventListenerOptions, BodyInit, ...).
+// Typechecked by a Node-only consumer (ESM; node-only.cts is the CommonJS
+// half): lib es2022 with no DOM, the Node types, skipLibCheck: false. No
+// published declaration may name a DOM-only type (AddEventListenerOptions,
+// BodyInit, DOMException, ...).
 import { Daytona, DaytonaNotFoundError } from '@daytona/sdk'
 import * as v2 from '@daytona/sdk/v2'
 
