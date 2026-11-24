@@ -25,6 +25,7 @@ from daytona.v2._shutdown import (
     SHUTDOWN_REFUSAL,
     interpreter_shutting_down,
     refuse_during_interpreter_shutdown,
+    refusing_stopped_pools,
     shutdown_refusal_for,
 )
 from daytona.v2.errors import ClientClosedError
@@ -339,3 +340,21 @@ def test_a_finalizing_interpreter_refuses_every_request(monkeypatch: pytest.Monk
         ClientClosedError,
     )
     assert shutdown_refusal_for(RuntimeError("some other failure")) is None
+
+
+def test_refusing_stopped_pools_maps_only_a_stopped_pool_once_shutdown_began(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stopped = RuntimeError("cannot schedule new futures after interpreter shutdown")
+    with pytest.raises(RuntimeError) as running, refusing_stopped_pools():
+        raise stopped
+    assert running.value is stopped
+
+    monkeypatch.setattr(threading, "_SHUTTING_DOWN", True, raising=False)
+    with pytest.raises(ClientClosedError) as refused, refusing_stopped_pools():
+        raise stopped
+    assert refused.value.__cause__ is stopped
+    other = RuntimeError("some other failure")
+    with pytest.raises(RuntimeError) as unrelated, refusing_stopped_pools():
+        raise other
+    assert unrelated.value is other
