@@ -327,13 +327,18 @@ RSpec.describe Daytona::Process do
 
     before { allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket) }
 
+    def wait_for_handlers(*events)
+      Timeout.timeout(5) { sleep 0.01 until events.all? { |event| socket.handlers.key?(event) } }
+    end
+
     def stream_logs(messages)
       output = [+'', +'']
       thread = Thread.new { yield(->(chunk) { output[0] << chunk }, ->(chunk) { output[1] << chunk }) }
-      sleep 0.02
+      wait_for_handlers(:message, :close)
       messages.each { |data| socket.emit(:message, double(type: :binary, data: data)) }
       socket.emit(:close)
-      thread.join
+      raise 'log stream did not finish' unless thread.join(5)
+
       output
     end
 
@@ -353,6 +358,20 @@ RSpec.describe Daytona::Process do
       end
 
       expect(result).to eq(["out\nback\n\x02\x02", "err\nmore\n"])
+    end
+
+    it 'emits held-back bytes before a WebSocket error is raised' do
+      stdout = +''
+      thread = Thread.new do
+        process.get_entrypoint_logs_async(on_stdout: ->(chunk) { stdout << chunk }, on_stderr: ->(_chunk) {})
+      end
+      wait_for_handlers(:error)
+      socket.emit(:message, double(type: :binary, data: "\x01\x01\x01out\x01"))
+
+      expect { socket.emit(:error, StandardError.new('reset')) }.to raise_error(Daytona::Sdk::Error, /reset/)
+      raise 'log stream did not finish' unless thread.join(5)
+
+      expect(stdout).to eq("out\x01")
     end
   end
 

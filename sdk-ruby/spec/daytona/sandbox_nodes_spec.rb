@@ -371,3 +371,34 @@ RSpec.describe Daytona::SandboxNodes do
     expect(a_request(:get, url)).not_to have_been_made
   end
 end
+
+RSpec.describe 'Daytona::NodeLogStream' do
+  let(:stream_class) { Daytona.const_get(:NodeLogStream) }
+  let(:node) do
+    api_client = double('api_client', default_headers: {}, config: double(base_url: 'https://node.example/api'))
+    double('node', rank: 0, process_api: double(api_client:))
+  end
+  let(:expired_deadline) do
+    double('deadline').tap do |deadline|
+      allow(deadline).to receive(:remaining).and_raise(Daytona::Sdk::TimeoutError, 'expired')
+    end
+  end
+
+  it 'completes a close that arrives after the deadline when there is nothing left to emit' do
+    stream = stream_class.new(node, 'session', 'command', expired_deadline, { stdout: ->(_, _) {} })
+
+    stream.send(:on_close)
+
+    expect(stream.instance_variable_get(:@completion).pop(true)).to be_nil
+  end
+
+  it 'still reports the deadline when a close has held-back output to emit' do
+    stream = stream_class.new(node, 'session', 'command', expired_deadline, { stdout: ->(_, _) {} })
+    stream.send(:on_message, double(type: :binary, data: "\x01\x01\x01out\x01"))
+    stream.instance_variable_get(:@completion).clear
+
+    stream.send(:on_close)
+
+    expect(stream.instance_variable_get(:@completion).pop(true)).to be_a(Daytona::Sdk::TimeoutError)
+  end
+end

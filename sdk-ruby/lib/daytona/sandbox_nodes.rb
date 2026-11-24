@@ -583,9 +583,11 @@ module Daytona
         return unless @active
 
         stdout, stderr = yield
+        output = { stdout:, stderr: }.reject { |_, chunk| chunk.empty? }
+        next if output.empty?
+
         @deadline.remaining
-        @callbacks[:stdout]&.call(@node.rank, stdout) unless stdout.empty?
-        @callbacks[:stderr]&.call(@node.rank, stderr) unless stderr.empty?
+        output.each { |stream, chunk| @callbacks[stream]&.call(@node.rank, chunk) }
       end
     end
 

@@ -303,6 +303,7 @@ module Daytona
         end
 
         client.on(:error) do |e|
+          emit.call(demuxer.flush)
           completion_queue.push(:error)
           raise Sdk::Error, "WebSocket error: #{e.message}"
         end
@@ -376,6 +377,7 @@ module Daytona
         end
 
         client.on(:error) do |e|
+          emit.call(demuxer.flush)
           completion_queue.push(:error)
           raise Sdk::Error, "WebSocket error: #{e.message}"
         end
