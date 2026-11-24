@@ -156,3 +156,63 @@ describe('post-build published dependencies', () => {
     expect(() => runPostBuild(withRequire, { ws: undefined })).toThrow()
   })
 })
+
+describe('post-build ESM Node loaders', () => {
+  const nodeLoaders = `export const nodeLoaders = {\n    fs: () => require('fs'),\n    'expand-tilde': () => require('expand-tilde'),\n};\n`
+  const importer = `import { nodeLoaders } from './NodeLoaders.js';\nexport const l = () => require('stream')\n`
+
+  it('loads every Node module through createRequire(import.meta.url) with a literal specifier', () => {
+    const { read } = runPostBuild({ 'utils/NodeLoaders.js': nodeLoaders, 'utils/Import.js': importer })
+
+    const output = read('utils/NodeLoaders.js')
+    expect(output.startsWith(`import { createRequire } from 'node:module';\n`)).toBe(true)
+    expect(output).toContain(`fs: () => createRequire(import.meta.url)('fs')`)
+    expect(output).toContain(`'expand-tilde': () => createRequire(import.meta.url)('expand-tilde')`)
+    expect(output).not.toContain('__esmRequire')
+    expect(output).not.toMatch(/\brequire\s*\(/)
+  })
+
+  it('publishes the loaders behind #node-loaders, with an empty stub outside Node', () => {
+    const { read, esmDir } = runPostBuild({ 'utils/NodeLoaders.js': nodeLoaders, 'utils/Import.js': importer })
+
+    expect(read('utils/Import.js')).toContain(`import { nodeLoaders } from '#node-loaders';`)
+    expect(read('utils/Import.js')).not.toContain('./NodeLoaders.js')
+    expect(read('utils/NodeLoaders.stub.js')).toBe('export const nodeLoaders = {};\n')
+    expect(JSON.parse(fs.readFileSync(path.join(esmDir, 'package.json'), 'utf8'))).toEqual({
+      type: 'module',
+      imports: {
+        '#node-loaders': { node: './utils/NodeLoaders.js', default: './utils/NodeLoaders.stub.js' },
+      },
+    })
+  })
+
+  it('rewrites an import of the loaders from another directory', () => {
+    const { read } = runPostBuild({
+      'utils/NodeLoaders.js': nodeLoaders,
+      'Image.js': `import { nodeLoaders } from "./utils/NodeLoaders.js";\nexport const l = () => require('fs')\n`,
+    })
+
+    expect(read('Image.js')).toContain(`import { nodeLoaders } from "#node-loaders";`)
+  })
+
+  it('fails the build when nothing imports the loaders', () => {
+    expect(() =>
+      runPostBuild({
+        'utils/NodeLoaders.js': nodeLoaders,
+        'utils/Import.js': `export const l = () => require('fs')\n`,
+      }),
+    ).toThrow()
+  })
+
+  it('fails the build when the loaders have no require call to rewrite', () => {
+    expect(() =>
+      runPostBuild({ 'utils/NodeLoaders.js': `export const nodeLoaders = {};\n`, 'utils/Import.js': importer }),
+    ).toThrow()
+  })
+
+  it('keeps a plain esm/package.json when the build has no Node loaders', () => {
+    const { esmDir } = runPostBuild({ 'utils/Import.js': `export const l = () => require('fs')\n` })
+
+    expect(JSON.parse(fs.readFileSync(path.join(esmDir, 'package.json'), 'utf8'))).toEqual({ type: 'module' })
+  })
+})

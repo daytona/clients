@@ -37,7 +37,7 @@ The orchestrator iterates every subdirectory that contains a `run.sh`, packs the
 | `deno` | `deno run test.ts` | Deno (real interpreter) |
 | `vite-ssr` | `vite build --ssr` then `node` executes the bundle | Node.js |
 | `vite-browser` | `vite build` + `vite preview` + Playwright drives **headless Chromium** to load the bundle and assert | Real browser |
-| `nextjs` | `next build` + `next start` + `curl` hits the API route | Production Next.js server |
+| `nextjs` | `next build` (Turbopack) + `next start`, then `next build --webpack` with `output: 'standalone'` + the standalone `server.js` run from a copy outside the project; `curl` hits the API route, which also exercises `Image.fromDockerfile` with a COPY glob | Production Next.js server |
 | `nuxt` | `nuxt build` + `node .output/server/index.mjs` + `curl` | Production Nitro server |
 | `remix` | `remix vite:build` + `remix-serve` + `curl` | Production Remix server |
 | `cloudflare-workers` | `wrangler dev --local` + `curl` | Real `workerd` (Cloudflare's actual Workers runtime) |

@@ -7,6 +7,7 @@
  */
 
 import { DaytonaError } from '../errors/DaytonaError'
+import { nodeLoaders } from './NodeLoaders'
 import { RUNTIME } from './Runtime'
 
 const loaderMap = {
@@ -60,6 +61,27 @@ const validateMap: Record<string, (mod: any) => boolean> = {
 
 type ModuleMap = typeof loaderMap
 
+/**
+ * Loads `name` through its Node loader when there is one, so bundlers can see the module,
+ * and through `fallback` otherwise. The fallback also runs when the Node loader fails,
+ * e.g. when an ESM build is re-bundled to CommonJS and `import.meta.url` is empty; if both
+ * fail, the Node loader's error is reported.
+ */
+function loadWithNodeLoader(name: string, fallback: () => unknown): unknown {
+  const nodeLoader = nodeLoaders[name]
+  if (!nodeLoader) return fallback()
+
+  try {
+    return nodeLoader()
+  } catch (nodeLoaderError) {
+    try {
+      return fallback()
+    } catch {
+      throw nodeLoaderError
+    }
+  }
+}
+
 export async function dynamicImport<K extends keyof ModuleMap>(
   name: K,
   errorPrefix?: string,
@@ -71,7 +93,7 @@ export async function dynamicImport<K extends keyof ModuleMap>(
 
   let mod: any
   try {
-    mod = (await loader()) as any
+    mod = (await loadWithNodeLoader(name, loader)) as any
     mod = unwrapInterop(mod)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -104,7 +126,7 @@ export function dynamicRequire<K extends keyof RequireMap>(name: K, errorPrefix?
 
   let mod: any
   try {
-    mod = loader()
+    mod = loadWithNodeLoader(name, loader)
     mod = unwrapInterop(mod)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

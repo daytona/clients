@@ -43,7 +43,60 @@ for (const buildDir of [esmDir, cjsDir]) {
   }
 }
 
-writeJson(path.join(esmDir, 'package.json'), { type: 'module' })
+const jsFilesIn = (dir) =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) return jsFilesIn(entryPath)
+    return entry.name.endsWith('.js') ? [entryPath] : []
+  })
+
+// utils/NodeLoaders.js holds the literal requires of the Node-only modules. In ESM it is
+// published behind the `#node-loaders` import (resolved through esm/package.json below):
+// the "node" condition gets the loaders on `createRequire(import.meta.url)`, which
+// bundlers and output tracing follow (they do not follow the shim below), and every other
+// condition gets an empty stub. The call is made inside each loader, not once at module
+// scope, so an ESM build re-bundled to CommonJS, where `import.meta.url` is empty, fails
+// in the loader (and falls back) instead of failing the whole import.
+const nodeLoadersJs = path.join('utils', 'NodeLoaders.js')
+const nodeLoadersStubJs = path.join('utils', 'NodeLoaders.stub.js')
+const nodeLoadersImport = '#node-loaders'
+const nodeLoadersPath = path.join(esmDir, nodeLoadersJs)
+const esmPackageJson = { type: 'module' }
+if (fs.existsSync(nodeLoadersPath)) {
+  const original = fs.readFileSync(nodeLoadersPath, 'utf8')
+  const rewritten = original.replace(/\brequire\s*\(/g, 'createRequire(import.meta.url)(')
+  if (rewritten === original) {
+    throw new Error(`post-build: ${nodeLoadersJs} has no require() call to rewrite`)
+  }
+  fs.writeFileSync(nodeLoadersPath, `import { createRequire } from 'node:module';\n` + rewritten)
+  fs.writeFileSync(path.join(esmDir, nodeLoadersStubJs), 'export const nodeLoaders = {};\n')
+
+  const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  let importers = 0
+  for (const file of jsFilesIn(esmDir)) {
+    const source = fs.readFileSync(file, 'utf8')
+    let specifier = path.relative(path.dirname(file), nodeLoadersPath).split(path.sep).join('/')
+    if (!specifier.startsWith('.')) specifier = `./${specifier}`
+    const specifierPattern = new RegExp(`(['"])${escapeRegExp(specifier)}\\1`, 'g')
+    const updated = source.replace(specifierPattern, `$1${nodeLoadersImport}$1`)
+    if (updated !== source) {
+      fs.writeFileSync(file, updated)
+      importers++
+    }
+  }
+  if (importers === 0) {
+    throw new Error(`post-build: no ESM file imports ${nodeLoadersJs}; the specifier rewrite has stopped matching`)
+  }
+
+  esmPackageJson.imports = {
+    [nodeLoadersImport]: {
+      node: `./${nodeLoadersJs.split(path.sep).join('/')}`,
+      default: `./${nodeLoadersStubJs.split(path.sep).join('/')}`,
+    },
+  }
+}
+
+writeJson(path.join(esmDir, 'package.json'), esmPackageJson)
 writeJson(path.join(cjsDir, 'package.json'), { type: 'commonjs' })
 
 // `require` does not exist in an ES module. A bare call is a ReferenceError, and - worse -
@@ -66,13 +119,6 @@ const esmRequireShim =
   `    'If re-bundling @daytona/sdk to CJS, ensure createRequire or the host require is accessible.'\n` +
   `  ); };\n` +
   `})();\n`
-
-const jsFilesIn = (dir) =>
-  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) return jsFilesIn(entryPath)
-    return entry.name.endsWith('.js') ? [entryPath] : []
-  })
 
 // String literals and comments are dropped before deciding whether a file *needed* the
 // shim, so that a `require(` written in prose or inside a message cannot stand in for a
