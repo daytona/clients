@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -151,8 +152,8 @@ func TestWithTimeoutAtLeast_onlyLengthensABoundedTimeout(t *testing.T) {
 // contain it, instead of the HTTP client's error reported as a network
 // failure with "check the API URL". Neither the message nor the hint holds it.
 func TestDoRefusesACredentialAHeaderCannotCarry(t *testing.T) {
-	var requests int
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }))
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests.Add(1) }))
 	defer srv.Close()
 	for _, cred := range []string{"tok-secret\n", "tok-secret\x00", "tok-secreté"} {
 		err := New(srv.URL, cred, "test").Do(context.Background(), "GET", "/x", nil, nil, nil)
@@ -162,8 +163,8 @@ func TestDoRefusesACredentialAHeaderCannotCarry(t *testing.T) {
 			t.Fatalf("%q: %v (hint %q)", cred, err, cerr.DetailsOf(err).Hint)
 		}
 	}
-	if requests != 0 {
-		t.Fatalf("%d requests sent", requests)
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("%d requests sent", n)
 	}
 	if got := CredentialProblem("dtn_abc DEF~"); got != "" {
 		t.Fatalf("printable ASCII refused: %q", got)

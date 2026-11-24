@@ -42,7 +42,8 @@ type Profile struct {
 	// Credential names how this profile authenticates: "oidc" (browser/device
 	// login; tokens in credentials.yaml) or "token" (a static bearer passed
 	// as-is — project key, org key, or any future server-admitted credential;
-	// the CLI never inspects it).
+	// the CLI only refuses one that is not printable ASCII and never inspects
+	// it otherwise).
 	Credential string `yaml:"credential,omitempty"`
 	// OIDCClientID overrides the client id published by GET /config.
 	OIDCClientID string `yaml:"oidc_client_id,omitempty"`

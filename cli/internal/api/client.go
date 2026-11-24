@@ -4,7 +4,8 @@
 // Package api is the handwritten HTTP transport over the generated wire types
 // (gen/api). Credentials are opaque bearers: the client
 // sends `Authorization: Bearer <credential>` and maps the server's answer to
-// the CLI's exit-code vocabulary; it never inspects the token.
+// the CLI's exit-code vocabulary. It only refuses a bearer that is not
+// printable ASCII (CredentialProblem) and never inspects it otherwise.
 package api
 
 import (
