@@ -37,7 +37,7 @@ class VolumeMount(BaseModel):
     mount_path: StrictStr = Field(description="The absolute path inside the sandbox, with no `..`. It is normalized (repeated slashes, `.` components and a trailing slash removed) and may not be `/` or be on or beneath a system directory: `/bin`, `/boot`, `/dev`, `/etc`, `/lib`, `/lib32`, `/lib64`, `/mnt/scratch`, `/overlay`, `/proc`, `/sbin`, `/sys` or `/usr`. It may not be equal to or beneath another mount's `mount_path`.")
     read_only: Optional[StrictBool] = Field(default=None, description="Mount without write access. Supported only for bucket volumes.")
     subpath: Optional[StrictStr] = Field(default=None, description="Mount only this subtree: a subdirectory for a disk volume, a key prefix under the volume's own prefix for a bucket volume. A relative path with no empty or `..` segments and no control characters.")
-    volume: StrictStr = Field(description="The volume name or a `vol_` id.")
+    volume: StrictStr = Field(description="The volume name or a `vol_` id. A sandbox can mount a volume once.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["mount_path", "read_only", "subpath", "volume"]
 
