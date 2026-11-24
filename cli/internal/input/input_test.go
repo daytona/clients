@@ -219,6 +219,72 @@ func TestDecode_typeMismatchNamesTheField(t *testing.T) {
 	}
 }
 
+type numberRequest struct {
+	Seconds *int64   `json:"idle_expiry_seconds,omitempty"`
+	DiskMib int32    `json:"disk_mib"`
+	Count   *uint16  `json:"count,omitempty"`
+	Ratio   *float64 `json:"ratio,omitempty"`
+}
+
+// A number an integer field cannot hold says why, instead of claiming the
+// field "cannot be a number": a fraction, a value out of the field's range,
+// or a whole number written with a fraction or exponent.
+func TestDecode_numberMismatchSaysWhy(t *testing.T) {
+	registerFields[numberRequest](t)
+	for body, want := range map[string]string{
+		`{"idle_expiry_seconds":1.5}`:  `field "idle_expiry_seconds" must be a whole number, got 1.5`,
+		`{"idle_expiry_seconds":1e30}`: `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e30`,
+		`{"disk_mib":3000000000}`:      `field "disk_mib" is out of range (-2147483648 to 2147483647), got 3000000000`,
+		`{"count":-1}`:                 `field "count" is out of range (0 to 65535), got -1`,
+		`{"disk_mib":2.0}`:             `field "disk_mib" must be written as a whole number without a fraction or exponent, got 2.0`,
+		`{"disk_mib":1e3}`:             `field "disk_mib" must be written as a whole number without a fraction or exponent, got 1e3`,
+		`{"ratio":1e400}`:              `field "ratio" is out of range for a number, got 1e400`,
+		`{"disk_mib":"2"}`:             `field "disk_mib" cannot be a string`,
+	} {
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+		_, err = Decode[numberRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), want) {
+			t.Fatalf("Decode %s: %v", body, err)
+		}
+	}
+	b, err := loadBody(t, `{"idle_expiry_seconds":60,"disk_mib":1024,"count":3,"ratio":0.5}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode[numberRequest](b); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type elementRequest struct {
+	Env   map[string]string `json:"env,omitempty"`
+	Ports []int32           `json:"ports,omitempty"`
+}
+
+// A wrong value inside a map or an array is named by its key or index, not
+// only by the field that holds it.
+func TestDecode_typeMismatchInsideAMapOrArrayNamesTheEntry(t *testing.T) {
+	registerFields[elementRequest](t)
+	for body, want := range map[string]string{
+		`{"env":{"A":"1","B":2}}`: `field "env.B" cannot be a number`,
+		`{"ports":[80,"x"]}`:      `field "ports[1]" cannot be a string`,
+		`{"ports":[80,1.5]}`:      `field "ports" must be a whole number, got 1.5`,
+		`{"env":["A"]}`:           `field "env" cannot be an array`,
+	} {
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+		_, err = Decode[elementRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), want) {
+			t.Fatalf("Decode %s: %v", body, err)
+		}
+	}
+}
+
 // A type without a table is a bug, reported rather than decoded unchecked.
 func TestDecode_needsAFieldTable(t *testing.T) {
 	type unregistered struct{}
