@@ -14,13 +14,11 @@ import (
 	"github.com/daytona/clients/cli/internal/api"
 )
 
-// OrgLimits preserves the response in Wire for JSON/YAML output. HasStorage
-// tells the table to omit storage when the response does not report it,
-// rather than print an unreported zero.
+// OrgLimits preserves the response in Wire for JSON/YAML output, so the raw
+// body is printed as received while the table renders selected rows.
 type OrgLimits struct {
 	gen.OrganizationLimits
-	Wire       map[string]any
-	HasStorage bool
+	Wire map[string]any
 }
 
 func GetOrgLimits(ctx context.Context, c *api.Client, orgID string) (*OrgLimits, error) {
@@ -38,13 +36,6 @@ func GetOrgLimits(ctx context.Context, c *api.Client, orgID string) (*OrgLimits,
 	if err := wire.Decode(&out.Wire); err != nil {
 		return nil, err
 	}
-	var present struct {
-		Storage json.RawMessage `json:"storage"`
-	}
-	if err := json.Unmarshal(raw, &present); err != nil {
-		return nil, err
-	}
-	out.HasStorage = len(present.Storage) > 0 && string(present.Storage) != "null"
 	return out, nil
 }
 

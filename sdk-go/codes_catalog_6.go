@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeWorkloadPlaneElsewhere is WORKLOAD_PLANE_ELSEWHERE (API).
+const CodeWorkloadPlaneElsewhere = "WORKLOAD_PLANE_ELSEWHERE"
+
+// ErrWorkloadPlaneElsewhere matches code WORKLOAD_PLANE_ELSEWHERE, independently of its source.
+var ErrWorkloadPlaneElsewhere = codeSentinel{"WORKLOAD_PLANE_ELSEWHERE", 501}
+
 // CodeNoActiveReservation is NO_ACTIVE_RESERVATION (API).
 const CodeNoActiveReservation = "NO_ACTIVE_RESERVATION"
 
@@ -118,14 +124,12 @@ const CodeIdempotencyKeyRequired = "IDEMPOTENCY_KEY_REQUIRED"
 // ErrIdempotencyKeyRequired matches code IDEMPOTENCY_KEY_REQUIRED, independently of its source.
 var ErrIdempotencyKeyRequired = codeSentinel{"IDEMPOTENCY_KEY_REQUIRED", 400}
 
-// CodeBadGateway is BAD_GATEWAY (GENERIC).
-const CodeBadGateway = "BAD_GATEWAY"
-
-// ErrBadGateway matches code BAD_GATEWAY, independently of its source.
-var ErrBadGateway = codeSentinel{"BAD_GATEWAY", 502}
-
 func catalogStatus6(source, code string) int {
 	switch code {
+	case "WORKLOAD_PLANE_ELSEWHERE":
+		if source == "DAYTONA_API" {
+			return 501
+		}
 	case "NO_ACTIVE_RESERVATION":
 		if source == "DAYTONA_API" {
 			return 409
@@ -202,8 +206,6 @@ func catalogStatus6(source, code string) int {
 		if source == "DAYTONA_ROUTER" {
 			return 400
 		}
-	case "BAD_GATEWAY":
-		return 502
 	}
 	return 0
 }

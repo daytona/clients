@@ -227,10 +227,13 @@ err = s.toolbox().do(ctx, toolboxRequest{Path: "/files", Result: &response})
   first at `jittered(min(10s, hub budget / 2))`, then only after 10s of silence
   measured from the later of registration and the last frame. The first probe
   for a short budget instead requires no frame since registration. Jitter is
-  +/-10%, using the hub's injectable random source. A target or terminal read
-  settles directly, even when a frame or socket change overlaps its GET.
-  Only a nonterminal successful read is discarded on overlap, without adopting
-  its metadata. A nonterminal read rearms for the remaining quiet
+  +/-10%, using the hub's injectable random source. A frame or socket change
+  during a successful GET discards that result, whatever state it shows,
+  without adopting its metadata: a live socket decides, because its frames are
+  versioned and a read can lag. This follows the TypeScript and Python hubs;
+  the contract's rule text is being reworded to match (it still lets a
+  resolving read settle). Otherwise a target or terminal read settles
+  directly. A nonterminal read rearms for the remaining quiet
   time (at least 200ms), a failed probe for a fresh jittered 10s. Reads that
   fail with 401/403/404 stop the wait. The final reserve and events-disabled
   polling do not depend on liveness.

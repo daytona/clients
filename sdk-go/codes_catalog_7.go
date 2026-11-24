@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeBadGateway is BAD_GATEWAY (GENERIC).
+const CodeBadGateway = "BAD_GATEWAY"
+
+// ErrBadGateway matches code BAD_GATEWAY, independently of its source.
+var ErrBadGateway = codeSentinel{"BAD_GATEWAY", 502}
+
 // CodeBadRequest is BAD_REQUEST (GENERIC).
 const CodeBadRequest = "BAD_REQUEST"
 
@@ -90,6 +96,8 @@ var ErrRequestCancelled = codeSentinel{"REQUEST_CANCELLED", 499}
 
 func catalogStatus7(source, code string) int {
 	switch code {
+	case "BAD_GATEWAY":
+		return 502
 	case "BAD_REQUEST":
 		return 400
 	case "CONFLICT":

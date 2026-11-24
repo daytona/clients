@@ -11,7 +11,7 @@ import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { once } from 'node:events'
 import { FileSystemService } from '../src/v2/FileSystem'
-import { BadRequestError, ConnectionError, DaytonaError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
+import { BadRequestError, ConnectionError, DaytonaError, FileAccessDeniedError, PayloadTooLargeError } from '../src/v2/errors/DaytonaError'
 import { ProcessService } from '../src/v2/Process'
 import { HttpTransport } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
@@ -49,6 +49,14 @@ describe('watch stream drops', () => {
     clientClosed = { promise, resolve }
     server = createServer((request, response) => {
       request.resume()
+      if (request.url?.startsWith('/error-') === true) {
+        const start = request.url.startsWith('/error-before') ? '' : START
+        const message = request.url.includes('malformed') ? 123 : 'access denied'
+        const envelope = JSON.stringify({ code: 'FILE_ACCESS_DENIED', message, source: 'DAYTONA_DAEMON' })
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        response.end(`${start}event: error\ndata: ${envelope}\n\n${fsFrame('after-error')}`)
+        return
+      }
       if (request.url?.startsWith('/w404') === true) {
         const body = JSON.stringify({ code: 'FILE_NOT_FOUND', message: 'no such path', source: 'DAYTONA_DAEMON' })
         response.writeHead(404, { 'Content-Type': 'application/json', 'Content-Length': String(body.length) })
@@ -148,6 +156,48 @@ describe('watch stream drops', () => {
   afterEach(async () => {
     server.closeAllConnections()
     await new Promise<void>((resolve) => server.close(() => resolve()))
+  })
+
+  it('ends a watch with the typed server error when an error event follows start', async () => {
+    // Given
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/error-after`, 'k', 5_000))
+    const onEvent = jest.fn()
+    const onExit = jest.fn()
+    const handle = await fs.watchDir('/', onEvent, { onExit })
+    // When
+    const error = await handle.waitForExit()
+    await handle.stop()
+    // Then
+    expect(error).toBeInstanceOf(FileAccessDeniedError)
+    expect(error).toMatchObject({ code: 'FILE_ACCESS_DENIED', message: 'access denied', source: 'DAYTONA_DAEMON' })
+    expect(handle.exitError).toBe(error)
+    expect(onExit).toHaveBeenCalledTimes(1)
+    expect(onExit).toHaveBeenCalledWith(error)
+    expect(onEvent).not.toHaveBeenCalled()
+  })
+
+  it('rejects watch setup with the typed server error when an error event precedes start', async () => {
+    // Given
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/error-before`, 'k', 5_000))
+    const onExit = jest.fn()
+    // When
+    const error = await fs.watchDir('/', () => undefined, { onExit })
+      .then(() => undefined, (caught: unknown) => caught)
+    // Then
+    expect(error).toBeInstanceOf(FileAccessDeniedError)
+    expect(error).toMatchObject({ code: 'FILE_ACCESS_DENIED', message: 'access denied', source: 'DAYTONA_DAEMON' })
+    expect(onExit).not.toHaveBeenCalled()
+  })
+
+  it.each(['before', 'after'] as const)('reports a malformed response when an error message is not a string (%s start)', async (phase) => {
+    // Given
+    const fs = new FileSystemService(INTERNAL, new HttpTransport(`${base}/error-${phase}-malformed`, 'k', 5_000))
+    // When
+    const error = await fs.watchDir('/', () => undefined)
+      .then((handle) => handle.waitForExit(), (caught: unknown) => caught)
+    // Then
+    expect(error).toBeInstanceOf(BadRequestError)
+    expect(error).toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
   })
 
   it.each([

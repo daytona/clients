@@ -29,7 +29,7 @@ type FilesystemEvent struct {
 //nolint:nilnil // A future SSE name is intentionally skipped without parsing its data.
 func parseWatchEvent(message fileSSEMessage) (*FilesystemEvent, error) {
 	switch message.event {
-	case "fs", "overflow":
+	case "fs", "overflow", "error":
 		// Only known data events are parsed; future event names may use other formats.
 	default:
 		return nil, nil
@@ -50,6 +50,8 @@ func parseWatchEvent(message fileSSEMessage) (*FilesystemEvent, error) {
 		return nil, err
 	}
 	switch message.event {
+	case "error":
+		return nil, processStreamError(object)
 	case "overflow":
 		dropped, fieldErr := field[bool](object, "dropped", true)
 		if fieldErr != nil {

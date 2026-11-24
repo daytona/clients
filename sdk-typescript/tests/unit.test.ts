@@ -9256,6 +9256,20 @@ describe('typed error mapping', () => {
     })
   })
 
+  it('drops a negative retry_after_seconds like a negative retryAfterMs', async () => {
+    const retryAfter = async (value: number) => {
+      const body = JSON.stringify({ code: 'RATE_LIMITED', message: 'slow down', source: 'DAYTONA_API', retry_after_seconds: value })
+      const err = await errorFromFetchResponse(new Response(body, { status: 429, headers: { 'content-type': 'application/json' } }))
+      return err.retryAfterSeconds
+    }
+
+    // The contract's minimum is 0: a negative value is treated as absent.
+    expect(await retryAfter(-5)).toBeUndefined()
+    expect(await retryAfter(-1)).toBeUndefined()
+    expect(await retryAfter(0)).toBe(0)
+    expect(await retryAfter(3)).toBe(3)
+  })
+
   it('surfaces an error-only body as prose on the fetch path without promoting it to a code', async () => {
     const errorOnly = await errorFromFetchResponse(new Response(JSON.stringify({ error: 'coupon not found' }), { status: 404, headers: { 'content-type': 'application/json' } }))
     expect(errorOnly).toBeInstanceOf(NotFoundError)

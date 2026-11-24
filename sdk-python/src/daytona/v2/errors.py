@@ -280,11 +280,13 @@ class LimitExceededError(RateLimitError):
 
 
 class ImageTooLargeError(ConflictError):
-    pass
+    """``IMAGE_TOO_LARGE`` (409): ``max_bytes`` is the limit and ``bytes`` the image's size.
+    Each is ``None`` when the refusal omits it or carries a malformed value."""
 
 
 class SnapshotTooLargeError(ConflictError):
-    pass
+    """``SNAPSHOT_TOO_LARGE`` (409): ``max_bytes`` is the limit and ``bytes`` the snapshot's
+    size. Each is ``None`` when the refusal omits it or carries a malformed value."""
 
 
 class PreconditionRequiredError(DaytonaError):
@@ -882,6 +884,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.SOURCE_AMBIGUOUS: ConflictError,
     codes.SECRET_ALREADY_EXISTS: SecretAlreadyExistsError,
     codes.UNSUPPORTED_VOLUME_TYPE: UnsupportedVolumeTypeError,
+    codes.VOLUME_NOT_FOUND: NotFoundError,
     codes.WORKLOAD_PLANE_ELSEWHERE: NotSupportedError,
     codes.NO_ACTIVE_RESERVATION: ConflictError,
     codes.NO_FREE_SLOT: ConflictError,

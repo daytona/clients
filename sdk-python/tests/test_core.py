@@ -8,6 +8,7 @@ import asyncio
 import dataclasses
 import hashlib
 import importlib
+import importlib.util
 import inspect
 import json
 import os
@@ -7648,6 +7649,25 @@ def test_unified_error_envelope_message_trace_and_extras_are_surfaced():
     assert err.first_available_cursor == "cursor-1"
 
 
+def test_negative_retry_after_seconds_is_dropped():
+    from daytona.v2._core import parse_error_payload
+
+    def retry_after(value: int) -> object:
+        payload = {
+            "code": "RATE_LIMITED",
+            "message": "slow down",
+            "source": "DAYTONA_API",
+            "retry_after_seconds": value,
+        }
+        return parse_error_payload(429, payload).retry_after_seconds
+
+    # The contract's minimum is 0, as for retryAfterMs: a negative value is treated as absent.
+    assert retry_after(-5) is None
+    assert retry_after(-1) is None
+    assert retry_after(0) == 0
+    assert retry_after(3) == 3
+
+
 def test_source_and_code_dispatch_precedes_generic_and_status_fallback():
     from daytona.v2._core import parse_error_payload
 
@@ -12271,6 +12291,30 @@ async def test_connection_pool_maxsize_sets_httpx_limits() -> None:
     finally:
         sync_transport.close()
         await async_transport.close()
+
+
+@pytest.mark.anyio
+async def test_sdk_clients_speak_http1_with_a_reusable_pool_even_with_h2_installed() -> None:
+    # Over one HTTP/2 connection httpx holds a ready response behind long-held
+    # calls on the same client, so the SDK never enables HTTP/2. The dev extra
+    # installs h2, which the SDK used to switch HTTP/2 on with.
+    assert importlib.util.find_spec("h2") is not None
+    sync_transport = SyncTransport("http://api.invalid")
+    async_transport = AsyncTransport("http://api.invalid")
+    assert async_transport._stream_client_factory is not None
+    stream_client = async_transport._stream_client_factory()
+
+    try:
+        for client in (sync_transport._client, async_transport._client, stream_client):
+            pool = client._transport._pool  # type: ignore[attr-defined]
+            assert pool._http1 is True
+            assert pool._http2 is False
+            assert pool._max_connections == 100
+            assert pool._max_keepalive_connections == 100
+    finally:
+        sync_transport.close()
+        await async_transport.close()
+        await stream_client.aclose()
 
 
 @pytest.mark.anyio

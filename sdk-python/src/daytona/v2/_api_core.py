@@ -472,6 +472,7 @@ def _lifecycle_timestamp_violation(policy: Mapping[str, object]) -> Optional[str
 def expect_sandbox_lifecycle_policy(value: TransportPayload) -> JsonObject:
     """The lifecycle echo of ``PATCH .../lifecycle-policy`` and
     ``POST .../reset-idle-timer`` (the contract's ``SandboxLifecyclePolicy``),
+    also used for the policy of a create response,
     checked field by field as TypeScript checks it: a required string ``id``
     and ``lifecycle_policy`` object, whose optional fields are 32-bit integers
     or strings when present, and whose timestamps are RFC 3339 timestamps.

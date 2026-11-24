@@ -41,8 +41,14 @@ func init() {
 				a := FromContext(cmd.Context())
 				switch args[0] {
 				case "confirm":
-					v, err := strconv.ParseBool(args[1])
-					if err != nil {
+					// Only the two spellings the help names; strconv.ParseBool
+					// would also take 1, t, TRUE and the like.
+					var v bool
+					switch args[1] {
+					case "true":
+						v = true
+					case "false":
+					default:
 						return cerr.Usage("confirm wants true|false, got %q", args[1])
 					}
 					return a.Store.Update(func(c *config.Config, _ *config.Credentials) (bool, bool, error) {

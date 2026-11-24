@@ -6,8 +6,6 @@ package cmd
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	gen "github.com/daytona/clients/cli/gen/api"
@@ -42,7 +40,7 @@ func limitsFixture() map[string]any {
 }
 
 // `org limits` reads GET /orgs/{id}/limits for the selected org (id or name)
-// and renders every limit as "current / max (source)".
+// and renders every reported limit as "current / max (source)".
 func TestOrgLimits(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
@@ -67,24 +65,14 @@ func TestOrgLimits(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("%d %s", code, errb)
 	}
-	for _, want := range []string{"Concurrent sandboxes", "4 / 10", "9 / 50", "1 / unlimited", "Members", "3 + 1 pending / 5",
-		"Cores per sandbox", "max 2.5", "Memory per sandbox (MiB)", "max 8192",
-		"Images", "5 / unlimited", "Snapshots", "7 / 100", "Mac reservations", "4 / 10"} {
+	for _, want := range []string{"Concurrent sandboxes", "4 / 10", "1 / unlimited", "Members", "3 + 1 pending / 5",
+		"Cores per sandbox", "max 2.5", "Memory per sandbox (MiB)", "max 8192", "Mac reservations", "4 / 10"} {
 		if !has(out, want) {
 			t.Fatalf("table lacks %q:\n%s", want, out)
 		}
 	}
 	if has(out, "Usage in") {
 		t.Fatalf("per-domain usage rows must not render:\n%s", out)
-	}
-	volumesRow := ""
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "Volumes") {
-			volumesRow = line
-		}
-	}
-	if !has(volumesRow, "2 / 20") {
-		t.Fatalf("table lacks the Volumes row:\n%s", out)
 	}
 
 	_, errb, code = run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "json", "org", "limits")
@@ -99,9 +87,9 @@ func TestOrgLimitsPreservesLargeIntegers(t *testing.T) {
 	d := cfgDir(t)
 	large := int64(9007199254740993) // 2^53 + 1: float64 rounds it to ...992
 	fixture := limitsFixture()
-	fixture["storage"] = gen.StorageLimits{
-		Images:    gen.UsageLimit{Usage: 5, Limit: &large},
-		Snapshots: gen.UsageLimit{Usage: 7},
+	fixture["sandboxes"] = gen.SandboxLimits{
+		Concurrent: gen.UsageLimit{Usage: 4, Limit: &large},
+		Total:      gen.UsageLimit{Usage: 9},
 	}
 	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, fixture)
 	f.on("GET", "/api-keys/current", 401, map[string]any{"code": "UNAUTHORIZED", "message": "unauthorized", "source": "DAYTONA_API"})
@@ -231,43 +219,53 @@ func TestOrgLimitsWithProjectKeyIgnoresTheSavedOrg(t *testing.T) {
 	}
 }
 
-// When the response omits storage, the
-// table leaves those rows out instead of printing "0 / unlimited", and the
-// JSON output is the body as received, with no synthesized fields.
-func TestOrgLimitsOmitsUnreportedGroups(t *testing.T) {
-	// A plain server, not newFakeAPI: the incomplete body does not match the
-	// current contract, which newFakeAPI enforces on every response.
-	d := cfgDir(t)
-	old := limitsFixture()
-	delete(old, "storage")
-	body, err := json.Marshal(old)
-	if err != nil {
-		t.Fatal(err)
+// The counts whose limit the API does not return get no table row, even when
+// the response reports their usage; the JSON output stays the body as
+// received, so those counts are still readable there.
+func TestOrgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T) {
+	// The current API's shape (those limits `null`, usage kept), and an older
+	// API that still returned their numbers: neither renders the rows.
+	unreturned := limitsFixture()
+	unreturned["sandboxes"] = gen.SandboxLimits{
+		Concurrent: unreturned["sandboxes"].(gen.SandboxLimits).Concurrent,
+		Total:      gen.UsageLimit{Usage: 9},
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/orgs/"+testOrgA+"/limits" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(body)
-	}))
-	t.Cleanup(srv.Close)
+	unreturned["storage"] = gen.StorageLimits{
+		Images:    gen.UsageLimit{Usage: 5},
+		Snapshots: gen.UsageLimit{Usage: 7},
+		Volumes:   gen.UsageLimit{Usage: 2},
+	}
+	numeric := limitsFixture()
+	images, snapshots, volumes := int64(1000), int64(100), int64(20)
+	numeric["storage"] = gen.StorageLimits{
+		Images:    gen.UsageLimit{Usage: 5, Limit: &images},
+		Snapshots: gen.UsageLimit{Usage: 7, Limit: &snapshots},
+		Volumes:   gen.UsageLimit{Usage: 2, Limit: &volumes},
+	}
+	for name, fixture := range map[string]map[string]any{"null limits": unreturned, "numeric limits": numeric} {
+		t.Run(name, func(t *testing.T) { orgLimitsHidesCountsWithoutAReturnedLimit(t, fixture) })
+	}
+}
 
-	out, errb, code := run(t, d, nil, "--api-url", srv.URL, "--api-key", "k", "-o", "table", "org", "limits", "--org", testOrgA)
+func orgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T, fixture map[string]any) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, fixture)
+
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "org", "limits", "--org", testOrgA)
 	if code != 0 {
 		t.Fatalf("%d %s", code, errb)
 	}
-	for _, absent := range []string{"Images", "Snapshots", "Volumes"} {
+	for _, absent := range []string{"Total sandboxes", "Volumes", "Images", "Snapshots"} {
 		if has(out, absent) {
-			t.Fatalf("an unreported %q row must be omitted:\n%s", absent, out)
+			t.Fatalf("a %q row must not render:\n%s", absent, out)
 		}
 	}
 	if !has(out, "Concurrent sandboxes") || !has(out, "4 / 10") {
 		t.Fatalf("reported rows must still render:\n%s", out)
 	}
 
-	out, errb, code = run(t, d, nil, "--api-url", srv.URL, "--api-key", "k", "-o", "json", "org", "limits", "--org", testOrgA)
+	out, errb, code = run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "json", "org", "limits", "--org", testOrgA)
 	if code != 0 {
 		t.Fatalf("%d %s", code, errb)
 	}
@@ -275,8 +273,23 @@ func TestOrgLimitsOmitsUnreportedGroups(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := got["storage"]; ok {
-		t.Fatalf("JSON output must not invent a storage group: %s", out)
+	storage, ok := got["storage"].(map[string]any)
+	if !ok {
+		t.Fatalf("JSON output must keep the storage group the body carried: %s", out)
+	}
+	for key, want := range map[string]float64{"images": 5, "snapshots": 7, "volumes": 2} {
+		count, ok := storage[key].(map[string]any)
+		if !ok || count["usage"] != want {
+			t.Fatalf("JSON output must keep storage.%s and its usage %v: %s", key, want, out)
+		}
+	}
+	sandboxes, ok := got["sandboxes"].(map[string]any)
+	if !ok {
+		t.Fatalf("JSON output must keep the sandboxes group the body carried: %s", out)
+	}
+	total, ok := sandboxes["total"].(map[string]any)
+	if !ok || total["usage"] != float64(9) {
+		t.Fatalf("JSON output must keep sandboxes.total and its usage: %s", out)
 	}
 }
 

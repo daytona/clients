@@ -388,9 +388,15 @@ export class LimitExceededError extends RateLimitError {
   }
 }
 
-/** `IMAGE_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the image's size. */
+/**
+ * `IMAGE_TOO_LARGE` (409): `maxBytes` is the limit and `bytes` the image's size.
+ * Each is `undefined` when the refusal omits it or carries a malformed value.
+ */
 export class ImageTooLargeError extends ConflictError {}
-/** `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit, `bytes` the snapshot's size. */
+/**
+ * `SNAPSHOT_TOO_LARGE` (409): `maxBytes` is the limit and `bytes` the snapshot's
+ * size. Each is `undefined` when the refusal omits it or carries a malformed value.
+ */
 export class SnapshotTooLargeError extends ConflictError {}
 
 export class PreconditionRequiredError extends DaytonaError {}
@@ -642,6 +648,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   ORIGIN_IMPORT_ONLY: OriginImportOnlyError,
   READ_ONLY_UNSUPPORTED: ReadOnlyUnsupportedError,
   UNSUPPORTED_VOLUME_TYPE: UnsupportedVolumeTypeError,
+  VOLUME_NOT_FOUND: NotFoundError,
   CREATE_BODY_TOO_LARGE: PayloadTooLargeError,
   INVALID_PARENT_REGION: BadRequestError,
   INVALID_PREVIEW_DOMAIN: BadRequestError,
@@ -816,10 +823,11 @@ function optionalInteger(value: unknown): number | undefined {
  */
 export function errorOptionsFromEnvelope(envelope: ErrorEnvelope | undefined): ErrorOptions {
   if (envelope === undefined) return {}
+  const retryAfterSeconds = optionalInteger(envelope.retry_after_seconds)
   const retryAfterMs = optionalInteger(envelope.retryAfterMs)
   return {
     traceId: optionalText(envelope.trace_id),
-    retryAfterSeconds: optionalInteger(envelope.retry_after_seconds),
+    retryAfterSeconds: retryAfterSeconds !== undefined && retryAfterSeconds >= 0 ? retryAfterSeconds : undefined,
     feature: optionalText(envelope.feature),
     entitlement: optionalText(envelope.entitlement),
     replacement: optionalText(envelope.replacement),

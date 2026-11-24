@@ -594,6 +594,69 @@ async def test_a_create_response_without_the_sandbox_id_is_a_contract_error(
     assert [spec.method for spec in api.specs] == ["POST"]
 
 
+_OMITTED = object()
+_CREATE_LIFECYCLE = {
+    "timeout_seconds": 120,
+    "on_timeout": "delete",
+    "timeout_at": "2026-11-17T10:02:00.123456Z",
+    "idle_expiry_seconds": None,
+    "on_idle_timeout": None,
+    "idle_timeout_at": None,
+    "wake_on_request": False,
+    "last_activity_at": "2026-11-17T10:00:00.123456Z",
+    "last_activity_source": "api",
+}
+
+
+@pytest.mark.anyio
+async def test_the_create_handle_carries_the_lifecycle_policy_of_the_create_response() -> None:
+    client = _client()
+    api = _Api([{"id": "sbx", "status": "pending", "lifecycle_policy": _CREATE_LIFECYCLE}])
+    client._api = api  # type: ignore[assignment]
+
+    sandbox = await client.create("img_1", wait_seconds=0)
+
+    policy = sandbox.lifecycle_policy
+    assert policy is not None
+    assert (policy.timeout_seconds, policy.on_timeout) == (120, "delete")
+    assert policy.timeout_at == datetime(2026, 11, 17, 10, 2, 0, 123456, tzinfo=timezone.utc)
+    assert policy.last_activity_source == "api"
+    # The deadline as the server sent it, not a re-rendering.
+    assert sandbox.to_json()["lifecyclePolicy"]["timeoutAt"] == "2026-11-17T10:02:00.123456Z"
+    # Read from the create response alone: no detail read.
+    assert [spec.method for spec in api.specs] == ["POST"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "lifecycle",
+    [
+        _OMITTED,
+        None,
+        "delete",
+        [],
+        {**_CREATE_LIFECYCLE, "timeout_at": "not a timestamp"},
+        {**_CREATE_LIFECYCLE, "timeout_seconds": {}},
+        {**_CREATE_LIFECYCLE, "on_timeout": 5},
+    ],
+)
+async def test_a_missing_or_malformed_create_lifecycle_policy_is_absent(lifecycle: object) -> None:
+    # The sandbox exists once its id came back: a policy that does not parse
+    # leaves the field unset, never an error.
+    client = _client()
+    response: dict[str, object] = {"id": "sbx", "status": "pending"}
+    if lifecycle is not _OMITTED:
+        response["lifecycle_policy"] = lifecycle
+    api = _Api([response])
+    client._api = api  # type: ignore[assignment]
+
+    sandbox = await client.create("img_1", wait_seconds=0)
+
+    assert sandbox.id == "sbx"
+    assert sandbox.lifecycle_policy is None
+    assert [spec.method for spec in api.specs] == ["POST"]
+
+
 @pytest.mark.anyio
 async def test_an_explicit_empty_network_policy_is_sent_and_an_omitted_one_is_not() -> None:
     # The omission sentinel is compared by identity: a caller's own `{}` is sent.

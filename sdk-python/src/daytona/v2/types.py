@@ -793,7 +793,7 @@ class ProjectBudget:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class UsageLimit:
-    """A limit and the usage counted against it; ``limit`` ``None`` means unlimited."""
+    """A limit and the usage counted against it; ``limit`` ``None`` means no limit, except on a count whose limit is not returned."""
 
     limit: Optional[int]
     usage: int
@@ -810,6 +810,8 @@ class MemberLimits:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SandboxLimits:
     concurrent: UsageLimit
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     total: UsageLimit
 
 
@@ -820,8 +822,14 @@ class ImageBuildLimits:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class StorageLimits:
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     volumes: UsageLimit
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     images: UsageLimit
+    #: Deprecated: the limit is not returned: ``limit`` is always ``None``. Daytona determines
+    #: this limit for each organization; contact support to request a higher limit.
     snapshots: UsageLimit
 
 
@@ -1013,7 +1021,12 @@ class SandboxLifecycle:
     """Lifecycle policy as the API reports it.
 
     ``timeout_seconds`` is the timeout duration; ``timeout_at`` is the current absolute deadline it
-    derives. ``idle_timeout_at`` is when ``on_idle_timeout`` becomes eligible
+    derives. On a handle a ``create*()`` method returned, these are the values
+    as the create set them. The server restarts that countdown and the idle
+    clock when the sandbox first starts, which can happen after the create
+    returned even when the handle's ``state`` already reads ``started``; then
+    ``timeout_at``, ``idle_timeout_at`` and ``last_activity_at`` move, and
+    ``refresh_data()`` reads the new values. ``idle_timeout_at`` is when ``on_idle_timeout`` becomes eligible
     to fire — ``last_activity_at + idle_expiry_seconds`` — and any activity
     (traffic, SSH, a non-PTY process or code execution started through the
     process API that is still running — ``exec``, ``process.start``,

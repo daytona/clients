@@ -212,8 +212,10 @@ class FileSystemService:
         time, in order.
         A failing ``on_event`` or
         ``on_overflow`` ends the watch with that error; ``on_exit`` runs once
-        when the watch ends, and its own failure is ignored. A failure before
-        the watch starts is raised from this call and does not call ``on_exit``;
+        when the watch ends, and its own failure is ignored. A server ``error``
+        event (for example, a macOS access denial) ends the watch with its typed
+        error. A failure before ``start``, including a server ``error`` event,
+        is raised from this call and does not call ``on_exit``;
         a stream that sends more than 4096 events, or more than 1 MiB, before
         ``start`` is one (``BadRequestError``). After ``start`` an event larger
         than the client's ``max_response_bytes`` ends the watch with
@@ -249,6 +251,8 @@ class WatchHandle:
     Callbacks run one at a time, in order, and are awaited. A failing event or
     overflow callback ends the watch: that error becomes :attr:`exit_error`
     and is passed to ``on_exit``. Never constructed directly.
+    A server ``error`` event (for example, a macOS access denial) ends the
+    watch with the typed error carried by that event.
 
     To stop a watch from an event, signal the code that holds the handle (an
     ``asyncio.Event``, or a ``threading.Event`` with the synchronous client)
