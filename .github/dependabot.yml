@@ -252,6 +252,10 @@ updates:
       - dependency-name: "@nx/*"
         update-types:
           - "version-update:semver-major"
+      # nx-go majors track nx majors (24.x needs @nx/devkit ^24).
+      - dependency-name: "@nx-go/nx-go"
+        update-types:
+          - "version-update:semver-major"
     commit-message:
       prefix: "chore(deps)"
 
@@ -270,6 +274,10 @@ updates:
       day: monday
     cooldown:
       default-days: 7
+    # Leave a minimum alone while the range already allows the new release:
+    # 0.x users should not be forced onto newer libraries the SDK does not
+    # need (the default `increase` raised 18 sdk-python minimums in #704/#724).
+    versioning-strategy: increase-if-necessary
     groups:
       pip-prod:
         patterns:
