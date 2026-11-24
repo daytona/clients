@@ -279,23 +279,77 @@ func TestLoginOnlyCommandsCallLoginOnlyRoutes(t *testing.T) {
 	require.Contains(t, schemes("/orgs/{org_id}/billing/region-multipliers", "get"), "org_key")
 }
 
+// loginOnlyCallArgs are arguments and flags that pass a login-only command's
+// local validation and name things the loginOnlyStubs listings know, so the
+// command reaches the API and gets past its lookups. Commands not listed take
+// placeholder arguments.
+var loginOnlyCallArgs = map[string][]string{
+	"billing automatic-top-up set":     {"--threshold-cents", "1000", "--target-cents", "5000"},
+	"billing balance-notification set": {"--threshold-cents", "1000"},
+	"billing contact set":              {"--email", "billing@example.com"},
+	"billing plan set":                 {"team"},
+	"billing top-up":                   {"1000"},
+	"invite accept":                    {testInvitationToken},
+	"invite decline":                   {testInvitationToken},
+	"invite get":                       {testInvitationToken},
+	"key mint":                         {"--permission", "read:sandboxes"},
+	"member remove":                    {testUserID},
+	"member update":                    {testUserID, "--role", "developer"},
+	"org delete":                       {testOrgA},
+	"org leave":                        {testOrgA},
+	"org update":                       {testOrgA, "--name", "Renamed"},
+	"org use":                          {testOrgA},
+	"org-key mint":                     {"--name", "ci", "--permission", "read:audit"},
+	"project budget set":               {"--monthly-usd", "100"},
+	"project delete":                   {testProjA1},
+	"project member add":               {testUserID},
+	"project member remove":            {testUserID},
+	"project service-account add":      {"bot"},
+	"project service-account remove":   {"bot"},
+	"project update":                   {testProjA1, "--name", "Renamed"},
+	"project use":                      {testProjA1},
+	"service-account create":           {"bot", "--role", "developer"},
+	"service-account update":           {testServiceAccountID, "--name", "Renamed"},
+}
+
+const (
+	testInvitationToken  = "dtni_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" // gitleaks:allow
+	testServiceAccountID = "77777777-7777-7777-7777-777777777777"
+)
+
+// loginOnlyStubs answers the listings login-only commands resolve names and
+// ids against, so a command that looks something up goes on to its own
+// request; every other route answers 404.
+func loginOnlyStubs(f *fakeAPI) {
+	f.on("GET", "/me", 200, map[string]any{"id": testUserID, "email": "me@example.com"})
+	f.on("GET", "/orgs", 200, organizationsFixture())
+	f.on("GET", "/orgs/"+testOrgA+"/projects", 200, projectsFixture(testOrgA, "default", "other"))
+	f.on("GET", "/orgs/"+testOrgA+"/members", 200, map[string]any{"members": []map[string]any{organizationMemberFixture(testUserID, "a@example.com", "Alice")}})
+	f.on("GET", "/orgs/"+testOrgA+"/service-accounts", 200, map[string]any{"service_accounts": []map[string]any{serviceAccountFixture(testServiceAccountID, testOrgA, "bot")}})
+}
+
 // Every request a login-only command sends goes to an operation that admits
 // only a login session. Each command runs with a login's access token, an
-// organization, a project, --yes and placeholder arguments against an API that
-// answers 404, so at least its first request is checked; one whose arguments
-// fail local validation sends none.
+// organization, a project, --yes and arguments that pass its local checks
+// against an API that answers its lookups and 404 otherwise; every command
+// must reach the API.
 func TestLoginOnlyCommandsSendOnlyToLoginOnlyOperations(t *testing.T) {
 	apiRouter, _ := loadContracts(t)
 	schemes := contractSecurity(t)
 	leaves := loginOnlyLeaves(t)
-	sent := 0
-	for path, args := range leaves {
-		f := newFakeAPI(t)
-		cmdArgs := append([]string{"--api-key", testLoginBearer, "--api-url", f.srv.URL, "--org", testOrgA, "--project", testProjP1, "--yes"}, strings.Fields(path)...)
-		_, _, _ = run(t, cfgDir(t), nil, append(cmdArgs, args...)...)
-		if len(f.requests) > 0 {
-			sent++
+	for path := range loginOnlyCallArgs {
+		require.Contains(t, leaves, path, "loginOnlyCallArgs names a command that is not login-only")
+	}
+	for path, placeholders := range leaves {
+		args, ok := loginOnlyCallArgs[path]
+		if !ok {
+			args = placeholders
 		}
+		f := newFakeAPI(t)
+		loginOnlyStubs(f)
+		cmdArgs := append([]string{"--api-key", testLoginBearer, "--api-url", f.srv.URL, "--org", testOrgA, "--project", testProjA1, "--yes"}, strings.Fields(path)...)
+		_, errb, _ := run(t, cfgDir(t), nil, append(cmdArgs, args...)...)
+		require.NotEmpty(t, f.requests, "%s sent no request: %s", path, errb)
 		for _, r := range f.requests {
 			req, err := http.NewRequest(r.Method, "http://contract"+r.Path, nil)
 			require.NoError(t, err)
@@ -304,5 +358,29 @@ func TestLoginOnlyCommandsSendOnlyToLoginOnlyOperations(t *testing.T) {
 			require.Equal(t, []string{"user_jwt"}, schemes(route.Path, strings.ToLower(r.Method)), "%s sends %s %s, which admits an API key", path, r.Method, route.Path)
 		}
 	}
-	require.Greater(t, sent, len(leaves)/2, "too few login-only commands reached the API for the check to mean anything")
+}
+
+// A credential saved for another API is refused first (exit 2), as on every
+// command: it is never sent to this API, and its hint (sign in there with
+// `daytona login --api-url URL --profile NAME`) also gives the login session
+// a login-only command needs.
+func TestLoginOnlyRefusalComesAfterTheSavedCredentialURLCheck(t *testing.T) {
+	f := newFakeAPI(t)
+	d := cfgDir(t)
+	st, err := config.Open(d)
+	require.NoError(t, err)
+	require.NoError(t, st.Update(func(c *config.Config, cr *config.Credentials) (bool, bool, error) {
+		c.Upsert(config.Profile{Name: "default", APIURL: "https://api.example", Credential: "token"})
+		c.ActiveProfile = "default"
+		cr.Profiles["default"] = config.ProfileCredentials{Token: "dtno_saved"}
+		return true, true, nil
+	}))
+	_, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "billing", "wallet")
+	require.Equal(t, cerr.ExitUsage, code, errb)
+	require.Contains(t, errb, "saved credential was issued for https://api.example")
+	require.Contains(t, errb, "daytona login --api-url")
+	require.Empty(t, f.requests)
+	_, errb, code = run(t, d, nil, "--api-url", "https://api.example", "billing", "wallet")
+	require.Equal(t, cerr.ExitAuth, code, errb)
+	require.Contains(t, errb, "needs a `daytona login` session")
 }
