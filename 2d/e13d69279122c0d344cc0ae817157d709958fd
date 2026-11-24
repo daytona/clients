@@ -1,0 +1,14 @@
+sdk-go/e2e/computer_use_test.go
+  h_e7759ddd73fa65 11,74-77,79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2de13d69279122c0d344cc0ae817157d709958fd",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

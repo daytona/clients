@@ -1,0 +1,16 @@
+sdk-python/README.md
+  h_5fc330b445be98 597-599,604-605
+sdk-python/src/daytona/v2/desktop.py
+  h_5fc330b445be98 24-27,51-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5591be0f8b42a8bb8f96b879518ad3fb0448076",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

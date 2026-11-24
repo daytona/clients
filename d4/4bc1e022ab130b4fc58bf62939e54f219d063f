@@ -1,0 +1,21 @@
+scripts/patch_coverage_test.sh
+  s_ecdbede00c9ca5::t_b59e4c3f5f8274 17,23,36,40
+scripts/patch_coverage.py
+  s_ecdbede00c9ca5::t_2e9aa866297f2c 7-17,23-24,51,67-73,77-78,179-185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d44bc1e022ab130b4fc58bf62939e54f219d063f",
+  "prompts": {},
+  "sessions": {
+    "s_ecdbede00c9ca5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d99ce8ffeQ8utu1Yq5q7bYd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

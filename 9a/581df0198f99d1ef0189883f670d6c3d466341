@@ -1,0 +1,38 @@
+sdk-go/toolbox_routes_scan_test.go
+  s_7b102f4cbe613e::t_b48b393dedaba8 65-73
+  s_7b102f4cbe613e::t_e0eccbc5a2224c 1-36,48-61,63-64,74-78,82-201
+  s_7b102f4cbe613e::t_48a13482f382cc 38-41,43-47
+  s_7b102f4cbe613e::t_91facd3939e4e1 37,42,62,79-81
+sdk-go/toolbox_routes_scanner_test.go
+  s_7b102f4cbe613e::t_0f950ad2934de1 106,108,111-112,114,117
+  s_7b102f4cbe613e::t_417d067c35952e 22
+  s_7b102f4cbe613e::t_fea594fbe95db9 1-21,23-105,107,109-110,113,115-116,118-137
+sdk-go/toolbox_routes_test.go
+  s_7b102f4cbe613e::t_48a13482f382cc 68
+  s_7b102f4cbe613e::t_08feef27fcb181 71,75
+  s_7b102f4cbe613e::t_68c9e3db535527 1-67,69-70,72-74,76-141,149-175
+  s_7b102f4cbe613e::t_296a4a6e93f151 142-148
+sdk-go/toolbox_routes_helpers_test.go
+  s_7b102f4cbe613e::t_b483195f7176e8 1-40,42-104
+  s_7b102f4cbe613e::t_3059cde042e8e7 41
+sdk-go/toolbox_routes_dynamic_test.go
+  s_7b102f4cbe613e::t_1d9c9e7e7f6cc5 9-18,23-28,33-34,38-39,42-43,45-49,51-53,55-58,79,94-95,103-120
+  s_7b102f4cbe613e::t_68c9e3db535527 1-8,54
+  s_7b102f4cbe613e::t_0f950ad2934de1 19-22,29-32,35-37,40-41,44,50,59-78,80-93,96-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9a581df0198f99d1ef0189883f670d6c3d466341",
+  "prompts": {},
+  "sessions": {
+    "s_7b102f4cbe613e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e064f5bf7ffeYDoMb7XllDy33X",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

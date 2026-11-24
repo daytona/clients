@@ -1,0 +1,30 @@
+sdk-go/transport_utf8_keys_test.go
+  s_7c909ce564fb3b::t_2a64d0662a0b87 1-111
+sdk-go/transport_utf8.go
+  s_7c909ce564fb3b::t_53ab1f1b43be4d 7,110,119-140
+  s_f3c35abb815091::t_cb814315b44d1d 141-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df9a9be9f879524cd19345e4d6c205d2b75c1527",
+  "prompts": {},
+  "sessions": {
+    "s_7c909ce564fb3b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589d9ffffe7zipoIhrsllX06",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f3c35abb815091": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589e913ffePrGqaUnM7te6IH",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

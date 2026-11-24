@@ -1,0 +1,20 @@
+.github/workflows/tooling.yaml
+  h_e7759ddd73fa65 17-18,50,53
+sdk-go/e2e/core_test.go
+  h_e7759ddd73fa65 33-39
+sdk-go/e2e/helpers_test.go
+  h_e7759ddd73fa65 220-238
+sdk-go/e2e/lifecycle_test.go
+  h_e7759ddd73fa65 99-104,116-119,125-128,139-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "479cb1606a2ddc207b362496ce24ed4b92dfc1e7",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

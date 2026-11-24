@@ -1,0 +1,81 @@
+sdk-go/build_logs_protocol_test.go
+  s_974bc0212f17c1::t_e18cecf0f33a64 1-48,54-139
+  s_974bc0212f17c1::t_3d994dfead26ff 49-53
+sdk-go/build_logs_timeout_test.go
+  s_974bc0212f17c1::t_3209e8535b2428 20-22,31-34,51-54,73-76,85-88,110-113
+  s_974bc0212f17c1::t_66ce84f3475a51 1-19,23-30,35-50,55-72,77-84,89-109,114-132
+sdk-go/build_logs_sse.go
+  s_974bc0212f17c1::t_17a2c381b2b704 1-107
+sdk-go/build_logs_identity_test.go
+  s_974bc0212f17c1::t_0fce6593a0b113 108-125
+  s_974bc0212f17c1::t_0e422580146ead 89
+  s_974bc0212f17c1::t_5f68fe20cceb11 87-88,90
+  s_974bc0212f17c1::t_490303a07e675a 1-86,91-107,126
+sdk-go/build_logs_errors_test.go
+  s_974bc0212f17c1::t_660ddfd956e37a 29
+  s_974bc0212f17c1::t_3c671a41764c03 115-120,122-133
+  s_974bc0212f17c1::t_9e49fb0657b003 121
+  s_974bc0212f17c1::t_2954328135999d 1-28,30-114
+sdk-go/build_logs.go
+  s_974bc0212f17c1::t_5b224b41b0edfa 1-27,32-46,48,51-104
+  s_974bc0212f17c1::t_3d994dfead26ff 28-31
+  s_974bc0212f17c1::t_6a165ab5507dd7 47,49-50
+sdk-go/build_logs_models.go
+  s_974bc0212f17c1::t_5b224b41b0edfa 1-154
+sdk-go/build_logs_identity.go
+  s_974bc0212f17c1::t_5f68fe20cceb11 33-34,36
+  s_974bc0212f17c1::t_9e49fb0657b003 22-24,42-60
+  s_974bc0212f17c1::t_0fce6593a0b113 18
+  s_974bc0212f17c1::t_6a165ab5507dd7 10-11,16-17,19-20,25,27-28,74-82,113-118
+  s_974bc0212f17c1::t_0e422580146ead 31-32
+  s_974bc0212f17c1::t_5b224b41b0edfa 1-9,12-15,21,26,29-30,35,37-41,61-73,83-112,119-123
+sdk-go/build_logs_snapshot_test.go
+  s_974bc0212f17c1::t_2954328135999d 1-85,90-110
+  s_974bc0212f17c1::t_3d994dfead26ff 86-89
+sdk-go/build_logs_request.go
+  s_974bc0212f17c1::t_6a165ab5507dd7 34-35,73,136,142-156
+  s_974bc0212f17c1::t_17a2c381b2b704 1-33,36-72,74-135,137-141,157
+sdk-go/build_logs_example_test.go
+  s_974bc0212f17c1::t_3209e8535b2428 12
+  s_974bc0212f17c1::t_66ce84f3475a51 1-11,13-67
+sdk-go/build_logs_cancel_test.go
+  s_974bc0212f17c1::t_2954328135999d 1-130
+  s_974bc0212f17c1::t_3c671a41764c03 131-167
+sdk-go/build_logs_observer.go
+  s_974bc0212f17c1::t_4f3b6353431301 1-16,18-24,26-46,51-71
+  s_974bc0212f17c1::t_660ddfd956e37a 17,25,47-50
+sdk-go/build_logs_parse.go
+  s_974bc0212f17c1::t_17a2c381b2b704 1-168
+sdk-go/build_logs_follow.go
+  s_974bc0212f17c1::t_3209e8535b2428 41
+  s_974bc0212f17c1::t_6a165ab5507dd7 43-44,108-109,122-124,136
+  s_974bc0212f17c1::t_4f3b6353431301 1-11,13-40,42,45-66,68-96,103-107,110-121,125-135,137-219
+  s_974bc0212f17c1::t_5f68fe20cceb11 12,67,101-102
+  s_974bc0212f17c1::t_3d994dfead26ff 97-100
+sdk-go/build_logs_retry_test.go
+  s_974bc0212f17c1::t_3209e8535b2428 86
+  s_974bc0212f17c1::t_3d994dfead26ff 54-57,62-67,109-112
+  s_974bc0212f17c1::t_490303a07e675a 1-33,36-53,58-61,68-85,88-106,108,113-134,136-149
+  s_974bc0212f17c1::t_5f68fe20cceb11 87,135
+  s_974bc0212f17c1::t_660ddfd956e37a 34-35,107
+sdk-go/build_logs_test.go
+  s_974bc0212f17c1::t_e18cecf0f33a64 1-21,23-24,26-49,57-80,82-83,86-88,90-113,115-117,119-138
+  s_974bc0212f17c1::t_56f9c19b20c7d6 22,25
+  s_974bc0212f17c1::t_660ddfd956e37a 50-56,81,84-85,89,114,118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "820dad1c514e896961b51c8273a914af23922004",
+  "prompts": {},
+  "sessions": {
+    "s_974bc0212f17c1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b38143ffeTkKaJKA0L5TaUw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

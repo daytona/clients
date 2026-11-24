@@ -1,0 +1,26 @@
+sdk-go/computer_use_a11y_test.go
+  s_30fd999cbefaac::t_2aeb17d0ec2b96 56-58,94
+  s_30fd999cbefaac::t_c8fa7f0a329b44 59
+sdk-go/computer_use_a11y_types.go
+  s_30fd999cbefaac::t_3521b1cf6ba123 66,69,71,73,75
+sdk-go/computer_use_a11y.go
+  s_30fd999cbefaac::t_3521b1cf6ba123 23,29,39,43,47,51,55,57,64,80,84,88,92,96,98
+sdk-go/computer_use_a11y_parse.go
+  s_30fd999cbefaac::t_3521b1cf6ba123 93,107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f936d271e32445fa73594d5c7e6785c8bad384a",
+  "prompts": {},
+  "sessions": {
+    "s_30fd999cbefaac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06064bf5ffePamsvXL0slHL3S",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+sdk-go/macos_create.go
+  s_e2f5d5de9bfdd5::t_dc71a588ce8247 11-13
+sdk-go/sandbox_lifecycle_fork.go
+  s_e2f5d5de9bfdd5::t_dc71a588ce8247 30-31,172-173
+sdk-go/sandbox_create.go
+  s_e2f5d5de9bfdd5::t_dc71a588ce8247 14-17,65-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3e1319374538b2b44d2ed6742d2d3c6993c03b2",
+  "prompts": {},
+  "sessions": {
+    "s_e2f5d5de9bfdd5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627bea9ffe8vjVNaoeHnCPcR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

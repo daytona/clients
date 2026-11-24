@@ -1,0 +1,21 @@
+sdk-go/create_submit.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 63-67
+sdk-go/create_response_context_test.go
+  s_3eed283e8a7661::t_97b6558feb5582 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b708166accd7963f6477be3ad78586b1e7927fb4",
+  "prompts": {},
+  "sessions": {
+    "s_3eed283e8a7661": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d9aefdffeztabTS1AN41gc4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

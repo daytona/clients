@@ -1,0 +1,30 @@
+sdk-go/sandbox_wait_reason_provenance_test.go
+  s_0749e2112a6ab5::t_49618d161b7f27 1-76
+sdk-go/sandbox_wait.go
+  s_0749e2112a6ab5::t_d4d3c00c151e70 18-19
+sdk-go/sandbox.go
+  s_0749e2112a6ab5::t_3fb7115b605d02 19-22,25,61
+  s_0749e2112a6ab5::t_c65c1e5d8c8d53 23-24,59-60,133
+sdk-go/sandbox_wait_events.go
+  s_0749e2112a6ab5::t_d78669bbfc1e91 150-151
+sdk-go/sandbox_wait_read.go
+  s_0749e2112a6ab5::t_c65c1e5d8c8d53 96,123
+  s_0749e2112a6ab5::t_d78669bbfc1e91 125-134
+  s_0749e2112a6ab5::t_b4879dd2439409 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d16c04e83dd8cfb04aca749e08eb61d8a42cb5d9",
+  "prompts": {},
+  "sessions": {
+    "s_0749e2112a6ab5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05aebc5dffevuS7ZU8IrwTuIT",
+        "model": "unknown"
+      },
+      "human_author": null
+    }
+  }
+}

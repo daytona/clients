@@ -1,0 +1,19 @@
+.github/workflows/sdk-go-ci.yaml
+  s_1e92324d6d8e4c::t_5ccdfe6258c7a7 11,18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef02c0ebfb9c6d96634927efc4f3ed30e1f655b8",
+  "prompts": {},
+  "sessions": {
+    "s_1e92324d6d8e4c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065dcbffffeYtsr5bbQcMGC5j",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

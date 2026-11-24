@@ -1,0 +1,16 @@
+sdk-go/image_pull_failure_message_test.go
+  h_e7759ddd73fa65 24
+sdk-go/reservation_create.go
+  h_e7759ddd73fa65 81-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1baed665918bd909c0597c4c889afebc6089f75e",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

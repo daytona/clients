@@ -1,0 +1,16 @@
+changelog.d/708.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/708.fixed.md
+  h_e7759ddd73fa65 6-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33cce81a6bc99618ce18b36b5b4116d522600933",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

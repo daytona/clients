@@ -1,0 +1,24 @@
+sdk-go/ports_cubic_test.go
+  s_90b2fadde12756::t_d72aa46c7ceff0 1-7,9-16,18-32
+  s_90b2fadde12756::t_df9691eef43078 8,17
+sdk-go/ports_test.go
+  s_90b2fadde12756::t_f08476cd93f331 36,43
+sdk-go/ports.go
+  s_90b2fadde12756::t_f08476cd93f331 20,40-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dda752da5bdbaf4199a571729165b06c20fdbcfc",
+  "prompts": {},
+  "sessions": {
+    "s_90b2fadde12756": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e6998ffePOV0XWTw2PmKV6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

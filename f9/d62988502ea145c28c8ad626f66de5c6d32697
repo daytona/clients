@@ -1,0 +1,27 @@
+sdk-go/ports_test.go
+  s_12257b84f26bcc::t_dc5f41001557ad 18
+sdk-go/docker_test.go
+  s_12257b84f26bcc::t_dc5f41001557ad 20
+sdk-go/docker_timing_test.go
+  s_12257b84f26bcc::t_dc5f41001557ad 30
+sdk-go/git_test.go
+  s_12257b84f26bcc::t_dc5f41001557ad 21
+sdk-go/git_remote_test.go
+  s_12257b84f26bcc::t_dc5f41001557ad 115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f9d62988502ea145c28c8ad626f66de5c6d32697",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

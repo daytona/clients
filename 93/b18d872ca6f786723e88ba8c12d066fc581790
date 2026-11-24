@@ -1,0 +1,19 @@
+sdk-go/e2e/computer_use_test.go
+  s_99c7055300134a::t_53e3244c2880ab 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "93b18d872ca6f786723e88ba8c12d066fc581790",
+  "prompts": {},
+  "sessions": {
+    "s_99c7055300134a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b43da8ffeBltPyGRwBqygWI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

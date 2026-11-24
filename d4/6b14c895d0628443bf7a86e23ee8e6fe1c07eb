@@ -1,0 +1,14 @@
+sdk-go/e2e/core_test.go
+  h_e7759ddd73fa65 33-39,41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d46b14c895d0628443bf7a86e23ee8e6fe1c07eb",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

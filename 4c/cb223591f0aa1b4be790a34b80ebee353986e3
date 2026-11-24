@@ -1,0 +1,22 @@
+sdk-go/transfer_options.go
+  s_12824b4efce078::t_748882274e3903 74-76
+sdk-go/transfer_cause_r7_test.go
+  s_12824b4efce078::t_2f59a542d61b21 1-65,69-76,82-90
+  s_12824b4efce078::t_748882274e3903 66-68,77-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ccb223591f0aa1b4be790a34b80ebee353986e3",
+  "prompts": {},
+  "sessions": {
+    "s_12824b4efce078": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589d934ffeyVm6EPUp2Pr83v",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

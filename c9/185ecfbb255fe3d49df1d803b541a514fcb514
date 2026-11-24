@@ -1,0 +1,21 @@
+sdk-go/options.go
+  s_ed96adef3173d1::t_a2bb85b5111955 79-80
+sdk-go/DEVELOPMENT.md
+  s_ed96adef3173d1::t_a2bb85b5111955 133-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c9185ecfbb255fe3d49df1d803b541a514fcb514",
+  "prompts": {},
+  "sessions": {
+    "s_ed96adef3173d1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e7900ffeUI2NEr1dxblqIw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

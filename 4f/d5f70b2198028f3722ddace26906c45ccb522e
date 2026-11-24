@@ -1,0 +1,14 @@
+sdk-go/build_logs_models.go
+  h_e7759ddd73fa65 12-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4fd5f70b2198028f3722ddace26906c45ccb522e",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+sdk-go/interpreter_r3_marshal_test.go
+  s_e5793a77dcc993::t_a7b5bd2fee4c4c 1-23
+sdk-go/interpreter_models.go
+  s_173701f4a295bd::t_c1305c48d577ab 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7835755ff22756162a1d25420b8d8f3534ad91b0",
+  "prompts": {},
+  "sessions": {
+    "s_173701f4a295bd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06274656ffeiwlTw95vAqe48z",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e5793a77dcc993": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627a9b8ffechPxzfK61AgYe0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

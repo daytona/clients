@@ -1,0 +1,26 @@
+changelog.d/api-error-codes-abuse-gpu-membership.added.md
+  h_e7759ddd73fa65 1-10
+sdk-python/src/daytona/v2/_codes.py
+  h_e7759ddd73fa65 95,100,119,245,250,269,421,426,445
+sdk-python/src/daytona/v2/errors.py
+  h_e7759ddd73fa65 829,834,871
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 7687-7694
+sdk-typescript/src/v2/codes.ts
+  h_e7759ddd73fa65 87,92,129,268,273,310
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  h_e7759ddd73fa65 658,663,700
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 9265-9273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bdff14808fb44b991c493bc5826a8024c0224d73",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

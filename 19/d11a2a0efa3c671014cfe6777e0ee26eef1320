@@ -1,0 +1,23 @@
+sdk-go/sandbox_info_nested.go
+  s_12257b84f26bcc::t_d2e264a4699a96 8,125-131,133,136,140-150,152,156-161,164,166,170
+  s_12257b84f26bcc::t_0c2291763884be 162-163
+sdk-go/sandbox_info_lifecycle_test.go
+  s_12257b84f26bcc::t_4d544dbab3db21 1-45,48-54
+  s_12257b84f26bcc::t_8a384616413e38 46-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19d11a2a0efa3c671014cfe6777e0ee26eef1320",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

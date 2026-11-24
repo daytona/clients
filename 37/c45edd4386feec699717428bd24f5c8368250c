@@ -1,0 +1,25 @@
+cli/gen/api/types.gen.go
+  s_d1b89578d6ceb5::t_c27363fa609d15 6800,6805
+contract/api-openapi.json
+  s_d1b89578d6ceb5::t_2d853af39b6870 10243,10252,24168,24209
+sdk-python/src/daytona/v2/_gen/api/models/update_project_limits_request.py
+  s_d1b89578d6ceb5::t_3ef1c0ece993aa 39-40
+sdk-typescript/src/v2/gen/api.ts
+  s_d1b89578d6ceb5::t_fb2002e02cdbc2 1866,7593,7600,16086
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "37c45edd4386feec699717428bd24f5c8368250c",
+  "prompts": {},
+  "sessions": {
+    "s_d1b89578d6ceb5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a3f3654ffeXE8ydBHCTsQrQ7",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

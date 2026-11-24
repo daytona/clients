@@ -1,0 +1,20 @@
+sdk-go/DEVELOPMENT.md
+  s_ed96adef3173d1::t_18c14b4c8a7ed6 181-183
+  s_ed96adef3173d1::t_ccdb49f8f5d24c 201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "176bb57c4cd690ea0ca6d83773cf6d45c50ed8ff",
+  "prompts": {},
+  "sessions": {
+    "s_ed96adef3173d1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065e7900ffeUI2NEr1dxblqIw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

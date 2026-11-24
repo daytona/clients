@@ -1,0 +1,39 @@
+sdk-typescript/src/Sandbox.ts
+  s_edc1b77793c5f8::t_41b8c0b76db0aa 1447-1448,1450-1455
+sdk-java/src/test/java/io/daytona/sdk/internal/EventSubscriptionManagerTest.java
+  s_0aae4455ccb615::t_d746ded805af1d 1-45
+sdk-ruby/spec/daytona/sandbox_spec.rb
+  s_7ba24874c3de0c::t_a645774c99b868 1263-1338
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef5458a47e08342261111337484d16a65c1ffa5a",
+  "prompts": {},
+  "sessions": {
+    "s_0aae4455ccb615": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1765fdecffeFb9q7mqYJq87fa",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_7ba24874c3de0c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e176603f5ffe9fMMNb4xo3r7Lg",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_edc1b77793c5f8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e17661ac4ffeJdnH6s3wbpicrd",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

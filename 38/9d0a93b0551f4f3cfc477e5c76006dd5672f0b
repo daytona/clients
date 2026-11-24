@@ -1,0 +1,40 @@
+cli/cmd/sandbox_nodes_test.go
+  s_b3e701c41242f9::t_e623c5b0eaaf62 49
+  s_b3e701c41242f9::t_b8308b8143db3f 1-48,50-178
+cli/README.md
+  s_b3e701c41242f9::t_2766293954f716 303-325,335-336
+cli/cmd/sandbox_create_helpers.go
+  s_b3e701c41242f9::t_a5b6dc01b1d992 80-82
+cli/cmd/sandbox_nodes.go
+  s_b3e701c41242f9::t_d96af647e9765d 1-8,10-82,88-121,127-364,366-367,371-372,374-391
+  s_b3e701c41242f9::t_58033911346077 9,83-87,122-126,365,368-370,373
+cli/cmd/sandbox_display.go
+  s_b3e701c41242f9::t_58033911346077 7,67-80
+cli/internal/input/request_fields_test.go
+  s_b3e701c41242f9::t_bd648ff4a7a0bc 28
+  s_b3e701c41242f9::t_651528bd11a57f 102-106,151-167
+cli/cmd/sandbox_create_gpu.go
+  s_b3e701c41242f9::t_a5b6dc01b1d992 1-76
+cli/cmd/sandbox_exec.go
+  s_b3e701c41242f9::t_a5b6dc01b1d992 36,40
+cli/internal/input/request_fields_gen.go
+  s_b3e701c41242f9::t_d571dc959505e2 11-48
+cli/cmd/sandbox_create.go
+  s_b3e701c41242f9::t_a5b6dc01b1d992 51-52,61,70-72,189-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "389d0a93b0551f4f3cfc477e5c76006dd5672f0b",
+  "prompts": {},
+  "sessions": {
+    "s_b3e701c41242f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b7f97c1-6295-4839-a27b-f5f1f098b4d1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+sdk-python/src/daytona/v2/types.py
+  s_13dc1dfef3c825::t_cb3f5fac1383bf 1569-1571
+e2e/e2e.py
+  s_13dc1dfef3c825::t_193d045ab7b47e 169-170
+sdk-python/src/daytona/v2/_exports.py
+  s_13dc1dfef3c825::t_2ef40d9d608fa1 319,323-324
+sdk-python/tests/test_search_first_lists.py
+  s_13dc1dfef3c825::t_98569657eb3781 396-412
+  s_13dc1dfef3c825::t_77b8b35d4a1e9b 14,69-85,98,109,118,127-145,150-153,178,192,227,260-281,298-327,354
+  s_13dc1dfef3c825::t_f1b359350fb7fb 355-366
+  s_13dc1dfef3c825::t_05d5f6d7165a3b 328-353
+  s_13dc1dfef3c825::t_010b957e42bf85 16,282-297
+sdk-python/src/daytona/v2/_core.py
+  s_13dc1dfef3c825::t_cb3f5fac1383bf 2377-2378,2380,2383,2395-2400
+sdk-python/src/daytona/v2/__init__.py
+  s_13dc1dfef3c825::t_2ef40d9d608fa1 357,366-367,703,707-708
+sdk-python/src/daytona/v2/services.py
+  s_13dc1dfef3c825::t_54a20575b694f2 798,808-812,814,818-886,904,932
+  s_13dc1dfef3c825::t_cb3f5fac1383bf 554-603
+  s_13dc1dfef3c825::t_6d07f689eb50f9 46,1295,1298,1300-1304,1306,1318-1362,1365,1391
+  s_13dc1dfef3c825::t_b2977ead7392d3 20,55,59,64-65,89-91,93,97-98
+  s_13dc1dfef3c825::t_f1b359350fb7fb 484-488,507-512,813,1305
+  s_13dc1dfef3c825::t_7d869b28aabbd0 790
+sdk-python/src/daytona/v2/_sync/services.py
+  s_13dc1dfef3c825::t_50af28401db5f6 373,376-417,457,460-493
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "befec966fa83395c296a6e90bfcde6b665c48f6a",
+  "prompts": {},
+  "sessions": {
+    "s_13dc1dfef3c825": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b4d9187ffe82XBcuic15esKW",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

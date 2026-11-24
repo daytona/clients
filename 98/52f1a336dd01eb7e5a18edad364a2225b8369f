@@ -1,0 +1,89 @@
+.github/workflows/sdk_publish.yaml
+  s_67b025aa04a837::t_e2b08bb53362d0 1092,1138-1142,1309,1311,1348,1350
+AGENTS.md
+  s_67b025aa04a837::t_4657de7b93944c 272
+changelog.d/623-cli-config-path.fixed.md
+  s_67b025aa04a837::t_cf7047d5044e75 1-2
+changelog.d/623-cli-json-escaping.fixed.md
+  s_67b025aa04a837::t_04efe2490b3892 1-2
+changelog.d/cli-email-access-denied-hint.fixed.md
+  s_67b025aa04a837::t_186ea0fa62e856 1-3
+changelog.d/organization-limits-not-returned.deprecated.md
+  s_67b025aa04a837::t_25ebb3c7bce0e0 9-10
+changelog.d/ts-ports-list-message.fixed.md
+  s_67b025aa04a837::t_1f3b4bfd18d650 1-4
+changelog.d/v0-pin-0-233-0.changed.md
+  s_67b025aa04a837::t_2c17e4e77452b6 1-5
+cli/cmd/auth_login.go
+  s_67b025aa04a837::t_4b6d349fc2add8 55-57
+cli/cmd/auth_login_output_test.go
+  s_67b025aa04a837::t_6feefbf0503764 24,31-32
+cli/cmd/cli_contract_test.go
+  s_67b025aa04a837::t_0ab7fe7cc93a19 304-314
+cli/cmd/org_limits_test.go
+  s_67b025aa04a837::t_6a0371f46131bb 18,34
+cli/cmd/root.go
+  s_67b025aa04a837::t_686c7d8a8fa633 211-213
+cli/internal/api/codes.go
+  s_67b025aa04a837::t_d2706f282b60d0 20,61
+cli/internal/api/codes_test.go
+  s_67b025aa04a837::t_79df754f494bd7 11,31-40
+cli/internal/api/error_hints.go
+  s_67b025aa04a837::t_181f4d824ee0e4 43-47
+cli/internal/api/error_hints_test.go
+  s_67b025aa04a837::t_224bc15768b98b 62-68
+cli/internal/config/config.go
+  s_67b025aa04a837::t_aa0c9b7d5dcd11 81-86
+cli/internal/config/config_test.go
+  s_67b025aa04a837::t_73fab93fc3186c 35-48
+cli/internal/output/output.go
+  s_67b025aa04a837::t_aeb15f6579f75f 129
+cli/internal/output/output_test.go
+  s_67b025aa04a837::t_7bb471b74e26d3 32-42
+scripts/check-no-bundled-v0.sh
+  s_67b025aa04a837::t_8fa862e6aeff6c 49
+scripts/v0-sdk-version
+  s_67b025aa04a837::t_4a518d79b71207 1-2
+sdk-python/DEVELOPMENT.md
+  s_67b025aa04a837::t_c9c0b0595e4c64 69
+sdk-python/src/daytona/_v0_root_names.py
+  s_67b025aa04a837::t_5917314c68275e 24-25,38,99,110-111
+sdk-python/tests/test_root_client.py
+  s_67b025aa04a837::t_e6246cb648261d 1031,1056
+sdk-typescript/DEVELOPMENT.md
+  s_67b025aa04a837::t_aa7d2d93b65590 161
+sdk-typescript/src/Daytona.ts
+  s_67b025aa04a837::t_cd8a45e0462f7a 281
+sdk-typescript/src/v0-unbundled.ts
+  s_67b025aa04a837::t_7c02924b0225e5 25
+sdk-typescript/src/v2/Ports.ts
+  s_67b025aa04a837::t_b1c467a7936a67 351
+sdk-typescript/tests/unit.test.ts
+  s_67b025aa04a837::t_d3f6d1cd1cbe84 2239-2251
+upgrade/MIGRATION.md
+  s_67b025aa04a837::t_9eb63319b4e85b 254
+upgrade/mapping/mapping.json
+  s_67b025aa04a837::t_42ed2d20372c59 7,419,5392-5412,5628-5629,5642,5703,5714-5715,5747,5825-5826,5851-5854
+upgrade/python/DEVELOPMENT.md
+  s_67b025aa04a837::t_b957dd01a34433 184
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_67b025aa04a837::t_ac9957b3c5cc49 7,419,5392-5412,5628-5629,5642,5703,5714-5715,5747,5825-5826,5851-5854
+upgrade/typescript/src/mapping.json
+  s_67b025aa04a837::t_db4c40001ce45d 7,419,5392-5412,5628-5629,5642,5703,5714-5715,5747,5825-5826,5851-5854
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9852f1a336dd01eb7e5a18edad364a2225b8369f",
+  "prompts": {},
+  "sessions": {
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

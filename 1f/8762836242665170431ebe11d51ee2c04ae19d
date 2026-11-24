@@ -1,0 +1,29 @@
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_2f98ba3ebd5834::t_b08c9e022d84fb 597,634,647-650
+sdk-typescript/tests/create-lifecycle-policy.test.ts
+  s_f6f7d98fd6ba9d::t_da8671a2db122f 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f8762836242665170431ebe11d51ee2c04ae19d",
+  "prompts": {},
+  "sessions": {
+    "s_2f98ba3ebd5834": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15d95968ffej0mepNXm4F227Y",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f6f7d98fd6ba9d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e15da7e16ffeotiImw2pvbqMnM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

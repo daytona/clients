@@ -1,0 +1,28 @@
+changelog.d/616-unreturned-limits.changed.md
+  h_e7759ddd73fa65 1-7
+cli/cmd/org.go
+  h_e7759ddd73fa65 188-190,567,588-590,611-620
+cli/cmd/org_limits_test.go
+  h_e7759ddd73fa65 20,26,34,36-37,71-72,77-79,81-84,87-93,101-129
+sdk-python/src/daytona/v2/_sync/daytona.py
+  h_e7759ddd73fa65 499-501
+sdk-python/src/daytona/v2/daytona.py
+  h_e7759ddd73fa65 968-970
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 796-802,819,830-831
+sdk-typescript/src/v2/Daytona.ts
+  h_e7759ddd73fa65 156-157
+sdk-typescript/src/v2/accountTypes.ts
+  h_e7759ddd73fa65 49-55,63,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "26bcdc35e135a09c7effc5cedf355a92cec77581",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

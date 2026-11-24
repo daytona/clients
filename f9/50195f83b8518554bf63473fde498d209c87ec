@@ -1,0 +1,19 @@
+sdk-go/e2e/helpers_test.go
+  s_12257b84f26bcc::t_c7cda94eb03cb9 125-127,129-150,157,165,170,173,176,179,181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f950195f83b8518554bf63473fde498d209c87ec",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

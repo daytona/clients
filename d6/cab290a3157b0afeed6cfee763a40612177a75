@@ -1,0 +1,23 @@
+sdk-go/sandbox_get.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 36,39
+sdk-go/transport_request.go
+  s_3eed283e8a7661::t_2a5cff1b74242a 25,153
+sdk-go/sandbox_get_option_errors_test.go
+  s_3eed283e8a7661::t_b3b3d973bc44c3 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6cab290a3157b0afeed6cfee763a40612177a75",
+  "prompts": {},
+  "sessions": {
+    "s_3eed283e8a7661": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d9aefdffeztabTS1AN41gc4",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

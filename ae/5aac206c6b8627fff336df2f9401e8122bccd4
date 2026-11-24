@@ -1,0 +1,21 @@
+cli/cmd/sandbox_ssh_token_test.go
+  s_12257b84f26bcc::t_a2ec424b7ec00c 140-161
+cli/internal/toolbox/target_test.go
+  s_12257b84f26bcc::t_3741043c16cc6a 188-226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae5aac206c6b8627fff336df2f9401e8122bccd4",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

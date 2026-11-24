@@ -1,0 +1,87 @@
+changelog.d/remove-lsp.breaking.md
+  s_5d411b780dcad7::t_b39f918b4238eb 1-6
+AGENTS.md
+  s_5d411b780dcad7::t_0594095f85d1c8 637-638,844
+README.md
+  s_5d411b780dcad7::t_e146f60aab9c1b 8,71
+examples/README.md
+  s_5d411b780dcad7::t_7e95030dbffc8b 78
+sdk-python/DEVELOPMENT.md
+  s_5d411b780dcad7::t_57f73be90c4016 17,19,218
+sdk-python/README.md
+  s_5d411b780dcad7::t_88f0a70f8439c1 419,1059
+sdk-python/tests/test_core.py
+  s_8ff99abde63f7c::t_ac283f396ce6af 229,241-247,3726,9289-9290
+sdk-typescript/DEVELOPMENT.md
+  s_0089cbefe59730::t_28b5b5c5c79399 162,318-319
+sdk-typescript/README.md
+  s_0089cbefe59730::t_f2a8561f57d04d 397,987
+sdk-typescript/tests/root-client.test.ts
+  s_0089cbefe59730::t_2c0e317ad86b22 144
+sdk-typescript/tests/unit.test.ts
+  s_0089cbefe59730::t_c7011191cb655b 358-364,11542,12273
+upgrade/MIGRATION.md
+  s_bb33829f46707b::t_2b610ed874051d 213,222,268,709,715-722,728-735
+upgrade/mapping/mapping.json
+  s_bb33829f46707b::t_378b1d1909d2a6 489,1015,2569-2570,2572,2575,2578,2592-2593,2595,2598,2601,2615-2616,2618,2621,2624,2638-2639,2641,2644,2647,2661-2662,2664,2667,2670,2684-2685,2687,2690,2693,2707-2708,2710,2713,2716,2730-2731,2733,2736,2739,4594-4595,4597,4600,4603
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_bb33829f46707b::t_05dfe34fea286a 489,1015,2569-2570,2572,2575,2578,2592-2593,2595,2598,2601,2615-2616,2618,2621,2624,2638-2639,2641,2644,2647,2661-2662,2664,2667,2670,2684-2685,2687,2690,2693,2707-2708,2710,2713,2716,2730-2731,2733,2736,2739,4594-4595,4597,4600,4603
+upgrade/python/src/daytona_upgrade/suggestion_owners.py
+  s_5d411b780dcad7::t_02c8c45ff4f2de 57-59
+upgrade/python/src/daytona_upgrade/suggestions.py
+  s_5d411b780dcad7::t_64ab9ea40bcc0e 125
+upgrade/python/tests/test_suggestions.py
+  s_5d411b780dcad7::t_b01be427957752 442-444,457-459,461-463
+upgrade/scripts/check-v2-surface.mjs
+  s_5d411b780dcad7::t_0a7ac5c0236b42 22
+upgrade/scripts/check-v2-surface.test.mjs
+  s_5d411b780dcad7::t_17e07d64cfe816 73
+upgrade/typescript/src/mapping.json
+  s_bb33829f46707b::t_814e373e50dc8c 489,1015,2569-2570,2572,2575,2578,2592-2593,2595,2598,2601,2615-2616,2618,2621,2624,2638-2639,2641,2644,2647,2661-2662,2664,2667,2670,2684-2685,2687,2690,2693,2707-2708,2710,2713,2716,2730-2731,2733,2736,2739,4594-4595,4597,4600,4603
+upgrade/typescript/src/sandbox-owner.ts
+  s_5d411b780dcad7::t_df5fc017f4a191 31
+upgrade/typescript/src/suggestions.ts
+  s_5d411b780dcad7::t_b7a0de6be37101 156
+upgrade/typescript/tests/suggest-receiver-proofs.test.ts
+  s_5d411b780dcad7::t_46bd510202d5b9 54-55,59-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb650b298a67e232c0cf1c6724c58be1a7162fa2",
+  "prompts": {},
+  "sessions": {
+    "s_0089cbefe59730": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29f682e5ffecZ1teRxalF6HiU",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_5d411b780dcad7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29f6695fffecH4Nf4AiDud7Uq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_8ff99abde63f7c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29f69481ffe2MJDLHlmD2lIbJ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_bb33829f46707b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e29fb2f6fffeE373ZzXHM8jc1e",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+sdk-go/README.md
+  s_822411a4cbb863::t_2f939d8627be02 125-152
+sdk-go/create_from_build_example_test.go
+  s_822411a4cbb863::t_2f939d8627be02 1-50
+sdk-go/doc.go
+  s_822411a4cbb863::t_2f939d8627be02 30-31,49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "302b43d3c3a93d502f14d7e5dd7c14fac930890d",
+  "prompts": {},
+  "sessions": {
+    "s_822411a4cbb863": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05fe7140ffe2bTRlyQSpoKzu2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

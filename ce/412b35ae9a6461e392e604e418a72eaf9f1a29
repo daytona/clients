@@ -1,0 +1,40 @@
+examples/python/_common.py
+  s_b3e701c41242f9::t_2eabc0588d2906 10-15,25,125-148
+examples/README.md
+  s_b3e701c41242f9::t_b890be0adcc5fc 38-39,56-57,59,82-83,87-94
+examples/run-examples.sh
+  s_b3e701c41242f9::t_b890be0adcc5fc 16-17,34-36
+examples/multi-node/train.py
+  s_b3e701c41242f9::t_ead3946e2083f0 1-74
+examples/python/multi_node_torchrun.py
+  s_b3e701c41242f9::t_2eabc0588d2906 1-73
+examples/package.json
+  s_b3e701c41242f9::t_c58e6565bb2c18 17-18
+docs/multi-node-gpu-sandboxes.md
+  s_b3e701c41242f9::t_c0e8096f0d983c 1-99,101-158,160-233
+  s_b3e701c41242f9::t_b890be0adcc5fc 100,159
+examples/python/multi_node_elastic.py
+  s_b3e701c41242f9::t_2eabc0588d2906 1-102
+examples/typescript/multi-node-elastic/index.ts
+  s_b3e701c41242f9::t_c58e6565bb2c18 1-96
+examples/typescript/multi-node-torchrun/index.ts
+  s_b3e701c41242f9::t_c58e6565bb2c18 1-66
+examples/typescript/_common.ts
+  s_b3e701c41242f9::t_c58e6565bb2c18 11-16,59-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ce412b35ae9a6461e392e604e418a72eaf9f1a29",
+  "prompts": {},
+  "sessions": {
+    "s_b3e701c41242f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5b7f97c1-6295-4839-a27b-f5f1f098b4d1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "rovle <lovre.pesut@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+sdk-go/DEVELOPMENT.md
+  h_e7759ddd73fa65 123-127
+sdk-go/image_pull_failure_message_test.go
+  h_e7759ddd73fa65 1-27
+sdk-go/images_ready.go
+  h_e7759ddd73fa65 37,60,65,68-70,82
+sdk-go/reservation_batch_bounds_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/reservation_create.go
+  h_e7759ddd73fa65 9,86-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dae56dbbfe83275feca1ea03316caef01b5f0509",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

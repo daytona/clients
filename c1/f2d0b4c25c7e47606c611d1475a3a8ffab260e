@@ -1,0 +1,25 @@
+sdk-go/process_options.go
+  s_12824b4efce078::t_c44a3a9aeb9909 57-58,83-84
+sdk-go/process_bounds_r7_test.go
+  s_12824b4efce078::t_220a415a54a14d 1-102
+sdk-go/process_signal.go
+  s_12824b4efce078::t_c44a3a9aeb9909 36-38
+sdk-go/process.go
+  s_12824b4efce078::t_c44a3a9aeb9909 10,166-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1f2d0b4c25c7e47606c611d1475a3a8ffab260e",
+  "prompts": {},
+  "sessions": {
+    "s_12824b4efce078": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589d934ffeyVm6EPUp2Pr83v",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

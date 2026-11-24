@@ -1,0 +1,21 @@
+contract/api-openapi.json
+  s_7f80e38b4509ca::t_7a6095d64f0599 414,10889-10892,10961,10973,32182-32186
+contract/toolbox-openapi.json
+  s_7f80e38b4509ca::t_237c04b341bbce 1512,2388,2416,6559,9575,9848
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "1d4bff1d4adf06bc30f971649c177ce325491a3d",
+  "prompts": {},
+  "sessions": {
+    "s_7f80e38b4509ca": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ea1514406ffeXbMKqBT3AxQSEx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Bruno Grbavac <bruno.grbavac@outlook.com>"
+    }
+  }
+}

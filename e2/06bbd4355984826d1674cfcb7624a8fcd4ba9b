@@ -1,0 +1,19 @@
+sdk-go/internal/events/hub_test.go
+  s_57f2539cc44d35::t_a71359b89e563b 102-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e206bbd4355984826d1674cfcb7624a8fcd4ba9b",
+  "prompts": {},
+  "sessions": {
+    "s_57f2539cc44d35": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06726d14ffejrTs6j91BH8BnB",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+sdk-go/codes_generate.go
+  s_245320a22f521c::t_b716c8c15c674e 90-93,95
+sdk-go/errors_build_log.go
+  s_245320a22f521c::t_b716c8c15c674e 12-13
+sdk-go/codes_catalog_7.go
+  s_245320a22f521c::t_f1076627f33dfd 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75b9edb3c00b82a8f0d0b5e83c9e23211693f94d",
+  "prompts": {},
+  "sessions": {
+    "s_245320a22f521c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e056ba7d7ffe1385WvP1s2FwrR",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

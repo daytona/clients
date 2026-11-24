@@ -1,0 +1,14 @@
+sdk-go/internal/events/watch_test.go
+  h_e7759ddd73fa65 32-33,35-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "698ef4619501406ec63fdb1032555e72e983afd4",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
