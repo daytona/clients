@@ -110,19 +110,18 @@ func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest, args Execu
 	return mcp.NewToolResultText(string(resultJSON)), nil
 }
 
-// Helper function to return command errors in a consistent format
+// Helper function to return command errors in a consistent format. The message
+// goes into Content as well as Meta: MCP clients validate Content as a required
+// array and show it to the model.
 func returnCommandError(message, errorType string) (*mcp.CallToolResult, error) {
-	return &mcp.CallToolResult{
-		IsError: true,
-		Result: mcp.Result{
-			Meta: map[string]interface{}{
-				"Stdout":    "",
-				"Stderr":    message,
-				"ExitCode":  -1,
-				"ErrorType": errorType,
-			},
-		},
-	}, nil
+	result := mcp.NewToolResultError(message)
+	result.Meta = map[string]interface{}{
+		"Stdout":    "",
+		"Stderr":    message,
+		"ExitCode":  -1,
+		"ErrorType": errorType,
+	}
+	return result, nil
 }
 
 // Helper function to quote shell commands
