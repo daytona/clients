@@ -31,8 +31,8 @@ import {
   ServiceUnavailableError,
   createDaytonaError,
 } from '../src/v2/errors/DaytonaError'
-import { runPollLoop, targetPredicate } from '../src/v2/events'
-import type { WaitHub, WaitOutcome } from '../src/v2/events'
+import { WaitHub, runPollLoop, targetPredicate } from '../src/v2/events'
+import type { WaitOutcome } from '../src/v2/events'
 import * as httpModule from '../src/v2/http'
 import { HttpTransport, createHttpClient } from '../src/v2/http'
 import { INTERNAL } from '../src/v2/internal'
@@ -479,3 +479,64 @@ describe('review follow-ups', () => {
     expect(done).toBe(true)
   })
 })
+
+describe('events-hub probes', () => {
+  /** A WebSocket that opens at once and lets the test inject frames. */
+  class FrameSocket {
+    readyState = 1
+    onopen: ((ev: Event) => void) | null = null
+    onmessage: ((ev: MessageEvent) => void) | null = null
+    onerror: ((ev: Event) => void) | null = null
+    onclose: ((ev: CloseEvent) => void) | null = null
+    send(): void {}
+    close(code = 1000): void {
+      this.readyState = 3
+      this.onclose?.({ code, reason: '', wasClean: true } as CloseEvent)
+    }
+    inject(frame: Record<string, unknown>): void {
+      this.onmessage?.({ data: JSON.stringify(frame) } as MessageEvent)
+    }
+  }
+
+  it('stop a probe pausing on a retry hint once a frame settles the wait', async () => {
+    const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
+    process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
+    jest.spyOn(Math, 'random').mockReturnValue(0.5)
+    const socket = new FrameSocket()
+    const ticketApi = {
+      post: jest.fn().mockResolvedValue({ data: { ticket: 't0k3n', expires_in_ms: 30_000, subprotocol: 'daytona.events.v1' }, headers: {} }),
+      get: jest.fn(),
+      defaults: { timeout: 30_000 },
+    } as unknown as AxiosInstance
+    const hub = new WaitHub('https://api.test', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => socket as unknown as WebSocket, ticketApi, { earlyProbeMs: 50, noFrameTimeoutMs: 60_000 })
+    const http = createHttpClient('http://api.invalid', 'key')
+    // The first probe is rate-limited for 3 s; later reads would answer.
+    const record = script(http, [
+      { status: 429, body: { code: 'RATE_LIMITED', message: 'slow down', retryAfterMs: 3_000 } },
+      { body: detail('booting') },
+    ])
+    const sandbox = createSandbox('sbx', http, undefined, 'key', undefined, {}, undefined, undefined, hub)
+    try {
+      const waiting = sandbox.wait({ until: 'started', timeoutSeconds: 0 })
+      await sleepMs(20)
+      socket.inject({ type: 'snapshot', id: 'sbx', status: 'booting', version: 1, error: null })
+      // The first probe fails; the next one pauses on the 3 s hint.
+      await sleepMs(400)
+      expect(record.times).toHaveLength(1)
+      socket.inject({ type: 'event', id: 'sbx', status: 'running', version: 2, error: null })
+      await waiting
+      const afterWait = record.times.length
+      // No read after the wait returned, though the hint has run out.
+      await sleepMs(3_200)
+      expect(record.times).toHaveLength(afterWait)
+    } finally {
+      await hub.detach()
+      if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
+      else process.env['DAYTONA_SANDBOX_EVENTS'] = savedEnv
+    }
+  }, 15_000)
+})
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}

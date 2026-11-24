@@ -86,16 +86,31 @@ export class ReadRetry {
    * Sleep until the next read is due (and not before `notBefore`, a wait's
    * own poll spacing), never past `deadline`. Sleeps in timer-sized steps
    * until the clock reads that time: a timer may fire a little early, and a
-   * hint may be longer than one timer.
+   * hint may be longer than one timer. `signal` ends the pause early and
+   * clears its timer (an events-hub probe whose wait has settled).
    */
-  async pause(deadline: number | undefined, notBefore?: number): Promise<void> {
+  async pause(deadline: number | undefined, notBefore?: number, signal?: AbortSignal): Promise<void> {
     if (this.nextReadAt === undefined) return
     const due = Math.max(this.nextReadAt, notBefore ?? -Infinity)
     const until = deadline === undefined ? due : Math.min(due, deadline)
-    for (let left = until - Date.now(); left > 0; left = until - Date.now()) {
-      await sleep(Math.min(Math.ceil(left), MAX_TIMER_DELAY_MS))
+    for (let left = until - Date.now(); left > 0 && signal?.aborted !== true; left = until - Date.now()) {
+      const step = Math.min(Math.ceil(left), MAX_TIMER_DELAY_MS)
+      await (signal === undefined ? sleep(step) : abortableSleep(step, signal))
     }
   }
+}
+
+/** A sleep that `signal` ends early, clearing its timer. */
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', done)
+      resolve()
+    }
+    const timer = setTimeout(done, ms)
+    signal.addEventListener('abort', done)
+  })
 }
 
 /**

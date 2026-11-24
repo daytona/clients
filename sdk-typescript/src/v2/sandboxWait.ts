@@ -165,6 +165,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     // Where the hub's share ends: its probes hold no long poll past it, so
     // none still runs when the reserve starts reading.
     const hubDeadline = deadline === undefined ? undefined : Date.now() + hubBudget
+    // Aborted once the hub's wait settles: an early probe still pausing on a
+    // retry hint then stops without reading for a wait that is over.
+    const hubSettled = new AbortController()
     const sandboxPollFn = async (): Promise<WaitOutcome> => {
       if (lastPollEnd !== undefined) {
         const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastPollEnd), remaining() ?? Infinity)
@@ -172,7 +175,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       }
       // A failed read (a probe's or the fallback's) holds the next one back by
       // its back-off or the server's retry hint.
-      await retry.pause(hubDeadline ?? deadline)
+      await retry.pause(hubDeadline ?? deadline, undefined, hubSettled.signal)
+      // The hub ignores a probe whose waiter has settled.
+      if (hubSettled.signal.aborted) throw timeoutError(retry.lastError)
       const budget = remaining()
       if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
@@ -198,7 +203,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
         readRetry: retry,
-      })
+      }).finally(() => { hubSettled.abort() })
       context.observe(resolved)
       if (!refreshedByPoll && resolved.state !== 'destroyed') {
         const budget = remaining()
