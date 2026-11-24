@@ -23,8 +23,8 @@ WHICH="${1:-both}"
 PY_BIN="../sdk-python/.venv/bin/python"
 [[ -x "$PY_BIN" ]] || PY_BIN="python3"
 
-TS_EXAMPLES=(exec-command file-operations git lifecycle snapshots dynamic-build dockerfile-sandbox local-files build-logs pagination secrets-env)
-PY_EXAMPLES=(exec_command file_operations git_ops lifecycle snapshots dynamic_build dockerfile_sandbox local_files build_logs pagination secrets_env)
+TS_EXAMPLES=(exec-command file-operations git lifecycle images dynamic-build dockerfile-sandbox local-files build-logs pagination secrets-env)
+PY_EXAMPLES=(exec_command file_operations git_ops lifecycle images dynamic_build dockerfile_sandbox local_files build_logs pagination secrets_env)
 if [[ "${DAYTONA_RUN_VOLUMES:-}" == "1" ]]; then
   TS_EXAMPLES+=(volumes)
   PY_EXAMPLES+=(volumes)

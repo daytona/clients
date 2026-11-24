@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """git — clone a repo, stage a change, commit, branch, and read status.
 
-Shows clone / add / commit / branches / create_branch / checkout_branch /
-delete_branch / status / push / pull.
+Shows clone / status / add / commit / list_branches / create_branch /
+checkout_branch / delete_branch. It never pushes or pulls: that needs a remote
+you can write to and its credentials (``git.push`` / ``git.pull``).
 
 Run (from examples):
     DAYTONA_API_KEY=dtn_... \\

@@ -51,6 +51,8 @@ export interface Scenario {
   pullFails?: string
   /** Another run registers the image first: pull finds the name taken (409). */
   pullConflict?: boolean
+  /** Statuses the waits on an image built with images.build return (default ['ready']). */
+  readonly buildWaits?: readonly string[]
 }
 
 export interface Record {
@@ -304,6 +306,13 @@ const fake = {
       const settled = (): boolean => ['ready', 'failed', 'error'].includes(entry.status)
       while (!settled() && entry.waits.length > 0) entry.status = entry.waits.shift() ?? entry.status
       if (!settled()) throw new RequestTimeoutError('image did not settle', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      return entry
+    },
+    build: async (builder: { toDockerfile(): string }, options: { name?: string } = {}) => {
+      // As the SDK: the build is submitted and the image returned before it is ready.
+      record.builtDockerfiles.push(builder.toDockerfile())
+      const entry = newImage(options.name ?? 'anonymous', 'pending', [...(scenario.buildWaits ?? ['ready'])])
+      images.push(entry)
       return entry
     },
     pull: async (ref: string, options: { name?: string } = {}) => {

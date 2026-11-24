@@ -8,11 +8,18 @@ environment variables (see [Environment](#environment)).
 To follow an **existing** build without buffering a transcript, use
 [`python/follow_build_logs.py`](./python/follow_build_logs.py) or
 [`typescript/follow-build-logs/index.ts`](./typescript/follow-build-logs/index.ts).
-Both take `image|sandbox ID` and an optional checkpoint (Python: `--cursor`,
-TypeScript: third argument). They print output incrementally, report typed
-state/gap events separately, and leave the build running when observation stops.
+Both take two arguments, `image <ID>` or `sandbox <ID>`, and an optional
+checkpoint (Python: `--cursor`, TypeScript: third argument). They print output
+incrementally, report typed state/gap events separately, and leave the build
+running when observation stops.
 The `build-logs` examples return build output as text; the followers use live events
-and checkpoints. These opt-in followers are not part of the all-examples run.
+and checkpoints. These opt-in followers are not part of the all-examples run:
+
+```bash
+PYTHONPATH=python python python/follow_build_logs.py image <ID> [--cursor <CHECKPOINT>]
+npx tsx typescript/follow-build-logs/index.ts sandbox <ID> [<CHECKPOINT>]
+```
+
 The TypeScript follower targets Node.js, awaits each stdout write to honor slow
 readers, and stops observation quietly if a pipe closes early (`EPIPE`).
 
@@ -24,7 +31,7 @@ examples/
 │   ├── file-operations/index.ts
 │   ├── git/index.ts
 │   ├── lifecycle/index.ts
-│   ├── snapshots/index.ts
+│   ├── images/index.ts
 │   ├── dynamic-build/index.ts
 │   ├── dockerfile-sandbox/index.ts
 │   ├── local-files/index.ts   ImageBuilder with local files (Node.js)
@@ -42,7 +49,7 @@ examples/
 │   ├── file_operations.py
 │   ├── git_ops.py
 │   ├── lifecycle.py
-│   ├── snapshots.py
+│   ├── images.py
 │   ├── dynamic_build.py
 │   ├── dockerfile_sandbox.py
 │   ├── local_files.py        ImageBuilder with local files
@@ -64,9 +71,9 @@ The examples exercise the V2 SDK surface in both languages.
 |---|---|---|
 | process | `exec-command` | ✅ `process.run()` plus `interpreter.run()` code execution. |
 | files | `file-operations` | ✅ `fs.*` single-file upload, list, search, replace and download. |
-| git | `git` | ✅ clone/add/commit/branches/status/push/pull. |
+| git | `git` | ✅ clone/status/add/commit and branch create/checkout/list/delete (no push or pull: those need a writable remote and credentials). |
 | lifecycle | `lifecycle` | ✅ create/get/list/run/delete. |
-| images | `snapshots` | ✅ `images.build(ImageBuilder.fromDockerfile(...), { name })` / `images.build(ImageBuilder.from_dockerfile(...), name=...)`, image-status polling, then create from the registered image. |
+| images | `images` | ✅ `images.build(ImageBuilder.fromDockerfile(...), { name })` / `images.build(ImageBuilder.from_dockerfile(...), name=...)`, a direct wait on that image (`images.get(id, { wait: 'ready' })` / `images.get(id, wait="ready")`), then create from it; the run deletes the image it built, also when a step fails. |
 | dynamic build | `dynamic-build` | ✅ Create sandboxes from inline Dockerfiles, read their build logs, and verify the files produced by each Dockerfile. Reports create durations without assuming a speedup. Requires image-build support. |
 | dockerfile sandbox | `dockerfile-sandbox` | ✅ The happy path — one call builds an inline Dockerfile and waits for the sandbox to start (the example checks it did), then proves the baked script, `ENV`, `WORKDIR` and data file all survived into the sandbox, and round-trips a file at runtime. `DAYTONA_KEEP=1` leaves it running to poke at. Requires image-build support. |
 | local files | `local-files` | ✅ `ImageBuilder` with local files: copies a project directory and a file into the image, builds it with its context, checks the files are there and that the directory's `.dockerignore` kept a log file out. Requires image-build support; TypeScript needs Node.js. |

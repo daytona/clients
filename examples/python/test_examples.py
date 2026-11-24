@@ -105,6 +105,9 @@ class FakeWorld:
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
         self.image_waits: list[tuple[object, object]] = []
+        # Statuses the waits on an image built with images.build() return.
+        self.build_waits: tuple[str, ...] = ("ready",)
+        self.built_dockerfiles: list[str] = []
         # Each sandbox's mounts, and each volume's files.
         self.mounts: list[tuple[Mount, ...]] = []
         self.volume_files: dict[str, dict[str, bytes]] = {}
@@ -151,6 +154,7 @@ class FakeWorld:
         )
         images.get.side_effect = self._image_ready
         images.pull.side_effect = self._image_pull
+        images.build.side_effect = self._image_build
         images.delete.side_effect = self._image_delete
         client.images = images
         return client
@@ -235,6 +239,11 @@ class FakeWorld:
                 name or image, "pending", ("failed",), self.pull_fails
             )
         return self.add_image(name or image, "ready")
+
+    def _image_build(self, builder: ImageBuilder, /, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
+        # As the SDK: the build is submitted and the image returned before it is ready.
+        self.built_dockerfiles.append(builder.to_dockerfile())
+        return self.add_image(name or "anonymous", "pending", self.build_waits)
 
     def _image_delete(self, image_id: str) -> None:
         self.deleted_images.append(image_id)
@@ -510,6 +519,44 @@ def test_example_succeeds_against_the_sdk_surface(
 ) -> None:
     code, world = run_example(name, *overrides)
     assert code == 0
+    assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_images_builds_an_image_boots_a_sandbox_and_deletes_both(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    code, world = run_example("images")
+    assert code == 0
+    assert len(world.built_dockerfiles) == 1
+    assert world.image_waits == [("ready", IMAGE_WAIT_SECONDS)]
+    assert world.deleted_images == ["img-0"]
+    assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+@pytest.mark.parametrize(
+    ("build_waits", "sandbox_state"),
+    [
+        (("failed",), "started"),  # a failed build
+        ((), "started"),  # a build that never settles
+        (("ready",), "creating"),  # a sandbox that does not start
+    ],
+)
+def test_images_deletes_the_image_it_built_when_a_step_fails(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    build_waits: tuple[str, ...],
+    sandbox_state: str,
+) -> None:
+    # The TypeScript twin is the images failure loop in typescript/examples.test.ts.
+    world = FakeWorld()
+    world.build_waits = build_waits
+    world.sandbox_state = sandbox_state
+    try:
+        code = run_example("images", world=world)[0]
+    except RuntimeError:
+        code = 1
+    assert code == 1
+    assert world.deleted_images == ["img-0"]
+    assert all(sandbox.process.run.call_count == 0 for sandbox in world.sandboxes)
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
 
 

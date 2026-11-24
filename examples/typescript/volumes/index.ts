@@ -6,8 +6,10 @@
  * Run from examples with DAYTONA_API_KEY set:
  *   npx tsx typescript/volumes/index.ts
  *
- * Writes become available to other sandboxes asynchronously. See
- * volumes_share.ts for a persistence round-trip with synchronization waits.
+ * A sandbox does not see another sandbox's later writes to the volume by
+ * itself, so sandbox 2 may list nothing yet: a running sandbox refreshes its
+ * mount with `sandbox.volumes.pull()` (where the deployment supports it). See
+ * volumes_share.ts for a persistence round-trip across sandbox deletion.
  */
 
 import { DaytonaError } from '@daytona/sdk'
@@ -39,7 +41,7 @@ async function main(): Promise<void> {
     boxes.push(s2)
     assertStarted(s2)
     const files = (await s2.fs.list(mount2)).items
-    info(`s2 sees at ${mount2}: ${files.map((f) => f.name).join(', ') || '(not yet synchronized)'}`)
+    info(`s2 sees at ${mount2}: ${files.map((f) => f.name).join(', ') || '(nothing yet: not pulled)'}`)
 
     section('sandbox 3: mount a subpath of the volume')
     const mount3 = '/mnt/alice'

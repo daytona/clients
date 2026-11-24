@@ -320,6 +320,31 @@ test('secrets-env leaves a secret it did not create', () => {
   assert.deepEqual(record.deletedSecrets, [])
 })
 
+test('images builds an image, boots a sandbox from it and deletes both', () => {
+  const { code, record, output } = runExample(example('images'))
+  assert.equal(code, 0, output)
+  assert.equal(record.builtDockerfiles.length, 1)
+  assert.deepEqual(record.imageWaits, [{ wait: 'ready', timeoutSeconds: IMAGE_WAIT_SECONDS }])
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assertCleanedUp(record)
+})
+
+for (const [label, scenario] of [
+  ['a failed build', { buildWaits: ['failed'] }],
+  ['a build that never settles', { buildWaits: [] }],
+  ['a sandbox that does not start', { sandboxStates: ['creating'] }],
+] as const) {
+  test(`images deletes the image it built after ${label}`, () => {
+    // Given a build, wait or create that does not succeed.
+    const { code, record, output } = runExample(example('images'), scenario)
+    // Then the run fails, and the image it built and any sandbox are deleted.
+    assert.equal(code, 1, output)
+    assert.deepEqual(record.deletedImages, ['img-0'])
+    assert.deepEqual(record.commands, [])
+    assertCleanedUp(record)
+  })
+}
+
 test('volumes_share round-trips through the volume', () => {
   // The fake keeps /data on a sandbox's own disk unless a volume is mounted
   // there, so the round trip passes only through the mounted volume.
