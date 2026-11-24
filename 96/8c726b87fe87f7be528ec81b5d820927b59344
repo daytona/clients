@@ -1,0 +1,16 @@
+sdk-go/DEVELOPMENT.md
+  h_e7759ddd73fa65 231,233-235
+sdk-go/sandbox_wait_probe.go
+  h_e7759ddd73fa65 52-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "968c726b87fe87f7be528ec81b5d820927b59344",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

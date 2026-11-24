@@ -1,0 +1,25 @@
+sdk-typescript/src/v2/FileSystem.ts
+  s_7991759a9fd4ac::t_aacf456448fd59 29,31,54-55,471-472,597
+sdk-typescript/src/v2/filesystemWatchEvents.ts
+  s_7991759a9fd4ac::t_aacf456448fd59 1-11,13-19,21-24,26-36,40-44,46-52
+  s_7991759a9fd4ac::t_9b08ef25abf052 12,20,25,37-39,45
+sdk-typescript/tests/watch-transport.test.ts
+  s_7991759a9fd4ac::t_da5f2e8c6f554d 14,52-59,161-201
+  s_7991759a9fd4ac::t_c4cf6552ce3693 202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9c06a9c1cd5864b6e7eb79a9ef6ddb648774c0f",
+  "prompts": {},
+  "sessions": {
+    "s_7991759a9fd4ac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7871be4ffeAuAtRvQ03RAuaM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

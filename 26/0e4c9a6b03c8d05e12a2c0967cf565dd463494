@@ -1,0 +1,16 @@
+changelog.d/708.fixed.md
+  h_e7759ddd73fa65 9
+sdk-python/README.md
+  h_e7759ddd73fa65 178-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "260e4c9a6b03c8d05e12a2c0967cf565dd463494",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+sdk-go/watch_event.go
+  s_7991759a9fd4ac::t_aacf456448fd59 32,53-54
+sdk-go/watch.go
+  s_7991759a9fd4ac::t_aacf456448fd59 31-32,52
+sdk-go/watch_error_test.go
+  s_7991759a9fd4ac::t_da5f2e8c6f554d 1-7,9-50,52-86
+  s_7991759a9fd4ac::t_9b08ef25abf052 8,51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "af749ace06365be6f5a1092b0a48951ca180a857",
+  "prompts": {},
+  "sessions": {
+    "s_7991759a9fd4ac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7871be4ffeAuAtRvQ03RAuaM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
