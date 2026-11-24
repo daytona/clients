@@ -264,20 +264,25 @@ func TestVolumesGet_whenCallersRaceAllReturnTheOneVolume(t *testing.T) {
 	require.Len(t, volumes, 1)
 }
 
-func TestVolumesGet_whenContextEndsDuringRereadsReturnsCancellation(t *testing.T) {
-	// Given
+func TestVolumesGet_whenContextEndsDuringRereadPauseReturnsCancellation(t *testing.T) {
+	// Given a pause that outlasts the context, so the deadline lands in it.
+	previous := volumeConflictRereadDelays
+	volumeConflictRereadDelays = []time.Duration{time.Hour}
+	t.Cleanup(func() { volumeConflictRereadDelays = previous })
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
 		"GET /volumes/{ref}": func(w http.ResponseWriter, _ *http.Request) { volumeError(t, w, 404, "NOT_FOUND") },
 		"POST /volumes":      func(w http.ResponseWriter, _ *http.Request) { volumeError(t, w, 409, "CONFLICT") },
 	})
 	client := newTestClient(t, fake.Server)
-	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
 	defer cancel()
 	// When
 	_, err := client.Volumes().Get(ctx, "data", &GetVolumeOptions{Create: true})
 	// Then
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrClientTimeout)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.NotErrorIs(t, err, ErrConflict)
+	require.Len(t, fake.requests(), 2)
 }
 
 func TestGetLimits_whenKeySyncFlagIsAbsentOrMistypedLooksUpTheKey(t *testing.T) {

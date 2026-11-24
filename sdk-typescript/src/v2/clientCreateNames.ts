@@ -6,8 +6,7 @@
 import { createDaytonaError } from './errors/DaytonaError.js'
 import { runtimeUniqueId } from './http.js'
 import { assertLabels, badRequest } from './options.js'
-import { hasLoneSurrogate } from './pathSegment.js'
-import { isBlank, strip } from './pyText.js'
+import { hasLoneSurrogate, isBlank, strip } from './pyText.js'
 
 /** The label every named create stamps and findByName reads back. */
 const NAME_LABEL = 'name'

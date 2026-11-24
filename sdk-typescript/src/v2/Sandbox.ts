@@ -5,9 +5,9 @@
 
 import { withoutNullOptions } from './clientOptionKeys.js'
 import { acknowledgedId, checkResponse } from './responseFields.js'
-import { hasLoneSurrogate, pathSegment, usablePathId } from './pathSegment.js'
+import { pathSegment, usablePathId } from './pathSegment.js'
 import type { ResponseFields } from './responseFields.js'
-import { isBlank } from './pyText.js'
+import { hasLoneSurrogate, isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL, assertInternal } from './internal.js'

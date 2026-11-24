@@ -4,7 +4,7 @@
  */
 
 import { BadRequestError, nonOptionsDescription } from './errors/DaytonaError.js'
-import { hasLoneSurrogate } from './pathSegment.js'
+import { hasLoneSurrogate } from './pyText.js'
 import { enumerableSymbolKey } from './symbolKeys.js'
 import type { KeyedObject } from './symbolKeys.js'
 

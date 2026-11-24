@@ -168,7 +168,7 @@ export class VolumesService {
       return await this.create({ name: nameOrId })
     } catch (conflict) {
       // Only the name conflict a racing create causes; any other 409 is thrown.
-      if (!(conflict instanceof ConflictError) || conflict.code !== 'CONFLICT') throw conflict
+      if (!(conflict instanceof ConflictError) || conflict.statusCode !== 409 || conflict.code !== 'CONFLICT') throw conflict
       for (const delayMs of VOLUME_CONFLICT_REREAD_DELAYS_MS) {
         await sleep(delayMs)
         try {

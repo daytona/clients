@@ -8,6 +8,7 @@ The TypeScript twin is ``service-correctness.test.ts``."""
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
@@ -257,6 +258,19 @@ async def test_volume_get_or_create_raises_other_conflicts_unchanged() -> None:
 
 
 @pytest.mark.anyio
+async def test_volume_get_or_create_raises_a_conflict_code_without_status_409_unchanged() -> None:
+    odd = create_error("conflict", 500, "CONFLICT", "DAYTONA_API")
+    transport = RecordingTransport([_missing(), odd])
+    volumes = AsyncVolumesService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(DaytonaError) as raised:
+        await volumes.get("data", create=True)
+
+    assert raised.value is odd
+    assert [spec.method for spec in transport.specs] == ["GET", "POST"]
+
+
+@pytest.mark.anyio
 async def test_volume_get_or_create_raises_a_failed_reread() -> None:
     denied = create_error("forbidden", 403, "FORBIDDEN", "DAYTONA_API")
     transport = RecordingTransport([_missing(), _name_taken(), denied])
@@ -363,10 +377,16 @@ async def test_get_limits_looks_up_the_key_organization_without_the_key_sync_fla
 @pytest.mark.anyio
 async def test_current_api_key_still_checks_the_fields_it_returns() -> None:
     for broken, message in (
-        ({"name": None}, "name"),
-        ({"created_at": "2026-01-01"}, "created_at"),
-        ({"context": {"org_id": "o", "org_name": "o"}}, "context.project_name"),
+        ({"name": None}, "expected current API key response: name: Input should be a valid string"),
+        (
+            {"created_at": "2026-01-01"},
+            "current API key response has a created_at that is not an RFC 3339 timestamp",
+        ),
+        (
+            {"context": {"org_id": "o", "org_name": "o"}},
+            "expected current API key response: context.project_name: Field required",
+        ),
     ):
         client, _ = _client([{**_CURRENT_API_KEY_PAYLOAD, **broken}])
-        with pytest.raises(BadRequestError, match=message):
+        with pytest.raises(BadRequestError, match=f"^{re.escape(message)}$"):
             await client.current_api_key()

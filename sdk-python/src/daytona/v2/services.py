@@ -780,7 +780,7 @@ class AsyncVolumesService:
             return await self.create(name=name_or_id)
         except ConflictError as conflict:
             # Only the name conflict a racing create causes; any other 409 is raised.
-            if conflict.code != "CONFLICT":
+            if conflict.status_code != 409 or conflict.code != "CONFLICT":
                 raise
             for delay in _VOLUME_CONFLICT_REREAD_DELAYS:
                 await anyio.sleep(delay)

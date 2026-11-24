@@ -147,6 +147,14 @@ describe('volumes.get with create under a racing create', () => {
     })
   })
 
+  it('throws a CONFLICT code without status 409 unchanged', async () => {
+    const odd: PlannedResponse = { status: 500, body: { code: 'CONFLICT', message: 'conflict', source: 'DAYTONA_API' } }
+    await withApi([MISSING, odd], async (client, api) => {
+      await expect(client.v2.volumes.get('shared', { create: true })).rejects.toMatchObject({ statusCode: 500, code: 'CONFLICT' })
+      expect(api.requests).toHaveLength(2)
+    })
+  })
+
   it('throws a failed read after the conflict', async () => {
     const denied: PlannedResponse = { status: 403, body: { code: 'FORBIDDEN', message: 'forbidden', source: 'DAYTONA_API' } }
     await withApi([MISSING, NAME_TAKEN, denied], async (client) => {
