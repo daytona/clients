@@ -1221,9 +1221,10 @@ A request refused because your organization has hit one of its limits (for
 example the maximum number of concurrent sandboxes) raises
 `LimitExceededError` — a `RateLimitError` that also carries the limit's name
 as `limit`, and the counts as `current` and `max` when the refusal reports
-them. Daytona determines some organization limits for each organization and
-reports neither the limit nor the counts; contact support to request a higher
-one. Other rate-limited requests keep raising plain `RateLimitError`.
+them. For the limits Daytona determines for each organization (total and
+persistent sandboxes, volumes, images and snapshots) the refusal still names
+the limit but leaves out the counts, so `current` and `max` are `None`;
+contact support to request a higher one. Other rate-limited requests keep raising plain `RateLimitError`.
 
 On a sandbox that is deleted or being deleted, `set_labels()`,
 `update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls

@@ -223,9 +223,27 @@ func TestOrgLimitsWithProjectKeyIgnoresTheSavedOrg(t *testing.T) {
 // the response reports their usage; the JSON output stays the body as
 // received, so those counts are still readable there.
 func TestOrgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T) {
+	// The current API's shape (those limits `null`, usage kept), and an older
+	// API that still returned their numbers: neither renders the rows.
+	unreturned := limitsFixture()
+	unreturned["sandboxes"] = gen.SandboxLimits{
+		Concurrent: unreturned["sandboxes"].(gen.SandboxLimits).Concurrent,
+		Total:      gen.UsageLimit{Usage: 9},
+	}
+	unreturned["storage"] = gen.StorageLimits{
+		Images:    gen.UsageLimit{Usage: 5},
+		Snapshots: gen.UsageLimit{Usage: 7},
+		Volumes:   gen.UsageLimit{Usage: 2},
+	}
+	for name, fixture := range map[string]map[string]any{"null limits": unreturned, "numeric limits": limitsFixture()} {
+		t.Run(name, func(t *testing.T) { orgLimitsHidesCountsWithoutAReturnedLimit(t, fixture) })
+	}
+}
+
+func orgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T, fixture map[string]any) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
-	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, limitsFixture())
+	f.on("GET", "/orgs/"+testOrgA+"/limits", 200, fixture)
 
 	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "org", "limits", "--org", testOrgA)
 	if code != 0 {
@@ -255,8 +273,9 @@ func TestOrgLimitsHidesCountsWithoutAReturnedLimit(t *testing.T) {
 	if !ok {
 		t.Fatalf("JSON output must keep the sandboxes group the body carried: %s", out)
 	}
-	if _, ok := sandboxes["total"]; !ok {
-		t.Fatalf("JSON output must keep sandboxes.total the body carried: %s", out)
+	total, ok := sandboxes["total"].(map[string]any)
+	if !ok || total["usage"] != float64(9) {
+		t.Fatalf("JSON output must keep sandboxes.total and its usage: %s", out)
 	}
 }
 
