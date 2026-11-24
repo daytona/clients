@@ -1,0 +1,24 @@
+changelog.d/ts-error-names-minified.fixed.md
+  s_cb9030153545d8::t_15958c6c549150 1-8
+sdk-typescript/README.md
+  s_cb9030153545d8::t_15958c6c549150 1111-1114
+sdk-typescript/scripts/node-bundle-fixture/error-names.mjs
+  s_cb9030153545d8::t_15958c6c549150 16,25
+  s_cb9030153545d8::t_c4f8ff294cc64d 9-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91177f76615297367fbf445e8ddd5575c4243bd6",
+  "prompts": {},
+  "sessions": {
+    "s_cb9030153545d8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a2f4b2ffeYECIX54SMR5Ryr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
