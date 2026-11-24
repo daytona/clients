@@ -684,25 +684,21 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
     return parse_error_payload(status, payload)
 
 
-# Catalog codes a 429 / 5xx response can carry that name a state a retry
-# cannot change (a limit, or a feature the deployment does not configure). A
-# response with one of them is the caller's answer; every other 429 / 5xx,
-# SERVICE_UNAVAILABLE included, is retried within the reconnect budget.
-_PERMANENT_CODES = frozenset(
-    {
-        "BILLING_DISABLED",
-        "LIMIT_EXCEEDED",
-        "MANAGEMENT_PLANE_ELSEWHERE",
-        "SEARCH_NOT_CONFIGURED",
-        "V0_BACKUP_REGISTRY_UNCONFIGURED",
-        "WORKLOAD_PLANE_ELSEWHERE",
-    }
-)
+# Catalog codes a 429 / 503 response can carry that name a state a retry
+# cannot change (a limit, or something the deployment does not configure). A
+# response with one of them, or any 501 (not implemented), is the caller's
+# answer; every other 429 / 5xx, SERVICE_UNAVAILABLE included, is retried
+# within the reconnect budget.
+_PERMANENT_CODES = frozenset({"LIMIT_EXCEEDED", "V0_BACKUP_REGISTRY_UNCONFIGURED"})
 
 
 def _retryable_http(error: DaytonaError) -> bool:
     status = error.status_code
-    return status is not None and (status == 429 or status >= 500) and error.code not in _PERMANENT_CODES
+    return (
+        status is not None
+        and (status == 429 or (status >= 500 and status != 501))
+        and error.code not in _PERMANENT_CODES
+    )
 
 
 def _budget(deadline: float | None) -> float | None:

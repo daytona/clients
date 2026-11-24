@@ -198,6 +198,15 @@ describe('sandbox volume pull rounds', () => {
     expect(performance.now() - start).toBe(2_000)
   })
 
+  it('never returns before the deadline when rounds are answered early', async () => {
+    const { volumes, seen } = rounds(['pending'], false)
+    const start = performance.now()
+    const result = await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 30.5 }))
+    expect(result.status).toBe('pending')
+    expect(performance.now() - start).toBe(30_500)
+    expect(seen.at(-1)?.waitMs).toBe(1)
+  })
+
   it('accepts a wait just above one round', async () => {
     const { volumes, seen } = rounds(['pending'])
     await settle(volumes.pull('v', { requestId: 'r', timeoutSeconds: 30.001 }))

@@ -14,6 +14,7 @@ from daytona.v2 import (
     BuildLogInterruptedError,
     DaytonaError,
     LimitExceededError,
+    NotSupportedError,
     RateLimitError,
     ServiceUnavailableError,
 )
@@ -122,7 +123,13 @@ async def test_exhausted_stream_retries_keep_the_servers_typed_error_as_cause():
 
 @pytest.mark.parametrize(
     "status,code,error_type",
-    [(429, "LIMIT_EXCEEDED", LimitExceededError), (501, "WORKLOAD_PLANE_ELSEWHERE", DaytonaError)],
+    [
+        (429, "LIMIT_EXCEEDED", LimitExceededError),
+        (503, "V0_BACKUP_REGISTRY_UNCONFIGURED", ServiceUnavailableError),
+        (501, "WORKLOAD_PLANE_ELSEWHERE", NotSupportedError),
+        (501, "NOT_IMPLEMENTED", NotSupportedError),
+        (501, "FUTURE_CODE", NotSupportedError),
+    ],
 )
 async def test_permanent_discovery_failure_is_raised_without_retry(status, code, error_type, recorded_delays):
     # Given a 429 / 5xx whose code names a state a retry cannot change.
@@ -151,6 +158,16 @@ async def test_permanent_stream_failure_interrupts_without_retry(recorded_delays
     assert recorded_delays == []
 
 
+async def test_a_501_without_a_readable_body_is_not_retried(recorded_delays):
+    # Not implemented is permanent whatever its body says.
+    api, requests = setup([httpx.Response(501, text="<html>not implemented</html>")])
+    with pytest.raises(NotSupportedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+    assert failure.value.status_code == 501
+    assert paths(requests) == [DISCOVERY]
+    assert recorded_delays == []
+
+
 async def test_unreadable_5xx_body_is_still_retried(recorded_delays):
     # A gateway's HTML 502 carries no code: retried like every other 5xx.
     api, requests = setup([httpx.Response(502, text="<html>bad gateway</html>")])
@@ -163,4 +180,14 @@ def test_permanent_codes_are_catalog_codes_of_retryable_statuses():
     for code in _PERMANENT_CODES:
         assert code in API_ERROR_CODES, code
         status = CODE_STATUS[code]
-        assert status == 429 or status >= 500, (code, status)
+        # A 501 is permanent anyway; the list names retryable statuses only.
+        assert status == 429 or (status >= 500 and status != 501), (code, status)
+
+
+async def test_a_5xx_with_an_oversized_error_body_is_still_retried(recorded_delays):
+    # The oversized body keeps its status, so the 503 stays retryable.
+    big = httpx.Response(503, json={"code": "SERVICE_UNAVAILABLE", "message": "x" * (200 * 1024)})
+    api, requests = setup([big])
+    result = await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
+    assert result.status == "ready"
+    assert paths(requests) == [DISCOVERY, DISCOVERY, "/build-logs/images/image"]

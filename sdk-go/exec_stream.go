@@ -16,6 +16,10 @@ import (
 // longer holds the run until its timeout.
 var execFollowIdle = 45 * time.Second
 
+// execDeadlineReadBound bounds the process read after a run's timeout, like
+// the read slack of a wait round, so a stalled read cannot stretch the run.
+var execDeadlineReadBound = 5 * time.Second
+
 func (s *Processes) runStreaming(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
@@ -91,7 +95,9 @@ func (h *ProcessHandle) recoverExec(
 		return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), readErr
 	}
 	// A process that ended by the deadline reports how it ended, not timed_out.
-	if info, err := h.Get(ctx); err == nil && info.State == ProcessStateTerminal {
+	readCtx, cancel := context.WithTimeout(ctx, execDeadlineReadBound)
+	defer cancel()
+	if info, err := h.Get(readCtx); err == nil && info.State == ProcessStateTerminal {
 		return processResult(h.id, info.WaitResult, logs), nil
 	}
 	return processResult(h.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil

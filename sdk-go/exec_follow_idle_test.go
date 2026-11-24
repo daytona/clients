@@ -148,3 +148,68 @@ func TestIdleWatch_whenBytesArriveWithinTheWindow_neverExpires(t *testing.T) {
 		}
 	})
 }
+
+func TestExec_whenTheDeadlineProcessReadStalls_reportsTimedOutWithinItsBound(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given a run whose stream and post-deadline process read both stall.
+		mux := http.NewServeMux()
+		mux.HandleFunc("POST /processes", jsonHandler(t, processFixture("p")))
+		mux.HandleFunc("GET /processes/p/logs", jsonHandler(t, processLogsFixture()))
+		mux.HandleFunc("GET /processes/p", func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() })
+		sandbox, _ := execDroppedStreamSandbox(t, mux,
+			"event: log\nid: 1\ndata: {\"timestamp\":1,\"channel\":\"stdout\",\"data\":\"out\"}\n\n")
+		started := time.Now()
+		// When the run's budget expires.
+		result, err := sandbox.Exec(t.Context(), "command", &ExecOptions{Timeout: time.Second, Stdout: io.Discard})
+		// Then the read is cut at its bound, not the request timeout, and the run times out.
+		require.NoError(t, err)
+		require.Equal(t, ProcessReasonTimedOut, result.Reason)
+		require.Equal(t, time.Second+execDeadlineReadBound, time.Since(started))
+	})
+}
+
+func TestIdleWatch_whenStopped_neverExpires(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		expired := false
+		watch := newIdleWatch(time.Second, func() { expired = true })
+		watch.stop()
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		require.False(t, expired)
+	})
+}
+
+func TestExec_whenAFollowRequestNeverAnswers_resumesAfterTheIdleBound(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given a first follow request whose response headers never arrive.
+		mux := http.NewServeMux()
+		mux.HandleFunc("POST /processes", jsonHandler(t, processFixture("p")))
+		mux.HandleFunc("GET /processes/p/wait", jsonHandler(t, map[string]any{"reason": "exited", "exitCode": 0}))
+		follows := 0
+		sandbox := dockerTimingSandbox(t, func(r *http.Request) (*http.Response, error) {
+			if r.URL.Query().Get("follow") != "true" {
+				return (waitTestTransport{handler: mux.ServeHTTP}).RoundTrip(r)
+			}
+			follows++
+			if follows == 1 {
+				<-r.Context().Done()
+				return nil, r.Context().Err()
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"text/event-stream"}},
+				Body: io.NopCloser(strings.NewReader(
+					"event: log\nid: 1\ndata: {\"timestamp\":1,\"channel\":\"stdout\",\"data\":\"ok\"}\n\nevent: eof\nid: 2\ndata: {}\n\n")),
+				Request: r,
+			}, nil
+		})
+		started := time.Now()
+		// When running with no timeout and an output writer.
+		result, err := sandbox.Exec(t.Context(), "command", &ExecOptions{Timeout: WaitForever, Stdout: io.Discard})
+		// Then the idle bound, not the request timeout, ends the first request.
+		require.NoError(t, err)
+		require.Equal(t, ProcessReasonExited, result.Reason)
+		require.Equal(t, "ok", result.Stdout)
+		require.Equal(t, 2, follows)
+		require.Equal(t, execFollowIdle, time.Since(started))
+	})
+}

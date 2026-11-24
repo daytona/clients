@@ -874,10 +874,11 @@ may be relative. Path lists must be arrays of strings, not a bare string.
 `writeText()` requires a string; `writeBytes()` and `writeMany()` accept
 `ArrayBuffer` and any `ArrayBuffer` view, using only the view's byte range.
 
-`remove()`, `grep()`, `glob()`, `replace()` and `chmod()` take a
-`timeoutSeconds` option (`0`, or a value above 2,147,483.647 (about 24.8 days),
-means no limit) that replaces `requestTimeoutSeconds` for that call, which work
-over a large tree can outlast; a negative or non-finite value throws
+A recursive remove or a search over a large tree can take longer than
+`requestTimeoutSeconds`. `remove()`, `grep()`, `glob()`, `replace()` and
+`chmod()` therefore take a `timeoutSeconds` option that replaces
+`requestTimeoutSeconds` for that call. `0`, or a value above 2,147,483.647
+(about 24.8 days), means no limit. A negative or non-finite value throws
 `BadRequestError` before any request. A timeout ends the call, not the work in
 the sandbox.
 

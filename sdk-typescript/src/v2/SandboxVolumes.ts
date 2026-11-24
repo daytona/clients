@@ -22,8 +22,8 @@ export interface PullVolumeOptions {
   /**
    * Wait in seconds; omitted means 30. Does not cancel work. Zero submits a
    * new requestId, or returns a known one's last outcome without retrying it;
-   * a wait above zero retries pending, unavailable or rate-limited work. Up to
-   * 30 seconds is one request the sandbox holds for that long. A longer wait
+   * during a wait above zero the sandbox itself retries pending, unavailable or
+   * rate-limited work. Up to 30 seconds is one request the sandbox holds for that long. A longer wait
    * is spent in rounds of at most 30 seconds with the same requestId while the
    * result is `pending` (a value above 2,147,483.647, about 24.8 days, is no
    * deadline), so no request stays open for the whole wait.
@@ -77,7 +77,7 @@ export class SandboxVolumesService {
   /**
    * Submit/check a pull. A wait up to 30 seconds is one request; a longer one
    * is spent in rounds of at most 30 seconds while the result is `pending`.
-   * Errors never trigger automatic retries, and identities are never generated.
+   * The SDK never retries an error returned to it, and never generates an identity.
    * `volumeId` is the attached volume's `vol_` ID or its UUID.
    */
   public async pull(volumeId: string, options: PullVolumeOptions): Promise<PullVolumeResult> {
@@ -95,10 +95,8 @@ export class SandboxVolumesService {
       const now = performance.now()
       if (result.status !== 'pending' || (deadline !== undefined && now >= deadline)) return result
       const pause = PULL_ROUND_MIN_MS - (now - started)
-      if (pause > 0) {
-        if (deadline !== undefined && now + pause >= deadline) return result
-        await new Promise<void>((resolve) => setTimeout(resolve, pause))
-      }
+      // Never return early: a pause cut at the deadline is followed by one last check there.
+      if (pause > 0) await new Promise<void>((resolve) => setTimeout(resolve, deadline === undefined ? pause : Math.min(pause, deadline - now)))
     }
   }
 

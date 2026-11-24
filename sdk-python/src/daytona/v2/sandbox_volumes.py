@@ -126,14 +126,15 @@ class AsyncSandboxVolumesService:
 
         ``volume_id`` is the attached volume's ``vol_`` ID or its UUID. Zero
         does not wait: it submits a new request_id, or returns a known one's
-        last outcome without retrying it; a timeout above zero retries pending,
-        unavailable or rate-limited work. Up to 30 seconds is one request that
-        the sandbox holds for that long. A longer timeout is waited out in
-        rounds of at most 30 seconds with the same ``request_id`` while the
-        result is ``pending`` (a value above 2,147,483.647, about 24.8 days,
-        means no deadline), so no request stays open for the whole wait.
-        Expiry does not cancel work. Errors are never retried, and identities
-        are never generated.
+        last outcome without retrying it; during a timeout above zero the
+        sandbox itself retries pending, unavailable or rate-limited work. Up to
+        30 seconds is one request that the sandbox holds for that long. A
+        longer timeout is waited out in rounds of at most 30 seconds with the
+        same ``request_id`` while the result is ``pending`` (a value above
+        2,147,483.647, about 24.8 days, means no deadline), so no request stays
+        open for the whole wait.
+        Expiry does not cancel work. The SDK never retries an error returned to
+        it, and never generates an identity.
         """
         if timeout is None or isinstance(timeout, bool) or checked_seconds(timeout) <= PULL_ROUND_SECONDS:
             spec = pull_volume_spec(volume_id, request_id=request_id, timeout=timeout)
@@ -150,6 +151,6 @@ class AsyncSandboxVolumesService:
                 return result
             pause = _PULL_ROUND_MIN_SECONDS - (now - started)
             if pause > 0:
-                if deadline is not None and now + pause >= deadline:
-                    return result
-                await _sleep(pause)
+                # Never return early: a pause cut at the deadline is followed
+                # by one last check there.
+                await _sleep(pause if deadline is None else min(pause, deadline - now))

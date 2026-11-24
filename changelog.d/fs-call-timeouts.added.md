@@ -7,7 +7,6 @@ Python takes `timeout=` (seconds, sync and async) and TypeScript
 `FileSearchOptions` / `ReplaceOptions`), where `0`, or a value above about
 24.8 days, means no limit. Go takes `Timeout` in `RemoveFileOptions` and
 `FilePermissionsOptions`, and a variadic last `*FileSearchOptions` /
-`*ReplaceOptions` on `Grep`, `Glob` and `Replace`, so existing calls compile
-unchanged (a method value or an interface typed with the old signatures must
-be updated); zero keeps the request timeout and `daytona.NoTimeout` means no
-limit. A timeout ends the call, not the work in the sandbox.
+`*ReplaceOptions` on `Grep`, `Glob` and `Replace`, where zero keeps the
+request timeout and `daytona.NoTimeout`, or a duration above about 24.8 days,
+means no limit. A timeout ends the call, not the work in the sandbox.

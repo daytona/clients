@@ -7,7 +7,7 @@
 // the final error or its cause.
 
 import { Daytona } from '../src/v2/Daytona.js'
-import { BuildLogInterruptedError, DaytonaError, LimitExceededError, RateLimitError, ServiceUnavailableError } from '../src/v2/index.js'
+import { BuildLogInterruptedError, DaytonaError, LimitExceededError, NotSupportedError, RateLimitError, ServiceUnavailableError } from '../src/v2/index.js'
 import { PERMANENT_BUILD_LOG_CODES } from '../src/v2/BuildLogs.js'
 import { API_ERROR_CODES, CODE_STATUS } from '../src/v2/codes.js'
 
@@ -100,7 +100,10 @@ describe('build-log follower HTTP errors', () => {
 
   it.each([
     [429, 'LIMIT_EXCEEDED', LimitExceededError],
-    [501, 'WORKLOAD_PLANE_ELSEWHERE', DaytonaError],
+    [503, 'V0_BACKUP_REGISTRY_UNCONFIGURED', ServiceUnavailableError],
+    [501, 'WORKLOAD_PLANE_ELSEWHERE', NotSupportedError],
+    [501, 'NOT_IMPLEMENTED', NotSupportedError],
+    [501, 'FUTURE_CODE', NotSupportedError],
   ] as const)('raises a permanent discovery %s %s at once, unwrapped', async (status, code, type) => {
     const { client, paths } = setup([errorResponse(status, code, 'not here')])
     const start = performance.now()
@@ -121,6 +124,40 @@ describe('build-log follower HTTP errors', () => {
     expect(paths).toEqual([DISCOVERY, STREAM])
   })
 
+  it('never retries a 501, even without a readable body', async () => {
+    const { client, paths } = setup([new Response('<html>not implemented</html>', { status: 501, headers: { 'content-type': 'text/html' } })])
+    const error = await failure(client.images.followBuildLogs('image', { onLogs: () => {} }))
+    expect(error).toBeInstanceOf(NotSupportedError)
+    expect(error.statusCode).toBe(501)
+    expect(paths).toEqual([DISCOVERY])
+  })
+
+  it('retries a 5xx whose error body is oversized, keeping its status', async () => {
+    const big = new Response(JSON.stringify({ code: 'SERVICE_UNAVAILABLE', message: 'x'.repeat(200 * 1024) }), { status: 503, headers: { 'content-type': 'application/json' } })
+    const { client, paths } = setup([big])
+    await expect(advance(client.images.followBuildLogs('image', { onLogs: () => {} }))).resolves.toMatchObject({ status: 'ready' })
+    expect(paths).toEqual([DISCOVERY, DISCOVERY, STREAM])
+  })
+
+  it('keeps an oversized 4xx error body as its status error, as Python does', async () => {
+    const big = new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'x'.repeat(200 * 1024) }), { status: 404, headers: { 'content-type': 'application/json' } })
+    const { client, paths } = setup([big])
+    const error = await failure(client.images.followBuildLogs('image', { onLogs: () => {} }))
+    expect(error).not.toBeInstanceOf(BuildLogInterruptedError)
+    expect(error).toMatchObject({ statusCode: 404, code: 'BUILD_LOG_PROTOCOL_ERROR', message: 'oversized build log error response' })
+    expect(paths).toEqual([DISCOVERY])
+  })
+
+  it('keeps a retryable stream error event as the cause when retries end', async () => {
+    const retryable = 'event: error\ndata: {"error":"store busy","code":"FUTURE","retryable":true}\n\n'
+    const sse = (): Response => new Response(retryable, { headers: { 'content-type': 'text/event-stream' } })
+    const { client } = setup([], Array.from({ length: 6 }, sse))
+    const error = await failure(client.images.followBuildLogs('image', { onLogs: () => {} }))
+    expect(error).toBeInstanceOf(BuildLogInterruptedError)
+    expect(error.cause).toBeInstanceOf(Error)
+    expect((error.cause as Error).message).toBe('store busy')
+  })
+
   it('still retries a 5xx whose body carries no code', async () => {
     const { client, paths } = setup([new Response('<html>bad gateway</html>', { status: 502, headers: { 'content-type': 'text/html' } })])
     await expect(advance(client.images.followBuildLogs('image', { onLogs: () => {} }))).resolves.toMatchObject({ status: 'ready' })
@@ -131,7 +168,8 @@ describe('build-log follower HTTP errors', () => {
     for (const code of PERMANENT_BUILD_LOG_CODES) {
       expect(API_ERROR_CODES).toContain(code)
       const status = (CODE_STATUS as Readonly<Record<string, number>>)[code]
-      expect(status === 429 || status >= 500).toBe(true)
+      // A 501 is permanent anyway; the list names retryable statuses only.
+      expect(status === 429 || (status >= 500 && status !== 501)).toBe(true)
     }
   })
 })

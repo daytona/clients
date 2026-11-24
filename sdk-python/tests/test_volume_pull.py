@@ -342,6 +342,17 @@ async def test_a_round_answered_early_is_paced(fake_clock: _FakeClock) -> None:
 
 
 @pytest.mark.anyio
+async def test_early_rounds_never_return_before_the_deadline(fake_clock: _FakeClock) -> None:
+    # A pause that would cross the deadline is cut there, then checked once more.
+    handler, requests = _rounds(["pending"], fake_clock, held=False)
+    result = await _pull(handler, 30.5)
+    assert result.status == "pending"
+    assert fake_clock.now == pytest.approx(1030.5)
+    assert fake_clock.sleeps[-1] == pytest.approx(0.5)
+    assert json.loads(requests[-1].content)["waitMs"] == 1
+
+
+@pytest.mark.anyio
 async def test_a_failed_round_is_not_retried(fake_clock: _FakeClock) -> None:
     requests: list[httpx.Request] = []
 

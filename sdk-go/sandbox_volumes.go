@@ -67,13 +67,14 @@ type PullVolumeResult struct {
 	RawStatus string
 }
 
-// Pull submits/checks a pull, preserving requestID; errors never cause
-// automatic retries. Retain requestID for later checks or retries.
+// Pull submits/checks a pull, preserving requestID. Retain requestID for
+// later checks or retries.
 // volumeID and requestID require 1–128 ASCII letters, digits, "_" or "-".
 // NoWait submits new work or retrieves a known identity without retrying it;
-// a positive wait retries pending, unavailable or rate-limited work. A wait up
-// to 30 seconds is one request; a longer one is spent in rounds of at most 30
-// seconds while the result is pending.
+// during a positive wait the sandbox itself retries pending, unavailable or
+// rate-limited work. A wait up to 30 seconds is one request; a longer one is
+// spent in rounds of at most 30 seconds while the result is pending. The SDK
+// never retries an error returned to it.
 func (v *SandboxVolumes) Pull(
 	ctx context.Context, volumeID, requestID string, opts *PullVolumeOptions,
 ) (*PullVolumeResult, error) {
@@ -125,8 +126,10 @@ func (r pullVolumeRounds) pull(ctx context.Context, volumeID, requestID string, 
 			return result, nil
 		}
 		if pause := pullVolumeRoundMin - now.Sub(started); pause > 0 {
-			if !deadline.IsZero() && !now.Add(pause).Before(deadline) {
-				return result, nil
+			// Never return early: a pause cut at the deadline is followed by
+			// one last check there.
+			if !deadline.IsZero() {
+				pause = min(pause, deadline.Sub(now))
 			}
 			if pauseErr := r.pause(ctx, pause); pauseErr != nil {
 				return nil, transportError(ctx, pauseErr)

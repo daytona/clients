@@ -601,10 +601,10 @@ class AsyncFileSystemService:
     async def remove(self, path: str, /, *, recursive: bool = False, timeout: Optional[float] = None) -> None:
         """Remove a file, or a directory with ``recursive=True``.
 
-        ``timeout`` replaces the client's ``request_timeout`` for this call,
-        which work over a large tree can outlast: a total deadline in seconds;
-        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
-        limit; omitted, the client's request timeout applies. A negative,
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies. A negative,
         non-finite or boolean value raises ``BadRequestError`` before any
         request. A timeout ends the call, not the work in the sandbox.
         """
@@ -641,10 +641,10 @@ class AsyncFileSystemService:
         1000). Only an unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
 
-        ``timeout`` replaces the client's ``request_timeout`` for this call,
-        which work over a large tree can outlast: a total deadline in seconds;
-        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
-        limit; omitted, the client's request timeout applies. A negative,
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies. A negative,
         non-finite or boolean value raises ``BadRequestError`` before any
         request. A timeout ends the call, not the work in the sandbox.
         """
@@ -669,10 +669,10 @@ class AsyncFileSystemService:
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
 
-        ``timeout`` replaces the client's ``request_timeout`` for this call,
-        which work over a large tree can outlast: a total deadline in seconds;
-        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
-        limit; omitted, the client's request timeout applies. A negative,
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies. A negative,
         non-finite or boolean value raises ``BadRequestError`` before any
         request. A timeout ends the call, not the work in the sandbox.
         """
@@ -692,10 +692,10 @@ class AsyncFileSystemService:
     ) -> ListResult[ReplaceResult]:
         """Replace the literal substring ``pattern`` with ``new_value`` in ``files``.
 
-        ``timeout`` replaces the client's ``request_timeout`` for this call,
-        which work over a large tree can outlast: a total deadline in seconds;
-        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
-        limit; omitted, the client's request timeout applies. A negative,
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies. A negative,
         non-finite or boolean value raises ``BadRequestError`` before any
         request. A timeout ends the call, not the work in the sandbox.
         """
@@ -727,10 +727,10 @@ class AsyncFileSystemService:
     ) -> None:
         """Set file permissions and ownership.
 
-        ``timeout`` replaces the client's ``request_timeout`` for this call,
-        which work over a large tree can outlast: a total deadline in seconds;
-        ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
-        limit; omitted, the client's request timeout applies. A negative,
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies. A negative,
         non-finite or boolean value raises ``BadRequestError`` before any
         request. A timeout ends the call, not the work in the sandbox.
         """

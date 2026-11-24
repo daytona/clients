@@ -471,27 +471,23 @@ async function httpError(response: Response, deadline: number | undefined): Prom
     // A denied request stays denied even if its explanatory JSON stalls. Do
     // not turn a known 401/403/etc into an automatically retried timeout.
     if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
+    // An oversized body keeps its status (so a 429 / 5xx stays retryable), as in Python.
+    if (error instanceof ProtocolError) return createDaytonaError('oversized build log error response', response.status, 'BUILD_LOG_PROTOCOL_ERROR')
     throw error
   }
 }
 /**
- * Catalog codes a 429 / 5xx response can carry that name a state a retry
- * cannot change (a limit, or a feature the deployment does not configure). A
- * response with one of them is the caller's answer; every other 429 / 5xx,
- * `SERVICE_UNAVAILABLE` included, is retried within the reconnect budget.
+ * Catalog codes a 429 / 503 response can carry that name a state a retry
+ * cannot change (a limit, or something the deployment does not configure). A
+ * response with one of them, or any 501 (not implemented), is the caller's
+ * answer; every other 429 / 5xx, `SERVICE_UNAVAILABLE` included, is retried
+ * within the reconnect budget.
  * @internal
  */
-export const PERMANENT_BUILD_LOG_CODES: ReadonlySet<string> = new Set([
-  'BILLING_DISABLED',
-  'LIMIT_EXCEEDED',
-  'MANAGEMENT_PLANE_ELSEWHERE',
-  'SEARCH_NOT_CONFIGURED',
-  'V0_BACKUP_REGISTRY_UNCONFIGURED',
-  'WORKLOAD_PLANE_ELSEWHERE',
-])
+export const PERMANENT_BUILD_LOG_CODES: ReadonlySet<string> = new Set(['LIMIT_EXCEEDED', 'V0_BACKUP_REGISTRY_UNCONFIGURED'])
 function retryableHttp(error: DaytonaError): boolean {
   const status = error.statusCode
-  return status !== undefined && (status === 429 || status >= 500) && !(error.code !== undefined && PERMANENT_BUILD_LOG_CODES.has(error.code))
+  return status !== undefined && (status === 429 || (status >= 500 && status !== 501)) && !(error.code !== undefined && PERMANENT_BUILD_LOG_CODES.has(error.code))
 }
 function retryAfter(response: Response): number {
   const value = response.headers.get('retry-after') ?? ''
@@ -646,7 +642,7 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
         if (!(error instanceof Retry || error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         if (healthy && performance.now() - started >= 10000) failures = 0
         // The last response's typed error (status, code, message, trace ID) is the cause.
-        if (failures >= 5) throw new BuildLogInterruptedError('build log reconnect budget exhausted', { cursor: observer.cursor, cause: error instanceof Retry ? error.error : error })
+        if (failures >= 5) throw new BuildLogInterruptedError('build log reconnect budget exhausted', { cursor: observer.cursor, cause: error instanceof Retry ? error.error ?? error : error })
         delay = [250, 500, 1000, 2000, 5000][failures++] * (0.8 + Math.random() * 0.2)
         if (error instanceof Retry) delay = Math.max(delay, error.retryAfter)
       } finally {

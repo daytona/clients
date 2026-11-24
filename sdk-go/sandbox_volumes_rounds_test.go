@@ -94,6 +94,16 @@ func TestSandboxVolumesPullRounds(t *testing.T) {
 			require.Equal(t, []int64{30000, 30000, 30000, 30000, 30000}, fake.waits)
 		}
 	})
+	t.Run("never returns before the deadline when rounds are answered early", func(t *testing.T) {
+		fake, rounds := newPullRounds(t, []string{"pending"}, false)
+		start := fake.now()
+		result, err := rounds.pull(t.Context(), "v", "r", 30500*time.Millisecond)
+		require.NoError(t, err)
+		require.Equal(t, PullVolumeStatusPending, result.Status)
+		require.Equal(t, 30500*time.Millisecond, fake.now().Sub(start))
+		require.Equal(t, 500*time.Millisecond, fake.pauses[len(fake.pauses)-1])
+		require.Equal(t, int64(1), fake.waits[len(fake.waits)-1])
+	})
 	t.Run("paces rounds a sandbox answers early", func(t *testing.T) {
 		fake, rounds := newPullRounds(t, []string{"pending", "pending", "pulled"}, false)
 		result, err := rounds.pull(t.Context(), "v", "r", time.Minute)

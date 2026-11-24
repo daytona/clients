@@ -112,7 +112,13 @@ func TestBuildLogsPermanentHTTPErrorsAreNotRetried(t *testing.T) {
 	for _, tt := range []struct {
 		status int
 		code   string
-	}{{429, "LIMIT_EXCEEDED"}, {501, "WORKLOAD_PLANE_ELSEWHERE"}} {
+	}{
+		{429, "LIMIT_EXCEEDED"},
+		{503, "V0_BACKUP_REGISTRY_UNCONFIGURED"},
+		{501, "WORKLOAD_PLANE_ELSEWHERE"},
+		{501, "NOT_IMPLEMENTED"},
+		{501, "FUTURE_CODE"},
+	} {
 		t.Run("discovery "+tt.code, func(t *testing.T) {
 			// Given a 429 / 5xx whose code names a state a retry cannot change.
 			fake := buildLogsErrorFake(t, 1, 0, tt.status, tt.code)
@@ -144,6 +150,7 @@ func TestBuildLogsPermanentHTTPErrorsAreNotRetried(t *testing.T) {
 func TestBuildLogsPermanentCodesAreRetryableStatusCatalogCodes(t *testing.T) {
 	for code := range buildLogPermanentCodes {
 		status := catalogStatus("DAYTONA_API", code)
-		require.True(t, status == 429 || status >= 500, "%s: %d", code, status)
+		// A 501 is permanent anyway; the list names retryable statuses only.
+		require.True(t, status == 429 || status >= 500 && status != 501, "%s: %d", code, status)
 	}
 }
