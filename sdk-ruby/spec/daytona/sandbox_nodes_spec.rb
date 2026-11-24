@@ -404,6 +404,17 @@ RSpec.describe 'Daytona::NodeLogStream' do
     expect(stream.instance_variable_get(:@completion).pop(true).message).to eq('WebSocket error: reset')
   end
 
+  it 'reports a callback error raised while flushing on a WebSocket error' do
+    deadline = double('deadline', remaining: 10)
+    callbacks = { stdout: ->(_, _) { raise IOError, 'callback failed' } }
+    stream = stream_class.new(node, 'session', 'command', deadline, callbacks)
+    stream.instance_variable_get(:@demuxer).feed("\x01\x01\x01out\x01")
+
+    stream.send(:on_error, StandardError.new('reset'))
+
+    expect(stream.instance_variable_get(:@completion).pop(true)).to be_a(IOError)
+  end
+
   it 'still reports the deadline when a close has held-back output to emit' do
     stream = stream_class.new(node, 'session', 'command', expired_deadline, { stdout: ->(_, _) {} })
     stream.send(:on_message, double(type: :binary, data: "\x01\x01\x01out\x01"))

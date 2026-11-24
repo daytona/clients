@@ -580,10 +580,9 @@ module Daytona
 
     def on_error(error)
       emit { @demuxer.flush }
-    rescue StandardError
-      nil
-    ensure
       @completion.push(Sdk::Error.new("WebSocket error: #{error.message}"))
+    rescue StandardError => e
+      @completion.push(e)
     end
 
     def emit

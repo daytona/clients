@@ -373,6 +373,50 @@ RSpec.describe Daytona::Process do
 
       expect(stdout).to eq("out\x01")
     end
+
+    def follow_logs(method, on_stdout)
+      on_stderr = ->(_chunk) {}
+      return process.get_entrypoint_logs_async(on_stdout:, on_stderr:) if method == :entrypoint
+
+      process.get_session_command_logs_async(session_id: 's', command_id: 'c', on_stdout:, on_stderr:)
+    end
+
+    def stream_with_raising_flush(method)
+      calls = 0
+      on_stdout = lambda do |_chunk|
+        calls += 1
+        raise IOError, 'callback failed' if calls == 2
+      end
+      thread = Thread.new { follow_logs(method, on_stdout) }
+      wait_for_handlers(:message, :close, :error)
+      socket.emit(:message, double(type: :binary, data: "\x01\x01\x01out\n\x02"))
+      [thread, -> { calls }]
+    end
+
+    %i[entrypoint session].each do |method|
+      it "finishes #{method} logs on close when a callback raises during the final flush" do
+        thread, calls = stream_with_raising_flush(method)
+
+        expect { socket.emit(:close) }.to raise_error(IOError, 'callback failed')
+        expect(thread.join(5)&.value).to eq(:close)
+        expect(calls.call).to eq(2)
+      end
+
+      it "finishes #{method} logs on a close message when a callback raises during the final flush" do
+        thread, = stream_with_raising_flush(method)
+
+        expect { socket.emit(:message, double(type: :close, data: '')) }.to raise_error(IOError, 'callback failed')
+        expect(thread.join(5)&.value).to eq(:close)
+      end
+
+      it "finishes #{method} logs and keeps the WebSocket error when a callback raises during the final flush" do
+        thread, = stream_with_raising_flush(method)
+
+        expect { socket.emit(:error, StandardError.new('reset')) }
+          .to raise_error(Daytona::Sdk::Error, 'WebSocket error: reset') { |e| expect(e.cause).to be_a(IOError) }
+        expect(thread.join(5)&.value).to eq(:error)
+      end
+    end
   end
 
   describe '#get_entrypoint_logs_async' do

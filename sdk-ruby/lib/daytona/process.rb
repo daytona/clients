@@ -290,8 +290,11 @@ module Daytona
         client.on(:message) do |message|
           if message.type == :close
             client.close
-            emit.call(demuxer.flush)
-            completion_queue.push(:close)
+            begin
+              emit.call(demuxer.flush)
+            ensure
+              completion_queue.push(:close)
+            end
           else
             emit.call(demuxer.feed(message.data.to_s))
           end
@@ -299,11 +302,13 @@ module Daytona
 
         client.on(:close) do
           emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:close)
         end
 
         client.on(:error) do |e|
           emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:error)
           raise Sdk::Error, "WebSocket error: #{e.message}"
         end
@@ -364,8 +369,11 @@ module Daytona
         client.on(:message) do |message|
           if message.type == :close
             client.close
-            emit.call(demuxer.flush)
-            completion_queue.push(:close)
+            begin
+              emit.call(demuxer.flush)
+            ensure
+              completion_queue.push(:close)
+            end
           else
             emit.call(demuxer.feed(message.data.to_s))
           end
@@ -373,11 +381,13 @@ module Daytona
 
         client.on(:close) do
           emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:close)
         end
 
         client.on(:error) do |e|
           emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:error)
           raise Sdk::Error, "WebSocket error: #{e.message}"
         end
