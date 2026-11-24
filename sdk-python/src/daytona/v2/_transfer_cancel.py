@@ -4,12 +4,24 @@
 """Race a file transfer's network waits against its cancel signal.
 
 A transfer with no signal awaits the network directly. A plain
-``threading.Event`` on CPython 3.10 to 3.15 wakes the transfer when it is set,
-from any thread, with no periodic wake-ups; elsewhere it is polled. An ``asyncio.Event`` wakes it when set on the loop running the
-transfer; ``asyncio.Event.set()`` is not thread-safe and does not wake a loop
-it is called off, so the signal is also checked every ``POLL_SECONDS``. Any
-other object with ``is_set()`` cannot notify anyone and is checked every
-``POLL_SECONDS``. Checks happen only while the transfer waits.
+``threading.Event`` on CPython 3.10 to 3.15 wakes the transfer when it is
+set, from any thread, with no periodic wake-ups; elsewhere it is polled.
+
+An ``asyncio.Event`` wakes the async client's transfer when it is set on the
+caller's loop, and is also checked every ``POLL_SECONDS``, because
+``asyncio.Event.set()`` is not thread-safe and does not wake a loop it is
+called off. Waiting on an ``asyncio.Event`` binds it to the waiting loop for
+good, so the watch waits on it only when it is already bound to the loop
+running the transfer, or is unbound and that loop is the caller's own (not a
+synchronous client's private loop); any other ``asyncio.Event`` is only
+polled, and its binding is left alone. Any other object with ``is_set()``
+cannot notify anyone and is checked every ``POLL_SECONDS``. Checks happen
+only while the transfer waits.
+
+The ``threading.Event`` watch briefly takes the event's lock on the thread
+running the transfer, as ``Event.wait()`` does: a signal handler on that
+thread must not call ``set()`` on the same event (use
+``loop.add_signal_handler`` instead).
 """
 
 from __future__ import annotations
@@ -24,6 +36,7 @@ from typing import AsyncIterator, Awaitable, Callable, Final, Optional, Type, Ty
 
 from typing_extensions import Self
 
+from ._bridge import on_a_bridge_loop
 from ._shutdown import refusing_stopped_pools
 from .errors import TransferCancelledError
 from .types import TransferCancelSignal
@@ -35,6 +48,14 @@ POLL_SECONDS: Final[float] = 0.05
 # notification path was checked against (3.10 through 3.15). Later versions
 # poll until someone checks them again.
 _THREAD_EVENT_CHECKED_THROUGH: Final[tuple[int, int]] = (3, 15)
+
+
+def _waitable_here(event: asyncio.Event) -> bool:
+    """Whether waiting on ``event`` here leaves the caller's own use of it intact."""
+    bound = getattr(event, "_loop", None)
+    if bound is not None:
+        return bound is asyncio.get_running_loop()
+    return not on_a_bridge_loop()
 
 
 def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal], *, operation: str) -> None:
@@ -147,7 +168,8 @@ class _ThreadEventWatch:
             self._condition._waiters.remove(self._wake)  # type: ignore[attr-defined]
         with contextlib.suppress(RuntimeError):
             self._wake.release()
-        self.thread.join()
+        if self.thread.ident is not None:
+            self.thread.join()
 
 
 class TransferCancelWatch:
@@ -181,7 +203,8 @@ class TransferCancelWatch:
         if cancel is None:
             return self
         if isinstance(cancel, asyncio.Event):
-            self._notifier = self._notified = asyncio.ensure_future(cancel.wait())
+            if _waitable_here(cancel):
+                self._notifier = self._notified = asyncio.ensure_future(cancel.wait())
             return self
         condition = _ThreadEventWatch.condition_of(cancel)
         if condition is not None:
@@ -199,11 +222,16 @@ class TransferCancelWatch:
             watch = _ThreadEventWatch(condition, on_set)
             try:
                 watch.start(cancel)  # type: ignore[arg-type]
+                self._thread_watch = watch
             except RuntimeError:
                 # No thread can start (a thread limit, interpreter shutdown):
                 # the event is polled like any other is_set() object.
                 return self
-            self._thread_watch = watch
+            except BaseException:
+                # An interrupt between starting the helper and recording it:
+                # __aexit__ will not run, so release the helper here.
+                watch.close()
+                raise
             self._notifier = self._notified = notified
         return self
 
