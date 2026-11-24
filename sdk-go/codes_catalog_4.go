@@ -64,6 +64,12 @@ const CodeImageNotFound = "IMAGE_NOT_FOUND"
 // ErrImageNotFound matches code IMAGE_NOT_FOUND, independently of its source.
 var ErrImageNotFound = codeSentinel{"IMAGE_NOT_FOUND", 404}
 
+// CodeVolumeNotFound is VOLUME_NOT_FOUND (API).
+const CodeVolumeNotFound = "VOLUME_NOT_FOUND"
+
+// ErrVolumeNotFound matches code VOLUME_NOT_FOUND, independently of its source.
+var ErrVolumeNotFound = codeSentinel{"VOLUME_NOT_FOUND", 404}
+
 // CodeImageNotReady is IMAGE_NOT_READY (API).
 const CodeImageNotReady = "IMAGE_NOT_READY"
 
@@ -118,12 +124,6 @@ const CodeIdleOutOfRange = "IDLE_OUT_OF_RANGE"
 // ErrIdleOutOfRange matches code IDLE_OUT_OF_RANGE, independently of its source.
 var ErrIdleOutOfRange = codeSentinel{"IDLE_OUT_OF_RANGE", 400}
 
-// CodeCreateTTLOutOfRange is CREATE_TTL_OUT_OF_RANGE (API).
-const CodeCreateTTLOutOfRange = "CREATE_TTL_OUT_OF_RANGE"
-
-// ErrCreateTTLOutOfRange matches code CREATE_TTL_OUT_OF_RANGE, independently of its source.
-var ErrCreateTTLOutOfRange = codeSentinel{"CREATE_TTL_OUT_OF_RANGE", 400}
-
 func catalogStatus4(source, code string) int {
 	switch code {
 	case "BILLING_ERROR":
@@ -166,6 +166,10 @@ func catalogStatus4(source, code string) int {
 		if source == "DAYTONA_API" {
 			return 404
 		}
+	case "VOLUME_NOT_FOUND":
+		if source == "DAYTONA_API" {
+			return 404
+		}
 	case "IMAGE_NOT_READY":
 		if source == "DAYTONA_API" {
 			return 409
@@ -199,10 +203,6 @@ func catalogStatus4(source, code string) int {
 			return 409
 		}
 	case "IDLE_OUT_OF_RANGE":
-		if source == "DAYTONA_API" {
-			return 400
-		}
-	case "CREATE_TTL_OUT_OF_RANGE":
 		if source == "DAYTONA_API" {
 			return 400
 		}
