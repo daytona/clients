@@ -1,0 +1,26 @@
+cli/cmd/catalog_test.go
+  s_680d0d36c83fce::t_07732159e046a2 286,291
+cli/cmd/catalog_output_test.go
+  s_680d0d36c83fce::t_07732159e046a2 73-81
+  s_680d0d36c83fce::t_a275e97faf3ee7 82-84,88-94,99-104,109
+cli/cmd/catalog.go
+  s_680d0d36c83fce::t_0b35aafcba5237 182,424
+cli/cmd/sandbox_logs.go
+  s_680d0d36c83fce::t_a275e97faf3ee7 94-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2e1104a0db17c4e3efd85db51a323a6c0c04482",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
