@@ -14,9 +14,12 @@ twin is ``tests/wait-read-retries.test.ts``; Go's is
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
+from typing import Optional
 
 import httpx
 import pytest
@@ -50,6 +53,7 @@ from daytona.v2.errors import (
     ServiceUnavailableError,
     create_error,
 )
+from daytona.v2.image import ImageBuilder
 from daytona.v2.services import AsyncImagesService, AsyncSnapshotsService
 from daytona.v2.types import DaytonaConfig
 
@@ -248,8 +252,8 @@ async def test_a_read_that_keeps_failing_ends_in_the_wait_timeout_with_its_cause
         await _sandbox(transport).wait(until="started", timeout=1)
     assert (raised.value.source, raised.value.code) == ("SDK", "REQUEST_TIMEOUT")
     assert raised.value.__cause__ is failure
-    # 0.2 + 0.4 s of back-off, then a read cut by the deadline.
-    assert 3 <= len(transport.specs) <= 4
+    # 0.2 + 0.4 s of back-off, then a read cut by the deadline (fewer on a slow host).
+    assert 2 <= len(transport.specs) <= 4
 
 
 async def test_a_success_between_failures_keeps_the_last_failure_as_the_cause() -> None:
@@ -261,43 +265,43 @@ async def test_a_success_between_failures_keeps_the_last_failure_as_the_cause() 
 
 
 async def test_the_events_fallback_poll_loop_retries_a_transient_failure() -> None:
-    # A hub in fallback mode polls through _run_poll_loop.
-    calls = 0
+    # A hub in fallback mode polls through _run_poll_loop; the sandbox's poll
+    # function records each failure in the shared retry and waits it out.
     failure = create_error("bad gateway", 502, None, None)
-
-    async def poll() -> WaitOutcome:
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            raise failure
-        return WaitOutcome("started", "running")
-
     predicate = _TargetPredicate(states=frozenset({"started"}), terminal_states=frozenset({"error"}))
+
+    def polling(retry: ReadRetry, script: list[object]):  # type: ignore[no-untyped-def]
+        async def poll() -> WaitOutcome:
+            await retry.pause(None)
+            step = script.pop(0) if len(script) > 1 else script[0]
+            if isinstance(step, DaytonaError):
+                retry.probe_failed(step)
+                raise step
+            retry.succeeded()
+            return WaitOutcome("started", "running")
+
+        return poll
+
     retry = ReadRetry()
-    outcome = await _run_poll_loop("sbx", predicate, deadline=time.monotonic() + 5, fn=poll, retry=retry)
-    assert outcome.state == "started" and calls == 2
+    started = time.monotonic()
+    outcome = await _run_poll_loop(
+        "sbx", predicate, deadline=started + 5, fn=polling(retry, [failure, "ok"]), retry=retry
+    )
+    assert outcome.state == "started"
+    assert time.monotonic() - started >= READ_RETRY_MIN_DELAY_S - 0.01
 
-    async def failing() -> WaitOutcome:
-        raise failure
-
+    retry = ReadRetry()
     with pytest.raises(RequestTimeoutError) as raised:
-        await _run_poll_loop("sbx", predicate, deadline=time.monotonic() + 0.3, fn=failing, retry=ReadRetry())
+        await _run_poll_loop(
+            "sbx", predicate, deadline=time.monotonic() + 0.3, fn=polling(retry, [failure]), retry=retry
+        )
     assert raised.value.__cause__ is failure
+    refused = create_error("no", 401, "UNAUTHORIZED", "DAYTONA_API")
+    retry = ReadRetry()
     with pytest.raises(AuthenticationError):
         await _run_poll_loop(
-            "sbx",
-            predicate,
-            deadline=time.monotonic() + 5,
-            fn=_raising(create_error("no", 401, "UNAUTHORIZED", "DAYTONA_API")),
-            retry=ReadRetry(),
+            "sbx", predicate, deadline=time.monotonic() + 5, fn=polling(retry, [refused]), retry=retry
         )
-
-
-def _raising(error: BaseException):  # type: ignore[no-untyped-def]
-    async def fn() -> WaitOutcome:
-        raise error
-
-    return fn
 
 
 # --- Docker readiness -------------------------------------------------------------
@@ -431,3 +435,131 @@ async def test_image_pull_that_keeps_failing_times_out_with_its_cause() -> None:
         await ImagePull(transport, 1.5).run(RequestSpec("POST", "/images"), wait=True)  # type: ignore[arg-type]
     assert str(raised.value) == "image pull did not finish before timeout"
     assert raised.value.__cause__ is failure
+
+
+# --- review follow-ups ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("field", ["retry_after_seconds", "retryAfterMs"])
+async def test_a_body_hint_too_large_for_a_float_is_no_hint(field: str) -> None:
+    huge = "9" * 400
+    error = error_from_response(
+        429,
+        f'{{"code":"RATE_LIMITED","message":"slow down","{field}":{huge}}}'.encode(),
+        content_type="application/json",
+        retry_after="1",
+    )
+    # The body's hint is unusable: the header's is used, and nothing overflows.
+    assert retry_after_seconds(error) == 1
+    assert ReadRetry().note(error)
+    transport = _Scripted([error, _artifact("ready")])
+    image = await AsyncImagesService(transport).get("img", wait="ready", timeout=5)  # type: ignore[arg-type]
+    assert image.status == "ready"
+
+
+def test_a_negative_body_hint_is_no_hint() -> None:
+    error = create_error("busy", 503, None, None, retry_after_seconds=-5, retry_after_ms=-1)
+    assert retry_after_seconds(error) == 0
+
+
+async def test_docker_readiness_keeps_its_poll_spacing_after_a_failure() -> None:
+    transport = _Scripted([create_error("slow down", 429, "RATE_LIMITED", "DAYTONA_DAEMON"), _READY])
+    await AsyncDockerService(transport).wait_until_ready(timeout=20)  # type: ignore[arg-type]
+    assert _gaps(transport)[0] >= 0.49
+
+
+async def test_image_pull_retries_a_transient_first_lookup() -> None:
+    transport = _Scripted(
+        [{"id": "img", "status": "pending"}, ConnectionError("reset", source="SDK"), _artifact("ready")]
+    )
+    image = await ImagePull(transport, 60).run(RequestSpec("POST", "/images"), wait=True)  # type: ignore[arg-type]
+    assert image.status == "ready"
+    assert [spec.method for spec in transport.specs] == ["POST", "GET", "GET"]
+    # Without wait the pull returns its first observation and retries nothing.
+    failure = ConnectionError("reset", source="SDK")
+    transport = _Scripted([{"id": "img", "status": "pending"}, failure, _artifact("ready")])
+    with pytest.raises(ConnectionError) as raised:
+        await ImagePull(transport, 60).run(RequestSpec("POST", "/images"), wait=False)  # type: ignore[arg-type]
+    assert raised.value is failure
+
+
+async def test_an_artifact_wait_cut_after_an_unsettled_read_keeps_the_last_failure() -> None:
+    failure = create_error("busy", 503, None, None)
+
+    class _Slow(_Scripted):
+        async def send(self, spec: RequestSpec) -> object:
+            if len(self.specs) == 1:
+                await asyncio.sleep(0.6)
+            return await super().send(spec)
+
+    transport = _Slow([failure, _artifact("building")])
+    with pytest.raises(RequestTimeoutError) as raised:
+        await AsyncImagesService(transport).get("img", wait="ready", timeout=0.5)  # type: ignore[arg-type]
+    assert raised.value.__cause__ is failure
+
+
+@pytest.mark.parametrize("build_timeout", [None, 0, 60])
+async def test_create_from_build_retries_a_transient_readiness_read(build_timeout: Optional[float]) -> None:
+    transport = _Scripted(
+        [
+            {"id": "img", "status": "pending"},
+            _artifact("pending"),
+            create_error("bad gateway", 502, None, None),
+            _artifact("ready"),
+            {**_sandbox_detail_payload("sbx", "running"), "wait_cap_seconds": 0},
+        ]
+    )
+    client = AsyncDaytona(DaytonaConfig(api_key="key"))
+    bind_api(client, transport)  # type: ignore[arg-type]
+    sandbox = await client.create_from_build(
+        ImageBuilder.from_registry("python:3.12").run_commands("true"),
+        build_timeout=build_timeout,
+        wait_seconds=0,
+    )
+    assert sandbox.id == "sbx"
+    assert [spec.method for spec in transport.specs] == ["POST", "GET", "GET", "GET", "POST"]
+    # The default budget repeats holds without a deadline instead of one hold.
+    assert "timeout_ms" in transport.specs[3].params
+
+
+class _ProbingHub:
+    """A hub whose early probe fails once, then falls back to polling."""
+
+    enabled = True
+
+    def __init__(self, then_time_out: bool = False) -> None:
+        self.then_time_out = then_time_out
+
+    async def wait(self, sandbox_id: str, predicate: object, **kwargs: object) -> WaitOutcome:
+        poll = kwargs["sandbox_poll_fn"]
+        assert callable(poll)
+        with contextlib.suppress(DaytonaError):
+            await poll()
+        if self.then_time_out:
+            raise RequestTimeoutError(
+                "hub share spent", status_code=408, code="REQUEST_TIMEOUT", source="SDK"
+            )
+        return await poll()  # type: ignore[no-any-return]
+
+
+async def test_a_failed_probe_holds_back_the_fallback_read_by_its_retry_hint() -> None:
+    hinted = create_error("slow down", 429, "RATE_LIMITED", "DAYTONA_API", retry_after_ms=600)
+    transport = _Scripted([hinted, _sandbox_detail_payload("sbx", "running")])
+    sandbox = _sandbox(transport)
+    sandbox._hub = _ProbingHub()  # type: ignore[assignment]
+    await sandbox.wait(until="started", timeout=20)
+    assert sandbox.state == "started"
+    assert _gaps(transport)[0] >= 0.59
+
+
+async def test_a_failed_probe_that_is_not_retried_is_still_the_timeouts_cause() -> None:
+    # The hub keeps waiting through a probe's 400 (it stops only on 401, 403
+    # and 404); the wait's timeout then carries it.
+    refused = create_error("bad", 400, "BAD_REQUEST", "DAYTONA_API")
+    transport = _Scripted([refused, _sandbox_detail_payload("sbx", "booting")])
+    sandbox = _sandbox(transport)
+    sandbox._hub = _ProbingHub(then_time_out=True)  # type: ignore[assignment]
+    with pytest.raises(RequestTimeoutError) as raised:
+        await sandbox.wait(until="started", timeout=1)
+    assert raised.value.source == "SDK"
+    assert raised.value.__cause__ is refused

@@ -626,7 +626,7 @@ async def _get_artifact(
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES:
             return artifact
         if deadline is not None and _clock.monotonic() >= deadline:
-            raise timed_out()
+            raise timed_out() from retry.last_error
         elapsed = _clock.monotonic() - started
         if elapsed < _ARTIFACT_MIN_POLL_INTERVAL_S:
             pause = _ARTIFACT_MIN_POLL_INTERVAL_S - elapsed

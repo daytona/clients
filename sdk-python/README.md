@@ -1134,12 +1134,17 @@ the observed public state as `error.state` and the wire status as
 `error.reason` and ends the error message.
 
 Every wait that reads the server (sandbox waits, `docker.wait_until_ready()`,
-`images.get()` / `snapshots.get()` with `wait="ready"`, `images.pull()`)
+`images.get()` / `snapshots.get()` with `wait="ready"` and a positive
+`timeout`, the readiness waits of `images.pull()` and `create_from_build()`)
 retries a read that fails transiently (no response, a stalled read, HTTP 429
-or a 5xx other than 501) with backoff (0.2 s doubling to 5 s, or the server's
-`Retry-After` when longer) within the same budget. When the budget runs out,
-its timeout error carries the last failed read as `__cause__`. Any other
-failure, such as an authentication error, is raised at once.
+other than `LIMIT_EXCEEDED`, or a 5xx other than 501) with backoff (0.2 s
+doubling to 5 s, or the server's `Retry-After` when longer) within the same
+budget. When the budget runs out, its timeout error carries the last failed
+read as `__cause__`; a wait without a deadline keeps retrying until the server
+answers or the caller cancels. Any other failure, such as an authentication
+error, is raised at once, with one exception: while the events stream is live,
+its early probes of a sandbox wait keep waiting through any failure but 401,
+403 and 404, and the wait's timeout then carries that failure as its cause.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
 (seconds) with the same default and unbounded form. They wait for

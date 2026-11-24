@@ -42,7 +42,7 @@ from . import _clock
 from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from ._core import RequestSpec, expect_object, loads_json, sandbox_state
-from ._read_retry import ReadRetry
+from ._read_retry import ReadRetry, retryable_read_error
 from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
@@ -1775,12 +1775,11 @@ async def _run_poll_loop(
         try:
             outcome = await fn()
         except DaytonaError as error:
-            if retry is None or not retry.note(error):
+            # ``fn`` records its failure in ``retry`` and waits out the
+            # back-off before its next read.
+            if retry is None or not retryable_read_error(error):
                 raise
-            await retry.pause(deadline)
             continue
-        if retry is not None:
-            retry.succeeded()
         result = _evaluate(predicate, outcome.state, sandbox_id)
         if result == "resolve":
             return outcome

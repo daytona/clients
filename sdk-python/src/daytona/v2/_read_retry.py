@@ -25,7 +25,7 @@ from weakref import WeakKeyDictionary
 import anyio
 
 from . import _clock
-from .errors import ClientTimeoutError, ConnectionError, DaytonaError
+from .errors import ClientTimeoutError, ConnectionError, DaytonaError, RequestTimeoutError
 
 READ_RETRY_MIN_DELAY_S: Final = 0.2
 READ_RETRY_MAX_DELAY_S: Final = 5.0
@@ -57,13 +57,23 @@ def remember_retry_after(error: DaytonaError, header: Optional[str]) -> None:
         _HEADER_HINTS[error] = seconds
 
 
+def _hint(value: Optional[int], unit: float) -> Optional[float]:
+    """A body hint in seconds; a negative one, or one too large for a float, is none."""
+    if value is None or value < 0:
+        return None
+    try:
+        seconds = value * unit
+    except OverflowError:
+        return None
+    return seconds if math.isfinite(seconds) else None
+
+
 def retry_after_seconds(error: DaytonaError) -> float:
     """The server's retry hint: the body's ``retryAfterMs``, else its
     ``retry_after_seconds``, else the ``Retry-After`` header; 0 without one."""
-    if error.retry_after_ms is not None:
-        return error.retry_after_ms / 1000
-    if error.retry_after_seconds is not None:
-        return float(error.retry_after_seconds)
+    for hint in (_hint(error.retry_after_ms, 0.001), _hint(error.retry_after_seconds, 1.0)):
+        if hint is not None:
+            return hint
     return _HEADER_HINTS.get(error, 0.0)
 
 
@@ -99,21 +109,29 @@ class ReadRetry:
         self._next_read = _clock.monotonic() + max(self._delay, retry_after_seconds(error))
         return True
 
-    def remember(self, error: BaseException) -> None:
-        """Keep a retryable failure as the timeout cause without scheduling a read
-        (an events-hub probe, which the hub reschedules itself)."""
-        if isinstance(error, DaytonaError) and retryable_read_error(error):
+    def probe_failed(self, error: BaseException) -> None:
+        """Record a failed events-hub probe. A transient failure schedules the
+        next read as :meth:`note` does; any other failure the hub keeps waiting
+        through (its probes stop only on 401, 403 and 404) is kept as the
+        timeout's cause too. The wait's own timeout is not a read failure."""
+        if self.note(error) or not isinstance(error, DaytonaError):
+            return
+        if not (isinstance(error, RequestTimeoutError) and error.source == "SDK"):
             self.last_error = error
 
     def succeeded(self) -> None:
         self._delay = 0.0
         self._next_read = None
 
-    async def pause(self, deadline: Optional[float]) -> None:
-        """Sleep until the next read is due, never past ``deadline``."""
-        if self._next_read is None:
+    async def pause(self, deadline: Optional[float], *, not_before: Optional[float] = None) -> None:
+        """Sleep until the next read is due (and not before ``not_before``, a
+        wait's own poll spacing), never past ``deadline``."""
+        due = self._next_read
+        if not_before is not None and due is not None:
+            due = max(due, not_before)
+        if due is None:
             return
-        pause = self._next_read - _clock.monotonic()
+        pause = due - _clock.monotonic()
         if deadline is not None:
             pause = min(pause, deadline - _clock.monotonic())
         if pause > 0:

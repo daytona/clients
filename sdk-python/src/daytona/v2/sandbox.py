@@ -1046,14 +1046,12 @@ class AsyncSandbox:
                         pause = min(pause, max(0.0, deadline - _clock.monotonic()))
                     if pause > 0:
                         await asyncio.sleep(pause)
+                # A failed read (a probe's or the fallback's) holds the next
+                # one back by its back-off or the server's retry hint.
+                await retry.pause(deadline if hub_deadline is None else hub_deadline)
                 remaining = None if deadline is None else deadline - _clock.monotonic()
                 if remaining is not None and remaining <= 0:
-                    raise create_error(
-                        "sandbox failed to reach the requested state before timeout",
-                        408,
-                        "REQUEST_TIMEOUT",
-                        "SDK",
-                    )
+                    raise _wait_timed_out() from retry.last_error
                 held = (
                     remaining
                     if hub_deadline is None
@@ -1074,8 +1072,9 @@ class AsyncSandbox:
                         exact=exact,
                     )
                 except DaytonaError as error:
-                    # A failed probe is the wait's timeout cause if nothing later fails.
-                    retry.remember(error)
+                    # A failed read schedules the next one and is the wait's
+                    # timeout cause if nothing later fails.
+                    retry.probe_failed(error)
                     raise
                 retry.succeeded()
                 last_poll_end = _clock.monotonic()
@@ -1229,6 +1228,9 @@ class AsyncSandbox:
                     raise _sandbox_terminal_state_error(
                         self.id, self.state, raw_state=self.raw_state or None, reason=self.error
                     )
+            # After a failed read (this loop's or an earlier probe's), the
+            # back-off or the server's retry hint, within the deadline.
+            await retry.pause(deadline)
             remaining_timeout = None if deadline is None else deadline - _clock.monotonic()
             if remaining_timeout is not None and remaining_timeout <= 0:
                 raise _wait_timed_out() from retry.last_error
@@ -1251,7 +1253,6 @@ class AsyncSandbox:
                 )
             except DaytonaError as error:
                 if retry.note(error):
-                    await retry.pause(deadline)
                     continue
                 if retry.last_error is not None and _is_wait_timeout(error):
                     raise _wait_timed_out() from retry.last_error
@@ -1312,10 +1313,12 @@ class AsyncSandbox:
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits. A read
-        that fails transiently (no response, a stalled read, HTTP 429 or a 5xx
-        other than 501) is retried with back-off within the budget, and the
-        timeout then carries the last failure as its cause; any other failed
-        read is raised at once.
+        that fails transiently (no response, a stalled read, HTTP 429 other
+        than ``LIMIT_EXCEEDED``, or a 5xx other than 501) is retried with
+        back-off within the budget, and the timeout then carries the last
+        failure as its cause; without a deadline (``timeout=0``) it is retried
+        until the server answers or the caller cancels. Any other failed read
+        is raised at once.
         """
         timeout = _validate_timeout(timeout)
         await self._wait_for_state(_wait_states(until), timeout=timeout)

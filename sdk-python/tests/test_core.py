@@ -7411,11 +7411,12 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
     assert linux_api.specs[0].path == "/images"
     assert linux_api.specs[1].path == "/images/img-built"
     assert linux_api.specs[1].params == {}
-    # No build_timeout: the build is awaited without a deadline (server-held long polls).
+    # No build_timeout: the build is awaited without a deadline (repeated
+    # server-held long polls, whose failed reads are retried).
     assert linux_api.specs[2].path == "/images/img-built"
-    assert linux_api.specs[2].params == {"wait": "ready"}
+    assert linux_api.specs[2].params == {"wait": "ready", "timeout_ms": 60_000}
     assert linux_api.specs[3].path == "/images/img-built"
-    assert linux_api.specs[3].params == {"wait": "ready"}
+    assert linux_api.specs[3].params == {"wait": "ready", "timeout_ms": 60_000}
     assert linux_api.specs[4].path == "/sandboxes"
     assert linux_api.specs[4].json_body == {
         "image": "img-built",

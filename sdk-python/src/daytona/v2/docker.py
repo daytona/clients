@@ -70,10 +70,11 @@ class AsyncDockerService:
         is still ``starting`` or ``deferred`` — including
         when a status request is still unanswered at the deadline. No request
         runs more than a fraction of a second past the deadline. A status read
-        that fails transiently (no response, a stalled read, HTTP 429 or a 5xx
-        other than 501) is retried with back-off within the budget; the
-        timeout then carries the last failure as its cause. Other failures are
-        raised at once.
+        that fails transiently (no response, a stalled read, HTTP 429 other
+        than ``LIMIT_EXCEEDED``, or a 5xx other than 501) is retried with
+        back-off within the budget, never sooner than the 0.5 s poll spacing;
+        the timeout then carries the last failure as its cause. Other failures
+        are raised at once.
         """
         # 0, or above the timer maximum (an integer too large for a float
         # included), waits without a deadline.
@@ -109,7 +110,8 @@ class AsyncDockerService:
                     raise DockerWaitTimeoutError(last) from exc
                 if not retry.note(exc):
                     raise
-                await retry.pause(deadline)
+                # Never sooner than the poll spacing, whatever the back-off.
+                await retry.pause(deadline, not_before=poll_started + DOCKER_STATUS_POLL_INTERVAL_SECONDS)
                 continue
             retry.succeeded()
             last = expect_docker_status(payload)
