@@ -923,10 +923,10 @@ function dataObject(data: unknown): ErrorEnvelope | undefined {
 
 function messageFromEnvelope(envelope: ErrorEnvelope | undefined, fallback: string): string {
   // `error` is a prose fallback for bodies without `message`, never a code.
-  // Error-class dispatch stays on `code`/`source`/status. An empty string is
-  // no prose (Python's `message or error or fallback`).
-  if (typeof envelope?.message === 'string' && envelope.message !== '') return envelope.message
-  if (typeof envelope?.error === 'string' && envelope.error !== '') return envelope.error
+  // Error-class dispatch stays on `code`/`source`/status. A blank string is
+  // no prose, as in the Python and Go SDKs.
+  if (typeof envelope?.message === 'string' && envelope.message.trim() !== '') return envelope.message
+  if (typeof envelope?.error === 'string' && envelope.error.trim() !== '') return envelope.error
   return fallback
 }
 

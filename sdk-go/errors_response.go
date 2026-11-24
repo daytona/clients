@@ -55,11 +55,11 @@ func errorFromResponse(response *http.Response, body []byte) error {
 	return result
 }
 
-// envelopeProse is the envelope's message, else its error, else fallback. An
-// empty string is no prose, as in the Python and TypeScript SDKs.
+// envelopeProse is the envelope's message, else its error, else fallback. A
+// blank string is no prose, as in the Python and TypeScript SDKs.
 func envelopeProse(object jsonObject, fallback string) string {
 	for _, name := range []string{"message", "error"} {
-		if prose, err := field[string](object, name, true); err == nil && prose != "" {
+		if prose, err := field[string](object, name, true); err == nil && strings.TrimSpace(prose) != "" {
 			return prose
 		}
 	}
