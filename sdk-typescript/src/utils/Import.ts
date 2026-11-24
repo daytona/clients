@@ -61,11 +61,31 @@ const validateMap: Record<string, (mod: any) => boolean> = {
 
 type ModuleMap = typeof loaderMap
 
+// Codes Node's createRequire throws when the module URL it is given is unusable, e.g. an
+// empty `import.meta.url` in an ESM build re-bundled to CommonJS. The Node loader then never
+// tried to resolve the module, so its error says nothing about the module itself.
+const UNUSABLE_MODULE_URL_CODES = new Set([
+  'ERR_INVALID_ARG_VALUE',
+  'ERR_INVALID_ARG_TYPE',
+  'ERR_INVALID_URL',
+  'ERR_INVALID_URL_SCHEME',
+  'ERR_INVALID_FILE_URL_PATH',
+  'ERR_INVALID_FILE_URL_HOST',
+])
+
+/**
+ * Picks the error to report when both the Node loader and the fallback failed: the Node
+ * loader's, unless it could not run at all, in which case the fallback's.
+ */
+function loadError(nodeLoaderError: unknown, fallbackError: unknown): unknown {
+  const code = (nodeLoaderError as { code?: unknown } | null)?.code
+  return typeof code === 'string' && UNUSABLE_MODULE_URL_CODES.has(code) ? fallbackError : nodeLoaderError
+}
+
 /**
  * Loads `name` through its Node loader when there is one, so bundlers can see the module,
- * and through `fallback` otherwise. The fallback also runs when the Node loader fails,
- * e.g. when an ESM build is re-bundled to CommonJS and `import.meta.url` is empty; if both
- * fail, the Node loader's error is reported.
+ * and through `fallback` otherwise. The fallback also runs when the Node loader fails;
+ * if both fail, {@link loadError} picks the error to report.
  */
 function loadWithNodeLoader(name: string, fallback: () => unknown): unknown {
   const nodeLoader = nodeLoaders[name]
@@ -76,8 +96,24 @@ function loadWithNodeLoader(name: string, fallback: () => unknown): unknown {
   } catch (nodeLoaderError) {
     try {
       return fallback()
-    } catch {
-      throw nodeLoaderError
+    } catch (fallbackError) {
+      throw loadError(nodeLoaderError, fallbackError)
+    }
+  }
+}
+
+/** {@link loadWithNodeLoader} for loaders that may return a promise, with the same error policy. */
+async function loadWithNodeLoaderAsync(name: string, fallback: () => unknown): Promise<unknown> {
+  const nodeLoader = nodeLoaders[name]
+  if (!nodeLoader) return await fallback()
+
+  try {
+    return await nodeLoader()
+  } catch (nodeLoaderError) {
+    try {
+      return await fallback()
+    } catch (fallbackError) {
+      throw loadError(nodeLoaderError, fallbackError)
     }
   }
 }
@@ -93,7 +129,7 @@ export async function dynamicImport<K extends keyof ModuleMap>(
 
   let mod: any
   try {
-    mod = (await loadWithNodeLoader(name, loader)) as any
+    mod = (await loadWithNodeLoaderAsync(name, loader)) as any
     mod = unwrapInterop(mod)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

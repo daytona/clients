@@ -10,3 +10,8 @@ npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALY
 npm install --silent expand-tilde
 npm run build >/dev/null
 node dist/test.js
+# The bundle must also report a missing module correctly with no node_modules in reach.
+isolated="$(mktemp -d)"
+trap 'rm -rf "$isolated"' EXIT
+cp dist/isolated.js "$isolated/"
+(cd "$isolated" && env -u NODE_PATH node isolated.js)
