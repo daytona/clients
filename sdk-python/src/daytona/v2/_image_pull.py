@@ -102,11 +102,16 @@ class ImagePull:
         """The lookup after the submission (a read, never the submission itself)."""
         while True:
             try:
-                return expect_image(await self._send(lookup, deadline))
+                image = expect_image(await self._send(lookup, deadline))
             except DaytonaError as error:
                 if retry is None or not retry.note(error):
                     raise
                 await retry.pause(deadline)
+                continue
+            # A later readiness failure starts its back-off afresh, as in TypeScript.
+            if retry is not None:
+                retry.succeeded()
+            return image
 
     def _remaining(self, deadline: float | None) -> float | None:
         remaining = None if deadline is None else deadline - _clock.monotonic()
