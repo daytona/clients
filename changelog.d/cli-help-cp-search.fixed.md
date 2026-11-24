@@ -1,0 +1,1 @@
+**`sandbox cp` and `sandbox search` help** — `cp` documents that uploads create missing parent directories; `search` explains API statuses vs SDK states, that deleted sandboxes are never returned, what `--image-ref` matches, and `--spot=false`.

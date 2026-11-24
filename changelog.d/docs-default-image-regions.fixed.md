@@ -1,0 +1,1 @@
+**Default image, regions and builds** — the docs qualify the platform default image (`DEFAULT_IMAGE_NOT_CONFIGURED` where none is configured), explain region groups for image creates, the build-context region requirement, and the server range of `create_timeout_seconds`.
