@@ -83,7 +83,10 @@ func (transport retryTransport) RoundTrip(request *http.Request) (*http.Response
 	var aborted bool
 	response, err := func() (response *http.Response, err error) {
 		defer func() {
-			if recover() != nil {
+			if recovered := recover(); recovered != nil {
+				if recovered != http.ErrAbortHandler { //nolint:errorlint // ErrAbortHandler is panicked unwrapped.
+					panic(recovered)
+				}
 				aborted = true
 			}
 		}()
@@ -143,7 +146,8 @@ func TestDockerWait_whenStatusReadFailsOnce_retries(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, DockerStateReady, result.State)
 				require.Len(t, reads, 3)
-				require.Equal(t, waitMinInterval, reads[2].Sub(reads[1]))
+				// The 500 ms poll spacing outlasts the first 200 ms backoff.
+				require.Equal(t, 500*time.Millisecond, reads[2].Sub(reads[1]))
 			})
 		})
 	}
@@ -342,4 +346,86 @@ func TestImagesReady_whenHoldFailsOnce_retries(t *testing.T) {
 		require.Equal(t, ImageStatusReady, image.Status)
 		require.EqualValues(t, 2, reads.Load())
 	})
+}
+
+func TestDockerWait_whenStatusReadFails_keepsThePollSpacing(t *testing.T) {
+	var handler http.HandlerFunc
+	fake := dockerFake(t, &handler)
+	synctest.Test(t, func(t *testing.T) {
+		// Given: a rate-limited read without a hint, then readiness.
+		var reads []time.Time
+		handler = func(w http.ResponseWriter, _ *http.Request) {
+			reads = append(reads, time.Now())
+			if len(reads) == 1 {
+				retryResponse(t, w, http.StatusTooManyRequests)
+				return
+			}
+			writeJSON(t, w, map[string]string{"owner": "daemon", "state": "ready"})
+		}
+		sandbox := virtualDocker(t, fake)
+
+		// When
+		_, err := sandbox.Docker().WaitUntilReady(t.Context(), &DockerWaitOptions{Timeout: 20 * time.Second})
+
+		// Then: the 500 ms poll spacing outlasts the 200 ms backoff.
+		require.NoError(t, err)
+		require.Len(t, reads, 2)
+		require.Equal(t, 500*time.Millisecond, reads[1].Sub(reads[0]))
+	})
+}
+
+func TestImagesPull_whenFirstLookupFailsOnce_retriesWhenWaiting(t *testing.T) {
+	for _, wait := range []bool{true, false} {
+		t.Run(strconv.FormatBool(wait), func(t *testing.T) {
+			// Given: the lookup after the submission fails once.
+			var lookups atomic.Int32
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"POST /images": jsonHandler(t, map[string]string{"id": "img"}),
+				"GET /images/img": func(w http.ResponseWriter, _ *http.Request) {
+					if lookups.Add(1) == 1 {
+						retryResponse(t, w, http.StatusBadGateway)
+						return
+					}
+					writeJSON(t, w, imageFixture("img", "ready"))
+				},
+			})
+			synctest.Test(t, func(t *testing.T) {
+				client := newTestClient(t, fake.Server, WithHTTPClient(&http.Client{Transport: retryTransport{handler: fake.Server.Config.Handler}}))
+
+				// When
+				image, err := client.Images().Pull(t.Context(), "alpine", &PullImageOptions{Wait: &wait, Timeout: time.Minute})
+
+				// Then: only a waiting pull reads the lookup again; the POST is never repeated.
+				if !wait {
+					require.ErrorIs(t, err, ErrInternalServer)
+					require.EqualValues(t, 1, lookups.Load())
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, ImageStatusReady, image.Status)
+				require.EqualValues(t, 2, lookups.Load())
+				posts := 0
+				for _, request := range fake.requests() {
+					if request.Method == http.MethodPost {
+						posts++
+					}
+				}
+				require.Equal(t, 1, posts)
+			})
+		})
+	}
+}
+
+func TestReadBackoff_whenContextEnded_keepsTheTransientFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	var retry readBackoff
+	failure := &Error{StatusCode: http.StatusServiceUnavailable}
+	_, retryable := retry.next(ctx, failure)
+	require.False(t, retryable)
+	require.Same(t, failure, retry.lastErr)
+}
+
+func TestParseRetryAfter_trimsSpace(t *testing.T) {
+	require.Equal(t, 5*time.Second, parseRetryAfter(" 5 "))
 }

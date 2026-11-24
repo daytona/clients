@@ -24,7 +24,12 @@ func (s *Images) Pull(ctx context.Context, ref string, opts *PullImageOptions) (
 	wait := options.Wait == nil || *options.Wait
 	pullCtx, cancel := artifactWaitContext(ctx, options.Timeout, "image pull did not finish before timeout")
 	defer cancel()
-	image, err := s.Build(pullCtx, NewImageBuilder(ref), &options.BuildImageOptions)
+	var lookup func(context.Context, string) (*Image, error)
+	if wait {
+		// A waiting pull retries its first lookup like its readiness holds.
+		lookup = s.retriedLookup
+	}
+	image, err := s.build(pullCtx, NewImageBuilder(ref), &options.BuildImageOptions, lookup)
 	if err != nil {
 		return nil, artifactWaitError(pullCtx, err)
 	}
@@ -108,6 +113,24 @@ func (s *Images) ready(ctx context.Context, initial *Image, failed string) (*Ima
 			if err = artifactPause(ctx, s.client, time.Second-time.Since(started)); err != nil {
 				return nil, artifactRetryError(ctx, err, retry.lastErr)
 			}
+		}
+	}
+}
+
+// retriedLookup reads an image, retrying a transient failure within ctx.
+func (s *Images) retriedLookup(ctx context.Context, id string) (*Image, error) {
+	var retry readBackoff
+	for {
+		image, err := s.Get(ctx, id, nil)
+		if err == nil {
+			return image, nil
+		}
+		pause, retryable := retry.next(ctx, err)
+		if !retryable {
+			return nil, artifactRetryError(ctx, err, retry.lastErr)
+		}
+		if err = artifactPause(ctx, s.client, pause); err != nil {
+			return nil, artifactRetryError(ctx, err, retry.lastErr)
 		}
 	}
 }

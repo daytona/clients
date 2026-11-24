@@ -24,7 +24,7 @@ import (
 // regardless of socket activity. Once a target event was observed, failure to
 // refresh metadata does not undo success. Caller cancellation is never hidden.
 // Polling retries a transient read failure (no response, a client read
-// timeout, HTTP 429, or a 5xx other than 501) after a backoff of 200 ms
+// timeout, HTTP 429 other than LIMIT_EXCEEDED, or a 5xx other than 501) after a backoff of 200 ms
 // doubling to 5 s, or RetryAfter when longer, within the budget; the last
 // read failure is retained as the timeout's cause. Other polling failures,
 // including any other 4xx, 501, and LIMIT_EXCEEDED, return at once.

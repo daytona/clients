@@ -18,8 +18,8 @@ type GetArtifactOptions struct {
 	// Timeout is the total readiness budget. Zero performs one server-default
 	// hold, returning its observation. Positive budgets repeat holds until ready,
 	// failed or error; WaitForever repeats without an SDK deadline. A hold that
-	// fails transiently (no response, a client read timeout, HTTP 429, or a 5xx
-	// other than 501) is retried with backoff within the budget, and the
+	// fails transiently (no response, a client read timeout, HTTP 429 other
+	// than LIMIT_EXCEEDED, or a 5xx other than 501) is retried with backoff within the budget, and the
 	// timeout then wraps the last failure.
 	// Values above 2,147,483.647 seconds also mean forever.
 	// Without Wait this field is validated but unused.

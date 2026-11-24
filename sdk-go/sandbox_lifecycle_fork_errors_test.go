@@ -31,7 +31,7 @@ func TestForkRequiresUsableResponseID(t *testing.T) {
 }
 
 func TestForkReturnsAcceptedHandleAfterReadFailure(t *testing.T) {
-	for _, status := range []int{403, 408, 501} {
+	for _, status := range []int{403, 408, 500} {
 		for _, failFirst := range []bool{false, true} {
 			t.Run(http.StatusText(status)+map[bool]string{false: "/wait", true: "/detail"}[failFirst], func(t *testing.T) {
 				// Given
@@ -49,9 +49,9 @@ func TestForkReturnsAcceptedHandleAfterReadFailure(t *testing.T) {
 					},
 				})
 				sandbox := newForkTestSource(t, fake)
-				// When
-				fork, err := sandbox.Fork(t.Context(), nil)
-				// Then
+				// When: a short wait, so a retried 500 spends its budget.
+				fork, err := sandbox.Fork(t.Context(), &ForkOptions{Wait: time.Second})
+				// Then the accepted handle is returned however the wait ended.
 				require.NoError(t, err)
 				require.Equal(t, SandboxStateCreating, fork.State())
 				require.Equal(t, "source", fork.Info().ForkedFrom)
@@ -59,7 +59,12 @@ func TestForkReturnsAcceptedHandleAfterReadFailure(t *testing.T) {
 				if failFirst {
 					count = 3
 				}
-				require.Len(t, fake.requests(), count)
+				if status == http.StatusInternalServerError && !failFirst {
+					// A transient wait read is retried within the budget (0.2 s, 0.4 s, ...).
+					require.Greater(t, len(fake.requests()), count)
+				} else {
+					require.Len(t, fake.requests(), count)
+				}
 			})
 		}
 	}

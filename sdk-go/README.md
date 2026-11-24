@@ -210,12 +210,17 @@ Every duration is a `time.Duration`:
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
 - Waits that read the server (sandbox waits, `Docker.WaitUntilReady`,
-  `Images.Get` / `Snapshots.Get` with `Wait`, `Images.Pull` and
-  `Images.BuildAndWait`) retry a read that fails transiently (no response, a
-  client read timeout, HTTP 429 or a 5xx other than 501) with backoff (200 ms
-  doubling to 5 s, or the server's `RetryAfter` when longer) within the same
-  budget. The timeout then wraps the last failed read; any other failure
-  returns at once.
+  `Images.Get` / `Snapshots.Get` with `Wait` and a positive `Timeout`, the
+  readiness waits of `Images.Pull`, `Images.BuildAndWait` and
+  `CreateFromBuild`) retry a read that fails transiently (no response, a
+  client read timeout, HTTP 429 other than `LIMIT_EXCEEDED`, or a 5xx other
+  than 501) with backoff (200 ms doubling to 5 s, or the server's `RetryAfter`
+  when longer) within the same budget. The timeout then wraps the last failed
+  read; a wait without a deadline keeps retrying until the server answers or
+  the context ends. Any other failure returns at once, with one exception:
+  while the events stream is live, its early probes of a sandbox wait keep
+  waiting through any failure but 401, 403 and 404, and the wait's timeout
+  then wraps that failure.
 
 The caller's context always applies, including to unbounded waits.
 

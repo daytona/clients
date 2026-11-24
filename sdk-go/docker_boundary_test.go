@@ -71,7 +71,7 @@ func TestDockerAndVolumes_whenServerReturnsError(t *testing.T) {
 			{400, "UNSUPPORTED_OPERATION", ErrUnsupportedOperation},
 		} {
 			if operation == "wait" && readRetryable(&Error{StatusCode: test.status, Code: test.code}) {
-				continue // A readiness wait retries these (docker_wait_retry_test.go).
+				continue // A readiness wait retries these (read_retry_test.go).
 			}
 			t.Run(operation+"/"+test.code, func(t *testing.T) {
 				// Given

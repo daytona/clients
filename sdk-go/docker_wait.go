@@ -23,8 +23,9 @@ type DockerWaitOptions struct {
 // Terminal states return *DockerNotReadyError; a spent SDK budget returns
 // *DockerWaitTimeoutError, carrying the last status if one arrived.
 // A status read that fails transiently (no response, a client read timeout,
-// HTTP 429, or a 5xx other than 501) is retried with backoff within the
-// budget; the timeout then wraps the last failure. Other failures return at once.
+// HTTP 429 other than LIMIT_EXCEEDED, or a 5xx other than 501) is retried with
+// backoff within the budget, never sooner than the 500 ms poll spacing; the
+// timeout then wraps the last failure. Other failures return at once.
 // Caller cancellation/deadlines and Client.Close interrupt both polls and pauses.
 func (d *Docker) WaitUntilReady(ctx context.Context, opts *DockerWaitOptions) (*DockerStatus, error) {
 	if err := d.sandbox.client.ensureOpen(); err != nil {
@@ -61,6 +62,8 @@ func (d *Docker) waitReady(ctx context.Context, deadline time.Time) (*DockerStat
 			if !retryable {
 				return nil, err
 			}
+			// Never sooner than the poll spacing, whatever the backoff.
+			pause = max(pause, 500*time.Millisecond-time.Since(pollStarted))
 			if err = d.pause(ctx, deadline, pause); err != nil {
 				return nil, err
 			}
