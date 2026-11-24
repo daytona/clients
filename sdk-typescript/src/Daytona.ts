@@ -22,6 +22,7 @@ import {
   DaytonaServiceUnavailableError as RootDaytonaServiceUnavailableError,
   DaytonaTimeoutError as RootDaytonaTimeoutError,
   DaytonaUnprocessableEntityError as RootDaytonaUnprocessableEntityError,
+  nameErrorClass,
   registerErrorClasses,
 } from './errors.js'
 import type { DaytonaConfig } from './types.js'
@@ -83,6 +84,8 @@ class V0NamespaceLoadError extends DaytonaErrorV2 {
     super(`importing the v0 namespace failed: ${cause instanceof Error ? cause.message : String(cause)}`, { source: 'SDK', cause })
   }
 }
+nameErrorClass(V0NamespaceUnavailableError, 'V0NamespaceUnavailableError')
+nameErrorClass(V0NamespaceLoadError, 'V0NamespaceLoadError')
 
 /**
  * True only when the v0 entry itself cannot be resolved (a build without the

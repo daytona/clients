@@ -281,6 +281,14 @@ jobs:
             test "$(node v0-cjs.cjs.cjs)" = 'function true'
             test "$(node v0-static.mjs.cjs)" = 'function true'
           )
+          # Minified application bundles rename classes: the SDK's error
+          # classes must keep their names (error.name, String(error)).
+          error_names='NotFoundError ConnectionError: Failed to fetch DaytonaNotFoundError true true'
+          npx esbuild --bundle --minify --platform=node --format=cjs --log-level=error node-bundle-fixture/error-names.mjs --outfile=error-names-esbuild.cjs
+          npx esbuild --bundle --minify --platform=browser --format=esm --log-level=error node-bundle-fixture/error-names.mjs --outfile=error-names-browser.mjs
+          if grep -q 'class NotFoundError' error-names-esbuild.cjs; then echo 'error-names bundle is not minified' >&2; exit 1; fi
+          test "$(node error-names-esbuild.cjs)" = "$error_names"
+          test "$(node error-names-browser.mjs)" = "$error_names"
           # webpack --target node (Next.js server routes) resolves #v0-loader to
           # loaders/v0-node-webpack.cjs: v0 is required at run time from
           # node_modules (inlining v0's dependency graph trips a webpack bug in
@@ -294,6 +302,8 @@ jobs:
             test "$(node "webpack-$mode-v0.mjs/main.js")" = 'function true'
             test "$(node "webpack-$mode-v0-cjs.cjs/main.js")" = 'function true'
           done
+          npx webpack --mode production --target node --entry ./node-bundle-fixture/error-names.mjs -o webpack-error-names --output-filename main.js >/dev/null
+          test "$(node webpack-error-names/main.js)" = "$error_names"
           # webpack --target web resolves #v0-loader to loaders/v0-browser.mjs
           # (its "browser" condition): v0's ESM build is bundled, and
           # fast-glob is stubbed by the "browser" map, so the braces /
