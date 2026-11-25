@@ -1,1 +1,3 @@
-**`create_snapshot` / `createSnapshot`** — documents that it captures running Linux sandboxes only, and that macOS sandboxes, sandboxes with an attached volume and sandboxes the platform cannot resume are refused with 409.
+**`create_snapshot` / `createSnapshot`** — documents that it captures running
+Linux sandboxes only, and that macOS sandboxes, sandboxes with an attached
+volume and sandboxes the platform cannot resume are refused with 409.

@@ -1,1 +1,2 @@
-**CLI units** — the CLI README says CLI sizes are MiB while the SDKs take GiB, and that Linux takes `--cpu` while macOS takes `--cores`.
+**CLI sizes** — `--memory` and `--disk` are MiB while SDK `memory` and `disk`
+are GiB; Linux sandboxes take `--cpu` and macOS sandboxes take `--cores`.
