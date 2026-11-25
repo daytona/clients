@@ -627,7 +627,7 @@ check `sandbox.state` and `sandbox.error` before doing work. Request failures
 still throw. `createTimeoutSeconds` is the server-side queue/boot budget in
 whole seconds: `-1` asks the server to apply its maximum, and any other value
 must be from 1 to that maximum, which the deployment sets (a day by default);
-the API refuses `0` and larger values with 400.
+the API refuses `0`, and values above that maximum, with 400.
 
 Linux sizing uses only `resources: { cpu, cpuMax, memory, memoryMax, disk, diskMax }`.
 CPU is in cores; memory and disk are in GiB and must convert exactly to whole

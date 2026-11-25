@@ -706,7 +706,7 @@ those two with their `idempotency_key`; a cancelled create may already have
 created a sandbox. `create_timeout_seconds` is the server-side
 queue/boot budget in whole seconds: `-1` asks the server to apply its maximum,
 and any other value must be from 1 to that maximum, which the deployment sets
-(a day by default); the API refuses `0` and larger values with 400.
+(a day by default); the API refuses `0`, and values above that maximum, with 400.
 
 Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
 disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
