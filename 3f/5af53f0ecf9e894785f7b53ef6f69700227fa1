@@ -1,0 +1,20 @@
+sdk-go/build_logs_identity_test.go
+  s_b5788db0bcfac8::t_86e7afcd7f97d8 9,173-185,221-231
+  s_b5788db0bcfac8::t_b4a7f927855392 232-233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f5af53f0ecf9e894785f7b53ef6f69700227fa1",
+  "prompts": {},
+  "sessions": {
+    "s_b5788db0bcfac8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defaefaf0ffed9xI1aKFESdygL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
