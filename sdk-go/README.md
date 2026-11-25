@@ -215,8 +215,8 @@ Every duration is a `time.Duration`:
   duration above 2,147,483.647 seconds, means no limit. Any other negative
   value returns `ErrBadRequest` before a request is sent. A timeout ends the
   call, not the work in the sandbox.
-- `Exec`, `Run`, `RunArgs` and `Session.Run` with `Stdout` or `Stderr`
-  writers follow the output on a log stream. A stream that delivers nothing
+- `Exec`, `ExecArgs`, `Run`, `RunArgs` and `Session.Run` with `Stdout` or
+  `Stderr` writers follow the output on a log stream. A stream that delivers nothing
   for 45 seconds is treated as dropped and resumed after the last event, so a
   network path that drops quiet connections does not hold the run until its
   `Timeout`. When the `Timeout` ends, the SDK first reads the retained log
