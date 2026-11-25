@@ -217,11 +217,12 @@ Every duration is a `time.Duration`:
   than 501) with backoff (200 ms doubling to 5 s, or the server's `RetryAfter`
   when longer) within the same budget. The timeout then wraps the last failed
   read. A wait without a deadline keeps retrying until the server answers,
-  the context ends or the client is closed; `Images.Get` / `Snapshots.Get`
-  without a `Timeout` make one hold and retry nothing. Any other failure returns at once, with one exception:
-  while the events stream is live, its early probes of a sandbox wait keep
-  waiting through any failure but 401, 403 and 404, and the wait's timeout
-  then wraps that failure.
+  the context ends or the client is closed. `Images.Get` / `Snapshots.Get`
+  with `Wait` but no `Timeout` make a single server-default hold and do not
+  retry. Any other failure returns at once, with one exception: while the
+  events stream is live, its early probes of a sandbox wait keep waiting
+  through any failure but 401, 403 and 404, and the wait's timeout then
+  wraps that failure.
 
 The caller's context always applies, including to unbounded waits.
 

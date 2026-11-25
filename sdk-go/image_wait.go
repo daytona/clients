@@ -125,6 +125,13 @@ func artifactWaitContext(
 func artifactWaitError(ctx context.Context, err error) error {
 	var sdkError *Error
 	if errors.As(context.Cause(ctx), &sdkError) {
+		// Already the budget's timeout, wrapping the last failed read
+		// (artifactRetryError): keep that cause.
+		var own *Error
+		if errors.As(err, &own) && own.Code == sdkError.Code && own.Source == sdkError.Source &&
+			own.Message == sdkError.Message {
+			return err
+		}
 		return sdkError
 	}
 	return err

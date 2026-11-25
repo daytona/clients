@@ -450,3 +450,27 @@ func TestArtifactGet_whenHoldIsRateLimited_keepsThePollSpacing(t *testing.T) {
 		require.Equal(t, time.Second, reads[1].Sub(reads[0]))
 	})
 }
+
+func TestImagesPull_whenFirstLookupKeepsFailing_timesOutWithTheCause(t *testing.T) {
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"POST /images": jsonHandler(t, map[string]string{"id": "img"}),
+		"GET /images/img": func(w http.ResponseWriter, _ *http.Request) {
+			retryResponse(t, w, http.StatusServiceUnavailable)
+		},
+	})
+	synctest.Test(t, func(t *testing.T) {
+		client := newTestClient(t, fake.Server, WithHTTPClient(&http.Client{Transport: retryTransport{handler: fake.Server.Config.Handler}}))
+		_, err := client.Images().Pull(t.Context(), "alpine", &PullImageOptions{Timeout: 2 * time.Second})
+		require.ErrorIs(t, err, ErrRequestTimeout)
+		var timeout *Error
+		require.ErrorAs(t, err, &timeout)
+		require.Equal(t, "image pull did not finish before timeout", timeout.Message)
+		require.ErrorIs(t, err, ErrServiceUnavailable)
+	})
+}
+
+func TestReadRetryable_whenStatusIsAbove5xx_failsFast(t *testing.T) {
+	require.False(t, readRetryable(&Error{StatusCode: 600}))
+	require.False(t, readRetryable(&Error{StatusCode: 999}))
+	require.True(t, readRetryable(&Error{StatusCode: 599}))
+}

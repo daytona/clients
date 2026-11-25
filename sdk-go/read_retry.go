@@ -37,7 +37,7 @@ func readRetryable(err error) bool {
 	if detail.StatusCode == http.StatusTooManyRequests {
 		return detail.Code != CodeLimitExceeded
 	}
-	return detail.StatusCode >= 500 && detail.StatusCode != http.StatusNotImplemented
+	return detail.StatusCode >= 500 && detail.StatusCode < 600 && detail.StatusCode != http.StatusNotImplemented
 }
 
 // readRetryDelay returns the next backoff after previous and the pause before
