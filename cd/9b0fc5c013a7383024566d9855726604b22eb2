@@ -1,0 +1,14 @@
+sdk-go/e2e/events_test.go
+  h_e7759ddd73fa65 166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd9b0fc5c013a7383024566d9855726604b22eb2",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
