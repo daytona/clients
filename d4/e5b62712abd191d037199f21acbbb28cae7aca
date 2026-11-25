@@ -1,0 +1,60 @@
+sdk-python/src/daytona/v2/_core.py
+  s_d86ecc115dc312::t_bf2853c16b929c 79,352-354,359-360,365-370
+sdk-go/README.md
+  s_d86ecc115dc312::t_de17e6fc7173fe 200-204,207-209
+sdk-python/README.md
+  s_d86ecc115dc312::t_de17e6fc7173fe 1238-1243,1245-1246,1249-1263
+sdk-python/src/daytona/v2/_read_retry.py
+  s_d86ecc115dc312::t_70573ee693b4f3 1-64
+sdk-go/page_retry_test.go
+  s_d86ecc115dc312::t_21cae0c1756030 12,201-301
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_d86ecc115dc312::t_ff5870b5c23d55 522-526
+sdk-typescript/tests/iter-pages.test.ts
+  s_d86ecc115dc312::t_3e2cf1143b7d24 18,20,22,146,149-154,183-244
+sdk-python/tests/test_watch_sync.py
+  s_d86ecc115dc312::t_aea6fc1fdc626e 159,198
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_d86ecc115dc312::t_bf2853c16b929c 10,967-968,976-983,1044,1047,1051-1052
+sdk-typescript/README.md
+  s_d86ecc115dc312::t_de17e6fc7173fe 1148-1156,1161-1171,1173-1174
+sdk-typescript/src/v2/retryAfterHint.ts
+  s_d86ecc115dc312::t_bf2853c16b929c 1-32
+sdk-python/src/daytona/v2/_transport.py
+  s_d86ecc115dc312::t_0c209209d31e0e 340-343,370-373,909-912,1117-1120,1332-1335
+sdk-python/src/daytona/v2/_bridge.py
+  s_d86ecc115dc312::t_aea6fc1fdc626e 118-120
+sdk-python/src/daytona/v2/_pages.py
+  s_d86ecc115dc312::t_0c0efb536bff88 6-12,20,44-46,53-56
+sdk-go/page.go
+  s_d86ecc115dc312::t_c3b4482714e5c7 123-125
+  s_d86ecc115dc312::t_2e83ae28c498b4 70-77,101-102,118-121,126,129,131-133,159-160
+  s_d86ecc115dc312::t_60e878babb582f 127
+  s_d86ecc115dc312::t_a758744f873654 122,128
+sdk-python/src/daytona/v2/daytona.py
+  s_d86ecc115dc312::t_ff5870b5c23d55 1224-1228
+sdk-typescript/src/v2/pages.ts
+  s_d86ecc115dc312::t_350414aea86e10 75-77
+  s_d86ecc115dc312::t_0db2ecf41177a9 95
+  s_d86ecc115dc312::t_8ed788dbf22b43 7,10-17,31-43,50-52,62-74,78-79,84-85
+sdk-python/tests/test_iter_pages.py
+  s_d86ecc115dc312::t_3f6408db695afe 11-12,80-84,250-310
+sdk-go/errors.go
+  s_d86ecc115dc312::t_bd250e4e581c40 41-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d4e5b62712abd191d037199f21acbbb28cae7aca",
+  "prompts": {},
+  "sessions": {
+    "s_d86ecc115dc312": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defae85a6ffeTg1OSIytB17FCk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
