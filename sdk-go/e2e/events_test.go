@@ -163,7 +163,7 @@ func liveEventsUpdate(t *testing.T, ctx context.Context, ch <-chan events.Update
 // at two minutes so it can neither overflow nor outlast the test's context.
 func ticketRetryAfter(err error) time.Duration {
 	const fallback, ceiling = time.Minute, 2 * time.Minute
-	match := regexp.MustCompile(`"retry_after_seconds":\s*(\d+)`).FindStringSubmatch(err.Error())
+	match := regexp.MustCompile(`"retry_after_seconds"\s*:\s*(\d+)`).FindStringSubmatch(err.Error())
 	if match == nil {
 		return fallback
 	}
