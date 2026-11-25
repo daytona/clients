@@ -1151,7 +1151,8 @@ not retry. Any other failure, such as an authentication error, is raised at
 once, with one exception: while the events stream is live, its early probes
 of a sandbox wait keep waiting through any failure other than 401, 403, 404
 or a closed client, and the wait's timeout then carries that failure as its
-cause.
+cause. A failed probe is retried on the probes' own schedule (after about
+10 s of socket silence), not on the read backoff.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
 (seconds) with the same default and unbounded form. They wait for

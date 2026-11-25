@@ -224,7 +224,9 @@ Every duration is a `time.Duration`:
   retry. Any other failure returns at once, with one exception: while the
   events stream is live, its early probes of a sandbox wait keep waiting
   through any failure other than 401, 403, 404 or a closed client, and the
-  wait's timeout then wraps that failure.
+  wait's timeout then wraps that failure. A failed probe is retried on the
+  probes' own schedule (after about 10 s of socket silence), not on the read
+  backoff.
 
 The caller's context always applies, including to unbounded waits.
 
