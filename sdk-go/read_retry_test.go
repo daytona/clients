@@ -429,3 +429,24 @@ func TestReadBackoff_whenContextEnded_keepsTheTransientFailure(t *testing.T) {
 func TestParseRetryAfter_trimsSpace(t *testing.T) {
 	require.Equal(t, 5*time.Second, parseRetryAfter(" 5 "))
 }
+
+func TestArtifactGet_whenHoldIsRateLimited_keepsThePollSpacing(t *testing.T) {
+	var reads []time.Time
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"GET /images/{id}": func(w http.ResponseWriter, _ *http.Request) {
+			reads = append(reads, time.Now())
+			if len(reads) == 1 {
+				retryResponse(t, w, http.StatusTooManyRequests)
+				return
+			}
+			writeJSON(t, w, imageFixture("img", "ready"))
+		},
+	})
+	synctest.Test(t, func(t *testing.T) {
+		client := newTestClient(t, fake.Server, WithHTTPClient(&http.Client{Transport: retryTransport{handler: fake.Server.Config.Handler}}))
+		_, err := client.Images().Get(t.Context(), "img", &GetArtifactOptions{Wait: true, Timeout: time.Minute})
+		require.NoError(t, err)
+		require.Len(t, reads, 2)
+		require.Equal(t, time.Second, reads[1].Sub(reads[0]))
+	})
+}

@@ -100,6 +100,8 @@ func (s *Images) ready(ctx context.Context, initial *Image, failed string) (*Ima
 			if !retryable {
 				return nil, artifactRetryError(ctx, err, retry.lastErr)
 			}
+			// Never sooner than the one-second poll spacing, whatever the backoff.
+			pause = max(pause, time.Second-time.Since(started))
 			if err = artifactPause(ctx, s.client, pause); err != nil {
 				return nil, artifactRetryError(ctx, err, retry.lastErr)
 			}

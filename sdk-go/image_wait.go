@@ -85,6 +85,8 @@ func (r artifactReader[T]) wait(ctx context.Context) (T, error) {
 			if !retryable {
 				return zero, artifactRetryError(ctx, err, retry.lastErr)
 			}
+			// Never sooner than the one-second poll spacing, whatever the backoff.
+			pause = max(pause, time.Second-time.Since(started))
 			if err = artifactPause(ctx, r.client, pause); err != nil {
 				return zero, artifactRetryError(ctx, err, retry.lastErr)
 			}
