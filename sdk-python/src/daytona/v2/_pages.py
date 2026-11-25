@@ -17,7 +17,7 @@ import asyncio
 import random
 from typing import AsyncIterator, Awaitable, Callable, Final, Optional, TypeVar
 
-from ._read_retry import retry_after_seconds
+from ._read_retry import _HEADER_HINTS, retry_after_seconds
 from .errors import ConnectionError, DaytonaError, LimitExceededError
 from .types import ListResult
 
@@ -65,6 +65,10 @@ def _with_page_cursor(error: DaytonaError, cursor: Optional[str]) -> DaytonaErro
     copied = type(error).__new__(type(error), *error.args)
     copied.__dict__.update(error.__dict__)
     copied.page_cursor = cursor
+    # The Retry-After header hint is kept beside the error, keyed by instance.
+    hint = _HEADER_HINTS.get(error)
+    if hint is not None:
+        _HEADER_HINTS[copied] = hint
     return copied
 
 
@@ -81,8 +85,12 @@ async def read_page(
         except DaytonaError as error:
             delay = page_retry_delay(error, retry)
             if delay is None:
-                copied = _with_page_cursor(error, cursor)
-                raise copied.with_traceback(error.__traceback__) from error.__cause__
+                copied = _with_page_cursor(error, cursor).with_traceback(error.__traceback__)
+                if error.__suppress_context__:
+                    # An explicit ``from X`` (or ``from None``) on the original.
+                    raise copied from error.__cause__
+                # Implicitly chained to the original, which keeps its own context.
+                raise copied
         retry += 1
         await _sleep(delay)
 

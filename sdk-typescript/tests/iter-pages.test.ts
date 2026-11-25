@@ -15,6 +15,8 @@ import {
 } from '../src/v2/index'
 import { createDaytonaError } from '../src/v2/errors/DaytonaError'
 import { iterPages, pageRetryTimer } from '../src/v2/pages'
+import { rememberRetryAfter, retryAfterHeaderMs } from '../src/v2/retryAfterHint'
+import { types } from 'node:util'
 import { createHttpClient } from '../src/v2/http'
 import { clientAt } from './helpers/client'
 import { createSandbox } from './helpers/sandbox'
@@ -241,4 +243,19 @@ it.each(ITERATORS)('the %s iterator reads a transiently failed page again', asyn
     await client.close()
     await api.close()
   }
+})
+
+it('the error that ends a walk is a native Error of the same class, which survives structuredClone', async () => {
+  const error = new RateLimitError('slow down', { statusCode: 429, code: 'RATE_LIMITED', source: 'DAYTONA_API' })
+  rememberRetryAfter(error, '30')
+  const { fetch } = failingThen<string>([error])
+  const thrown = await drain(iterPages(fetch, 'c1')).then(() => undefined, (caught: unknown) => caught)
+  expect(thrown).toBeInstanceOf(RateLimitError)
+  expect(types.isNativeError(thrown)).toBe(true)
+  expect(Object.prototype.toString.call(thrown)).toBe('[object Error]')
+  const cloned = structuredClone(thrown) as Error
+  expect(cloned.message).toBe('slow down')
+  expect(retryAfterHeaderMs(thrown as RateLimitError)).toBe(30_000)
+  expect(error.pageCursor).toBeUndefined()
+  expect(Object.keys(error)).not.toContain('pageCursor')
 })

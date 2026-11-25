@@ -4,7 +4,7 @@
  */
 
 import { ConnectionError, DaytonaError, LimitExceededError } from './errors/DaytonaError.js'
-import { retryAfterHeaderMs } from './retryAfterHint.js'
+import { rememberRetryAfter, retryAfterHeaderMs } from './retryAfterHint.js'
 import type { ListResult } from './types.js'
 
 // The page walk behind every `iter()`: bounded retries of a page read and the
@@ -64,18 +64,25 @@ export function pageRetryDelayMs(error: unknown, retry: number): number | undefi
 }
 
 /**
- * A copy of `error` (same class, same fields) carrying `pageCursor`. The
- * caught error itself is never changed: concurrent walks can receive one
- * shared instance (a failed token exchange is shared by its waiters).
+ * A copy of `error` (same class, same fields, a native `Error` like the
+ * original) carrying `pageCursor`. The caught error itself is never changed:
+ * concurrent walks can receive one shared instance (a failed token exchange
+ * is shared by its waiters).
  */
 function withPageCursor(error: DaytonaError, cursor: string | undefined): DaytonaError {
+  // Reflect.construct builds a real Error (brand checks, structuredClone) with
+  // the subclass's prototype, without running the subclass constructor, whose
+  // signature differs between error classes.
   // SAFETY: the copy has error's prototype and every own property of it.
-  const copy = Object.create(Object.getPrototypeOf(error) as object) as DaytonaError
+  const copy = Reflect.construct(Error, [error.message], error.constructor) as DaytonaError
   Object.defineProperties(copy, Object.getOwnPropertyDescriptors(error))
   // `stack` is an accessor reading the original's internal trace (V8) or a
   // prototype property (other runtimes): keep the original trace as a value.
   Object.defineProperty(copy, 'stack', { value: error.stack, enumerable: false, configurable: true, writable: true })
   Object.defineProperty(copy, 'pageCursor', { value: cursor, enumerable: true, configurable: true, writable: false })
+  const hintMs = retryAfterHeaderMs(error)
+  // The header hint is kept beside the error, keyed by the instance.
+  if (hintMs !== undefined) rememberRetryAfter(copy, String(Math.ceil(hintMs / 1000)))
   return copy
 }
 

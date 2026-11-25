@@ -9,6 +9,7 @@ The TypeScript twin is tests/iter-pages.test.ts; Go's is page_retry_test.go."""
 from __future__ import annotations
 
 import asyncio
+import traceback
 from collections.abc import AsyncIterator, Callable
 from typing import Any, Optional
 
@@ -27,6 +28,7 @@ from daytona.v2 import (
     ServiceUnavailableError,
     _pages,
 )
+from daytona.v2._read_retry import remember_retry_after, retry_after_seconds
 from daytona.v2.errors import DaytonaError, create_error
 from daytona.v2.types import ListResult
 
@@ -354,3 +356,41 @@ async def test_the_copy_keeps_the_cause_and_the_original_traceback() -> None:
     assert isinstance(raised.value.__cause__, OSError)
     frames = [entry.name for entry in raised.traceback]
     assert "fetch" in frames
+
+
+@pytest.mark.anyio
+async def test_the_copy_keeps_an_implicit_context_chain_and_the_header_hint() -> None:
+    original = create_error("busy", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")
+    remember_retry_after(original, "30")
+
+    async def fetch(cursor: Optional[str]) -> ListResult[str]:
+        try:
+            raise ValueError("low-level")
+        except ValueError:
+            raise original
+
+    with pytest.raises(ServiceUnavailableError) as raised:
+        [item async for item in _pages.iter_pages(fetch)]
+
+    copied = raised.value
+    assert copied is not original and copied.page_cursor is None
+    assert copied.__cause__ is None and not copied.__suppress_context__
+    assert copied.__context__ is original
+    assert isinstance(original.__context__, ValueError)
+    assert "low-level" in "".join(traceback.format_exception(copied))
+    assert retry_after_seconds(copied) == 30.0
+
+
+@pytest.mark.anyio
+async def test_the_copy_keeps_an_explicit_from_none() -> None:
+    async def fetch(cursor: Optional[str]) -> ListResult[str]:
+        try:
+            raise ValueError("hidden")
+        except ValueError:
+            raise create_error("bad", 400, "BAD_REQUEST", "DAYTONA_API") from None
+
+    with pytest.raises(BadRequestError) as raised:
+        [item async for item in _pages.iter_pages(fetch)]
+
+    assert raised.value.__cause__ is None and raised.value.__suppress_context__
+    assert "hidden" not in "".join(traceback.format_exception(raised.value))
