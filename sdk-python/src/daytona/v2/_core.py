@@ -862,7 +862,7 @@ def assert_lifecycle_class_support(
     lifecycle: Optional[JsonObject],
     *,
     sandbox_class: str,
-    persistent: bool,
+    persistent: Optional[bool],
     action: str = "create",
 ) -> None:
     """Reject lifecycle settings unavailable for this sandbox's class and persistence."""
@@ -880,15 +880,15 @@ def assert_lifecycle_class_support(
     )
 
 
-def _lifecycle_action_allowed(action: str, sandbox_class: str, persistent: bool) -> bool:
+def _lifecycle_action_allowed(action: str, sandbox_class: str, persistent: Optional[bool]) -> bool:
     """Available lifecycle actions for Linux and macOS sandboxes."""
     match action:
         case "delete":
             return True
         case "stop":
-            return persistent and sandbox_class == "macos"
+            return persistent is not False and sandbox_class != "gpu"
         case "pause":
-            return False
+            return persistent is not False and sandbox_class == "linux"
         case _:
             # Unknown values never reach here — lifecycle_body rejects them.
             return True

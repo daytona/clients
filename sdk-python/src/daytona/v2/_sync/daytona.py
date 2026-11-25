@@ -111,6 +111,7 @@ class Daytona:
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
+        persistent: Optional[bool] = None,
         user: Optional[str] = None,
         lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
@@ -131,6 +132,14 @@ class Daytona:
         whitespace-only ``image`` is still an error, raised before any request.
         Snapshots and image builds have their own methods:
         :meth:`create_from_snapshot`, :meth:`create_from_build`.
+
+        ``persistent=True`` keeps disk across stop/start and memory and processes
+        across pause/resume. Omitted or ``None`` uses the server default (false).
+        Linux stop/start/restart, pause/resume and fork require persistence;
+        forks inherit it. Persistent Linux creation accepts volumes, but attached
+        volumes prevent pause and fork (409). The default lifetime
+        timeout pauses persistent Linux sandboxes after 300 seconds (not an idle
+        timeout); delete erases their writable state.
 
         **Waiting.** The server holds this create briefly, so a sandbox that
         reaches ``started`` within that hold returns in one round trip; the SDK
@@ -190,6 +199,7 @@ class Daytona:
                     volumes=volumes,
                     secrets=secrets,
                     spot=spot,
+                    persistent=persistent,
                     user=user,
                     lifecycle_policy=lifecycle_policy,
                     network_policy=network_policy,
@@ -217,6 +227,7 @@ class Daytona:
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
+        persistent: Optional[bool] = None,
         user: Optional[str] = None,
         lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
@@ -247,6 +258,14 @@ class Daytona:
         :meth:`create` with the same keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
+        ``persistent=True`` keeps disk across stop/start and memory and processes
+        across pause/resume. Linux stop/start/restart, pause/resume and fork
+        require persistence; forks inherit it. Persistent Linux creation accepts
+        volumes, but pause and fork with attached volumes are refused (409).
+        Omitted or ``None`` uses the server default (false). The default lifetime
+        timeout pauses persistent Linux sandboxes after 300 seconds, not after
+        300 idle seconds.
+
         ``idle_expiry_seconds`` is the anonymous image's idle-retention window
         (see ``images.build``). ``region`` and ``cpu_arch`` apply to both the
         build and the create: a Dockerfile-built image boots only in its own
@@ -266,6 +285,7 @@ class Daytona:
                     volumes=volumes,
                     secrets=secrets,
                     spot=spot,
+                    persistent=persistent,
                     user=user,
                     lifecycle_policy=lifecycle_policy,
                     network_policy=network_policy,

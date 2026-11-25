@@ -283,6 +283,7 @@ class AsyncDaytona:
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
+        persistent: Optional[bool] = None,
         user: Optional[str] = None,
         lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
@@ -303,6 +304,14 @@ class AsyncDaytona:
         whitespace-only ``image`` is still an error, raised before any request.
         Snapshots and image builds have their own methods:
         :meth:`create_from_snapshot`, :meth:`create_from_build`.
+
+        ``persistent=True`` keeps disk across stop/start and memory and processes
+        across pause/resume. Omitted or ``None`` uses the server default (false).
+        Linux stop/start/restart, pause/resume and fork require persistence;
+        forks inherit it. Persistent Linux creation accepts volumes, but attached
+        volumes prevent pause and fork (409). The default lifetime
+        timeout pauses persistent Linux sandboxes after 300 seconds (not an idle
+        timeout); delete erases their writable state.
 
         **Waiting.** The server holds this create briefly, so a sandbox that
         reaches ``started`` within that hold returns in one round trip; the SDK
@@ -359,6 +368,7 @@ class AsyncDaytona:
             volumes=volumes,
             secrets=secrets,
             spot=spot,
+            persistent=persistent,
             user=user,
             lifecycle_policy=lifecycle_policy,
             network_policy=network_policy,
@@ -388,6 +398,7 @@ class AsyncDaytona:
         volumes: Optional[Sequence[VolumeMount]],
         secrets: Optional[Sequence[str]],
         spot: Optional[bool],
+        persistent: Optional[bool],
         user: Optional[str],
         lifecycle_policy: Optional[LifecyclePolicyOptions],
         network_policy: Optional[NetworkPolicyInput],
@@ -410,6 +421,7 @@ class AsyncDaytona:
             volumes=volumes,
             secrets=secrets,
             spot=spot,
+            persistent=persistent,
             user=user,
             lifecycle_policy=lifecycle_policy,
             cpu_arch=cpu_arch,
@@ -599,6 +611,7 @@ class AsyncDaytona:
         volumes: Optional[Sequence[VolumeMount]] = None,
         secrets: Optional[Sequence[str]] = None,
         spot: Optional[bool] = None,
+        persistent: Optional[bool] = None,
         user: Optional[str] = None,
         lifecycle_policy: Optional[LifecyclePolicyOptions] = None,
         network_policy: Optional[NetworkPolicyInput] = _UNSET_NETWORK_POLICY,
@@ -629,6 +642,14 @@ class AsyncDaytona:
         :meth:`create` with the same keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
+        ``persistent=True`` keeps disk across stop/start and memory and processes
+        across pause/resume. Linux stop/start/restart, pause/resume and fork
+        require persistence; forks inherit it. Persistent Linux creation accepts
+        volumes, but pause and fork with attached volumes are refused (409).
+        Omitted or ``None`` uses the server default (false). The default lifetime
+        timeout pauses persistent Linux sandboxes after 300 seconds, not after
+        300 idle seconds.
+
         ``idle_expiry_seconds`` is the anonymous image's idle-retention window
         (see ``images.build``). ``region`` and ``cpu_arch`` apply to both the
         build and the create: a Dockerfile-built image boots only in its own
@@ -650,6 +671,7 @@ class AsyncDaytona:
                 volumes=volumes,
                 secrets=secrets,
                 spot=spot,
+                persistent=persistent,
                 user=user,
                 lifecycle_policy=lifecycle_policy,
                 network_policy=network_policy,
@@ -725,6 +747,7 @@ class AsyncDaytona:
             volumes=volumes,
             secrets=secrets,
             spot=spot,
+            persistent=persistent,
             user=user,
             lifecycle_policy=lifecycle_policy,
             network_policy=network_policy,
@@ -814,7 +837,8 @@ class AsyncDaytona:
         # status reads as `unknown`, never an error (as `wait_cap_seconds`).
         status = data.get("status")
         raw_status = status if isinstance(status, str) else None
-        # The handle holds only what the response carries, plus an `img_` /
+        # The handle holds only what the response carries, plus requested
+        # persistence, an `img_` /
         # `snap_` id the caller passed (a name is never an id), and the class
         # the create route fixes (linux, or macos for create_macos); the rest
         # is unknown until a detail read. The response's `image` is canonical when present.
@@ -831,6 +855,7 @@ class AsyncDaytona:
                 )
             except DaytonaError:
                 lifecycle_policy = None
+        persistent = config.get("persistent")
         info = _SandboxInfo(
             id=sandbox_id,
             name=str(data.get("name")) if isinstance(data.get("name"), str) else None,
@@ -842,6 +867,7 @@ class AsyncDaytona:
             # The create route fixes the class (linux or macos).
             sandbox_class=sandbox_class,
             raw_sandbox_class=sandbox_class,
+            persistent=persistent if isinstance(persistent, bool) else None,
             # Read before the early return: a create a Mac claims within its hold
             # answers running with the reservation.
             reservation_id=str(data.get("reservation_id"))
@@ -1736,7 +1762,7 @@ def _create_body(config: CreateConfig) -> CreateBody:
     assert_lifecycle_class_support(
         lifecycle,
         sandbox_class=route,
-        persistent=route == "macos" and config.get("persistent") is True,
+        persistent=None if source_kind == "snapshot" else config.get("persistent") is True,
     )
     # A mistyped value is refused, never silently dropped.
     for key, kind, description in (
@@ -1767,7 +1793,7 @@ def _create_body(config: CreateConfig) -> CreateBody:
         body["name"] = name
     if source_kind == "image":
         persistent = config.get("persistent")
-        if route == "macos" and isinstance(persistent, bool):
+        if isinstance(persistent, bool):
             body["persistent"] = persistent
         spot = config.get("spot")
         if isinstance(spot, bool):
