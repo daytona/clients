@@ -1302,12 +1302,22 @@ class AsyncDaytona:
             sb._hub = self._acquire_hub()
         return sb
 
+    def _begin_close(self) -> None:
+        """End the retry pauses of this client's waits with
+        :class:`ClientClosedError` (on the client's loop; the sync client runs
+        it before it waits for in-flight calls)."""
+        for transport in (self._api, self._toolbox):
+            begin_close = getattr(transport, "begin_close", None)
+            if callable(begin_close):
+                begin_close()
+
     async def close(self) -> None:
         """Close HTTP resources; new requests on this client or its handles raise
         ``ClientClosedError``. Close the root to let later ``root.v2`` access
         build a fresh client.
         """
         self._closed = True
+        self._begin_close()
         hub, self._hub = self._hub, None
         if hub is not None:
             await detach_hub(

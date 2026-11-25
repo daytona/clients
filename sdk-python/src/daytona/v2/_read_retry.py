@@ -19,7 +19,7 @@ from __future__ import annotations
 import math
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Final, Optional
+from typing import Awaitable, Callable, Final, Optional
 from weakref import WeakKeyDictionary
 
 import anyio
@@ -95,10 +95,15 @@ class ReadRetry:
     becomes the cause of the wait's timeout.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, transport: object = None) -> None:
+        """``transport``: the wait's transport. Its ``retry_sleep``, when it
+        has one, makes the client's close end a pause with
+        :class:`ClientClosedError`."""
         self.last_error: Optional[DaytonaError] = None
         self._delay = 0.0
         self._next_read: Optional[float] = None
+        sleep = getattr(transport, "retry_sleep", None)
+        self._sleep: Callable[[float], Awaitable[None]] = sleep if callable(sleep) else anyio.sleep
 
     def note(self, error: BaseException) -> bool:
         """Record a failed read; ``False`` when it must be raised instead."""
@@ -135,4 +140,4 @@ class ReadRetry:
         if deadline is not None:
             pause = min(pause, deadline - _clock.monotonic())
         if pause > 0:
-            await anyio.sleep(pause)
+            await self._sleep(pause)

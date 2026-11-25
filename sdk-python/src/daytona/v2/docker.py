@@ -81,7 +81,7 @@ class AsyncDockerService:
         budget = wait_budget_seconds(timeout)
         deadline = None if budget == 0 else _clock.monotonic() + budget
         last: Optional[DockerStatus] = None
-        retry = ReadRetry()
+        retry = ReadRetry(self._transport)
         while True:
             remaining = None if deadline is None else deadline - _clock.monotonic()
             if remaining is not None and remaining <= 0:

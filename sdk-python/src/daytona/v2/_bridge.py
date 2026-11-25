@@ -281,8 +281,17 @@ class SyncBridge:
         except RuntimeError:
             return False
 
-    def close(self, finalizer: Callable[[], Awaitable[None]] | None = None) -> None:
+    def close(
+        self,
+        finalizer: Callable[[], Awaitable[None]] | None = None,
+        *,
+        interrupt: Callable[[], None] | None = None,
+    ) -> None:
         """Run ``finalizer`` on the loop once in-flight calls have finished, then stop the loop.
+
+        ``interrupt`` runs on the loop first, before the drain: the owner's
+        signal to calls that would otherwise wait on (a wait pausing to retry a
+        failed read ends with ``ClientClosedError``).
 
         ``finalizer`` is the owner's own async teardown (the root client's
         HTTP pools). It runs after every previously submitted call has
@@ -330,6 +339,9 @@ class SyncBridge:
 
         def drain_then_finalize_on_loop() -> None:
             # runs on the caller's thread: wait for in-flight calls, then run the finalizer on the loop
+            if interrupt is not None:
+                with contextlib.suppress(Exception):
+                    portal.call(interrupt)
             with self._inflight_lock:
                 while self._inflight:
                     self._idle.wait(timeout=_CANCEL_SETTLE_SECONDS)
@@ -344,6 +356,9 @@ class SyncBridge:
 
             async def finalize_after_inflight() -> None:
                 try:
+                    if interrupt is not None:
+                        with contextlib.suppress(Exception):
+                            interrupt()
                     # The call that invoked close() is itself in flight and will
                     # finish on its own; everything else must drain first. Wait
                     # for the count to reach the calls still running besides us —

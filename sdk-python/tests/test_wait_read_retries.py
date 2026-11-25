@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
@@ -24,6 +25,7 @@ from typing import Optional
 import httpx
 import pytest
 from _handles import lazy_sandbox
+from network_policy_test_server import FakeApi, PlannedResponse
 from test_core import _sandbox_detail_payload, bind_api
 
 from daytona.v2._core import RequestSpec, error_from_response
@@ -35,12 +37,14 @@ from daytona.v2._read_retry import (
     retry_after_seconds,
     retryable_read_error,
 )
+from daytona.v2._sync import Daytona
 from daytona.v2._transport import AsyncTransport
 from daytona.v2.daytona import AsyncDaytona
 from daytona.v2.docker import AsyncDockerService
 from daytona.v2.errors import (
     AuthenticationError,
     BadRequestError,
+    ClientClosedError,
     ClientTimeoutError,
     ConnectionError,
     DaytonaError,
@@ -568,3 +572,96 @@ async def test_a_failed_probe_that_is_not_retried_is_still_the_timeouts_cause() 
         await sandbox.wait(until="started", timeout=1)
     assert raised.value.source == "SDK"
     assert raised.value.__cause__ is refused
+
+
+# --- client close during a retry pause ---------------------------------------------
+
+_BUSY = PlannedResponse(
+    503,
+    {"code": "SERVICE_UNAVAILABLE", "message": "busy"},
+    {"Retry-After": "8", "Content-Type": "application/json"},
+)
+_STOPPED = PlannedResponse(200, {**_sandbox_detail_payload("sbx", "stopped"), "region_id": ""})
+
+
+async def test_closing_the_async_client_ends_a_retry_pause(monkeypatch: pytest.MonkeyPatch) -> None:
+    with FakeApi([_STOPPED, _BUSY, _BUSY, _BUSY]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        client = AsyncDaytona(DaytonaConfig(api_key="key"))
+        sandbox = await client.get("sbx")
+        waiting = asyncio.ensure_future(sandbox.wait(until="started", timeout=0))
+        await asyncio.sleep(0.4)
+        closed_at = time.monotonic()
+        await client.close()
+        # The 8 s retry hint does not hold the wait: it ends at once.
+        with pytest.raises(ClientClosedError):
+            await asyncio.wait_for(waiting, 3)
+        assert time.monotonic() - closed_at < 2
+        assert len(fake.requests) == 2
+
+
+async def test_closing_the_async_client_ends_artifact_and_docker_pauses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with FakeApi([_BUSY, _BUSY]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        client = AsyncDaytona(DaytonaConfig(api_key="key"))
+        waiting = asyncio.ensure_future(client.images.get("img", wait="ready", timeout=3_000_000))
+        await asyncio.sleep(0.4)
+        await client.close()
+        with pytest.raises(ClientClosedError):
+            await asyncio.wait_for(waiting, 3)
+        assert len(fake.requests) == 1
+    with FakeApi([_BUSY, _BUSY]) as fake:
+        client = AsyncDaytona(DaytonaConfig(api_key="key"))
+        docker = AsyncDockerService(client._toolbox.scoped(fake.url, "token"))
+        waiting = asyncio.ensure_future(docker.wait_until_ready(timeout=0))
+        await asyncio.sleep(0.4)
+        await client.close()
+        with pytest.raises(ClientClosedError):
+            await asyncio.wait_for(waiting, 3)
+        assert len(fake.requests) == 1
+
+
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+def test_closing_the_sync_client_ends_a_retry_pause(
+    monkeypatch: pytest.MonkeyPatch, anyio_backend: str
+) -> None:
+    del anyio_backend
+    with FakeApi([_STOPPED, _BUSY, _BUSY, _BUSY]) as fake:
+        monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
+        client = Daytona(DaytonaConfig(api_key="key"))
+        sandbox = client.get("sbx")
+        outcome: list[BaseException] = []
+
+        def wait() -> None:
+            try:
+                sandbox.wait(until="started", timeout=0)
+            except BaseException as error:
+                outcome.append(error)
+
+        waiter = threading.Thread(target=wait, daemon=True)
+        waiter.start()
+        time.sleep(0.4)
+        closed_at = time.monotonic()
+        closer = threading.Thread(target=client.close, daemon=True)
+        closer.start()
+        closer.join(5)
+        waiter.join(5)
+        # close() returns promptly and the wait ends with ClientClosedError.
+        assert not closer.is_alive() and not waiter.is_alive()
+        assert time.monotonic() - closed_at < 3
+        assert len(outcome) == 1 and isinstance(outcome[0], ClientClosedError)
+        assert len(fake.requests) == 2
+
+
+async def test_artifact_and_pull_retries_keep_the_one_second_poll_spacing() -> None:
+    slow_down = create_error("slow down", 429, "RATE_LIMITED", "DAYTONA_API")
+    transport = _Scripted([_artifact("building"), slow_down, _artifact("ready")])
+    await AsyncImagesService(transport).get("img", wait="ready", timeout=60)  # type: ignore[arg-type]
+    assert _gaps(transport)[1] >= 0.99
+    transport = _Scripted(
+        [{"id": "img", "status": "pending"}, _artifact("pending"), slow_down, _artifact("ready")]
+    )
+    await ImagePull(transport, 60).run(RequestSpec("POST", "/images"), wait=True)  # type: ignore[arg-type]
+    assert _gaps(transport)[2] >= 0.99

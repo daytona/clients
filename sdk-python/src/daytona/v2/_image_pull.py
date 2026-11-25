@@ -31,7 +31,7 @@ class ImagePull:
         deadline = None if budget is None else _clock.monotonic() + budget
         # With ``wait``, a read after the submission (the first lookup and every
         # readiness hold) that fails transiently is retried within the budget.
-        retry = ReadRetry()
+        retry = ReadRetry(self.transport)
         with anyio.move_on_after(self._remaining(deadline)) as scope:
             try:
                 created = expect_create_image_resp(await self._send(submission, deadline))
@@ -73,7 +73,8 @@ class ImagePull:
                     except DaytonaError as error:
                         if not retry.note(error):
                             raise
-                        await retry.pause(deadline)
+                        # Never sooner than the poll spacing, whatever the back-off.
+                        await retry.pause(deadline, not_before=last_poll_started + _POLL_MIN_INTERVAL_S)
                         continue
                     retry.succeeded()
             except (ClientTimeoutError, RequestTimeoutError) as error:
@@ -98,7 +99,9 @@ class ImagePull:
             )
         return image
 
-    async def _first_read(self, lookup: RequestSpec, deadline: float | None, retry: ReadRetry | None) -> Image:
+    async def _first_read(
+        self, lookup: RequestSpec, deadline: float | None, retry: ReadRetry | None
+    ) -> Image:
         """The lookup after the submission (a read, never the submission itself)."""
         while True:
             try:

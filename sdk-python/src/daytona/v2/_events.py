@@ -47,6 +47,7 @@ from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
     AuthenticationError,
+    ClientClosedError,
     DaytonaError,
     ForbiddenError,
     NotFoundError,
@@ -991,7 +992,8 @@ class WaitHub:
         except Exception as exc:
             if not self._waiter_still_pending(waiter):
                 return
-            if isinstance(exc, (NotFoundError, AuthenticationError, ForbiddenError)):
+            # A closed client ends its waits, as a refused credential does.
+            if isinstance(exc, (NotFoundError, AuthenticationError, ForbiddenError, ClientClosedError)):
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
                 self._maybe_unsubscribe_for_id(waiter.sandbox_id)

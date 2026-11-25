@@ -90,6 +90,7 @@ from .computer_use import AsyncComputerUseService
 from .docker import AsyncDockerService
 from .errors import (
     AuthenticationError,
+    ClientClosedError,
     ClientTimeoutError,
     DaytonaError,
     ForbiddenError,
@@ -1019,7 +1020,7 @@ class AsyncSandbox:
 
         # One back-off and last failure for every read of this wait: the
         # events fallback, the hub's probes and the final reserve.
-        retry = ReadRetry()
+        retry = ReadRetry(self._api)
         hub = self._events_hub()
         if hub is not None and hub.enabled:
             predicate = _TargetPredicate(
@@ -1119,10 +1120,16 @@ class AsyncSandbox:
                         last_read_end=last_poll_end,
                         retry=retry,
                     )
-                except (SandboxTerminalStateError, NotFoundError, AuthenticationError, ForbiddenError):
+                except (
+                    SandboxTerminalStateError,
+                    NotFoundError,
+                    AuthenticationError,
+                    ForbiddenError,
+                    ClientClosedError,
+                ):
                     # What the read decided (a 404 outside a delete: the
-                    # sandbox is gone), or a credential the API refuses (final
-                    # for the hub's own probe too).
+                    # sandbox is gone), a credential the API refuses (final
+                    # for the hub's own probe too), or the client closing.
                     raise
                 except RequestTimeoutError as read_error:
                     if read_error.source == "SDK":
@@ -1212,7 +1219,7 @@ class AsyncSandbox:
         timeout with the last failed read as its cause.
         """
         if retry is None:
-            retry = ReadRetry()
+            retry = ReadRetry(self._api)
         if last_read_end is not None:
             pause = WAIT_FOR_STATE_MIN_INTERVAL_S - (_clock.monotonic() - last_read_end)
             # The spacing never spends what is left: with less than it, the

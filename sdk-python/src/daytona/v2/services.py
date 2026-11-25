@@ -582,7 +582,7 @@ async def _get_artifact(
     def timed_out() -> DaytonaError:
         return create_error("artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK")
 
-    retry = ReadRetry()
+    retry = ReadRetry(transport)
     while True:
         remaining = None if deadline is None else deadline - _clock.monotonic()
         if remaining is not None and remaining <= 0:
@@ -620,7 +620,8 @@ async def _get_artifact(
                 raise timed_out() from error
             if not retry.note(error):
                 raise
-            await retry.pause(deadline)
+            # Never sooner than the one-second poll spacing, whatever the back-off.
+            await retry.pause(deadline, not_before=started + _ARTIFACT_MIN_POLL_INTERVAL_S)
             continue
         retry.succeeded()
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES:

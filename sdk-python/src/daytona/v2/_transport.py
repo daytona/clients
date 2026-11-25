@@ -577,9 +577,34 @@ class _StreamOwners:
     def __init__(self) -> None:
         self._streams: set[AsyncResponseStream] = set()
         self._closed = False
+        # Set once the owning client starts closing: wakes every wait pausing
+        # to retry a failed read (:meth:`retry_sleep`).
+        self._closing = False
+        self._retry_pauses: set[anyio.Event] = set()
 
     def ensure_open(self) -> None:
         if self._closed:
+            raise ClientClosedError()
+
+    def begin_close(self) -> None:
+        """Wake every retry pause; loop-confined like the rest of this class."""
+        self._closing = True
+        for pause in tuple(self._retry_pauses):
+            pause.set()
+
+    async def retry_sleep(self, seconds: float) -> None:
+        """Sleep before a wait retries a failed read; the client closing ends
+        it at once with :class:`ClientClosedError`."""
+        if self._closing:
+            raise ClientClosedError()
+        woken = anyio.Event()
+        self._retry_pauses.add(woken)
+        try:
+            with anyio.move_on_after(seconds):
+                await woken.wait()
+        finally:
+            self._retry_pauses.discard(woken)
+        if self._closing:
             raise ClientClosedError()
 
     def add(self, stream: AsyncResponseStream) -> None:
@@ -591,6 +616,7 @@ class _StreamOwners:
         self._streams.discard(stream)
 
     async def close(self) -> None:
+        self.begin_close()
         self._closed = True
         first_error: BaseException | None = None
         for stream in tuple(self._streams):
@@ -1003,6 +1029,17 @@ class AsyncTransport:
             await result.close()
             raise
         return result
+
+    def begin_close(self) -> None:
+        """Wake the retry pauses of waits reading through this client's
+        transports, which then raise :class:`ClientClosedError` (the first step
+        of the owning client's close; loop-confined)."""
+        if self._owns_streams:
+            self._stream_owners.begin_close()
+
+    async def retry_sleep(self, seconds: float) -> None:
+        """A wait's pause before it retries a failed read (:mod:`._read_retry`)."""
+        await self._stream_owners.retry_sleep(seconds)
 
     async def close(self) -> None:
         try:
