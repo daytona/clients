@@ -201,7 +201,9 @@ class AsyncDaytona:
         # events hub key carries no region either.
         self._target = "local"
         self._request_timeout = resolved.request_timeout
-        shared_hub = _required_bool("shared_hub", config.shared_hub) if config is not None else True
+        # None is not refused (2.2.0 ran with it); what it means is the pending
+        # null-as-unset decision, so it keeps its current reading.
+        shared_hub = _optional_bool("shared_hub", config.shared_hub) if config is not None else True
         events_config = _resolve_events_config(config.events if config is not None else None)
         # `_source` is the X-Daytona-Source label; Daytona passes "sdk-python"
         # because it drives this class through a bridge and would otherwise be
@@ -1535,7 +1537,7 @@ def _resolve_events_config(config: Optional[SandboxEventsConfig]) -> Optional[Sa
         raise create_error(
             f"events must be a SandboxEventsConfig, got {type(config).__name__}", 400, "BAD_REQUEST", "SDK"
         )
-    _required_bool("events.enabled", config.enabled)
+    _optional_bool("events.enabled", config.enabled)
     reconcile = _clamped_seconds(
         "events.reconcile_interval", config.reconcile_interval, _MAX_RECONCILE_INTERVAL_SECONDS
     )
@@ -1557,15 +1559,6 @@ def _optional_bool(name: str, value: object) -> Optional[bool]:
     """``value`` when it is a ``bool`` or ``None``; anything else (a string
     such as ``"no"`` would read as true) is the SDK's ``BadRequestError``."""
     if value is not None and not isinstance(value, bool):
-        raise create_error(f"{name} must be a boolean", 400, "BAD_REQUEST", "SDK")
-    return value
-
-
-def _required_bool(name: str, value: object) -> bool:
-    """``value`` when it is a ``bool``; anything else, ``None`` included (it
-    would read as false), is the SDK's ``BadRequestError``. For the options
-    typed ``bool``, which have no unset value."""
-    if not isinstance(value, bool):
         raise create_error(f"{name} must be a boolean", 400, "BAD_REQUEST", "SDK")
     return value
 

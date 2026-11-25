@@ -75,12 +75,6 @@ def test_the_v2_client_refuses_events_that_are_not_a_sandbox_events_config() -> 
     [
         (DaytonaConfig(api_key="key", shared_hub="no"), "shared_hub must be a boolean"),  # type: ignore[arg-type]
         (DaytonaConfig(api_key="key", shared_hub=0), "shared_hub must be a boolean"),  # type: ignore[arg-type]
-        # Typed bool with no unset value: None would read as false.
-        (DaytonaConfig(api_key="key", shared_hub=None), "shared_hub must be a boolean"),  # type: ignore[arg-type]
-        (
-            DaytonaConfig(api_key="key", events=SandboxEventsConfig(enabled=None)),  # type: ignore[arg-type]
-            "events.enabled must be a boolean",
-        ),
         (DaytonaConfig(api_key="key", otel_enabled="yes"), "otel_enabled must be a boolean"),  # type: ignore[arg-type]
         (DaytonaConfig(api_key="key", otel_enabled=1), "otel_enabled must be a boolean"),  # type: ignore[arg-type]
         (
@@ -104,6 +98,14 @@ def test_booleans_are_accepted(value: bool) -> None:
         DaytonaConfig(
             api_key="key", shared_hub=value, otel_enabled=False, events=SandboxEventsConfig(enabled=value)
         )
+    ) as root:
+        assert root.v2 is not None
+
+
+def test_none_is_not_refused_for_the_bool_options() -> None:
+    # 2.2.0 accepted None here; its meaning belongs to the pending null-as-unset decision.
+    with Daytona(
+        DaytonaConfig(api_key="key", shared_hub=None, events=SandboxEventsConfig(enabled=None))  # type: ignore[arg-type]
     ) as root:
         assert root.v2 is not None
 
