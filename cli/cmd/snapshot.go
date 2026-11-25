@@ -42,7 +42,7 @@ func newSnapshotCreateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <sandbox>",
 		Short: "Create a snapshot",
-		Long:  "Create a Linux memory snapshot with memory and disk. For disk-only capture, use `daytona image capture`.\nRequires write:snapshots and write:sandboxes.\nExamples:\n  daytona snapshot create <sandbox> --name before-upgrade",
+		Long:  "Create a Linux memory snapshot with memory and disk. For disk-only capture, use `daytona image capture`.\nA sandbox still starting or stopping is retried for up to 30 seconds before the snapshot is accepted.\nRequires write:snapshots and write:sandboxes.\nExamples:\n  daytona snapshot create <sandbox> --name before-upgrade",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -67,7 +67,9 @@ func newSnapshotCreateCommand() *cobra.Command {
 				return cerr.Usage("--name is required")
 			}
 			var created api.Raw[gen.AsyncOperation]
-			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/snapshots", url.PathEscape(resolved.Detail.Id)), nil, req, &created); err != nil {
+			if err := retrySandboxTransition(cmd.Context(), func() error {
+				return resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/snapshots", url.PathEscape(resolved.Detail.Id)), nil, req, &created)
+			}); err != nil {
 				return err
 			}
 			return printCreatedSnapshot(cmd.Context(), a, resolved.Client, created)

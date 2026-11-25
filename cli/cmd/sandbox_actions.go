@@ -106,7 +106,9 @@ func newSandboxForkCommand() *cobra.Command {
 			body = &gen.ForkSandboxRequest{Name: &name}
 		}
 		var resp api.Raw[gen.ForkSandboxOperation]
-		if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp); err != nil {
+		if err := retrySandboxTransition(cmd.Context(), func() error {
+			return resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp)
+		}); err != nil {
 			return nil, "", "", err
 		}
 		// A macOS fork of a running source starts after its disk is ready;
@@ -123,6 +125,7 @@ func newSandboxForkCommand() *cobra.Command {
 		return resp, resp.V.Id, waitFor, nil
 	})
 	cmd.Flags().StringVar(&name, "name", "", "fork name")
+	cmd.Long += "\nA sandbox still starting or stopping is retried for up to 30 seconds before the fork is accepted."
 	return cmd
 }
 
@@ -230,11 +233,11 @@ func newSandboxUpdateCommand() *cobra.Command {
 	f.StringArrayVar(&flags.labels, "label", nil, "replacement label KEY=VALUE (repeatable)")
 	f.BoolVar(&flags.clearLabels, "clear-labels", false, "remove every label except the name label")
 	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; restarts the countdown from now")
-	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop on a persistent macOS sandbox")
+	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, stop on persistent non-GPU, or pause on persistent Linux")
 	flags.idleTimeout.keywords = map[string]int64{"off": -1}
 	flags.idleTimeout.min = minIdleSeconds
 	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires; off clears the idle expiry")
-	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, or stop on a persistent macOS sandbox")
+	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, stop on persistent non-GPU, or pause on persistent Linux")
 	flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
 	flagPlaceholder(f, "on-idle-timeout", "ACTION")
 	addFileFlag(cmd, `JSON body {"labels": {...}, "lifecycle_policy": {...}} from a file (or - for stdin); explicit flags override its fields`)
