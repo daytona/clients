@@ -8,7 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
+	"regexp"
 	"unicode/utf8"
 )
 
@@ -16,6 +16,8 @@ const (
 	buildLogMaxEvent    = 128 * 1024
 	buildLogMaxSnapshot = 2 * 1024 * 1024
 )
+
+var buildLogImageRoute = regexp.MustCompile(`^/images/([^/]+)/build-logs-url$`)
 
 type buildLogTarget struct {
 	api  *apiClient
@@ -45,10 +47,11 @@ func discoverBuildLogs(ctx context.Context, api *apiClient, path string) (*build
 	}
 	destination, err := buildLogDestination(api, raw, path, "")
 	// The discovery path's segment, already encoded.
-	segment, image := strings.CutPrefix(strings.TrimSuffix(path, "/build-logs-url"), "/images/")
-	if err == nil || !errors.Is(err, errBuildLogIdentity) || !image {
+	route := buildLogImageRoute.FindStringSubmatch(path)
+	if err == nil || !errors.Is(err, errBuildLogIdentity) || route == nil {
 		return destination, err
 	}
+	segment := route[1]
 	// Discovery answers with the image's canonical ID, which a name never
 	// matches: resolve the value with the API (GET /images/{value}, as every
 	// image method resolves names) and hold the URL to that ID just as strictly.
