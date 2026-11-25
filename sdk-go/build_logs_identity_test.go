@@ -6,6 +6,7 @@ package daytona
 import (
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -169,6 +170,19 @@ func TestBuildLogsFollowImageByName(t *testing.T) {
 			require.Contains(t, interrupted.Error(), "invalid image response: id")
 			require.Empty(t, target.requests())
 		}},
+		{"unavailable once", unavailableOnce(t, uuid), func(t *testing.T, err error, api, target *fakeServer) {
+			// A lookup the server could not answer is retried, as discovery is.
+			require.NoError(t, err)
+			require.Len(t, target.requests(), 1)
+			paths := make([]string, 0, 4)
+			for _, request := range api.requests() {
+				paths = append(paths, request.Path)
+			}
+			require.Equal(t, []string{
+				"/images/my-image/build-logs-url", "/images/my-image",
+				"/images/my-image/build-logs-url", "/images/my-image",
+			}, paths)
+		}},
 		{"not found", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
@@ -202,5 +216,18 @@ func TestBuildLogsFollowImageByName(t *testing.T) {
 			// Then the destination is held to the ID the name resolves to.
 			tt.check(t, err, api, target)
 		})
+	}
+}
+
+func unavailableOnce(t *testing.T, id string) http.HandlerFunc {
+	var calls atomic.Int32
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			writeJSON(t, w, map[string]string{"code": "SERVICE_UNAVAILABLE"})
+			return
+		}
+		writeJSON(t, w, map[string]string{"id": id})
 	}
 }
