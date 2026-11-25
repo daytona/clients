@@ -260,8 +260,8 @@ func TestSandboxUpdate_buildsAndValidatesBothBodiesBeforeMutating(t *testing.T) 
 	require.Equal(t, "/sandboxes/22222222-2222-2222-2222-222222222222", f.requests[0].Path)
 }
 
-// The lifecycle actions follow the SDKs: delete everywhere, stop only on a
-// persistent macOS sandbox, never pause. A refused action fails before any
+// The lifecycle actions follow the SDKs: delete everywhere, stop on persistent
+// non-GPU sandboxes, pause on persistent Linux. A refused action fails before any
 // write.
 func TestSandboxUpdate_lifecycleActionMatrix(t *testing.T) {
 	cases := []struct {
@@ -272,6 +272,8 @@ func TestSandboxUpdate_lifecycleActionMatrix(t *testing.T) {
 		{"linux delete", "linux", "delete", false, true},
 		{"linux stop", "linux", "stop", false, false},
 		{"linux pause", "linux", "pause", false, false},
+		{"persistent linux stop", "linux", "stop", true, true},
+		{"persistent linux pause", "linux", "pause", true, true},
 		{"ephemeral macos stop", "macos", "stop", false, false},
 		{"persistent macos stop", "macos", "stop", true, true},
 		{"persistent macos pause", "macos", "pause", true, false},
