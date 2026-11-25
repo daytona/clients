@@ -1498,7 +1498,8 @@ class AsyncInterpreterContext:
         Environment variables are set when the context is created. If the
         context vanished, the API's typed ``SESSION_NOT_FOUND`` error surfaces
         unchanged so the caller can recreate the context and decide what code,
-        if any, is safe to rerun. A kernel the sandbox could not reach raises
+        if any, is safe to rerun. A run the sandbox ended before the code
+        reached a kernel raises
         :class:`~daytona.v2.errors.KernelUnavailableError`, as
         :meth:`AsyncInterpreterService.run` describes. ``timeout`` is the
         caller wait budget in seconds; ``0`` waits unbounded.

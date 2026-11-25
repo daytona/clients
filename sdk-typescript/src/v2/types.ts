@@ -491,9 +491,9 @@ export interface CreateRequestBaseOptions {
 /**
  * Options for {@link Daytona.create}.
  *
- * **Visible resources.** Burstable sandboxes boot with the CPU limit
- * (`resources.cpuMax`, or the deployment cap when omitted), so `nproc`
- * reports that limit, not the guaranteed `cpu`. Tools that size themselves
+ * **Visible resources.** A sandbox boots with its CPU limit,
+ * `resources.cpuMax * 2` vCPUs (the deployment cap when omitted), so `nproc`
+ * reports that, not the guaranteed `cpu`. Tools that size themselves
  * from the CPU count (`pytest -n auto`, `make -j$(nproc)`) start one worker
  * per visible CPU; pass an explicit worker count when you need the guarantee
  * instead of the limit. Memory can instead start small and grow on demand up

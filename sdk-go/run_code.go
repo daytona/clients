@@ -70,8 +70,11 @@ type RunCodeOptions struct {
 // that could not be installed or started), RunCode returns ErrKernelUnavailable
 // (source SDK) carrying the sandbox's setup diagnostic, alongside the partial
 // result with ProcessReasonFailed. The sandbox reports no error code for such a
-// run, so a context deleted while the run was queued returns it too. A kernel lost mid-run returns its partial
-// output with ProcessReasonLost and a nil error; the next run starts a new kernel.
+// run: a context already gone when the run is submitted returns
+// ErrSessionNotFound, but one deleted while the run waits behind another run in
+// it ends the run this way and returns ErrKernelUnavailable. A kernel lost
+// mid-run returns its partial output with ProcessReasonLost and a nil error; the
+// next run starts a new kernel.
 func (s *Sandbox) RunCode(ctx context.Context, code string, opts *RunCodeOptions) (*RunCodeResult, error) {
 	return s.Interpreter().Run(ctx, code, opts)
 }

@@ -410,8 +410,9 @@ export class InterpreterContext {
    * Execute code inside this interpreter context. Environment variables are
    * set when the context is created. If the context vanished, the typed
    * SESSION_NOT_FOUND error surfaces unchanged so the caller can recreate the
-   * context and decide what code, if any, is safe to rerun. A kernel that
-   * the sandbox could not reach throws `KernelUnavailableError`, as
+   * context and decide what code, if any, is safe to rerun. A run the
+   * sandbox ended before the code reached a kernel throws
+   * `KernelUnavailableError`, as
    * {@link InterpreterService.run} describes.
    */
   public async run(code: string, options: InterpreterContextRunOptions = {}): Promise<InterpreterResult> {
@@ -589,9 +590,11 @@ export class InterpreterService {
    * use an image that ships `ipykernel` / `deno`. When the sandbox ends the
    * run before the code reaches a kernel (most often a kernel that could not
    * be installed or started), this throws `KernelUnavailableError` (503,
-   * source `SDK`) carrying the sandbox's setup diagnostic; the sandbox
-   * reports no error code for such a run, so a context deleted while the run
-   * was queued throws it too. A kernel that stops during the run returns
+   * source `SDK`) carrying the sandbox's setup diagnostic. The sandbox
+   * reports no error code for such a run: a context that is already gone
+   * when the run is submitted throws SESSION_NOT_FOUND as above, but one
+   * deleted while the run waits behind another run in it ends the run this
+   * way and throws this error. A kernel that stops during the run returns
    * the output produced so far with `process.reason === 'lost'`; its state
    * is gone and the next run starts a new kernel.
    */

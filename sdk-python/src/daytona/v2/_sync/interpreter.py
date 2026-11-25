@@ -138,9 +138,11 @@ class InterpreterService:
         code reaches a kernel (most often a kernel that could not be installed
         or started), this raises
         :class:`~daytona.v2.errors.KernelUnavailableError` (503, source
-        ``SDK``) carrying the sandbox's setup diagnostic; the sandbox reports
-        no error code for such a run, so a context deleted while the run was
-        queued raises it too. A kernel that stops
+        ``SDK``) carrying the sandbox's setup diagnostic. The sandbox reports
+        no error code for such a run: a context that is already gone when the
+        run is submitted raises ``SESSION_NOT_FOUND`` as above, but one
+        deleted while the run waits behind another run in it ends the run
+        this way and raises this error. A kernel that stops
         during the run returns the output produced so far with
         ``process.reason == "lost"``; its state is gone and the next run starts
         a new kernel.

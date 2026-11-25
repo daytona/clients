@@ -331,9 +331,9 @@ class AsyncDaytona:
         parameters. An explicit ``idempotency_key`` always wins.
 
         **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
-        see :class:`Resources`). Burstable sandboxes boot with the CPU limit
-        (``resources.cpu_max``, or the deployment cap when omitted), so
-        ``nproc`` reports that limit, not the guaranteed ``cpu``. Tools that
+        see :class:`Resources`). A sandbox boots with its CPU limit,
+        ``resources.cpu_max * 2`` vCPUs (the deployment cap when omitted), so
+        ``nproc`` reports that, not the guaranteed ``cpu``. Tools that
         size themselves from the CPU count (``pytest -n auto``,
         ``make -j$(nproc)``) start one worker per visible CPU; pass an explicit
         worker count when you need the guarantee instead of the limit. Memory
