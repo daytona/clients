@@ -169,7 +169,8 @@ paused sources retaining memory wait for `paused`, and other sources wait for
 `build_timeout` budget (`None` or `0` is unbounded), starting after the
 submission, then creates with the caller's full `wait_seconds`. An image in
 `failed` or `error` is a failed build. Build failure raises `ImageBuildFailedError`
-with `image_id` and `build_error`; build timeout raises `RequestTimeoutError`.
+with `image_id` and `build_error`; build timeout raises `ImageBuildTimeoutError`
+(a `RequestTimeoutError`) with `image_id`.
 
 All create sizing lives in `resources` (`Resources` / `MacosResources`).
 `_core.gib_to_mib` refuses GiB values that do not convert to whole MiB, and

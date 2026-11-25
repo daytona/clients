@@ -142,6 +142,7 @@ ROOT_EXPORTS = [
     "IdleOutOfRangeError",
     "Image",
     "ImageBuildFailedError",
+    "ImageBuildTimeoutError",
     "ImageBuilder",
     "ImageClassMismatchError",
     "ImageNameReservedError",

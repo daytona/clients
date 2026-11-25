@@ -125,6 +125,30 @@ func TestCreateFromBuild_whenBuildBudgetExpires(t *testing.T) {
 	require.ErrorAs(t, err, &detail)
 	require.Equal(t, "SDK", detail.Source)
 	require.Len(t, fake.requests(), 2)
+	// And it names the image the server keeps building.
+	var timeout *ImageBuildTimeoutError
+	require.ErrorAs(t, err, &timeout)
+	require.Equal(t, "img-build", timeout.ImageID)
+	require.Equal(t, "image build did not finish before timeout", timeout.SDKError.Message)
+}
+
+func TestBuildAndWait_whenCallerContextEnds(t *testing.T) {
+	// Given a pending build and a caller deadline shorter than the build budget.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"POST /images":          jsonHandler(t, map[string]string{"id": "img-build"}),
+		"GET /images/img-build": jsonHandler(t, buildImageFixture("building")),
+	})
+	client := newTestClient(t, fake.Server)
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	// When the caller's context ends first.
+	_, err := client.Images().BuildAndWait(ctx, NewImageBuilder("alpine"), &BuildImageWaitOptions{Timeout: time.Minute})
+
+	// Then the build budget did not run out: no ImageBuildTimeoutError.
+	require.Error(t, err)
+	var timeout *ImageBuildTimeoutError
+	require.NotErrorAs(t, err, &timeout)
 }
 
 func TestCreateFromBuild_whenCallerCancelsReadiness(t *testing.T) {

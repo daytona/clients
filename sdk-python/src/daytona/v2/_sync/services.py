@@ -229,6 +229,11 @@ class ImagesService:
         that already exists raises :class:`ImageNameTakenError`; a reserved
         prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
         :class:`ImageNameReservedError`.
+
+        The image is then read again by the id the promotion answered with, so
+        the result reports the image's current state (its regions included),
+        as :meth:`get` does. The name is applied once the promotion succeeds;
+        a failed read afterwards raises its error.
         """
         return self._bridge.call(lambda: self._impl.promote(image_id, name))
 

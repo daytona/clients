@@ -327,12 +327,21 @@ export class ImagesService {
    * would silently relabel every sandbox created from it). A name that already
    * exists throws `ImageNameTakenError`; a reserved prefix (`img_`, `snap_`,
    * `sbx_`, `vol_`, `fn_`) throws `ImageNameReservedError`.
+   *
+   * The image is then read again by the id the promotion answered with, so
+   * the result reports the image's current state (its regions included), as
+   * `get()` does. The name is applied once the promotion succeeds; a failed
+   * read afterwards throws its error.
    */
   public async promote(imageId: string, name: string): Promise<Image> {
     const path = `/images/${pathSegment(imageId, 'imageId')}`
-    const promoted: unknown = name
-    if (typeof promoted !== 'string' || isBlank(promoted)) throw badRequest('name must be a non-empty string')
-    const { data } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
+    const promotedName: unknown = name
+    if (typeof promotedName !== 'string' || isBlank(promotedName)) throw badRequest('name must be a non-empty string')
+    const { data: patched } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
+    // Checked before the read: the PATCH answer must be an image.
+    const promoted = new Image(INTERNAL, patched)
+    // By id: the caller's value may be a name (even 'search', which get() refuses).
+    const { data } = await this.http.get<api.ImageListItem>(`/images/${pathSegment(promoted.id, 'image id')}`)
     return new Image(INTERNAL, data)
   }
 

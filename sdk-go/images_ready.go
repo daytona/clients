@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strconv"
 	"time"
@@ -39,6 +40,8 @@ func (s *Images) Pull(ctx context.Context, ref string, opts *PullImageOptions) (
 
 // BuildAndWait builds an image and waits until ready, raising
 // ImageBuildFailedError with the image ID and recorded error on failure.
+// An exhausted Timeout returns ImageBuildTimeoutError with the image ID (the
+// build keeps running); it matches ErrRequestTimeout.
 // Its readiness timeout starts after Build, so context upload keeps its own
 // bounds. A subsequent sandbox create should use image.ID and the same region.
 func (s *Images) BuildAndWait(ctx context.Context, builder *ImageBuilder, opts *BuildImageWaitOptions) (*Image, error) {
@@ -62,7 +65,19 @@ func (s *Images) BuildAndWait(ctx context.Context, builder *ImageBuilder, opts *
 	}
 	waitCtx, cancel := artifactWaitContext(ctx, options.Timeout, "image build did not finish before timeout")
 	defer cancel()
-	return s.ready(waitCtx, image, "image "+image.ID+" build failed")
+	ready, err := s.ready(waitCtx, image, "image "+image.ID+" build failed")
+	return ready, buildTimeoutError(ctx, waitCtx, err, image.ID)
+}
+
+// buildTimeoutError names the still-building image when the build budget
+// (waitCtx's own deadline, not the caller's context) ended the wait.
+func buildTimeoutError(ctx, waitCtx context.Context, err error, imageID string) error {
+	var timeout *Error
+	if err == nil || ctx.Err() != nil || waitCtx.Err() == nil || !errors.As(err, &timeout) ||
+		timeout.Source != SourceSDK || timeout.Code != CodeRequestTimeout {
+		return err
+	}
+	return &ImageBuildTimeoutError{SDKError: timeout, ImageID: imageID}
 }
 
 // ready waits for initial to settle; failed is the message for a failure the

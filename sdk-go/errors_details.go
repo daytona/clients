@@ -57,6 +57,35 @@ func (e *ImageBuildFailedError) Unwrap() error {
 	return e.SDKError
 }
 
+// ImageBuildTimeoutError reports a build the server accepted that did not
+// finish within the caller's build budget (BuildAndWait's Timeout,
+// CreateFromBuild's BuildTimeout). The build keeps running on the server;
+// ImageID lets the caller follow it (Images().FollowBuildLogs), wait on it
+// (Images().Get with Wait) or delete it. It unwraps to the REQUEST_TIMEOUT
+// error, so errors.Is(err, ErrRequestTimeout) still holds.
+type ImageBuildTimeoutError struct {
+	// SDKError is the underlying REQUEST_TIMEOUT error.
+	SDKError *Error
+	// ImageID identifies the still-building image.
+	ImageID string
+}
+
+// Error describes the timed-out build, even when SDKError is nil.
+func (e *ImageBuildTimeoutError) Error() string {
+	if e.SDKError == nil {
+		return "daytona: image build did not finish before timeout"
+	}
+	return e.SDKError.Error()
+}
+
+// Unwrap exposes the REQUEST_TIMEOUT error, or nil when absent.
+func (e *ImageBuildTimeoutError) Unwrap() error {
+	if e.SDKError == nil {
+		return nil
+	}
+	return e.SDKError
+}
+
 // SandboxCreateRequestTimeoutError preserves the key needed to reconcile a
 // create whose response timed out, including a caller context deadline.
 // Retry with identical options and this key.

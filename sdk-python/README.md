@@ -359,8 +359,11 @@ result = d.v2.get("sandbox-id").follow_build_logs(
 
 `on_logs` is required. Optional `on_event` receives a typed `BuildLogEvent`
 union (`event.type` selects the variant), including states, gaps and source
-unavailability. Without it, these diagnostics appear as `[build logs: …]`
-messages in `on_logs`. Either callback may be a plain function or return an
+unavailability. Without it, these diagnostics reach `on_logs` as one line
+each: `[build logs: <type>] ` followed by the event's wire fields as compact
+JSON, for example
+`[build logs: state] {"type":"state","status":"ready"}` (the same text in the
+TypeScript SDK). An image can be followed by its id or its name. Either callback may be a plain function or return an
 awaitable, which is awaited before the next event (on `AsyncDaytona`). Build
 failure is a result, not a connection error. `output_complete` describes the
 requested cursor-to-end interval; gaps keep it false even after reconnection.
@@ -597,8 +600,10 @@ from the image id. The build submission is an ordinary request, bounded by
 `request_timeout`; `build_timeout` then bounds only the build wait (seconds;
 `None`, `0` or a value above about 24.8 days means no deadline). A failed build (status `failed` or `error`)
 raises `ImageBuildFailedError` and a
-build that outlasts `build_timeout` raises `RequestTimeoutError`; in both
-cases no sandbox exists. The create then gets the full, independent
+build that outlasts `build_timeout` raises `ImageBuildTimeoutError` (a
+`RequestTimeoutError`); both carry the image's `image_id`, and in both cases
+no sandbox exists. A timed-out build keeps running: follow, wait on or delete
+it by that id. The create then gets the full, independent
 `wait_seconds` budget and takes the same keywords as `create()`.
 
 ```python
