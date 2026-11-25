@@ -1,0 +1,19 @@
+changelog.d/sdk-toolbox-url-override.breaking.md
+  s_e26152c3e6ca81::t_a13a75e5cd0eec 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8a2238efbeb7339fe65dd6f28843b91340d7e49",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
