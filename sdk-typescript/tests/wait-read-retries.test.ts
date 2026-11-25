@@ -428,12 +428,19 @@ describe('review follow-ups', () => {
     }
   })
 
-  it.each(['retryAfterMs', 'retry_after_seconds'])('reads an unusable %s body hint as none', (field) => {
-    // A JSON integer too large for a double reads as Infinity.
-    const huge = createDaytonaError('busy', 503, undefined, undefined, field === 'retryAfterMs' ? { retryAfterMs: Infinity } : { retryAfterSeconds: 1e308 })
-    expect(retryAfterMs(huge)).toBe(0)
-    const negative = createDaytonaError('busy', 503, undefined, undefined, { retryAfterMs: -1, retryAfterSeconds: -5 })
-    expect(retryAfterMs(negative)).toBe(0)
+  it.each(['retryAfterMs', 'retry_after_seconds'])('reads an unusable %s body hint as none', async (field) => {
+    // Through the wire parser: a hint whose milliseconds overflow a double
+    // (1e308 s), or a negative one, is no hint, and the header is used.
+    const http = createHttpClient('http://api.invalid', 'key')
+    const huge = field === 'retryAfterMs' ? '1e309' : '1e308'
+    script(http, [
+      { status: 503, body: `{"code":"OVERLOADED","message":"busy","${field}":${huge}}`, headers: { 'content-type': 'application/json', 'retry-after': '2' } },
+      { status: 503, body: { code: 'OVERLOADED', message: 'busy', [field]: -5 }, headers: { 'retry-after': '3' } },
+    ])
+    const tooLarge = await caught(http.get('/x'))
+    expect(retryAfterMs(tooLarge as DaytonaError)).toBe(2000)
+    const negative = await caught(http.get('/x'))
+    expect(retryAfterMs(negative as DaytonaError)).toBe(3000)
   })
 
   it.each(['after 2099', '2099-01-01', 'Sunday, 06-Nov-94 08:49:37 GMT', 'Fri, 1 Jan 2099 00:00:00 GMT'])('ignores a Retry-After that is not an HTTP date: %s', async (header) => {

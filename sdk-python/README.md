@@ -1140,15 +1140,18 @@ retries a read that fails transiently (no response, a stalled read, HTTP 429
 other than `LIMIT_EXCEEDED`, or a 5xx other than 501) with backoff (0.2 s
 doubling to 5 s, or the server's retry hint when longer: the error's
 `retry_after_ms` / `retry_after_seconds`, else the `Retry-After` header)
-within the same budget. When the budget runs out, its timeout error carries
+within the same budget, and never sooner than the wait's own poll spacing
+(0.5 s for Docker, 1 s for image and snapshot readiness). When the budget
+runs out, its timeout error carries
 the last failed read as `__cause__`. A wait without a deadline keeps
 retrying until the server answers, the caller cancels or the client is closed
 (which ends it with `ClientClosedError`); `images.get()` / `snapshots.get()`
 with `wait="ready"` but no `timeout` make a single server-default hold and do
 not retry. Any other failure, such as an authentication error, is raised at
-once, with one exception: while the events stream is live,
-its early probes of a sandbox wait keep waiting through any failure but 401,
-403 and 404, and the wait's timeout then carries that failure as its cause.
+once, with one exception: while the events stream is live, its early probes
+of a sandbox wait keep waiting through any failure other than 401, 403, 404
+or a closed client, and the wait's timeout then carries that failure as its
+cause.
 
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
 (seconds) with the same default and unbounded form. They wait for
