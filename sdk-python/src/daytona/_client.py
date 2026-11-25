@@ -394,12 +394,17 @@ ROOT_CONFIG_ROUTING: Final[dict[str, str]] = {
 }
 
 
-def _v0_config(module: ModuleType, config: DaytonaConfig) -> object:
-    _refuse_url_fields(config)
+def _check_v0_options(config: DaytonaConfig) -> None:
+    """The root options v0 would truth-test, checked before v0 is loaded, as
+    the v2 client checks them (and as TypeScript checks before loading v0)."""
     otel_enabled: object = config.otel_enabled
     if otel_enabled is not None and not isinstance(otel_enabled, bool):
-        # v0 truth-tests it; refused here as the v2 client refuses it.
         raise create_error("otel_enabled must be a boolean", 400, "BAD_REQUEST", "SDK")
+
+
+def _v0_config(module: ModuleType, config: DaytonaConfig) -> object:
+    _refuse_url_fields(config)
+    _check_v0_options(config)
     tuning: dict[str, Union[int, bool]] = {}
     # v0 reads None as "unlimited" / "use the env var"; pass only what was set.
     if config.connection_pool_maxsize is not None:
@@ -565,6 +570,7 @@ class Daytona(_Root):
         """
         with self._lock:
             if self._v0 is None:
+                _check_v0_options(self._config)
                 module, client_class = _load_v0("_Daytona")
                 self._v0 = client_class(_v0_config(module, self._config))  # type: ignore[operator]
             return self._v0
@@ -642,6 +648,7 @@ class AsyncDaytona(_Root):
         """
         with self._lock:
             if self._v0 is None:
+                _check_v0_options(self._config)
                 module, client_class = _load_v0("_AsyncDaytona")
                 self._v0 = client_class(_v0_config(module, self._config))  # type: ignore[operator]
             return self._v0
