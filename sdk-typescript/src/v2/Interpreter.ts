@@ -18,7 +18,7 @@ import type {
   WaitResult,
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
-import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
+import { DaytonaError, KernelUnavailableError, createDaytonaError } from './errors/DaytonaError.js'
 import { secondsToMs } from './ProcessWire.js'
 import { envelopeList, interpreterSessionFromWire, malformedResponse } from './toolboxModels.js'
 import { assertInternal, INTERNAL } from './internal.js'
@@ -243,6 +243,9 @@ async function collectResult(
 ): Promise<InterpreterResult> {
   const result = await waitOrInterrupt(handle, timeout, callerDeadline)
   const logs = await collectAllLogs(handle, result.reason === 'timed_out' ? { maxPages: TIMED_OUT_LOG_PAGE_LIMIT } : {})
+  if (result.reason === 'failed') {
+    throw setupFailure(handle.id, logs.filter((frame) => frame.channel === 'setup').map((frame) => frame.data).join(''))
+  }
   const stdout = logs.filter((frame) => frame.channel === 'stdout').map((frame) => frame.data).join('')
   const stderr = logs.filter((frame) => frame.channel === 'stderr').map((frame) => frame.data).join('')
   const outputs = logs
@@ -258,6 +261,20 @@ async function collectResult(
     results: outputs,
     logs: { stdout, stderr },
     ...(errors.length === 0 ? {} : { error: errors[errors.length - 1] }),
+  })
+}
+
+/**
+ * A code run that ended `failed`: the sandbox could not provision, start or
+ * reach the kernel, so the code did not run. Its `setup` channel carries the
+ * reason (as Python's `_setup_failure`).
+ */
+function setupFailure(processId: string, setup: string): KernelUnavailableError {
+  const diagnostic = setup.trim() || 'the sandbox reported no setup diagnostic'
+  return new KernelUnavailableError(`the interpreter did not run the code (process ${processId}): ${diagnostic}`, {
+    statusCode: 503,
+    code: 'KERNEL_UNAVAILABLE',
+    source: 'SDK',
   })
 }
 
@@ -393,7 +410,9 @@ export class InterpreterContext {
    * Execute code inside this interpreter context. Environment variables are
    * set when the context is created. If the context vanished, the typed
    * SESSION_NOT_FOUND error surfaces unchanged so the caller can recreate the
-   * context and decide what code, if any, is safe to rerun.
+   * context and decide what code, if any, is safe to rerun. A kernel that
+   * could not be started throws `KernelUnavailableError`, as
+   * {@link InterpreterService.run} describes.
    */
   public async run(code: string, options: InterpreterContextRunOptions = {}): Promise<InterpreterResult> {
     assertKnownOptions('InterpreterContextRunOptions', options, CONTEXT_RUN_OPTION_KEYS)
@@ -507,7 +526,11 @@ export class InterpreterService {
     )
   }
 
-  /** Create an interpreter context: kernel state of its own. `cwd` and `env` apply to every run in it. */
+  /**
+   * Create an interpreter context: kernel state of its own. `cwd` and `env`
+   * apply to every run in it. See {@link run} for what the first use of a
+   * language installs.
+   */
   public async createContext(options: InterpreterContextOptions): Promise<InterpreterContext> {
     assertKnownOptions('InterpreterContextOptions', options, CONTEXT_OPTION_KEYS)
     const session = await this.transport.post<toolbox.SessionDto>('/sessions', {
@@ -554,6 +577,20 @@ export class InterpreterService {
    * but they do not recreate this decomposed result on another worker.
    * A vanished explicit context surfaces the typed SESSION_NOT_FOUND
    * error; callers decide whether to recreate the context and what to rerun.
+   *
+   * **First run of a language.** The sandbox starts the language's kernel on
+   * its first run, installing it when the image does not ship it: Python
+   * installs `ipykernel` from PyPI (`pypi.org`, `files.pythonhosted.org`)
+   * unless the image's Python already has it; TypeScript and JavaScript
+   * download Deno from `dl.deno.land` unless `deno` is on the image's `PATH`.
+   * That run takes a few seconds longer, and under a network policy that
+   * blocks those hosts it cannot install the kernel: allow those domains, or
+   * use an image that ships `ipykernel` / `deno`. When the run fails before
+   * the code reaches a kernel (one that could not be installed or started),
+   * this throws `KernelUnavailableError` (503, source `SDK`) carrying the
+   * sandbox's setup diagnostic. A kernel that stops during the run returns
+   * the output produced so far with `process.reason === 'lost'`; its state
+   * is gone and the next run starts a new kernel.
    */
   public async run(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
     assertKnownOptions('InterpreterRunOptions', options, RUN_OPTION_KEYS)

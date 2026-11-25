@@ -79,6 +79,16 @@ A non-zero `ExitCode` is not an error; `err` means the call itself failed.
 res, err := sandbox.RunCode(ctx, "x = 21\nprint(x * 2)", nil)
 ```
 
+The first run of a language installs its kernel when the image does not ship
+it (Python's `ipykernel` from PyPI, Deno from `dl.deno.land`), which adds a few
+seconds and needs those hosts reachable under a network policy. When the kernel
+cannot be installed or started, `RunCode` returns `ErrKernelUnavailable` with
+the sandbox's setup diagnostic in the message.
+
+**Metadata after create.** A handle from `Create*` holds only what the create
+response reports; call `sandbox.Refresh(ctx)` before reading `Info().Resources`,
+labels or other detail fields.
+
 **Files.** Paths are inside the sandbox.
 
 ```go

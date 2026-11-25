@@ -331,13 +331,29 @@ class AsyncDaytona:
         parameters. An explicit ``idempotency_key`` always wins.
 
         **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
-        see :class:`Resources`). Burstable sandboxes start with the burst
-        ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment cap
-        when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
-        not the guaranteed ``cpu``. Tools that size themselves from the CPU
-        count (``pytest -n auto``, ``make -j$(nproc)``) start one worker per
-        visible CPU. Pass an explicit worker count when you need the guarantee
-        instead of the ceiling.
+        see :class:`Resources`). Burstable sandboxes boot with the CPU limit
+        (``resources.cpu_max``, or the deployment cap when omitted), so
+        ``nproc`` reports that limit, not the guaranteed ``cpu``. Tools that
+        size themselves from the CPU count (``pytest -n auto``,
+        ``make -j$(nproc)``) start one worker per visible CPU; pass an explicit
+        worker count when you need the guarantee instead of the limit. Memory
+        can instead start small and grow on demand up to ``memory_max``:
+        ``/proc/meminfo`` and ``free`` then show the memory present now (about
+        the guaranteed ``memory`` plus some headroom at first), not the limit,
+        while :meth:`AsyncSandbox.metrics` reports the limit as the total.
+        Programs that size themselves from total memory at startup (a JVM's
+        default heap, for example) see the smaller figure; size them
+        explicitly.
+
+        **Returned metadata.** The handle holds what the create response
+        reports: id, name, state, image, and the lifecycle policy when the
+        response carries one. The rest (``cpu``, ``memory``, ``disk`` and
+        their limits, ``labels``, ``user``, ...) is ``None`` (unknown, not
+        empty) until a detail read, and a sandbox that is already started when
+        the create answers (the usual case) gets none. Call
+        :meth:`AsyncSandbox.refresh_data` before reading them. The same holds
+        for :meth:`create_from_snapshot`, :meth:`create_from_build` and
+        :meth:`create_macos`.
 
         ``network_policy`` sets the sandbox's egress policy from its first boot
         (``None`` sends an explicit "no policy"); change it later with

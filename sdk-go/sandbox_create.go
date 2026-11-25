@@ -25,6 +25,14 @@ import (
 // SandboxCreateConnectionError can also report a failure before the POST was
 // sent, such as bearer exchange failure or client closure. Retrying with the
 // carried key and identical options is safe in either case.
+//
+// The handle holds what the create response reports (ID, name, state, image and,
+// when reported, the lifecycle policy) until something reads the sandbox; a
+// sandbox already started when the create answers (the usual case) is not read.
+// Call Refresh before reading Info().Resources, Labels or other detail fields.
+// Inside the sandbox, nproc reports the CPU limit, while memory can start near
+// the guarantee and grow on demand up to the memory limit: /proc/meminfo shows
+// the memory present now, and Metrics reports the limit as the total.
 func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) (*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err

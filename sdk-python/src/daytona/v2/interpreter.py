@@ -21,7 +21,7 @@ from ._core import (
     wait_budget,
 )
 from ._transport import AsyncTransport
-from .errors import DaytonaError, create_error
+from .errors import DaytonaError, KernelUnavailableError, create_error
 from .process import (
     TIMED_OUT_LOG_PAGE_LIMIT,
     AsyncProcessHandle,
@@ -87,6 +87,19 @@ def _session_identity(value: object, *, requested_id: Optional[str] = None) -> t
         problem = "is required" if kernel is None else "must be a string"
         raise create_error(f"expected {description}: kernel {problem}", 400, codes.BAD_REQUEST, "SDK")
     return context_id, kernel
+
+
+def _setup_failure(process_id: str, setup: str) -> KernelUnavailableError:
+    """A code run that ended ``failed``: the sandbox could not provision,
+    start or reach the kernel, so the code did not run. Its ``setup`` channel
+    carries the reason (as TypeScript's ``setupFailure``)."""
+    diagnostic = setup.strip() or "the sandbox reported no setup diagnostic"
+    return KernelUnavailableError(
+        f"the interpreter did not run the code (process {process_id}): {diagnostic}",
+        status_code=503,
+        code=codes.KERNEL_UNAVAILABLE,
+        source="SDK",
+    )
 
 
 def _timed_out_result() -> InterpreterResult:
@@ -217,8 +230,9 @@ class AsyncInterpreterService:
         :class:`~daytona.v2.errors.UnsupportedOperationError` (400) before a
         kernel is provisioned, while
         :class:`~daytona.v2.errors.KernelUnavailableError` (503) means a
-        supported language's kernel failed to install or start. ``cwd`` and
-        ``env`` apply to every run in the context.
+        supported language's kernel failed to install or start (see
+        :meth:`run` for what the first use of a language installs). ``cwd``
+        and ``env`` apply to every run in the context.
         """
         return await self._create_context(language=language, context_id=context_id, cwd=cwd, env=env)
 
@@ -342,6 +356,22 @@ class AsyncInterpreterService:
         ``SESSION_NOT_FOUND`` error; callers decide whether to recreate the
         context and what to rerun. ``timeout`` is the caller wait budget in
         seconds; ``0`` waits unbounded.
+
+        **First run of a language.** The sandbox starts the language's kernel
+        on its first run, installing it when the image does not ship it:
+        Python installs ``ipykernel`` from PyPI (``pypi.org``,
+        ``files.pythonhosted.org``) unless the image's Python already has it;
+        TypeScript and JavaScript download Deno from ``dl.deno.land`` unless
+        ``deno`` is on the image's ``PATH``. That run takes a few seconds
+        longer, and under a network policy that blocks those hosts it cannot
+        install the kernel: allow those domains, or use an image that ships
+        ``ipykernel`` / ``deno``. When the run fails before the code reaches a
+        kernel (one that could not be installed or started), this raises
+        :class:`~daytona.v2.errors.KernelUnavailableError` (503, source
+        ``SDK``) carrying the sandbox's setup diagnostic. A kernel that stops
+        during the run returns the output produced so far with
+        ``process.reason == "lost"``; its state is gone and the next run starts
+        a new kernel.
         """
         timeout = wait_budget(timeout)
         if isolated and context is not None:
@@ -485,6 +515,8 @@ class AsyncInterpreterService:
             handle,
             max_pages=TIMED_OUT_LOG_PAGE_LIMIT if wait.reason == "timed_out" else None,
         )
+        if wait.reason == "failed":
+            raise _setup_failure(handle.id, "".join(frame.data for frame in logs if frame.channel == "setup"))
         stdout = "".join(frame.data for frame in logs if frame.channel == "stdout")
         stderr = "".join(frame.data for frame in logs if frame.channel == "stderr")
         results: list[InterpreterOutput] = []

@@ -56,6 +56,17 @@ type RunCodeOptions struct {
 
 // RunCode executes code through Interpreter.Run. Context-free runs share state
 // per language. Explicit context loss returns ErrSessionNotFound without retry.
+//
+// The first run of a language starts its kernel and installs it when the image
+// does not ship it: Python installs ipykernel from PyPI (pypi.org,
+// files.pythonhosted.org) unless the image's Python has it; TypeScript and
+// JavaScript download Deno from dl.deno.land unless deno is on the image's PATH.
+// That run takes a few seconds longer, and a network policy blocking those hosts
+// prevents the install: allow them or use an image that ships the kernel. A run
+// that fails before the code reaches a kernel returns ErrKernelUnavailable
+// (source SDK) carrying the sandbox's setup diagnostic, alongside the partial
+// result with ProcessReasonFailed. A kernel lost mid-run returns its partial
+// output with ProcessReasonLost and a nil error; the next run starts a new kernel.
 func (s *Sandbox) RunCode(ctx context.Context, code string, opts *RunCodeOptions) (*RunCodeResult, error) {
 	return s.Interpreter().Run(ctx, code, opts)
 }

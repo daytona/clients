@@ -468,10 +468,14 @@ Every fetched sandbox exposes its metadata, read-only:
 `persistent`, `spot`, `spot_evicted_at`,
 `lifecycle_policy`, `forked_from`, `user`, and `error` (network policy is read through `get_network_policy()`).
 Update it with methods such as `set_labels()` and reload it with
-`refresh_data()`. A handle from `create*()` or `fork()` whose wait did not read
-the sandbox (`wait_seconds=0`, or a wait that ended early) holds only what the
-create response carries: fields it does not report are `None` (unknown), with
-`labels is None` rather than `{}`, until `refresh_data()` reads them; `state` is
+`refresh_data()`. A handle from `create*()` holds only what the create response
+carries (id, name, state, image and, when reported, the lifecycle policy) until
+something reads the sandbox, and a sandbox that is already started when the
+create answers (the usual case) is not read: call `refresh_data()` before
+reading `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
+response does not report. Until then they are `None` (unknown), with
+`labels is None` rather than `{}`. A `fork()` handle whose wait did not read the
+sandbox (`wait_seconds=0`, or a failed read) is the same. `state` is
 `"unknown"` and `raw_state` is `None` before a status is known. A class this SDK does not know reads as
 `sandbox_class == "unknown"` with the API's value in `raw_sandbox_class`.
 `sandbox.access_token` is the sandbox-scoped token the handle authenticates
@@ -660,7 +664,11 @@ to apply its maximum.
 Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
 disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
 convert to a whole number of MiB (`value * 1024`), else `BadRequestError`.
-Sizes read back exactly. `create_from_snapshot()` inherits the snapshot's
+Sizes read back exactly. Inside the sandbox, `nproc` reports the CPU limit
+(`cpu_max`), while memory can start near the guaranteed `memory` and grow on
+demand up to `memory_max`: `/proc/meminfo` and `free` show the memory present
+now, and `sandbox.metrics()` reports the limit as the total.
+`create_from_snapshot()` inherits the snapshot's
 configuration and takes no resources, CPU selectors, environment, volumes,
 secrets or network policy.
 
@@ -1040,6 +1048,29 @@ is interrupted. Results are split into `results[]`, `logs{stdout,stderr}`,
 `error`, and `process`. That rich result shape comes from the interpreter run
 path itself; reconnecting a serialized code-process handle later does not
 recreate it.
+
+The first run of a language in a sandbox starts its kernel and installs it when
+the image does not ship it, which adds a few seconds: Python installs
+`ipykernel` from PyPI (`pypi.org`, `files.pythonhosted.org`) unless the image's
+Python already has it, and TypeScript / JavaScript download Deno from
+`dl.deno.land` unless `deno` is on the image's `PATH`. A sandbox whose network
+policy blocks those hosts needs an image that ships the kernel, or those
+domains in `allow_domains`. When the kernel cannot be installed or started,
+the code does not run and `run_code()` raises `KernelUnavailableError` with the
+sandbox's setup diagnostic:
+
+```python
+from daytona.v2 import KernelUnavailableError
+
+try:
+    sandbox.run_code("print(1)")
+except KernelUnavailableError as error:
+    print(error.message)  # ... cannot install ipykernel (is PyPI reachable from this sandbox?) ...
+```
+
+A kernel that stops during a run returns the output produced so far with
+`result.process.reason == "lost"`; its state is gone, and the next run starts a
+new kernel.
 
 ### Git
 

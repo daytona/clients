@@ -385,7 +385,7 @@ class Sandbox:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
-        """Execute code and return its result: an alias for ``interpreter.run()``, same parameters."""
+        """Execute code and return its result: an alias for ``interpreter.run()``, same parameters and errors."""
         return self._bridge.call(
             lambda: self._impl.run_code(
                 code,
