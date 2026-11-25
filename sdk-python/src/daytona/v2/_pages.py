@@ -56,11 +56,23 @@ def page_retry_delay(error: DaytonaError, retry: int) -> Optional[float]:
     return max(PAGE_READ_DELAYS_SECONDS[retry] * random.uniform(0.8, 1.0), hint)
 
 
+def _with_page_cursor(error: DaytonaError, cursor: Optional[str]) -> DaytonaError:
+    """A copy of ``error`` (same class, args and fields) carrying
+    ``page_cursor``. The caught error itself is never changed: concurrent
+    walks could receive one shared instance, as they can in the TypeScript
+    and Go SDKs. Built without calling the class's constructor, whose
+    signature differs between error classes."""
+    copied = type(error).__new__(type(error), *error.args)
+    copied.__dict__.update(error.__dict__)
+    copied.page_cursor = cursor
+    return copied
+
+
 async def read_page(
     fetch_page: Callable[[Optional[str]], Awaitable[ListResult[_T]]], cursor: Optional[str]
 ) -> ListResult[_T]:
     """One page, read again after a transient failure (see
-    :func:`page_retry_delay`); the error that ends it carries
+    :func:`page_retry_delay`); the error that ends it is a copy carrying
     ``page_cursor=cursor``, the cursor to resume the walk with."""
     retry = 0
     while True:
@@ -69,8 +81,8 @@ async def read_page(
         except DaytonaError as error:
             delay = page_retry_delay(error, retry)
             if delay is None:
-                error.page_cursor = cursor
-                raise
+                copied = _with_page_cursor(error, cursor)
+                raise copied.with_traceback(error.__traceback__) from error.__cause__
         retry += 1
         await _sleep(delay)
 

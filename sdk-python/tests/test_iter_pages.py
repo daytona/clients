@@ -8,6 +8,7 @@ The TypeScript twin is tests/iter-pages.test.ts; Go's is page_retry_test.go."""
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Callable
 from typing import Any, Optional
 
@@ -201,8 +202,12 @@ async def test_an_error_that_retrying_cannot_fix_is_raised_at_once(
     with pytest.raises(DaytonaError) as raised:
         [item async for item in _pages.iter_pages(fetch, "c1")]
 
-    assert raised.value is error
-    assert error.page_cursor == "c1"
+    copied = raised.value
+    assert copied is not error and type(copied) is type(error)
+    assert copied.args == error.args and str(copied) == str(error)
+    assert (copied.status_code, copied.code, copied.source) == (error.status_code, error.code, error.source)
+    assert copied.page_cursor == "c1"
+    assert error.page_cursor is None
     assert calls == ["c1"]
     assert sleeps == []
 
@@ -308,3 +313,44 @@ async def test_every_iterator_reads_a_transiently_failed_page_again(
 
     assert len(route.calls) == 2
     assert len(sleeps) == 1
+
+
+@pytest.mark.anyio
+async def test_concurrent_walks_failing_with_one_shared_error_get_their_own_cursors() -> None:
+    shared = create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")
+    both_started = asyncio.Event()
+    started = 0
+
+    async def fetch(cursor: Optional[str]) -> ListResult[str]:
+        nonlocal started
+        started += 1
+        if started == 2:
+            both_started.set()
+        await both_started.wait()
+        raise shared
+
+    async def walk(cursor: str) -> DaytonaError:
+        with pytest.raises(DaytonaError) as raised:
+            [item async for item in _pages.iter_pages(fetch, cursor)]
+        return raised.value
+
+    first, second = await asyncio.gather(walk("cursor-A"), walk("cursor-B"))
+
+    assert (first.page_cursor, second.page_cursor) == ("cursor-A", "cursor-B")
+    assert shared.page_cursor is None
+
+
+@pytest.mark.anyio
+async def test_the_copy_keeps_the_cause_and_the_original_traceback() -> None:
+    async def fetch(cursor: Optional[str]) -> ListResult[str]:
+        try:
+            raise OSError("reset")
+        except OSError as exc:
+            raise create_error("bad", 400, "BAD_REQUEST", "DAYTONA_API") from exc
+
+    with pytest.raises(BadRequestError) as raised:
+        [item async for item in _pages.iter_pages(fetch)]
+
+    assert isinstance(raised.value.__cause__, OSError)
+    frames = [entry.name for entry in raised.traceback]
+    assert "fetch" in frames
