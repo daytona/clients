@@ -11,6 +11,8 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -112,7 +114,14 @@ func liveEventsConnection(ctx context.Context, region string) (events.Connection
 	var ticket struct {
 		Ticket string `json:"ticket"`
 	}
-	if err := rawAPI(ctx, http.MethodPost, "/events/"+region+"/ticket", nil, &ticket); err != nil {
+	status, err := rawAPIOnce(ctx, http.MethodPost, "/events/"+region+"/ticket", nil, &ticket)
+	if err != nil {
+		// CI jobs share one organization key, so the mint can be rate limited.
+		// Retry after the advertised delay, as the SDK's own connector does;
+		// every other refusal disables the endpoint.
+		if status == http.StatusTooManyRequests {
+			return events.Connection{RetryAfter: ticketRetryAfter(err)}, err
+		}
 		return events.Connection{Permanent: true}, err
 	}
 	base := strings.TrimRight(os.Getenv("DAYTONA_V2_API_URL"), "/")
@@ -147,4 +156,18 @@ func liveEventsUpdate(t *testing.T, ctx context.Context, ch <-chan events.Update
 		t.Fatal(ctx.Err())
 		return events.Update{}
 	}
+}
+
+// ticketRetryAfter reads retry_after_seconds from a rate-limited ticket mint,
+// defaulting to one minute when the body does not carry it.
+func ticketRetryAfter(err error) time.Duration {
+	match := regexp.MustCompile(`"retry_after_seconds":\s*(\d+)`).FindStringSubmatch(err.Error())
+	if match == nil {
+		return time.Minute
+	}
+	seconds, parseErr := strconv.Atoi(match[1])
+	if parseErr != nil {
+		return time.Minute
+	}
+	return time.Duration(seconds) * time.Second
 }
