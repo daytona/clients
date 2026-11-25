@@ -230,7 +230,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       // hold it from an earlier wait, and the read may lag as well): the
       // long-poll reads that follow decide, under the same deadline. They are
       // no proof against a lagging row: a loose `wait=running` still answers
-      // `stopped` at once.
+      // `stopped` at once. The first long poll keeps the minimum spacing.
+      await pollForState(Date.now())
+      return
     }
     if (resolved !== undefined) {
       context.observe(resolved)

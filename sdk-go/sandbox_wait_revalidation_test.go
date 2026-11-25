@@ -349,3 +349,37 @@ func TestLifecycle_whenTargetEventReadIsIrreversible_returnsTerminalErrorAtOnce(
 	require.Equal(t, SandboxStateDestroying, sandbox.State())
 	require.Len(t, reads(fake), 1)
 }
+
+func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacing(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		frame stateObservation
+	}{
+		{"terminal-report", stateObservation{State: SandboxStateStarted, RawState: "running"}},
+		{"target-report", stateObservation{State: SandboxStatePaused, RawState: "paused"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				// Given: the read that confirms the report shows the state before the pause.
+				var stamps []time.Time
+				read := scriptedReads(t, "running", "paused")
+				sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
+					if r.Method == http.MethodPost {
+						writeJSON(t, w, map[string]string{})
+						return
+					}
+					stamps = append(stamps, time.Now())
+					read(w, r)
+				})
+				sandbox.client.stateSource = eventSource(test.frame)
+				// When
+				err := sandbox.Pause(t.Context(), &LifecycleWaitOptions{Timeout: 30 * time.Second})
+				// Then: the first long poll waits out the minimum spacing.
+				require.NoError(t, err)
+				require.Equal(t, SandboxStatePaused, sandbox.State())
+				require.Len(t, stamps, 2)
+				require.GreaterOrEqual(t, stamps[1].Sub(stamps[0]), waitMinInterval)
+			})
+		})
+	}
+}

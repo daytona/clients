@@ -1027,6 +1027,9 @@ class AsyncSandbox:
         effective_terminal = terminal_state_set - ({"destroying"} if "destroyed" in target_states else set())
         # What a plain read that confirms an events report may raise on its own.
         confirmed_terminal = effective_terminal & _IRREVERSIBLE_STATES
+        # When the read that confirms a terminal events report ended, if one
+        # hands over to polling: the first long poll keeps the minimum spacing.
+        confirm_read_end: Optional[float] = None
         exact = (
             wait_target is not None
             and wait_query_key(_wait_query_state(wait_target), effective_terminal) == "wait_exact"
@@ -1180,6 +1183,7 @@ class AsyncSandbox:
                 # as well): the long-poll reads that follow decide, under the
                 # same deadline. They are no proof against a lagging row: a
                 # loose `wait=running` still answers `stopped` at once.
+                confirm_read_end = _clock.monotonic()
             else:
                 _observe_outcome(resolved)
                 # A socket frame carries only the state. Callers (create, start,
@@ -1221,7 +1225,9 @@ class AsyncSandbox:
                 )
                 return
 
-        await self._poll_for_state(target_states, effective_terminal, wait_target, deadline, exact)
+        await self._poll_for_state(
+            target_states, effective_terminal, wait_target, deadline, exact, last_read_end=confirm_read_end
+        )
 
     async def _poll_for_state(
         self,
@@ -1333,8 +1339,10 @@ class AsyncSandbox:
         one read of the sandbox's details; when that read shows another state,
         it decides instead: a state terminal for this wait raises, and any
         other state keeps the wait going under the same deadline, so the
-        returned handle is in a
-        requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
+        returned handle is in a requested state. No read follows a
+        ``destroyed`` report (it would be a 404) or a report that arrives as
+        the budget runs out, and a failed read keeps the reported state; the
+        handle then carries the reported target. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits.

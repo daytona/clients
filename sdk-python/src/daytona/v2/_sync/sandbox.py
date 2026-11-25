@@ -548,8 +548,10 @@ class Sandbox:
         one read of the sandbox's details; when that read shows another state,
         it decides instead: a state terminal for this wait raises, and any
         other state keeps the wait going under the same deadline, so the
-        returned handle is in a
-        requested state (a failed read keeps the reported one). When the events hub has reported nothing decisive, the
+        returned handle is in a requested state. No read follows a
+        ``destroyed`` report (it would be a 404) or a report that arrives as
+        the budget runs out, and a failed read keeps the reported state; the
+        handle then carries the reported target. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits.

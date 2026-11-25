@@ -178,6 +178,7 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 	if slices.Contains(w.terminal, fresh.State) && irreversibleState(fresh.State) {
 		return true, w.terminalError(fresh)
 	}
+	w.lastRead = time.Now()
 	return false, nil
 }
 

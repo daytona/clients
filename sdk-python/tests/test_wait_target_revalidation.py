@@ -14,6 +14,7 @@ when that operation fails. The TypeScript twin is
 
 from __future__ import annotations
 
+import time
 from typing import Callable, Optional
 
 import pytest
@@ -373,3 +374,18 @@ async def test_a_held_failure_state_that_every_read_confirms_is_reported_by_the_
     assert raised.value.raw_state == stale
     reads = api.reads()[len(before) :]
     assert [read.params.get("wait") for read in reads] == [None, frame]
+
+
+@pytest.mark.parametrize("held", [True, False], ids=["terminal-report", "target-report"])
+async def test_the_first_long_poll_after_a_confirming_read_keeps_the_minimum_spacing(held: bool) -> None:
+    # The read that confirms an events report shows the state before the pause,
+    # and polling takes over; its first long poll waits out the minimum spacing.
+    stamps: list[float] = []
+    api = _Api(["running", "paused"], on_read=lambda: stamps.append(time.monotonic()))
+    sandbox = _sandbox(api, _ScriptedHub("running" if held else "paused"), state="started")
+
+    await sandbox.pause(timeout=30)
+
+    assert sandbox.state == "paused"
+    assert [read.params.get("wait") for read in api.reads()] == [None, "paused"]
+    assert stamps[1] - stamps[0] >= 0.19

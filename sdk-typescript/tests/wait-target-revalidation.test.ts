@@ -263,3 +263,19 @@ it('throws at once when the read after a target event shows a state no lag can s
   expect([(error as SandboxTerminalStateError).state, (error as SandboxTerminalStateError).rawState]).toEqual(['destroying', 'deleting'])
   expect(get).toHaveBeenCalledTimes(1)
 })
+
+it.each([
+  { path: 'terminal report', frame: 'running' },
+  { path: 'target report', frame: 'paused' },
+])('keeps the minimum spacing before the first long poll after a confirming read ($path)', async ({ frame }) => {
+  // The read that confirms an events report shows the state before the pause,
+  // and polling takes over; its first long poll waits out the minimum spacing.
+  const stamps: number[] = []
+  const { sandbox, get } = fixture(['running', 'paused'], [frame], () => { stamps.push(performance.now()) })
+
+  await sandbox.pause({ timeoutSeconds: 30 })
+
+  expect(sandbox.state).toBe('paused')
+  expect(readParams(get)).toEqual([undefined, expect.objectContaining({ wait: 'paused' })])
+  expect(stamps[1]! - stamps[0]!).toBeGreaterThanOrEqual(190)
+})
