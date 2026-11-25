@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/hex"
 	"net/url"
+	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -37,6 +39,11 @@ func (c *Client) Get(ctx context.Context, id string, opts *GetSandboxOptions) (*
 	}
 	if options.AccessToken != "" {
 		if err := headerText(options.AccessToken, "AccessToken"); err != nil {
+			return nil, err
+		}
+	}
+	if options.ToolboxURL != "" {
+		if err := checkToolboxOverride(options.ToolboxURL); err != nil {
 			return nil, err
 		}
 	}
@@ -107,4 +114,32 @@ func regionOf(id string) string {
 		return ""
 	}
 	return region
+}
+
+// checkToolboxOverride refuses what the shared HTTP base URL rule lets through
+// in a caller's ToolboxURL, as the Python and TypeScript SDKs refuse it: a
+// space or control character anywhere, a port above 65535 and a percent sign
+// in the host (an encoded host or an IPv6 zone ID). URLs the API returns are
+// not checked here.
+func checkToolboxOverride(raw string) error {
+	const message = "ToolboxURL must be an http(s) URL with a host, a port up to 65535, " +
+		"no percent-encoded host, and no whitespace or control characters"
+	for _, char := range raw {
+		if char <= ' ' || char == 0x7f || unicode.IsSpace(char) {
+			return badRequest(message)
+		}
+	}
+	masked := strings.NewReplacer("{sandboxId}", "sandbox", "{sandbox_id}", "sandbox").Replace(raw)
+	// An unparsable URL is left to the shared rule, which reports it.
+	if parsed, err := url.Parse(masked); err == nil {
+		if strings.Contains(parsed.Host, "%") {
+			return badRequest(message)
+		}
+		if port := parsed.Port(); port != "" {
+			if number, convErr := strconv.Atoi(port); convErr != nil || number > 65535 {
+				return badRequest(message)
+			}
+		}
+	}
+	return nil
 }

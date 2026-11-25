@@ -48,14 +48,14 @@ export function assertPlaceholderInPath(url: string): void {
 /**
  * Whether the raw authority (between `://` and the first `/`, `?` or `#`) of
  * an http(s) URL is one every SDK reads the same way: not empty, no `\`, and
- * no `%` in a host that is not an IPv6 literal. The WHATWG parser would
+ * no `%` in the host (an encoded host or an IPv6 zone ID). The WHATWG parser would
  * otherwise rewrite `https:///h`, `https://h\p` and `http://%41.example/`
  * into hosts the Go and Python SDKs refuse.
  */
 function plainAuthority(url: string): boolean {
   const authority = /^https?:\/\/([^/?#]*)/i.exec(url)?.[1] ?? ''
   const host = authority.slice(authority.lastIndexOf('@') + 1)
-  return host !== '' && !authority.includes('\\') && (host.startsWith('[') || !host.includes('%'))
+  return host !== '' && !authority.includes('\\') && !host.includes('%')
 }
 
 /**

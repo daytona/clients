@@ -2384,14 +2384,14 @@ _HTTP_URL_AUTHORITY: Final = re.compile(r"https?://([^/?#]*)", re.IGNORECASE)
 def _plain_authority(url: str) -> bool:
     """Whether the raw authority (between ``://`` and the first ``/``, ``?``
     or ``#``) of an http(s) URL is one every SDK reads the same way: not
-    empty, no ``\\``, and no ``%`` in a host that is not an IPv6 literal
-    (the TypeScript SDK checks the same)."""
+    empty, no ``\\``, and no ``%`` in the host (so no IPv6 zone id either),
+    as the TypeScript and Go SDKs check."""
     match = _HTTP_URL_AUTHORITY.match(url)
     if match is None:
         return False
     authority = match.group(1)
     host = authority[authority.rfind("@") + 1 :]
-    return bool(host) and "\\" not in authority and (host.startswith("[") or "%" not in host)
+    return bool(host) and "\\" not in authority and "%" not in host
 
 
 def _check_toolbox_override_url(url: str, name: str) -> None:

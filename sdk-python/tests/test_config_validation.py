@@ -158,6 +158,7 @@ def _detail(url: str) -> JsonObject:
         ("https://toolbox.example\\sbx", _URL_MESSAGE),
         ("http://%41.toolbox.example/sbx", _URL_MESSAGE),
         ("http://[::1/{sandbox_id}", _URL_MESSAGE),
+        ("http://[fe80::1%25eth0]:8080/sbx", _URL_MESSAGE),
         ("https://{sandbox_id}.toolbox.example/", _PLACEHOLDER_MESSAGE),
     ],
 )

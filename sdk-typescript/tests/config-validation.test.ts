@@ -60,6 +60,7 @@ describe('get() toolbox URL override', () => {
     ['an empty authority', 'https:///toolbox.example/sbx', URL_MESSAGE],
     ['a backslash in the authority', 'https://toolbox.example\\sbx', URL_MESSAGE],
     ['a percent-encoded host', 'http://%41.toolbox.example/sbx', URL_MESSAGE],
+    ['an IPv6 zone ID', 'http://[fe80::1%25eth0]:8080/sbx', URL_MESSAGE],
     ['a placeholder in the host', 'https://{sandboxId}.toolbox.example/', 'the {sandboxId} placeholder in a toolbox URL is only supported in the path'],
   ] as const)('refuses %s before any request', async (_name, toolboxUrl, message) => {
     const api = await startFakeApi([])
