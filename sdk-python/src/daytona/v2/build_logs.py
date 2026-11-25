@@ -674,10 +674,10 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
         )
     except (ValueError, _ProtocolError):
         return create_error(f"build log HTTP {status}", status)
-    # No usable prose (absent, empty or malformed) keeps the build-log status
+    # No usable prose (absent, blank or malformed) keeps the build-log status
     # fallback, still dispatched on code/source — and never raises on a bad type.
     message, error = payload.get("message"), payload.get("error")
-    if not (isinstance(message, str) and message) and not (isinstance(error, str) and error):
+    if not (isinstance(message, str) and message.strip()) and not (isinstance(error, str) and error.strip()):
         payload = {**payload, "message": f"build log HTTP {status}"}
     return parse_error_payload(status, payload)
 

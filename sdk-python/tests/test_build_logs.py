@@ -891,6 +891,22 @@ async def test_http_error_reads_a_code_only_from_an_application_json_body(conten
     assert (error.status_code, error.code, error.message) == (404, None, "build log HTTP 404")
 
 
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        (b'{"code":"NOT_FOUND","message":"   "}', "build log HTTP 404"),
+        (b'{"code":"NOT_FOUND","message":" ","error":"\\t"}', "build log HTTP 404"),
+        (b'{"code":"NOT_FOUND","message":"  ","error":"gone"}', "gone"),
+    ],
+)
+async def test_http_error_treats_blank_prose_as_absent(body, message):
+    # The same as TypeScript's build-log reader: blank prose keeps the build-log fallback.
+    api, _, _ = setup([httpx.Response(404, content=body, headers={"content-type": "application/json"})])
+    with pytest.raises(NotFoundError) as failure:
+        await read_build_logs(api, DISCOVERY)
+    assert (failure.value.code, failure.value.message) == ("NOT_FOUND", message)
+
+
 # Shared with the TypeScript SDK's errors-contract.test.ts: a JSON error body
 # nested past 600 levels is unreadable, as on the transport's error path.
 @pytest.mark.parametrize(("depth", "readable"), [(600, True), (601, False)])

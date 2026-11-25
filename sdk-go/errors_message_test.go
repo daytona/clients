@@ -59,6 +59,8 @@ func TestErrorFromResponse_whenEnvelopeOrBodyHasNoUsableProse(t *testing.T) {
 		{"blank message and an error", "application/json", `{"message":"  ","error":"bad input"}`, "bad input"},
 		{"blank JSON body", "application/json", "  \n", "HTTP 400"},
 		{"JSON null", "application/json", "null", "null"},
+		{"JSON string", "application/json", `"oops"`, `"oops"`},
+		{"JSON array", "application/json", "[1, 2]", "[1, 2]"},
 		{"blank text body", "text/plain", "  ", "HTTP 400"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

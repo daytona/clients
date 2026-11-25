@@ -1262,6 +1262,10 @@ function decodeResponseBody(this: DaytonaAxiosRequestConfig, data: unknown, head
     return text
   }
   if (json && ok && nestedDeeperThan(value)) this.daytonaTooDeepBody = true
+  // An error body that is JSON but no envelope (a string, an array, `null`)
+  // is its text, as the fetch path and the Python and Go SDKs read it; one
+  // nested too deeply stays parsed, so the error mapping can refuse it.
+  if (!ok && (typeof value !== 'object' || value === null || Array.isArray(value)) && !nestedDeeperThan(value)) return text
   return this.daytonaWantsText === true ? text : value
 }
 
