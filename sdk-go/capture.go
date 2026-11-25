@@ -23,6 +23,9 @@ type CaptureImageOptions struct {
 // for readiness. Linux sandboxes keep running. macOS requires a stopped,
 // persistent sandbox; ErrDiskNotReady means the disk is not ready yet.
 // Combining Name and IdleExpiry returns ErrBadRequest before any request.
+// A sandbox still starting or stopping is retried for up to 30 seconds on a
+// transition-in-progress refusal; other failures are returned immediately.
+// Caller context and client closure apply.
 func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (*Image, error) {
 	options := CaptureImageOptions{}
 	if opts != nil {
@@ -37,7 +40,7 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 		return nil, err
 	}
 	var raw JSONValue
-	err = s.client.api().do(ctx, apiRequest{
+	err = s.client.retrySandboxTransition(ctx, apiRequest{
 		Method: http.MethodPost, Path: "/sandboxes/" + segment + "/images", Body: body, Result: &raw,
 	})
 	if err != nil {
@@ -54,6 +57,9 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 // Name must be non-blank, valid UTF-8; otherwise it returns ErrBadRequest
 // before any request. Both sandbox-write and snapshot-write permissions are
 // required; use Snapshots.Get with Wait to observe completion.
+// A sandbox still starting or stopping is retried for up to 30 seconds on a
+// transition-in-progress refusal; other conflicts are not retried.
+// Caller context and client closure apply.
 func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) (*Snapshot, error) {
 	if createTrim(name) == "" || !utf8.ValidString(name) {
 		return nil, badRequest("name must be a non-empty UTF-8 string")
@@ -63,7 +69,7 @@ func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) (*Snapshot, e
 		return nil, err
 	}
 	var raw JSONValue
-	err = s.client.api().do(ctx, apiRequest{
+	err = s.client.retrySandboxTransition(ctx, apiRequest{
 		Method: http.MethodPost, Path: "/sandboxes/" + segment + "/snapshots",
 		Body: struct {
 			Name string `json:"name"`

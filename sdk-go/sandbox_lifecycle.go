@@ -10,6 +10,7 @@ import (
 
 // Stop stops the sandbox and waits for stopped. The default wait is 60 seconds;
 // NoWait returns after acceptance. Toolbox calls require Start before reuse.
+// Persistence is required; disk survives Stop/Start, memory and processes do not.
 // A failed completion returns ErrRequestTimeout or *SandboxTerminalStateError.
 func (s *Sandbox) Stop(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{action: "stop", target: SandboxStateStopped}, opts)
@@ -18,6 +19,8 @@ func (s *Sandbox) Stop(ctx context.Context, opts *LifecycleWaitOptions) error {
 // Pause saves sandbox memory and waits for paused (default 60 seconds).
 // Returning to started is a *SandboxTerminalStateError. NoWait skips waiting.
 // The server decides whether the sandbox supports pausing.
+// Linux requires persistence; Pause/Resume preserves disk, memory and processes.
+// Attached volumes currently prevent pausing (ErrConflict).
 func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 	return s.transition(ctx, lifecycleTransition{
 		action: "pause", target: SandboxStatePaused, failure: SandboxStateStarted,

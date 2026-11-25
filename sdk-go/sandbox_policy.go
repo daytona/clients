@@ -9,8 +9,8 @@ import (
 )
 
 // UpdateLifecyclePolicy changes supplied policy settings and caches the echoed
-// policy. Nil or empty options return ErrBadRequest. Unknown classes return
-// ErrUnsupportedOperation. Deleted sandboxes return ErrConflict. Actions involving
+// policy. Nil or empty options return ErrBadRequest. Deleted sandboxes return
+// ErrConflict. Actions involving
 // deletion additionally require delete:sandboxes permission.
 func (s *Sandbox) UpdateLifecyclePolicy(ctx context.Context, opts *LifecyclePolicyOptions) (*LifecyclePolicy, error) {
 	body, err := lifecyclePolicyBody(opts, false)
@@ -22,18 +22,13 @@ func (s *Sandbox) UpdateLifecyclePolicy(ctx context.Context, opts *LifecyclePoli
 	}
 	info := s.Info()
 	if info.Class == "" || (info.Class == SandboxClassUnknown && info.RawClass == "") ||
-		(info.Class == SandboxClassMacOS && info.Persistent == nil) {
+		(info.Persistent == nil && (opts.OnTimeout == LifecycleActionStop ||
+			opts.OnTimeout == LifecycleActionPause || opts.OnIdleTimeout == LifecycleActionStop ||
+			opts.OnIdleTimeout == LifecycleActionPause)) {
 		if refreshErr := s.Refresh(ctx); refreshErr != nil {
 			return nil, refreshErr
 		}
 		info = s.Info()
-	}
-	switch info.Class {
-	case SandboxClassLinux, SandboxClassMacOS:
-	case SandboxClassUnknown:
-		return nil, newSDKError(CodeUnsupportedOperation, 400, "unsupported sandbox class "+info.RawClass)
-	default:
-		return nil, newSDKError(CodeUnsupportedOperation, 400, "unsupported sandbox class "+info.RawClass)
 	}
 	if classErr := lifecyclePolicyClassSupport(opts, info); classErr != nil {
 		return nil, classErr

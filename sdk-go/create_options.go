@@ -41,6 +41,12 @@ type CreateOptions struct {
 	Secrets []string
 	// Spot selects interruptible capacity; nil uses the platform default.
 	Spot *bool
+	// Persistent preserves disk across Stop/Start and enables Pause/Resume,
+	// which also preserve memory and processes. Nil uses the default false.
+	// Linux Stop, Start, Restart, Pause, Resume and Fork require persistence.
+	// Volumes are accepted, but attached volumes prevent Pause and Fork.
+	// Persistent Linux defaults to pausing after a 300-second lifetime.
+	Persistent *bool
 	// User selects the default operating-system user.
 	User string
 	// NetworkPolicy configures egress policy; nil leaves the policy unspecified.
@@ -50,7 +56,8 @@ type CreateOptions struct {
 }
 
 // CreateFromSnapshotOptions configures a Linux sandbox restored from a snapshot.
-// Resource sizing, environment, volumes and secrets come from the snapshot.
+// Resource sizing, environment, volumes, secrets and persistence come from the
+// snapshot; persistence cannot be overridden.
 type CreateFromSnapshotOptions struct {
 	// Name stamps labels["name"] and derives a stable idempotency key.
 	Name string

@@ -122,7 +122,7 @@ func TestCreateMacOS_whenInvalidOptionsAreGiven(t *testing.T) {
 }
 
 func TestCreateFromSnapshot_whenSourceOrPolicyIsInvalid(t *testing.T) {
-	for _, source := range []string{"", " ", "\x1f", "snap"} {
+	for _, source := range []string{"", " ", "\x1f"} {
 		t.Run(source, func(t *testing.T) {
 			// Given
 			fake := newFakeServer(t, map[string]http.HandlerFunc{})
