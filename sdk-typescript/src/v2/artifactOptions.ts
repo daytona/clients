@@ -80,7 +80,8 @@ export async function getArtifact<T extends { readonly status: string }>(http: A
       // Only expiry of this wait's own cap is the wait running out.
       if (error instanceof ClientTimeoutError && deadline !== undefined && (deadlineOwnsTimeout || Date.now() >= deadline)) throw timedOut(error)
       if (!retry.note(error)) throw error
-      await retry.pause(deadline)
+      // Never sooner than the one-second poll spacing, whatever the back-off.
+      await retry.pause(deadline, started + 1000)
       continue
     }
     retry.succeeded()

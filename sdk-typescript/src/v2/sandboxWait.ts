@@ -4,7 +4,7 @@
  */
 
 import { strip } from './pyText.js'
-import { AuthenticationError, BadRequestError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
+import { AuthenticationError, BadRequestError, ClientClosedError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
 import { targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
@@ -242,6 +242,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
             readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError
             || (readError instanceof RequestTimeoutError && readError.source === 'SDK')
             || readError instanceof AuthenticationError || readError instanceof ForbiddenError
+            || readError instanceof ClientClosedError
           ) throw readError
           if (readError instanceof DaytonaError) throw new RequestTimeoutError(error.message, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: readError })
           throw readError

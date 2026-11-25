@@ -320,7 +320,8 @@ export class ImagesService {
         } catch (error) {
           // A read the pull's deadline cut is the pull running out (below).
           if (controller.signal.aborted || (activeRequestUsesDeadline && isRequestBudgetTimeout(error)) || !retry.note(error)) throw error
-          await retry.pause(deadline)
+          // Never sooner than the poll spacing, whatever the back-off.
+          await retry.pause(deadline, lastPollStarted + IMAGE_POLL_MIN_INTERVAL_MS)
           continue
         }
         retry.succeeded()

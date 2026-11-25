@@ -16,6 +16,7 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { createHttpClient, inBrowser, sandboxState } from './http.js'
 import {
   BadRequestError,
+  ClientClosedError,
   DaytonaError,
   AuthenticationError,
   ForbiddenError,
@@ -1146,7 +1147,8 @@ export class WaitHub {
       outcome = await sandboxPollFn()
     } catch (err) {
       if (!waiterStillPending(this.waiters, waiter)) return
-      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof ForbiddenError) {
+      // A closed client ends its waits, as a refused credential does.
+      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof ForbiddenError || err instanceof ClientClosedError) {
         this.clearWaiterTimers(waiter)
         this.removeWaiter(waiter)
         this.maybeUnsubscribeForId(waiter.sandboxId)

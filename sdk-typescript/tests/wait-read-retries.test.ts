@@ -565,3 +565,51 @@ describe('client close during a retry pause', () => {
     }
   })
 })
+
+describe('poll spacing after a failed readiness read', () => {
+  const slowDown = { status: 429, body: { code: 'RATE_LIMITED', message: 'slow down' } }
+
+  it('keeps an artifact wait and a pull to their one-second spacing', async () => {
+    const artifact = imagesWith([{ body: imageWire({ status: 'building' }) }, slowDown, { body: imageWire({ status: 'ready' }) }])
+    await artifact.images.get('img-one', { wait: 'ready', timeoutSeconds: 60 })
+    expect(gaps(artifact.record)[1]).toBeGreaterThanOrEqual(995)
+    const pull = imagesWith([{ body: { id: 'img-one', status: 'pending' } }, { body: imageWire({ status: 'pending' }) }, slowDown, { body: imageWire({ status: 'ready' }) }])
+    await pull.images.pull('alpine', { timeoutSeconds: 60 })
+    expect(gaps(pull.record)[2]).toBeGreaterThanOrEqual(995)
+  })
+})
+
+describe('client close on a hub-backed wait', () => {
+  it('ends the wait when a probe finds the client closed', async () => {
+    const http = createHttpClient('http://api.invalid', 'key')
+    const closed = new ClientClosedError()
+    script(http, [{ error: closed }])
+    const sandbox = createSandbox('sbx', http, undefined, 'key', undefined, {}, undefined, undefined, probingHub(true))
+    // The reserve's read after the hub's share must not turn the close into a timeout.
+    const error = await caught(sandbox.wait({ until: 'started', timeoutSeconds: 1 }))
+    expect(error).toBeInstanceOf(ClientClosedError)
+  })
+
+  it('makes the hub reject a waiter whose probe finds the client closed', async () => {
+    const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
+    process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
+    const socket = { readyState: 1, onopen: null, onmessage: null, onerror: null, onclose: null, send: () => undefined, close: () => undefined }
+    const ticketApi = {
+      post: jest.fn().mockResolvedValue({ data: { ticket: 't0k3n', expires_in_ms: 30_000, subprotocol: 'daytona.events.v1' }, headers: {} }),
+      get: jest.fn(),
+      defaults: { timeout: 30_000 },
+    } as unknown as AxiosInstance
+    const hub = new WaitHub('https://api.test', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => socket as unknown as WebSocket, ticketApi, { earlyProbeMs: 50, noFrameTimeoutMs: 60_000 })
+    try {
+      const outcome = caught(hub.wait('sbx', targetPredicate(new Set(['started']), new Set(['error'])), {
+        timeout: 0,
+        sandboxPollFn: async () => { throw new ClientClosedError() },
+      }))
+      await expect(outcome).resolves.toBeInstanceOf(ClientClosedError)
+    } finally {
+      await hub.detach()
+      if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']
+      else process.env['DAYTONA_SANDBOX_EVENTS'] = savedEnv
+    }
+  }, 10_000)
+})
