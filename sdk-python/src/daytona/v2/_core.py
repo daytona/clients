@@ -76,6 +76,7 @@ from ._gen.toolbox import (
 from ._gen.toolbox import (
     TerminalSize as ToolboxTerminalSize,
 )
+from ._read_retry import remember_retry_after
 from ._timestamps import parse_optional_timestamp, rfc3339_timestamp
 from ._timestamps import parse_timestamp as parse_wire_timestamp
 from .errors import DaytonaError, UnsupportedOperationError, create_error, redirect_error
@@ -348,16 +349,25 @@ def parse_json_bytes(content: bytes) -> JsonValue:
     return loads_json(content.decode("utf-8"))
 
 
-def error_from_response(status_code: int, body: bytes, *, content_type: Optional[str]) -> DaytonaError:
+def error_from_response(
+    status_code: int, body: bytes, *, content_type: Optional[str], retry_after: Optional[str] = None
+) -> DaytonaError:
     """The status's typed error, with the code and details of the body when
     it is a JSON object declared as ``application/json``; any other body is
     only the message. A JSON body nested deeper than :data:`JSON_MAX_DEPTH`
     is unreadable, as an oversized one is: the error carries no code or
-    details from it.
+    details from it. ``retry_after`` (the ``Retry-After`` header) is kept as
+    the retry hint of the wait reads (:mod:`._read_retry`).
 
     The SDK never follows a redirect: a 3xx response is a
     :class:`DaytonaError` carrying its status (source ``SDK``), whatever its
     body says."""
+    error = _error_from_response(status_code, body, content_type)
+    remember_retry_after(error, retry_after)
+    return error
+
+
+def _error_from_response(status_code: int, body: bytes, content_type: Optional[str]) -> DaytonaError:
     if 300 <= status_code < 400:
         return redirect_error(status_code)
     payload: Optional[JsonObject] = None

@@ -3,7 +3,13 @@
 
 """The page walk behind every ``iter()``: bounded retries of a page read and
 the failed page's cursor on the error, the same policy as the TypeScript and
-Go SDKs."""
+Go SDKs.
+
+Unlike a wait's reads, a walk has no overall deadline, so it retries only
+responses that say "try again" (no response, HTTP 429 other than
+``LIMIT_EXCEEDED``, 502, 503, 504), at most three reads of a page: a 500 is
+not a transient gateway status, and retrying the client's own request timeout
+would multiply the bound the caller configured for each read."""
 
 from __future__ import annotations
 
@@ -11,6 +17,7 @@ import asyncio
 import random
 from typing import AsyncIterator, Awaitable, Callable, Final, Optional, TypeVar
 
+from ._read_retry import retry_after_seconds
 from .errors import ConnectionError, DaytonaError, LimitExceededError
 from .types import ListResult
 
@@ -30,32 +37,23 @@ async def _sleep(seconds: float) -> None:
     await asyncio.sleep(seconds)
 
 
-def _retry_hint_seconds(error: DaytonaError) -> Optional[float]:
-    if error.retry_after_ms is not None:
-        return error.retry_after_ms / 1000
-    if error.retry_after_seconds is not None:
-        return float(error.retry_after_seconds)
-    return None
-
-
 def page_retry_delay(error: DaytonaError, retry: int) -> Optional[float]:
     """The pause before read ``retry + 2`` of a page after ``error``, or
     ``None`` when the error is not retried: only a dropped connection and
     HTTP 429 / 502 / 503 / 504 are (not an organization limit, and not the
-    client's own request timeout, which already bounds each read)."""
+    client's own request timeout, which already bounds each read). A server
+    retry hint (body or ``Retry-After`` header) above
+    :data:`PAGE_READ_MAX_DELAY_SECONDS` ends the walk without a retry."""
     if retry + 1 >= PAGE_READ_ATTEMPTS:
         return None
     if isinstance(error, LimitExceededError):
         return None
     if not isinstance(error, ConnectionError) and error.status_code not in _RETRYABLE_STATUSES:
         return None
-    delay = PAGE_READ_DELAYS_SECONDS[retry] * random.uniform(0.8, 1.0)
-    hint = _retry_hint_seconds(error)
-    if hint is not None:
-        if hint > PAGE_READ_MAX_DELAY_SECONDS:
-            return None
-        delay = max(delay, hint)
-    return delay
+    hint = retry_after_seconds(error)
+    if hint > PAGE_READ_MAX_DELAY_SECONDS:
+        return None
+    return max(PAGE_READ_DELAYS_SECONDS[retry] * random.uniform(0.8, 1.0), hint)
 
 
 async def read_page(

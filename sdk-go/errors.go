@@ -38,9 +38,11 @@ type Error struct {
 	// Details holds optional server error data; absent fields are zero.
 	Details ErrorDetails
 	// PageCursor is set on an error that ends a ListAll / SearchAll /
-	// ListEndpointsAll walk: the cursor of the page whose read failed (empty
-	// for the walk's first page without a cursor). Pass it as the Cursor
-	// option of the same call to resume with that page.
+	// ListEndpointsAll walk: the cursor of the page whose read failed, or of
+	// the next page when the context was cancelled between pages (empty for
+	// the walk's first page without a cursor, and after a cancellation while a
+	// page's items were being yielded). Pass it as the Cursor option of the
+	// same call to resume with that page.
 	PageCursor string
 	category   errorCategory
 }

@@ -1235,20 +1235,32 @@ the limit but leaves out the counts, so `current` and `max` are `None`;
 contact support to request a higher one. Other rate-limited requests keep raising plain `RateLimitError`.
 
 Every `iter()` (and `ports.iter_endpoints()`) reads a page again after a
-dropped connection or an HTTP 429, 502, 503 or 504, up to three reads of that
-page, waiting at least as long as the server's retry hint (a hint above 10
-seconds is not waited for). The error that ends a walk carries `page_cursor`,
-the cursor of the page that failed (`None` for the first page): pass it as
+transient failure: a dropped connection, or an HTTP 429 (other than
+`LIMIT_EXCEEDED`), 502, 503 or 504. A page gets at most three reads, and a
+retry waits at least as long as the server's retry hint (the error body's or
+the `Retry-After` header); a hint above 10 seconds ends the walk at once,
+without a retry. The error the walk itself raises carries `page_cursor`, the
+cursor of the page that failed (`None` for the first page): pass it as
 `cursor` to the same `iter()` call to resume with that page, after the items
-already yielded:
+already yielded. Keep your own handling of each item outside the `try`, so
+its errors are not mistaken for the walk's:
 
 ```python
-try:
-    for sandbox in d.v2.iter():
-        handle(sandbox)
-except daytona.v2.DaytonaError as e:
-    for sandbox in d.v2.iter(cursor=e.page_cursor):  # resumes at the failed page
-        handle(sandbox)
+def all_sandboxes():
+    cursor = None
+    for attempt in range(3):
+        try:
+            for sandbox in d.v2.iter(cursor=cursor):
+                yield sandbox
+            return
+        except daytona.v2.DaytonaError as e:
+            if attempt == 2:
+                raise
+            cursor = e.page_cursor  # resume at the page that failed
+
+
+for sandbox in all_sandboxes():
+    handle(sandbox)  # errors raised here are not caught above
 ```
 
 On a sandbox that is deleted or being deleted, `set_labels()`,

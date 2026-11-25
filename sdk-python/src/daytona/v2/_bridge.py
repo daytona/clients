@@ -115,8 +115,9 @@ class SyncBridge:
 
         Takes a zero-argument callable rather than ``(func, *args)`` so the
         coroutine is built by the caller and stays fully typed. ``on_submit``
-        runs on the caller's thread once the call is accepted, just before it
-        is handed to the loop, which may be busy with a blocking callback.
+        runs on the caller's thread just before the call is submitted to the
+        loop (which may be busy with a blocking callback), once the bridge is
+        known to be open; it may run even if the submission itself then fails.
         """
         if self._closed:
             raise ClientClosedError(f"{self._name} is closed")

@@ -15,8 +15,11 @@ import {
 } from '../src/v2/index'
 import { createDaytonaError } from '../src/v2/errors/DaytonaError'
 import { iterPages, pageRetryTimer } from '../src/v2/pages'
+import { createHttpClient } from '../src/v2/http'
 import { clientAt } from './helpers/client'
+import { createSandbox } from './helpers/sandbox'
 import { startFakeApi } from './networkPolicyTestServer'
+import type { Daytona } from '../src/Daytona'
 import type { ListResult } from '../src/v2/types'
 import type { PlannedResponse } from './networkPolicyTestServer'
 
@@ -140,11 +143,15 @@ it.each([
   ['the client timeout', () => new ClientTimeoutError()],
   ['an organization limit', () => new LimitExceededError('limit', { statusCode: 429, code: 'LIMIT_EXCEEDED', source: 'DAYTONA_API' })],
   ['a retry hint over 10 s', () => new RateLimitError('slow down', { statusCode: 429, code: 'RATE_LIMITED', retryAfterSeconds: 11 })],
-])('raises %s at once, with the page cursor', async (_name, build) => {
+])('raises %s at once, as a copy carrying the page cursor', async (_name, build) => {
   const error = build()
   const { calls, fetch } = failingThen<string>([error])
-  await expect(drain(iterPages(fetch, 'c1'))).rejects.toBe(error)
-  expect(error.pageCursor).toBe('c1')
+  const thrown = await drain(iterPages(fetch, 'c1')).then(() => undefined, (caught: unknown) => caught)
+  expect(thrown).not.toBe(error)
+  expect(Object.getPrototypeOf(thrown)).toBe(Object.getPrototypeOf(error))
+  expect(thrown).toMatchObject({ message: error.message, statusCode: error.statusCode, code: error.code, pageCursor: 'c1' })
+  expect((thrown as Error).stack).toBe(error.stack)
+  expect(error.pageCursor).toBeUndefined()
   expect(calls).toEqual(['c1'])
   expect(sleeps).toEqual([])
 })
@@ -172,4 +179,66 @@ it('still ends the walk on a cursor cycle', async () => {
 
 it('leaves errors outside a walk without a page cursor', () => {
   expect(createDaytonaError('x', 404, 'NOT_FOUND', 'DAYTONA_API').pageCursor).toBeUndefined()
+})
+
+it.each([
+  ['under 10 s is waited for', '3', 2, [3000]],
+  ['over 10 s ends the walk without a retry', '30', 1, []],
+] as const)('a Retry-After header hint %s', async (_name, header, requests, pauses) => {
+  const api = await startFakeApi([
+    { status: 429, body: { code: 'RATE_LIMITED', message: 'slow down', source: 'DAYTONA_API' }, headers: { 'retry-after': header } },
+    page([]),
+  ])
+  const client = clientAt(api.url)
+  try {
+    const error = await drain(client.v2.iter()).then(() => undefined, (caught: unknown) => caught)
+    expect(api.requests).toHaveLength(requests)
+    expect(sleeps).toEqual(pauses)
+    if (requests === 1) expect(error).toBeInstanceOf(RateLimitError)
+    else expect(error).toBeUndefined()
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+it('gives concurrent walks sharing one failed token exchange their own page cursors', async () => {
+  const api = await startFakeApi([{ status: 500, body: { code: 'INTERNAL_SERVER_ERROR', message: 'boom', source: 'DAYTONA_API' } }])
+  const client = clientAt(api.url, { apiKey: undefined, jwtToken: 'jwt', projectId: 'p' })
+  try {
+    const failure = (cursor: string) => drain(client.v2.volumes.iter({ cursor })).then(() => undefined, (caught: unknown) => caught)
+    const [first, second] = await Promise.all([failure('cursor-A'), failure('cursor-B')])
+    expect(api.requests.map((request) => request.path)).toEqual(['/auth/token'])
+    expect(first).toBeInstanceOf(InternalServerError)
+    expect(first).toMatchObject({ pageCursor: 'cursor-A' })
+    expect(second).toMatchObject({ pageCursor: 'cursor-B' })
+    expect(first).not.toBe(second)
+  } finally {
+    await client.close()
+    await api.close()
+  }
+})
+
+// Every iterator goes through the same page walk: one transient failure is read again.
+const ITERATORS: readonly (readonly [string, string, (client: Daytona, url: string) => AsyncIterable<unknown>])[] = [
+  ['sandboxes', 'sandboxes', (client) => client.v2.iter()],
+  ['images', 'images', (client) => client.v2.images.iter()],
+  ['snapshots', 'snapshots', (client) => client.v2.snapshots.iter()],
+  ['volumes', 'volumes', (client) => client.v2.volumes.iter()],
+  ['secrets', 'secrets', (client) => client.v2.secrets.iter()],
+  ['reservations', 'reservations', (client) => client.v2.reservations.iter()],
+  ['preview endpoints', 'ports', (_client, url) => createSandbox('sbx', createHttpClient(url, 'key')).ports.iterEndpoints()],
+]
+
+it.each(ITERATORS)('the %s iterator reads a transiently failed page again', async (_name, field, iterate) => {
+  const api = await startFakeApi([gateway(503), { status: 200, body: { [field]: [], next_cursor: null } }])
+  const client = clientAt(api.url)
+  try {
+    expect(await drain(iterate(client, api.url))).toEqual([])
+    expect(api.requests).toHaveLength(2)
+    expect(sleeps).toHaveLength(1)
+  } finally {
+    await client.close()
+    await api.close()
+  }
 })

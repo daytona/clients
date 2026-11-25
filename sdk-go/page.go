@@ -67,7 +67,14 @@ var (
 // pageRetryDelay is the pause before read retry+2 of a page after err, or
 // false when err is not retried: only a dropped connection and HTTP 429, 502,
 // 503 and 504 are (not an organization limit, and not the client's own
-// request timeout, which already bounds each read).
+// request timeout, which already bounds each read). A server retry hint
+// (RetryAfter, from the body or the Retry-After header) above
+// pageReadMaxDelay ends the walk without a retry.
+//
+// Unlike a wait's reads, a walk has no overall deadline, so a 500 (not a
+// transient gateway status) and the client's own request timeout (retrying
+// would multiply the bound the caller configured for each read) are not
+// retried.
 func pageRetryDelay(err error, retry int) (time.Duration, bool) {
 	if retry+1 >= pageReadAttempts || errors.Is(err, ErrLimitExceeded) || errors.Is(err, ErrClientTimeout) {
 		return 0, false
@@ -91,8 +98,8 @@ func pageRetryDelay(err error, retry int) (time.Duration, bool) {
 }
 
 // readPage reads one page, again after a transient failure (see
-// pageRetryDelay); the *Error that ends it carries PageCursor: cursor, the
-// cursor to resume the walk with.
+// pageRetryDelay); the *Error that ends it is a copy carrying PageCursor:
+// cursor, the cursor to resume the walk with.
 func readPage[T any](ctx context.Context, cursor string,
 	fetch func(context.Context, string) (*Page[T], error),
 ) (*Page[T], error) {
@@ -108,12 +115,22 @@ func readPage[T any](ctx context.Context, cursor string,
 				continue
 			}
 		}
-		var detail *Error
-		if errors.As(err, &detail) {
-			detail.PageCursor = cursor
-		}
-		return nil, err
+		return nil, withPageCursor(err, cursor)
 	}
+}
+
+// withPageCursor returns a copy of the *Error in err carrying PageCursor (a
+// page read returns its *Error unwrapped, so the copy keeps everything). The
+// original is never changed: concurrent walks can receive one shared instance
+// (a failed token exchange is shared by its waiters).
+func withPageCursor(err error, cursor string) error {
+	var detail *Error
+	if !errors.As(err, &detail) {
+		return err
+	}
+	copied := *detail
+	copied.PageCursor = cursor
+	return &copied
 }
 
 // paginate walks every page from cursor on, reading each with readPage.
@@ -139,7 +156,8 @@ func walkPages[T any](ctx context.Context, cursor string,
 		var zero T
 		for {
 			if err := ctx.Err(); err != nil {
-				yield(zero, transportError(ctx, err))
+				// Cancelled between pages: the next page is an exact resume point.
+				yield(zero, withPageCursor(transportError(ctx, err), next))
 				return
 			}
 			page, err := fetch(ctx, next)

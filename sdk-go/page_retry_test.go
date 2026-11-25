@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -194,6 +195,107 @@ func TestPageRetryDelay(t *testing.T) {
 			delay, ok := pageRetryDelay(tc.err, tc.retry)
 			require.Equal(t, tc.ok, ok)
 			require.Equal(t, tc.delay, delay)
+		})
+	}
+}
+
+func TestListAll_whenConcurrentWalksShareAFailedTokenExchange(t *testing.T) {
+	// Given two walks whose shared token exchange fails with one error.
+	var exchanges atomic.Int32
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"POST /auth/token": func(w http.ResponseWriter, _ *http.Request) {
+			exchanges.Add(1)
+			time.Sleep(100 * time.Millisecond)
+			w.WriteHeader(http.StatusInternalServerError)
+		},
+	})
+	client := newTestClient(t, fake.Server, WithJWTToken("jwt"), WithProjectID("p"))
+	// When both walks run at once.
+	results := make([]error, 2)
+	var wg sync.WaitGroup
+	for index, cursor := range []string{"cursor-A", "cursor-B"} {
+		wg.Go(func() {
+			for _, err := range client.Images().ListAll(t.Context(), &ListImagesOptions{Cursor: cursor}) {
+				results[index] = err
+			}
+		})
+	}
+	wg.Wait()
+	// Then each walk's error names its own page, and the shared error is not changed.
+	var first, second *Error
+	require.ErrorAs(t, results[0], &first)
+	require.ErrorAs(t, results[1], &second)
+	require.Equal(t, "cursor-A", first.PageCursor)
+	require.Equal(t, "cursor-B", second.PageCursor)
+	require.NotSame(t, first, second)
+	require.ErrorIs(t, results[0], ErrInternalServer)
+	require.EqualValues(t, 1, exchanges.Load())
+}
+
+func TestListAll_whenCancelledBetweenPages(t *testing.T) {
+	// Given a walk whose caller cancels after the first page's last item.
+	fake, cursors := imagePages(t, nil)
+	client := newTestClient(t, fake.Server)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	// When cancelling once the first page is consumed.
+	var ids []string
+	var failures []error
+	for image, err := range client.Images().ListAll(ctx, nil) {
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		ids = append(ids, image.ID)
+		if image.ID == "b" {
+			cancel()
+		}
+	}
+	// Then the cancellation names the next page, an exact resume point.
+	require.Equal(t, []string{"a", "b"}, ids)
+	require.Len(t, failures, 1)
+	require.ErrorIs(t, failures[0], context.Canceled)
+	var detail *Error
+	require.ErrorAs(t, failures[0], &detail)
+	require.Equal(t, "p2", detail.PageCursor)
+	require.Equal(t, []string{""}, *cursors)
+}
+
+func TestListAll_whenTheRetryAfterHeaderAsksForAPause(t *testing.T) {
+	for name, tc := range map[string]struct {
+		header   string
+		requests int
+		pauses   []time.Duration
+	}{
+		"under 10 s is waited for": {"3", 2, []time.Duration{3 * time.Second}},
+		"over 10 s ends the walk":  {"30", 1, []time.Duration{}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			// Given a first page answered 429 with only a Retry-After header.
+			pauses := recordPageRetryPauses(t)
+			var requests atomic.Int32
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"GET /images/search": func(w http.ResponseWriter, _ *http.Request) {
+					if requests.Add(1) == 1 {
+						w.Header().Set("Retry-After", tc.header)
+						w.WriteHeader(http.StatusTooManyRequests)
+						return
+					}
+					writeJSON(t, w, map[string]any{"images": []any{}})
+				},
+			})
+			client := newTestClient(t, fake.Server)
+			// When walking.
+			_, failures := collectImages(t, client, "")
+			// Then the hint decides the pause, or ends the walk at once.
+			require.EqualValues(t, tc.requests, requests.Load())
+			require.Equal(t, tc.pauses, *pauses)
+			if tc.requests == 1 {
+				require.Len(t, failures, 1)
+				require.ErrorIs(t, failures[0], ErrRateLimit)
+			} else {
+				require.Empty(t, failures)
+			}
 		})
 	}
 }

@@ -1145,22 +1145,33 @@ the limit but leaves out the counts, so `current` and `max` are `undefined`;
 contact support to request a higher one. Other rate-limited requests keep throwing plain `RateLimitError`.
 
 Every `iter()` (and `ports.iterEndpoints()`) reads a page again after a
-dropped connection or an HTTP 429, 502, 503 or 504, up to three reads of that
-page, waiting at least as long as the server's retry hint (a hint above 10
-seconds is not waited for). The error that ends a walk carries `pageCursor`,
-the cursor of the page that failed (`undefined` for the first page): pass it
-as `cursor` to the same `iter()` call to resume with that page, after the
-items already yielded:
+transient failure: a dropped connection, or an HTTP 429 (other than
+`LIMIT_EXCEEDED`), 502, 503 or 504. A page gets at most three reads, and a
+retry waits at least as long as the server's retry hint (the error body's or
+the `Retry-After` header); a hint above 10 seconds ends the walk at once,
+without a retry. The error the walk itself throws carries `pageCursor`, the
+cursor of the page that failed (`undefined` for the first page): pass it as
+`cursor` to the same `iter()` call to resume with that page, after the items
+already yielded. Keep your own handling of each item outside the `try`, so
+its errors are not mistaken for the walk's:
 
 ```ts
 import { DaytonaError } from '@daytona/sdk/v2'
 
-try {
-  for await (const sandbox of daytona.v2.iter()) handle(sandbox)
-} catch (e) {
-  if (!(e instanceof DaytonaError)) throw e
-  for await (const sandbox of daytona.v2.iter({ cursor: e.pageCursor })) handle(sandbox)
+async function* allSandboxes() {
+  let cursor: string | undefined
+  for (let attempt = 0; ; attempt++) {
+    try {
+      for await (const sandbox of daytona.v2.iter({ cursor })) yield sandbox
+      return
+    } catch (e) {
+      if (!(e instanceof DaytonaError) || attempt === 2) throw e
+      cursor = e.pageCursor // resume at the page that failed
+    }
+  }
 }
+
+for await (const sandbox of allSandboxes()) await handle(sandbox) // errors thrown here are not caught above
 ```
 
 On a sandbox that is deleted or being deleted, `setLabels()`,

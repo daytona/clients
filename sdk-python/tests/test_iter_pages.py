@@ -8,8 +8,8 @@ The TypeScript twin is tests/iter-pages.test.ts; Go's is page_retry_test.go."""
 
 from __future__ import annotations
 
-import os
-from typing import Optional
+from collections.abc import AsyncIterator, Callable
+from typing import Any, Optional
 
 import httpx
 import pytest
@@ -77,8 +77,12 @@ def _gateway_error(status: int = 502) -> httpx.Response:
     return httpx.Response(status, text="<html>bad gateway</html>", headers={"content-type": "text/html"})
 
 
+@pytest.fixture(autouse=True)
+def _api_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DAYTONA_V2_API_URL", _BASE)
+
+
 def _client() -> AsyncDaytona:
-    os.environ["DAYTONA_V2_API_URL"] = _BASE
     return AsyncDaytona(DaytonaConfig(api_key="key"))
 
 
@@ -163,7 +167,6 @@ def test_the_sync_client_resumes_from_the_failed_page(sleeps: list[float]) -> No
     respx.get(f"{_BASE}/sandboxes/search").mock(
         side_effect=[_page("a", next_cursor="p2"), *[_gateway_error(504)] * 3, _page("b")]
     )
-    os.environ["DAYTONA_V2_API_URL"] = _BASE
     with Daytona(DaytonaConfig(api_key="key")) as root:
         seen: list[str] = []
         with pytest.raises(DaytonaError) as raised:
@@ -244,3 +247,64 @@ async def test_a_cursor_cycle_still_ends_the_walk() -> None:
 
 def test_errors_outside_a_walk_carry_no_page_cursor() -> None:
     assert create_error("x", 404, "NOT_FOUND", "DAYTONA_API").page_cursor is None
+
+
+@pytest.mark.parametrize(
+    ("header", "requests", "pauses"),
+    [("3", 2, [3.0]), ("30", 1, [])],
+    ids=["under 10 s is waited for", "over 10 s ends the walk without a retry"],
+)
+@respx.mock
+@pytest.mark.anyio
+async def test_a_retry_after_header_hint(
+    header: str, requests: int, pauses: list[float], sleeps: list[float]
+) -> None:
+    route = respx.get(f"{_BASE}/sandboxes/search").mock(
+        side_effect=[
+            httpx.Response(
+                429,
+                json={"code": "RATE_LIMITED", "message": "slow down", "source": "DAYTONA_API"},
+                headers={"retry-after": header},
+            ),
+            _page(),
+        ]
+    )
+    async with _client() as root:
+        if requests == 1:
+            with pytest.raises(RateLimitError) as raised:
+                [sandbox async for sandbox in root.v2.iter()]
+            assert raised.value.page_cursor is None
+        else:
+            assert [sandbox async for sandbox in root.v2.iter()] == []
+
+    assert len(route.calls) == requests
+    assert sleeps == pauses
+
+
+_ITERATORS = [
+    ("sandboxes", "sandboxes", lambda root, _sandbox: root.v2.iter()),
+    ("images", "images", lambda root, _sandbox: root.v2.images.iter()),
+    ("snapshots", "snapshots", lambda root, _sandbox: root.v2.snapshots.iter()),
+    ("volumes", "volumes", lambda root, _sandbox: root.v2.volumes.iter()),
+    ("secrets", "secrets", lambda root, _sandbox: root.v2.secrets.iter()),
+    ("reservations", "reservations", lambda root, _sandbox: root.v2.reservations.iter()),
+    ("preview endpoints", "ports", lambda _root, sandbox: sandbox.ports.iter_endpoints()),
+]
+
+
+@pytest.mark.parametrize(("name", "field", "iterate"), _ITERATORS, ids=[name for name, _, _ in _ITERATORS])
+@respx.mock
+@pytest.mark.anyio
+async def test_every_iterator_reads_a_transiently_failed_page_again(
+    name: str, field: str, iterate: Callable[[AsyncDaytona, Any], AsyncIterator[object]], sleeps: list[float]
+) -> None:
+    respx.get(f"{_BASE}/sandboxes/sbx").mock(return_value=httpx.Response(200, json=_sandbox("sbx")))
+    route = respx.get(host="api.example.com").mock(
+        side_effect=[_gateway_error(503), httpx.Response(200, json={field: [], "next_cursor": None})]
+    )
+    async with _client() as root:
+        sandbox = await root.v2.get("sbx") if field == "ports" else None
+        assert [item async for item in iterate(root, sandbox)] == []
+
+    assert len(route.calls) == 2
+    assert len(sleeps) == 1

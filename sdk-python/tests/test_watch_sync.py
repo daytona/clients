@@ -156,6 +156,7 @@ def test_a_sync_callback_cannot_wait_for_or_stop_another_watch(bridge: SyncBridg
     other.stop()
 
 
+@pytest.mark.timing
 def test_an_external_stop_is_not_starved_by_a_blocking_callback_and_its_backlog(bridge: SyncBridge) -> None:
     names = [f"f{index}.txt" for index in range(200)]
     fs, stream = _fs(bridge, *names)
@@ -194,6 +195,7 @@ def test_an_external_stop_is_not_starved_by_a_blocking_callback_and_its_backlog(
     assert handle.exit_error is None
 
 
+@pytest.mark.timing
 def test_other_sync_calls_run_between_the_deliveries_of_a_backlog(bridge: SyncBridge) -> None:
     names = [f"f{index}.txt" for index in range(1000)]
     fs, stream = _fs(bridge, *names)

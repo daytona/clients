@@ -337,7 +337,10 @@ class SyncTransport:
             finally:
                 stream.__exit__(None, None, None)
             raise error_from_response(
-                response.status_code, body, content_type=response.headers.get("content-type")
+                response.status_code,
+                body,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
         return SyncResponseStream(stream, response)
 
@@ -364,7 +367,10 @@ class SyncTransport:
             raise ConnectionError(str(exc)) from exc
         if response.status_code >= 300:
             raise error_from_response(
-                response.status_code, response.content, content_type=response.headers.get("content-type")
+                response.status_code,
+                response.content,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
         return response
 
@@ -900,7 +906,10 @@ class AsyncTransport:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await stream.__aexit__(None, None, None)
             typed_error = error_from_response(
-                response.status_code, body, content_type=response.headers.get("content-type")
+                response.status_code,
+                body,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
             if span is not None:
                 span.finish(status_code=response.status_code, error=typed_error)
@@ -1105,7 +1114,10 @@ class AsyncTransport:
             span.finish(status_code=response.status_code)
         if response.status_code >= 300:
             raise error_from_response(
-                response.status_code, response.content, content_type=response.headers.get("content-type")
+                response.status_code,
+                response.content,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
         return response
 
@@ -1317,7 +1329,10 @@ def _request_headers(
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
     if response.status_code >= 300:
         raise error_from_response(
-            response.status_code, response.content, content_type=response.headers.get("content-type")
+            response.status_code,
+            response.content,
+            content_type=response.headers.get("content-type"),
+            retry_after=response.headers.get("retry-after"),
         )
     if is_json_media_type(response.headers.get("content-type")):
         try:
