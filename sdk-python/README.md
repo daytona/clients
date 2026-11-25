@@ -660,9 +660,21 @@ to apply its maximum.
 Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
 disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
 convert to a whole number of MiB (`value * 1024`), else `BadRequestError`.
-Sizes read back exactly. `create_from_snapshot()` inherits the snapshot's
+Sizes read back exactly.
+
+Pass `persistent=True` to Linux `create()` or `create_from_build()` to keep disk
+across stop/start and memory and processes across pause/resume. Omitted or
+`None` leaves the server default (`False`); an explicit `False` is sent as such.
+Linux stop/start/restart, pause/resume and fork require persistence; forks
+inherit it. Delete erases the writable state.
+The default lifetime timeout pauses persistent Linux sandboxes after 300 seconds;
+this is not an idle timeout. Sandboxes with volumes cannot pause or fork (409).
+Lifecycle policies support `delete`
+everywhere, `stop` for persistent non-GPU sandboxes, and `pause` for persistent Linux.
+
+`create_from_snapshot()` inherits the snapshot's
 configuration and takes no resources, CPU selectors, environment, volumes,
-secrets or network policy.
+secrets, network policy or persistence override.
 
 `images.get(id, wait="ready", timeout=120)` and
 `snapshots.get(id, wait="ready", timeout=120)` wait for the artifact to
@@ -1150,6 +1162,12 @@ ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
+
+`fork()`, `capture_image()` and `create_snapshot()` retry only
+`SANDBOX_TRANSITION_IN_PROGRESS`, for up to 30 seconds from their first submission.
+The server's `retry_after_seconds` hint is clamped to 1–5 seconds (1 when absent).
+On expiry the last error is raised unchanged. Other conflicts are not retried;
+fork's readiness budget starts after submission succeeds.
 
 `sandbox.delete()` and `d.v2.delete(sandbox)` wait until the sandbox is
 `destroyed` (a 404 while waiting counts as destroyed). A sandbox with volumes

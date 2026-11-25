@@ -93,6 +93,7 @@ profile is active, and the CLI asks you to select one or log in.
 daytona image create py312 --ref python:3.12
 daytona sandbox create --image py312 --cpu 2 --memory 2048   # CPU in cores (1 core = 2 vCPUs)
 daytona sandbox create                   # no --image: boots the platform default image
+daytona sandbox create --persistent      # keep disk on stop/start, memory on pause/resume
 daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete
 daytona image list --platform true       # the platform images every project can boot
 daytona sandbox list
@@ -118,6 +119,22 @@ daytona billing plan list
 daytona billing portal-session --open
 daytona sandbox delete <id>
 ```
+
+### Persistent Linux sandboxes
+
+`sandbox create --persistent` keeps disk across stop/start and memory plus
+running processes across pause/resume. Linux stop, start, restart, pause,
+resume and fork require persistence; an ephemeral sandbox can only be deleted.
+Without a lifecycle policy, persistent Linux sandboxes pause after 300 seconds
+instead of being deleted. Persistent Linux creation accepts volumes, but
+attached volumes prevent pause and fork (409). A fork inherits persistence;
+`create-from-snapshot` inherits it from the snapshot's source and has no
+`--persistent` override.
+
+`sandbox fork`, `image capture` and `snapshot create` retry a sandbox still
+starting or stopping for up to 30 seconds before the POST is accepted.
+Only `SANDBOX_TRANSITION_IN_PROGRESS` is retried, not other conflicts.
+The normal readiness wait starts after acceptance.
 
 `daytona --help` lists every command group; `daytona docs --full` prints the
 whole reference on one page. Use `daytona docs --dir DIR` for separate Markdown
@@ -286,7 +303,9 @@ existing reservation ID, a `sandbox start` that a live reservation in the
 region serves, or `reservation create --dry-run` does not prompt.
 `reservation update --auto-renew=false` needs no confirmation.
 
-Stop and pause need a persistent sandbox (`--persistent`), which keeps its
+For both Linux and macOS, stop and pause need a persistent sandbox
+(`sandbox create --persistent` or `sandbox create-macos --persistent`).
+A persistent macOS sandbox keeps its
 disk and machine across stop and start, and its memory across pause and
 resume. `sandbox start` can run it on any Mac of the organization; after a
 start on a different Mac, iCloud asks the user to sign in again. With no Mac
@@ -505,10 +524,11 @@ whole seconds where the API stores seconds:
 | `--escalate-after` | `sandbox process signal` | when to send `--escalate-to` |
 | `--expires` | `key mint`, `org-key mint` | key lifetime in whole seconds, or an RFC3339 timestamp |
 
-Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` only on
-a persistent macOS sandbox. Pause a sandbox with `daytona sandbox pause`; a
-lifecycle policy never pauses. A refused action is a usage error before any
-request. While a sandbox is stopped, commands that work inside it
+Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` on a
+persistent non-GPU sandbox, and `pause` on a persistent Linux sandbox.
+A known unsupported action is a usage error before any write; a snapshot
+create leaves its inherited persistence for the server to check.
+While a sandbox is stopped, commands that work inside it
 (`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409
 `SANDBOX_NOT_RUNNING` (exit code `6`, with a hint to start it), not 404.
 
@@ -649,7 +669,7 @@ fields:
 
 | Command | Body |
 |---|---|
-| `sandbox create` | `image`, `name`, `cpu`, `memory_mib`, `disk_mib`, `cores_max`, `memory_max_mib`, `disk_max_mib`, `cpu_arch`, `cpu_type`, `user`, `env`, `labels`, `ports`, `volumes`, `secrets`, `spot`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
+| `sandbox create` | `image`, `name`, `cpu`, `memory_mib`, `disk_mib`, `cores_max`, `memory_max_mib`, `disk_max_mib`, `cpu_arch`, `cpu_type`, `user`, `env`, `labels`, `ports`, `volumes`, `secrets`, `persistent`, `spot`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox create-from-snapshot` | `snapshot` (the positional argument wins), `name`, `labels`, `ports`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox create-macos` | `image`, `name`, `cores`, `memory_mib`, `disk_mib`, `persistent`, `reservation`, `auto_renew`, `env`, `labels`, `ports`, `volumes`, `secrets`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set except the label `name`, which is kept unless the new set names it (then it must equal the sandbox name; `--clear-labels` keeps it too), `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |

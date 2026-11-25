@@ -1045,6 +1045,31 @@ the key. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 
+### Persistent Linux sandboxes
+
+Pass `persistent: true` to `daytona.v2.create()` or `createFromBuild()` to
+preserve a Linux sandbox. `stop()` / `start()` keep its disk but boot fresh
+processes; `pause()` / `resume()` also preserve memory and running processes.
+These verbs require persistence. Sandboxes with attached volumes cannot pause
+or fork. Without a lifecycle-policy override, a persistent Linux sandbox has
+a 300-second lifetime timeout (`timeoutSeconds: 300`) whose action is pause;
+this is not an idle timeout.
+
+Lifecycle policies accept `delete` everywhere, `stop` on persistent sandboxes
+except GPU, and `pause` on persistent Linux sandboxes. For example:
+
+```ts
+const saved = await daytona.v2.create('python', {
+  persistent: true,
+  lifecyclePolicy: { timeoutSeconds: 600, onTimeout: 'pause' },
+})
+await saved.pause()
+await saved.resume()
+```
+
+`createFromSnapshot()` inherits persistence from the snapshot; it does not
+accept a `persistent` option.
+
 ### Waiting for lifecycle states
 
 Use `sandbox.wait({ until: 'started', timeoutSeconds: 120 })` to wait for a
@@ -1074,6 +1099,12 @@ and an unexpected non-SDK error during the wait. A running Linux source produces
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
+
+`fork()`, `captureImage()` and `createSnapshot()` automatically retry
+`SANDBOX_TRANSITION_IN_PROGRESS` conflicts for up to 30 seconds from their
+first submission attempt. Delays use `retryAfterSeconds`, clamped to 1–5
+seconds. Other conflicts are not retried, and expiry throws the last conflict.
+Fork's readiness wait budget starts after acceptance, independently of retries.
 
 `await sandbox.delete()` and `await daytona.v2.delete(sandbox)` wait until the
 sandbox is `destroyed` (a 404 while waiting counts as destroyed). A sandbox

@@ -69,6 +69,23 @@ Once a create or fork is accepted, its handle is returned even if the caller's
 context ends the wait with an error. Delete the non-nil handle or keep it;
 cleanup needs a context that has not been cancelled.
 
+## Persistence
+
+Linux sandboxes are non-persistent by default. Set `CreateOptions.Persistent`
+to a pointer to `true` (also through `CreateFromBuildOptions.CreateOptions`) for
+persistence. Without a lifecycle policy, persistent Linux sandboxes default to
+pausing after a 300-second lifetime.
+
+- `Stop` / `Start` preserve disk, not memory or running processes.
+- `Pause` / `Resume` preserve disk, memory and processes.
+- Linux stop, start, restart, pause, resume and fork require persistence; the
+  API checks support.
+- Lifecycle policies allow `delete` everywhere, `stop` on persistent non-GPU
+  sandboxes, and `pause` on persistent Linux.
+- Volumes are accepted on create, but sandboxes with attached volumes currently
+  reject pause and fork with `ErrConflict`.
+- Snapshot restores inherit the source's persistence; there is no override.
+
 ## Common tasks
 
 **Run code.** `sandbox.Exec` runs a shell command, `sandbox.ExecArgs` an argv
@@ -189,12 +206,19 @@ normally.
 ```go
 if errors.Is(err, daytona.ErrNotFound) { /* any 404 */ }
 if errors.Is(err, daytona.ErrSandboxNotRunning) { /* one specific code */ }
+if errors.Is(err, daytona.ErrSandboxTransitionInProgress) { /* retry window exhausted */ }
 
 var apiErr *daytona.Error
 if errors.As(err, &apiErr) {
 	fmt.Println(apiErr.Code, apiErr.StatusCode, apiErr.Message)
 }
 ```
+
+`Fork`, `CaptureImage` and `CreateSnapshot` retry only
+`ErrSandboxTransitionInProgress` for up to 30 seconds from the first attempt.
+The API's retry delay is clamped to 1–5 seconds; other conflicts are returned
+immediately. Caller cancellation, deadlines and client closure interrupt retries.
+Fork's readiness wait keeps its separate budget.
 
 ## Durations and waits
 
