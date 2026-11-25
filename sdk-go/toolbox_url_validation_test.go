@@ -130,3 +130,23 @@ func TestCheckToolboxOverride_followsTheRuleSharedWithPythonAndTypeScript(t *tes
 		})
 	}
 }
+
+func TestGet_whenDirectToolboxURLIsInvalidUTF8(t *testing.T) {
+	for _, endpoint := range []string{
+		"https://toolbox.invalid/tools\xff", "https://toolbox\xc3.invalid/tools", "https://toolbox.invalid/\xed\xa0\x80",
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			// Given
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"GET /sandboxes/sbx": jsonHandler(t, sandboxFixture("sbx")),
+			})
+			client := newTestClient(t, fake.Server)
+			// When
+			_, err := client.Get(t.Context(), "sbx", &GetSandboxOptions{ToolboxURL: endpoint})
+			// Then
+			require.ErrorIs(t, err, ErrBadRequest)
+			require.ErrorContains(t, err, "ToolboxURL must be valid UTF-8")
+			require.Empty(t, fake.requests())
+		})
+	}
+}

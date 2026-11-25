@@ -138,6 +138,10 @@ var (
 func checkToolboxOverride(raw string) error {
 	const message = "ToolboxURL must be an http(s) URL with a host, a port up to 65535, " +
 		"no percent-encoded host, and no whitespace or control characters"
+	// Invalid UTF-8 would range as U+FFFD and pass every character check.
+	if !utf8.ValidString(raw) {
+		return badRequest("ToolboxURL must be valid UTF-8")
+	}
 	for _, char := range raw {
 		if char <= ' ' || (char >= 0x7f && char <= 0x9f) || char == 0xfeff || unicode.IsSpace(char) {
 			return badRequest(message)
