@@ -133,22 +133,41 @@ func TestCreateFromBuild_whenBuildBudgetExpires(t *testing.T) {
 }
 
 func TestBuildAndWait_whenCallerContextEnds(t *testing.T) {
-	// Given a pending build and a caller deadline shorter than the build budget.
+	// Given an accepted build whose readiness hold outlasts the caller's
+	// deadline, which is shorter than the build budget.
+	caller, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
-		"POST /images":          jsonHandler(t, map[string]string{"id": "img-build"}),
-		"GET /images/img-build": jsonHandler(t, buildImageFixture("building")),
+		"POST /images": jsonHandler(t, map[string]string{"id": "img-build"}),
+		"GET /images/img-build": func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("wait") == "ready" {
+				// The hold is reached only after the submission was accepted;
+				// the caller's deadline then passes while it is held.
+				<-caller.Done()
+				<-r.Context().Done()
+				return
+			}
+			writeJSON(t, w, buildImageFixture("building"))
+		},
 	})
 	client := newTestClient(t, fake.Server)
-	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-	defer cancel()
 
 	// When the caller's context ends first.
-	_, err := client.Images().BuildAndWait(ctx, NewImageBuilder("alpine"), &BuildImageWaitOptions{Timeout: time.Minute})
+	_, err := client.Images().BuildAndWait(caller, NewImageBuilder("alpine"), &BuildImageWaitOptions{Timeout: time.Minute})
 
-	// Then the build budget did not run out: no ImageBuildTimeoutError.
-	require.Error(t, err)
+	// Then it is the caller's deadline, reached during the readiness wait,
+	// not a build timeout.
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 	var timeout *ImageBuildTimeoutError
 	require.NotErrorAs(t, err, &timeout)
+	requests := fake.requests()
+	require.Len(t, requests, 3)
+	require.Equal(t, http.MethodPost, requests[0].Method)
+	require.Equal(t, "/images", requests[0].Path)
+	require.Equal(t, "/images/img-build", requests[1].Path)
+	require.Empty(t, requests[1].Query.Get("wait"))
+	require.Equal(t, "/images/img-build", requests[2].Path)
+	require.Equal(t, "ready", requests[2].Query.Get("wait"))
 }
 
 func TestCreateFromBuild_whenCallerCancelsReadiness(t *testing.T) {
