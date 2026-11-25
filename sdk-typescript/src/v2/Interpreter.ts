@@ -425,6 +425,11 @@ export class InterpreterContext {
   public async close(): Promise<void> {
     await this.#onClose()
   }
+
+  /** Deletes the context on `await using` scope exit, exactly as `close()` does. */
+  public async [Symbol.asyncDispose](): Promise<void> {
+    await this.close()
+  }
 }
 
 /** Sandbox interpreter namespace (`sandbox.interpreter`): run code in language kernels. */

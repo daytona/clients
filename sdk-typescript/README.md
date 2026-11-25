@@ -953,7 +953,9 @@ for a throwaway run or use `createContext({ language, contextId, cwd, env })` /
 `connectContext()` / `listContexts()` for an independent named context. Select a
 context with `run(code, { context })`: a handle, its `toJSON()` identity (an
 `InterpreterContextJSON`) or a context id together with `language`. A context's `run(code, { cwd, timeoutSeconds })`
-takes no `env`: set it when the context is created. If an explicit named context
+takes no `env`: set it when the context is created. `await using ctx = await
+sandbox.interpreter.createContext({ language: 'python' })` deletes the context on
+scope exit, as `ctx.close()` does. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
 `timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded). Results are split into

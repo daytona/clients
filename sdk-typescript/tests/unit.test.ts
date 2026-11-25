@@ -5557,6 +5557,29 @@ describe('toolbox service request shaping', () => {
     expect(interpreter['contextQueues'].size).toBe(0)
   })
 
+  it('await using deletes the interpreter context on scope exit, as close() does', async () => {
+    const transport = transportStub()
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    transport.post.mockResolvedValueOnce(sessionWire('ctx'))
+    {
+      await using context = await interpreter.createContext({ contextId: 'ctx', language: 'python' })
+      expect(context.contextId).toBe('ctx')
+      expect(transport.delete).not.toHaveBeenCalled()
+    }
+    expect(transport.delete.mock.calls).toEqual([['/sessions/ctx']])
+    expect(interpreter['contextQueues'].size).toBe(0)
+  })
+
+  it('surfaces a context delete failure from scope exit, as close() does', async () => {
+    const transport = transportStub()
+    const context = new InterpreterService(INTERNAL, transport.object, 'sbx').connectContext('ctx', 'python')
+    const close = jest.spyOn(context, 'close')
+    const gone = new SessionNotFoundError('gone', { statusCode: 404, code: 'SESSION_NOT_FOUND', source: 'DAYTONA_DAEMON' })
+    transport.delete.mockRejectedValueOnce(gone)
+    await expect(context[Symbol.asyncDispose]()).rejects.toBe(gone)
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps interpreter queues after a failed close so reconnects stay serialized on the original queue', async () => {
     const transport = transportStub()
     const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
