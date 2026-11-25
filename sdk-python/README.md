@@ -359,11 +359,12 @@ result = d.v2.get("sandbox-id").follow_build_logs(
 
 `on_logs` is required. Optional `on_event` receives a typed `BuildLogEvent`
 union (`event.type` selects the variant), including states, gaps and source
-unavailability. Without it, these diagnostics reach `on_logs` as one line
-each: `[build logs: <type>] ` followed by the event's wire fields as compact
-JSON, for example
-`[build logs: state] {"type":"state","status":"ready"}` (the same text in the
-TypeScript SDK). An image can be followed by its id or its name. Either callback may be a plain function or return an
+unavailability. Without it, each of these diagnostics reaches `on_logs` as one
+`[build logs: <type>]` line carrying the event's fields, the same line in the
+TypeScript SDK; it is meant for reading, so pass `on_event` to handle the
+events in code. An image can be followed by its id or its name, except an image
+named `search` (the name of the search route), which is followed by its id.
+Either callback may be a plain function or return an
 awaitable, which is awaited before the next event (on `AsyncDaytona`). Build
 failure is a result, not a connection error. `output_complete` describes the
 requested cursor-to-end interval; gaps keep it false even after reconnection.

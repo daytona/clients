@@ -138,9 +138,13 @@ class ImagesService:
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe a submitted image build. ``timeout`` is the observation budget
-        in seconds (not an execution TTL); omitted, ``0`` or a value above about
-        24.8 days adds no deadline.
+        """Observe a submitted image build, by the image's ID or name.
+        ``timeout`` is the observation budget in seconds (not an execution
+        TTL); omitted, ``0`` or a value above about 24.8 days adds no deadline.
+
+        ``"search"`` cannot be followed by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        follow such an image by its ID.
         """
         return self._bridge.call(
             lambda: self._impl.follow_build_logs(

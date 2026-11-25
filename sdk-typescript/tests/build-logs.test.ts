@@ -4,7 +4,7 @@
  */
 
 import { Daytona } from '../src/v2/Daytona.js'
-import { BuildLogInterruptedError, NotFoundError } from '../src/v2/index.js'
+import { BadRequestError, BuildLogInterruptedError, NotFoundError } from '../src/v2/index.js'
 import type { BuildLogEvent } from '../src/v2/index.js'
 import { buildLogMessages } from '../src/v2/BuildLogs.js'
 import { HttpTransport } from '../src/v2/http.js'
@@ -328,6 +328,14 @@ describe('resumable build logs', () => {
     const output: string[] = []
     await expect(client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } })).rejects.toMatchObject({ code: 'BUILD_LOG_SOURCE_CHANGED' })
     expect(output).toEqual(['[build logs: source_changed] {"type":"source_changed","reason":"rebuilt"}\n'])
+  })
+
+  it('escapes a lone surrogate in a control line, as Python does', async () => {
+    // The server sends an unpaired \\ud800 escape; the line carries it escaped.
+    const { client } = setup(['event: unavailable\ndata: {"reason": "a\\ud800b"}\n\n' + done(undefined, { output_complete: false })])
+    const output: string[] = []
+    await client.images.followBuildLogs('image', { onLogs: text => { output.push(text) } })
+    expect(output[0]).toBe('[build logs: unavailable] {"type":"unavailable","reason":"a\\ud800b"}\n')
   })
 
   it('passes control events only to the event callback when one is given', async () => {
@@ -727,63 +735,118 @@ describe('resumable build logs', () => {
     })
   })
 
+  // The image lookup is an ordinary image read (axios), so these run against a real local server.
   describe('an image followed by name', () => {
-    const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
-    const LOG_URL_BY_ID = `https://logs.example/build-logs/images/${UUID}`
+    const reply = (response: ServerResponse, body: string, status = 200, type = 'application/json'): void => {
+      response.statusCode = status
+      response.setHeader('content-type', type)
+      response.end(body)
+    }
+    async function nameFixture(lookup: (response: ServerResponse, attempt: number) => void, logPath = `/build-logs/images/${UUID}`) {
+      const requests: string[] = []
+      let lookups = 0
+      const fixture = await server((request, response) => {
+        const path = new URL(request.url ?? '', 'http://fixture').pathname
+        requests.push(path)
+        if (path.endsWith('/build-logs-url')) return reply(response, JSON.stringify({ url: `http://${request.headers.host}${logPath}` }))
+        if (path.startsWith('/images/')) return lookup(response, ++lookups)
+        reply(response, log('ok', 0) + done(2), 200, 'text/event-stream')
+      })
+      const client = withApiUrl(fixture.url, () => new Daytona({ apiKey: 'test-key' }))
+      return { fixture, client, requests }
+    }
 
     it('resolves the name to the id the destination names, then streams', async () => {
-      const { client, fetch } = setup([jsonResponse({ id: UUID }), log('ok', 0) + done(2)], { url: LOG_URL_BY_ID })
-      const output: string[] = []
-      const result = await client.images.followBuildLogs('my-image', { onLogs: text => { output.push(text) } })
-      expect(output).toEqual(['ok'])
-      expect(result).toMatchObject({ status: 'ready', cursor: cursor(2) })
-      const urls = fetch.mock.calls.map(call => String(call[0]))
-      expect(urls.slice(0, 2)).toEqual(['https://api.example/images/my-image/build-logs-url', 'https://api.example/images/my-image'])
-      expect(urls[2]).toContain(`${LOG_URL_BY_ID}?`)
+      const { fixture, client, requests } = await nameFixture(response => reply(response, JSON.stringify({ id: UUID })))
+      try {
+        const output: string[] = []
+        const result = await client.images.followBuildLogs('my-image', { onLogs: text => { output.push(text) } })
+        expect(output).toEqual(['ok'])
+        expect(result).toMatchObject({ status: 'ready', cursor: cursor(2) })
+        expect(requests).toEqual(['/images/my-image/build-logs-url', '/images/my-image', `/build-logs/images/${UUID}`])
+      } finally { await fixture.close() }
     })
 
     it('refuses a destination naming another image than the name resolves to', async () => {
-      const { client, fetch } = setup([jsonResponse({ id: '00000000-0000-0000-0000-000000000000' })], { url: LOG_URL_BY_ID })
-      await expect(client.images.followBuildLogs('my-image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR', message: 'invalid build log URL' })
-      // The destination is never contacted.
-      expect(fetch).toHaveBeenCalledTimes(2)
+      const { fixture, client, requests } = await nameFixture(response => reply(response, JSON.stringify({ id: '00000000-0000-0000-0000-000000000000' })))
+      try {
+        await expect(client.images.followBuildLogs('my-image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR', message: 'invalid build log URL' })
+        // The destination is never contacted.
+        expect(requests).toEqual(['/images/my-image/build-logs-url', '/images/my-image'])
+      } finally { await fixture.close() }
     })
 
-    it('refuses a lookup answer without an id', async () => {
-      const { client, fetch } = setup([jsonResponse({ name: 'my-image' })], { url: LOG_URL_BY_ID })
-      await expect(client.images.followBuildLogs('my-image', { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR', message: 'invalid image response: id' })
-      expect(fetch).toHaveBeenCalledTimes(2)
+    // A malformed answer is the SDK's own BadRequestError, raised unchanged as
+    // a discovery error is (as Python and Go); `message` is part of its text
+    // (undefined: the transport's own text).
+    it.each([
+      ['application/json', '{"name":"my-image"}', 'image response is missing its id'],
+      ['application/json', '{"id":"  "}', 'image response is missing its id'],
+      ['application/json', '{"id":".."}', 'image response id'],
+      ['application/json', '{"id":"\\ud800"}', 'image response id must not contain a surrogate code point'],
+      ['application/json', '[]', 'image response is not a JSON object'],
+      ['application/json', '{', undefined],
+      ['text/plain', 'img', 'image response is not a JSON object'],
+    ])('refuses a %s lookup answer %s', async (type, body, message) => {
+      const { fixture, client, requests } = await nameFixture(response => reply(response, body, 200, type))
+      try {
+        const failure = client.images.followBuildLogs('my-image', { onLogs: () => {} })
+        await expect(failure).rejects.toBeInstanceOf(BadRequestError)
+        await expect(failure).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+        if (message !== undefined) await expect(failure).rejects.toThrow(message)
+        expect(requests).toEqual(['/images/my-image/build-logs-url', '/images/my-image'])
+      } finally { await fixture.close() }
+    })
+
+    it('reads a large lookup answer like any image', async () => {
+      // Larger than any build-log event: an ordinary image read takes it.
+      const { fixture, client, requests } = await nameFixture(response => reply(response, JSON.stringify({ id: UUID, error: 'e'.repeat(200_000) })))
+      try {
+        await expect(client.images.followBuildLogs('my-image', { onLogs: () => {} })).resolves.toMatchObject({ status: 'ready' })
+        expect(requests).toHaveLength(3)
+      } finally { await fixture.close() }
     })
 
     it('raises the lookup HTTP error unchanged, as a discovery error', async () => {
-      const { client } = setup([jsonResponse({ code: 'IMAGE_NOT_FOUND', source: 'DAYTONA_API', message: 'image not found' }, 404)], { url: LOG_URL_BY_ID })
-      await expect(client.images.followBuildLogs('my-image', { onLogs: () => {} })).rejects.toBeInstanceOf(NotFoundError)
+      const { fixture, client } = await nameFixture(response => reply(response, JSON.stringify({ code: 'IMAGE_NOT_FOUND', source: 'DAYTONA_API', message: 'image not found' }), 404))
+      try {
+        const failure = client.images.followBuildLogs('my-image', { onLogs: () => {} })
+        await expect(failure).rejects.toBeInstanceOf(NotFoundError)
+        await expect(failure).rejects.toMatchObject({ statusCode: 404, code: 'IMAGE_NOT_FOUND', source: 'DAYTONA_API', message: 'image not found' })
+      } finally { await fixture.close() }
     })
 
     it('retries a lookup the server could not answer, as discovery', async () => {
-      jest.useFakeTimers()
-      const { client, fetch } = setup([jsonResponse({ code: 'SERVICE_UNAVAILABLE' }, 503), jsonResponse({ id: UUID }), done()], { url: LOG_URL_BY_ID })
-      await advance(client.images.followBuildLogs('my-image', { onLogs: () => {} }))
-      expect(fetch.mock.calls.map(call => String(call[0]))).toEqual([
-        'https://api.example/images/my-image/build-logs-url',
-        'https://api.example/images/my-image',
-        'https://api.example/images/my-image/build-logs-url',
-        'https://api.example/images/my-image',
-        expect.stringContaining(`${LOG_URL_BY_ID}?`),
-      ])
+      const { fixture, client, requests } = await nameFixture((response, attempt) => attempt === 1
+        ? reply(response, JSON.stringify({ code: 'SERVICE_UNAVAILABLE' }), 503)
+        : reply(response, JSON.stringify({ id: UUID })))
+      try {
+        await client.images.followBuildLogs('my-image', { onLogs: () => {} })
+        expect(requests).toEqual([
+          '/images/my-image/build-logs-url', '/images/my-image',
+          '/images/my-image/build-logs-url', '/images/my-image',
+          `/build-logs/images/${UUID}`,
+        ])
+      } finally { await fixture.close() }
     })
+
+    it.each(['/build-logs/images/00000000-0000-0000-0000-000000000000', '/build-logs/sandboxes/3FP9SaFP7qfRTj4GM9xtju-region-a'])(
+      'rejects an id whose discovery names a different resource: %s', async logPath => {
+        // The lookup confirms the requested id; the URL still names another resource.
+        const { fixture, client, requests } = await nameFixture(response => reply(response, JSON.stringify({ id: UUID })), logPath)
+        try {
+          await expect(client.images.followBuildLogs(UUID.toUpperCase(), { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
+          expect(requests).toEqual([`/images/${UUID.toUpperCase()}/build-logs-url`, `/images/${UUID.toUpperCase()}`])
+        } finally { await fixture.close() }
+      },
+    )
   })
 
-  it.each(['/images/00000000-0000-0000-0000-000000000000', '/sandboxes/3FP9SaFP7qfRTj4GM9xtju-region-a'])(
-    'rejects an image discovery for a different resource: %s', async path => {
-      // The image lookup confirms the requested id; the URL still names another resource.
-      const lookup = new Response(JSON.stringify({ id: UUID }), { headers: { 'content-type': 'application/json' } })
-      const { client, fetch } = setup([lookup], { url: 'https://logs.example/build-logs' + path })
-      await expect(client.images.followBuildLogs(UUID.toUpperCase(), { onLogs: () => {} })).rejects.toMatchObject({ code: 'BUILD_LOG_PROTOCOL_ERROR' })
-      expect(fetch).toHaveBeenCalledTimes(2)
-      expect(String(fetch.mock.calls[1]?.[0])).toBe(`https://api.example/images/${UUID.toUpperCase()}`)
-    },
-  )
+  it('refuses to follow an image named search before any request', async () => {
+    const { client, fetch } = setup([])
+    await expect(client.images.followBuildLogs('search', { onLogs: () => {} })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
 
   it('bounds chunked one-shot bytes and cancels without draining', async () => {
     // The encoded body is three MiB, while decoded string.length stays below

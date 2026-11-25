@@ -302,12 +302,12 @@ await (await daytona.v2.get('sandbox-id')).followBuildLogs({
 
 `onLogs` is required. Optional `onEvent` receives a discriminated `BuildLogEvent`
 union (`event.type` selects the variant), including states, gaps and source
-unavailability. Without it, these diagnostics reach `onLogs` as one line
-each: `[build logs: <type>] ` followed by the event's wire fields as compact
-JSON, for example
-`[build logs: state] {"type":"state","status":"ready"}` (the same text in the
-Python SDK). An image can be followed by its id or its name. Both callbacks may return promises and are awaited before
-checkpointing. Build failure is a result, not a connection error. An event
+unavailability. Without it, each of these diagnostics reaches `onLogs` as one
+`[build logs: <type>]` line carrying the event's fields, the same line in the
+Python SDK; it is meant for reading, so pass `onEvent` to handle the events in
+code. An image can be followed by its id or its name, except an image named
+`search` (the name of the search route), which is followed by its id. Both
+callbacks may return promises and are awaited before checkpointing. Build failure is a result, not a connection error. An event
 kind a later API adds is skipped (it does not move the cursor). An HTTP error of
 the first request, such as `NotFoundError` for an unknown image, is thrown as
 that typed error rather than as `BuildLogInterruptedError`.

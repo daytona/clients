@@ -154,9 +154,15 @@ class AsyncImagesService:
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe a submitted image build. ``timeout`` is the observation budget
-        in seconds (not an execution TTL); omitted, ``0`` or a value above about
-        24.8 days adds no deadline."""
+        """Observe a submitted image build, by the image's ID or name.
+        ``timeout`` is the observation budget in seconds (not an execution
+        TTL); omitted, ``0`` or a value above about 24.8 days adds no deadline.
+
+        ``"search"`` cannot be followed by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        follow such an image by its ID.
+        """
+        _refuse_search_name(image_id, "image")
         return await follow_build_logs(
             self._transport,
             f"/images/{_path(image_id, 'image_id')}/build-logs-url",
@@ -394,7 +400,9 @@ class AsyncImagesService:
         )
         # By id: the caller's value may be a name (even "search", which get() refuses).
         return expect_image(
-            await self._transport.send(RequestSpec("GET", f"/images/{_path(promoted.id, 'image id')}"))
+            await self._transport.send(
+                RequestSpec("GET", f"/images/{_path(promoted.id, 'image response id')}")
+            )
         )
 
     async def delete(self, image_id: str, /) -> None:

@@ -3926,6 +3926,14 @@ describe('creation shape', () => {
     expect(promoted.availableIn).toEqual(['us'])
   })
 
+  it.each(['..', '\ud800'])('refuses a promotion answer whose id %j cannot be a path id, before any read-back', async (id) => {
+    const client = newClient()
+    jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id, name: 'keep-this' }) })
+    const get = jest.spyOn(clientInstance(client), 'get')
+    await expect(client.images.promote('img_123', 'keep-this')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('image response id') })
+    expect(get).not.toHaveBeenCalled()
+  })
+
   it('derives the build-log transport from the internal service factory', async () => {
     const originalFetch = globalThis.fetch
     const client = newClient()

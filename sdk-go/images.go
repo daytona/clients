@@ -157,7 +157,11 @@ func (s *Images) Promote(ctx context.Context, id, name string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	// By ID: the caller's value may be a name (even "search", which Get refuses).
+	// By ID: the caller's value may be a name (even "search", which Get
+	// refuses). Checked as a response ID before the read.
+	if err = checkResponseID(promoted.ID); err != nil {
+		return nil, err
+	}
 	segment, err = pathSegment(promoted.ID)
 	if err != nil {
 		return nil, err

@@ -19,6 +19,7 @@ import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, assertOptionsObject, optionKeys, optionalSeconds } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { nestedDeeperThan } from './jsonDepth.js'
+import { acknowledgedId } from './responseFields.js'
 
 export type { BuildLogDoneReason } from './types.js'
 
@@ -446,20 +447,18 @@ async function resolvedDestination(api: HttpTransport, payload: api.BuildLogsUrl
     imageSegment = error instanceof IdentityMismatch ? /^\/images\/([^/]+)\/build-logs-url$/.exec(discoveryPath)?.[1] : undefined
     if (imageSegment === undefined) throw error
   }
-  const deadline = requestDeadline(api.defaultTimeout)
-  const response = await api.fetch(`/images/${imageSegment}`, { signal, redirect: 'manual', credentials: 'omit' }, false)
-  let canonical: string
+  // An ordinary image read (the client's body cap, the transport's
+  // malformed-response errors), as Python and Go read it.
+  let image: unknown
   try {
-    // Retried as discovery is.
-    if (response.status === 429 || response.status >= 500) throw new Retry(`build log image lookup HTTP ${response.status}`, retryAfter(response))
-    if (!response.ok) throw await httpError(response, deadline)
-    const body = await finiteBody(response, deadline, 'discovery')
-    try { canonical = text(jsonObject(body).id) } catch { throw new ProtocolError('invalid image response: id') }
-  } finally {
-    await cancelResponse(response)
+    image = await api.get<unknown>(`/images/${imageSegment}`, { signal })
+  } catch (error) {
+    if (error instanceof DaytonaError && retryableHttp(error)) {
+      throw new Retry(`build log image lookup HTTP ${error.statusCode}`, error.retryAfterMs ?? (error.retryAfterSeconds ?? 0) * 1000)
+    }
+    throw error
   }
-  if (!canonical) throw new ProtocolError('invalid image response: id')
-  return destination(api, payload, discoveryPath, canonical)
+  return destination(api, payload, discoveryPath, acknowledgedId(image, 'image'))
 }
 function requestDeadline(timeout: number): number | undefined {
   const delay = boundedTimerDelay(timeout)
@@ -531,6 +530,10 @@ async function httpError(response: Response, deadline: number | undefined): Prom
     if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
     throw error
   }
+}
+function retryableHttp(error: DaytonaError): boolean {
+  const status = error.statusCode
+  return status !== undefined && (status === 429 || status >= 500)
 }
 function retryAfter(response: Response): number {
   const value = response.headers.get('retry-after') ?? ''

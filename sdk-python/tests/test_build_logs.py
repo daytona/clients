@@ -486,6 +486,15 @@ async def test_control_event_fallback_text_for_a_source_change():
     assert output == ['[build logs: source_changed] {"type":"source_changed","reason":"rebuilt"}\n']
 
 
+async def test_control_event_fallback_text_escapes_a_lone_surrogate_as_typescript_does():
+    # The server sends an unpaired \ud800 escape; the line carries it escaped.
+    wire = b'event: unavailable\ndata: {"reason": "a\\ud800b"}\n\n' + done(output_complete=False)
+    api, _, _ = setup([wire])
+    output: list[str] = []
+    await follow_build_logs(api, DISCOVERY, on_logs=output.append)
+    assert output[0] == '[build logs: unavailable] {"type":"unavailable","reason":"a\\ud800b"}\n'
+
+
 async def test_control_events_go_only_to_the_event_callback_when_one_is_given():
     api, _, _ = setup([event("state", {"status": "pending"}) + done(output_complete=False)])
     output: list[str] = []
@@ -526,12 +535,55 @@ async def test_an_image_name_resolving_to_another_id_is_refused():
     assert len(requests) == 2
 
 
-async def test_an_image_lookup_answer_without_an_id_is_refused():
-    api, requests, _ = setup([httpx.Response(200, json={"name": "my-image"})], url=LOGS_URL_BY_ID)
-    with pytest.raises(BuildLogInterruptedError, match="invalid image response: id") as failure:
+# The lookup is an ordinary image read: a malformed answer is the SDK's own
+# BadRequestError, raised unchanged as a discovery error is (as TypeScript and Go).
+@pytest.mark.parametrize(
+    ("content_type", "body", "message"),
+    [
+        ("application/json", b'{"name":"my-image"}', "image response is missing its id"),
+        ("application/json", b'{"id":"  "}', "image response is missing its id"),
+        ("application/json", b'{"id":".."}', "image response id"),
+        (
+            "application/json",
+            b'{"id":"\\ud800"}',
+            "image response id must not contain a surrogate code point",
+        ),
+        ("application/json", b"[]", "image response is not a JSON object"),
+        ("application/json", b"{", None),
+        ("text/plain", b"img", "image response is not a JSON object"),
+    ],
+)
+async def test_a_malformed_image_lookup_answer_is_refused(content_type, body, message):
+    # ``message`` is part of the error's text (None: the transport's own text).
+    api, requests, _ = setup(
+        [httpx.Response(200, headers={"content-type": content_type}, content=body)], url=LOGS_URL_BY_ID
+    )
+    with pytest.raises(BadRequestError, match=message) as failure:
         await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
-    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
-    assert len(requests) == 2
+    assert (failure.value.status_code, failure.value.code, failure.value.source) == (
+        400,
+        "BAD_REQUEST",
+        "SDK",
+    )
+    # The destination is never contacted.
+    assert [request.url.path for request in requests] == [DISCOVERY_BY_NAME, "/images/my-image"]
+
+
+async def test_a_large_image_lookup_answer_is_read_like_any_image():
+    # Larger than any build-log event: an ordinary image read takes it.
+    api, requests, _ = setup(
+        [httpx.Response(200, json={"id": UUID, "error": "e" * 200_000}), done()], url=LOGS_URL_BY_ID
+    )
+    result = await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
+    assert result.status == "ready"
+    assert len(requests) == 3
+
+
+async def test_an_image_named_search_is_refused_before_any_request():
+    api, requests, _ = setup([])
+    with pytest.raises(BadRequestError, match="'search' cannot be looked up by name"):
+        await AsyncImagesService(api).follow_build_logs("search", on_logs=lambda _: None)
+    assert requests == []
 
 
 async def test_an_image_lookup_http_error_is_raised_unchanged():
@@ -543,8 +595,15 @@ async def test_an_image_lookup_http_error_is_raised_unchanged():
         ],
         url=LOGS_URL_BY_ID,
     )
-    with pytest.raises(NotFoundError):
+    with pytest.raises(NotFoundError) as failure:
         await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
+    error = failure.value
+    assert (error.status_code, error.code, error.source, error.message) == (
+        404,
+        "IMAGE_NOT_FOUND",
+        "DAYTONA_API",
+        "image not found",
+    )
 
 
 async def test_an_image_lookup_the_server_could_not_answer_is_retried():
@@ -1172,9 +1231,11 @@ async def test_invalid_discovery_target_never_receives_credentials(url):
 )
 @pytest.mark.parametrize("follow", [False, True])
 async def test_noncanonical_destination_refused_without_forwarding_credentials(follow, url):
-    # A followed image whose URL names another resource is looked up by the
-    # requested value first (it may be a name); the lookup confirms that id.
-    lookup = [httpx.Response(200, json={"id": "image"})] if follow else []
+    # A followed image whose well-formed URL names another resource is looked
+    # up by the requested value first (it may be a name); the lookup confirms
+    # that id. Every other URL is refused as it is read.
+    looked_up = follow and url.endswith("/other")
+    lookup = [httpx.Response(200, json={"id": "image"})] if looked_up else []
     api, requests, _ = setup(lookup, url=url)
     with pytest.raises(DaytonaError) as failure:
         if follow:
@@ -1183,9 +1244,10 @@ async def test_noncanonical_destination_refused_without_forwarding_credentials(f
             await read_build_logs(api, DISCOVERY)
     assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
     # Only the API is contacted, never the destination.
-    assert requests[0].url.path == DISCOVERY
-    assert all(request.url.host == "api.example" for request in requests)
-    assert [request.url.path for request in requests[1:]] in ([], ["/images/image"])
+    expected = [DISCOVERY, "/images/image"] if looked_up else [DISCOVERY]
+    assert [(request.url.host, request.url.path) for request in requests] == [
+        ("api.example", path) for path in expected
+    ]
 
 
 async def test_redirects_do_not_forward_credentials_even_with_redirect_enabled_client():

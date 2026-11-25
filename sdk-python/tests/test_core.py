@@ -7469,6 +7469,18 @@ async def test_image_service_promote_reads_back_by_the_answered_id() -> None:
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("image_id", ["..", "\ud800"])
+async def test_image_service_promote_refuses_an_answered_id_that_cannot_be_a_path_id(image_id: str) -> None:
+    transport = RecordingTransport([{**_image_page_payload("img-1"), "id": image_id}])
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="image response id"):
+        await service.promote("img-1", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [("PATCH", "/images/img-1")]
+
+
+@pytest.mark.anyio
 async def test_image_service_promote_refuses_a_malformed_answer_before_reading_back() -> None:
     transport = RecordingTransport([{}])
     service = AsyncImagesService(transport)  # type: ignore[arg-type]

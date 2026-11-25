@@ -5,10 +5,13 @@ package daytona
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -189,4 +192,29 @@ func TestCreateSnapshot_whenNameIsBlank(t *testing.T) {
 	// Then it is rejected before submission.
 	require.ErrorIs(t, err, ErrBadRequest)
 	require.Empty(t, fake.requests())
+}
+
+func TestImagePromote_whenResponseIDCannotBeAPathID(t *testing.T) {
+	for _, id := range []string{`..`, `\ud800`} {
+		t.Run(id, func(t *testing.T) {
+			// Given a promotion answer whose ID cannot be the read-back's path ID
+			// (a lone-surrogate escape decodes to U+FFFD).
+			wire, err := json.Marshal(imageFixture("img", "ready"))
+			require.NoError(t, err)
+			body := strings.Replace(string(wire), `"id":"img"`, `"id":"`+id+`"`, 1)
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"PATCH /images/img": func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					_, writeErr := w.Write([]byte(body))
+					assert.NoError(t, writeErr)
+				},
+			})
+			client := newTestClient(t, fake.Server)
+			// When promoting.
+			_, err = client.Images().Promote(t.Context(), "img", "permanent")
+			// Then the answer is refused before any read-back.
+			require.ErrorIs(t, err, ErrBadRequest)
+			require.Len(t, fake.requests(), 1)
+		})
+	}
 }

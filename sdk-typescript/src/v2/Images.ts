@@ -117,7 +117,13 @@ export class ImagesService {
     return this.resolvedApiTransport
   }
 
+  /**
+   * Follow an image's build by its ID or name. `'search'` cannot be followed
+   * by name (`GET /images/search` is the search route): it throws a
+   * `BadRequestError` before any request; follow such an image by its ID.
+   */
   public async followBuildLogs(imageId: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
+    refuseSearchName(imageId, 'image')
     return followBuildLogs(this.getApiTransport(), `/images/${pathSegment(imageId, 'imageId')}/build-logs-url`, options)
   }
 
@@ -338,10 +344,12 @@ export class ImagesService {
     const promotedName: unknown = name
     if (typeof promotedName !== 'string' || isBlank(promotedName)) throw badRequest('name must be a non-empty string')
     const { data: patched } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
-    // Checked before the read: the PATCH answer must be an image.
+    // Checked before the read: the PATCH answer must be an image whose id can
+    // be a path id. By id: the caller's value may be a name (even 'search',
+    // which get() refuses).
+    acknowledgedId(patched, 'image')
     const promoted = new Image(INTERNAL, patched)
-    // By id: the caller's value may be a name (even 'search', which get() refuses).
-    const { data } = await this.http.get<api.ImageListItem>(`/images/${pathSegment(promoted.id, 'image id')}`)
+    const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(promoted.id)}`)
     return new Image(INTERNAL, data)
   }
 

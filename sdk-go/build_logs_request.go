@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -59,14 +60,28 @@ func discoverBuildLogs(ctx context.Context, api *apiClient, path string) (*build
 	if err = api.do(discoveryCtx, apiRequest{Path: "/images/" + segment, Result: &current}); err != nil {
 		return nil, err
 	}
-	var canonical string
-	if object, err = parseObject(current, "image"); err == nil {
-		canonical, err = field[string](object, "id", true)
-	}
-	if err != nil || canonical == "" {
-		return nil, buildLogProtocol("invalid image response: id")
+	canonical, err := imageLookupID(current)
+	if err != nil {
+		return nil, err
 	}
 	return buildLogDestination(api, raw, path, canonical)
+}
+
+// imageLookupID is the ID an image lookup answered with, checked as every
+// response ID a request path will carry is (the messages of the other SDKs).
+func imageLookupID(current JSONValue) (string, error) {
+	object, err := parseObject(current, "image")
+	if err != nil {
+		return "", badRequest("image response is not a JSON object")
+	}
+	canonical, err := field[string](object, "id", true)
+	if err != nil || strings.TrimSpace(canonical) == "" {
+		return "", badRequest("image response is missing its id")
+	}
+	if err = checkResponseID(canonical); err != nil {
+		return "", err
+	}
+	return canonical, nil
 }
 
 func (t buildLogTarget) readFinite(ctx context.Context, spec apiRequest, limit int64) (data []byte, failure error) {

@@ -43,6 +43,7 @@ from ._core import (
     is_json_media_type,
     loads_json,
     parse_error_payload,
+    path_segment,
     query_text,
     wait_budget_seconds,
 )
@@ -423,13 +424,20 @@ def _messages(chunks: Iterable[bytes]) -> Iterator[tuple[str, str | None, dict[s
         yield from decoder.feed(chunk)
 
 
+_LONE_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
 def _control_text(kind: str, fields: Mapping[str, JsonValue]) -> str:
     """The line ``on_logs`` receives for a control event when no ``on_event``
     is given: ``[build logs: <type>] `` and the event's wire fields as compact
     JSON (``type`` first, absent fields left out), the same text in both SDKs."""
     body: dict[str, JsonValue] = {"type": kind}
     body.update((key, value) for key, value in fields.items() if value is not None)
-    return f"[build logs: {kind}] {json.dumps(body, ensure_ascii=False, separators=(',', ':'))}\n"
+    text = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
+    # A surrogate code point left in a decoded string is a lone one (JSON
+    # decoding joins pairs): escaped as JSON.stringify escapes it.
+    text = _LONE_SURROGATE.sub(lambda match: f"\\u{ord(match[0]):04x}", text)
+    return f"[build logs: {kind}] {text}\n"
 
 
 class _Observer:
@@ -681,21 +689,29 @@ async def _resolved_destination(
         resource = re.fullmatch(r"/images/([^/]+)/build-logs-url", discovery_path)
         if resource is None:
             raise
+    # An ordinary image read (the client's body cap, the transport's
+    # malformed-response errors), as TypeScript and Go read it.
     try:
         image = await api.send(RequestSpec("GET", f"/images/{resource[1]}", timeout=timeout))
     except DaytonaError as exc:
-        # Retried as discovery is.
-        status = exc.status_code
-        if status is not None and (status == 429 or status >= 500):
-            raise _Retry(f"build log image lookup HTTP {status}", exc.retry_after_seconds or 0) from exc
+        if _retryable_http(exc):
+            raise _Retry(
+                f"build log image lookup HTTP {exc.status_code}", exc.retry_after_seconds or 0
+            ) from exc
         raise
-    try:
-        canonical = _text(_object(image).get("id"))
-    except _ProtocolError as exc:
-        raise _ProtocolError("invalid image response: id") from exc
-    if not canonical:
-        raise _ProtocolError("invalid image response: id")
-    return _destination(api, payload, discovery_path, canonical)
+    return _destination(api, payload, discovery_path, _image_lookup_id(image))
+
+
+def _image_lookup_id(image: object) -> str:
+    """The id an image lookup answered with, checked as every response id a
+    request path will carry is (the messages of TypeScript's ``acknowledgedId``)."""
+    if not isinstance(image, dict):
+        raise create_error("image response is not a JSON object", 400, "BAD_REQUEST", "SDK")
+    canonical = image.get("id")
+    if not isinstance(canonical, str) or not canonical.strip():
+        raise create_error("image response is missing its id", 400, "BAD_REQUEST", "SDK")
+    path_segment(canonical, "image response id")
+    return canonical
 
 
 def _retry_after(headers: Mapping[str, str]) -> float:
@@ -747,6 +763,11 @@ async def _http_error(status: int, chunks: AsyncIterator[bytes], content_type: O
     if not (isinstance(message, str) and message) and not (isinstance(error, str) and error):
         payload = {**payload, "message": f"build log HTTP {status}"}
     return parse_error_payload(status, payload)
+
+
+def _retryable_http(error: DaytonaError) -> bool:
+    status = error.status_code
+    return status is not None and (status == 429 or status >= 500)
 
 
 def _budget(deadline: float | None) -> float | None:

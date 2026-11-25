@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -161,14 +162,34 @@ func TestBuildLogsFollowImageByName(t *testing.T) {
 			require.Empty(t, target.requests())
 			require.Len(t, api.requests(), 2)
 		}},
-		{"answered without an ID", func(w http.ResponseWriter, _ *http.Request) {
-			writeJSON(t, w, map[string]string{"name": "my-image"})
+		{
+			"answered without an ID", rawLookup(t, "application/json", `{"name":"my-image"}`),
+			malformedLookup("image response is missing its id"),
+		},
+		{
+			"answered with a blank ID", rawLookup(t, "application/json", `{"id":"  "}`),
+			malformedLookup("image response is missing its id"),
+		},
+		{
+			"answered with a dot-segment ID", rawLookup(t, "application/json", `{"id":".."}`),
+			malformedLookup(""),
+		},
+		{
+			"answered with a lone-surrogate ID", rawLookup(t, "application/json", `{"id":"\ud800"}`),
+			malformedLookup("replacement character"),
+		},
+		{
+			"answered with an array", rawLookup(t, "application/json", `[]`),
+			malformedLookup("image response is not a JSON object"),
+		},
+		{"answered with invalid JSON", rawLookup(t, "application/json", `{`), malformedLookup("")},
+		{"answered with text", rawLookup(t, "text/plain", `img`), malformedLookup("")},
+		{"answered with a large image", func(w http.ResponseWriter, _ *http.Request) {
+			// Larger than any build-log event: an ordinary image read takes it.
+			writeJSON(t, w, map[string]string{"id": uuid, "error": strings.Repeat("e", 200_000)})
 		}, func(t *testing.T, err error, _, target *fakeServer) {
-			var interrupted *BuildLogInterruptedError
-			require.ErrorAs(t, err, &interrupted)
-			require.Equal(t, "BUILD_LOG_PROTOCOL_ERROR", interrupted.SDKError.Code)
-			require.Contains(t, interrupted.Error(), "invalid image response: id")
-			require.Empty(t, target.requests())
+			require.NoError(t, err)
+			require.Len(t, target.requests(), 1)
 		}},
 		{"unavailable once", unavailableOnce(t, uuid), func(t *testing.T, err error, api, target *fakeServer) {
 			// A lookup the server could not answer is retried, as discovery is.
@@ -230,4 +251,39 @@ func unavailableOnce(t *testing.T, id string) http.HandlerFunc {
 		}
 		writeJSON(t, w, map[string]string{"id": id})
 	}
+}
+
+func rawLookup(t *testing.T, contentType, body string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", contentType)
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err)
+	}
+}
+
+// malformedLookup expects the transport's or the SDK's own BadRequestError,
+// raised unchanged (as a discovery error is), and no request to the destination.
+func malformedLookup(message string) func(*testing.T, error, *fakeServer, *fakeServer) {
+	return func(t *testing.T, err error, api, target *fakeServer) {
+		require.ErrorIs(t, err, ErrBadRequest)
+		var interrupted *BuildLogInterruptedError
+		require.NotErrorAs(t, err, &interrupted)
+		var detail *Error
+		require.ErrorAs(t, err, &detail)
+		require.Equal(t, SourceSDK, detail.Source)
+		require.Contains(t, detail.Message, message)
+		require.Empty(t, target.requests())
+		require.Len(t, api.requests(), 2)
+	}
+}
+
+func TestBuildLogsFollowImageNamedSearchIsRefused(t *testing.T) {
+	// Given an API that would answer anything.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{})
+	client := newTestClient(t, fake.Server)
+	// When following the reserved name.
+	_, err := buildLogsCollect(client.Images().FollowBuildLogs(t.Context(), "search", nil))
+	// Then it is refused before any request, as Get refuses it.
+	require.ErrorIs(t, err, ErrBadRequest)
+	require.Empty(t, fake.requests())
 }

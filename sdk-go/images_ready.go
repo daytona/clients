@@ -63,18 +63,23 @@ func (s *Images) BuildAndWait(ctx context.Context, builder *ImageBuilder, opts *
 		return s.ready(ctx, image, "image "+image.ID+" build failed")
 	case ImageStatusUnknown, ImageStatusPending, ImageStatusBuilding:
 	}
-	waitCtx, cancel := artifactWaitContext(ctx, options.Timeout, "image build did not finish before timeout")
+	waitCtx, cancel := artifactWaitContext(ctx, options.Timeout, buildTimeoutMessage)
 	defer cancel()
 	ready, err := s.ready(waitCtx, image, "image "+image.ID+" build failed")
-	return ready, buildTimeoutError(ctx, waitCtx, err, image.ID)
+	return ready, buildTimeoutError(waitCtx, err, image.ID)
 }
 
+const buildTimeoutMessage = "image build did not finish before timeout"
+
 // buildTimeoutError names the still-building image when the build budget
-// (waitCtx's own deadline, not the caller's context) ended the wait.
-func buildTimeoutError(ctx, waitCtx context.Context, err error, imageID string) error {
-	var timeout *Error
-	if err == nil || ctx.Err() != nil || waitCtx.Err() == nil || !errors.As(err, &timeout) ||
-		timeout.Source != SourceSDK || timeout.Code != CodeRequestTimeout {
+// ended the wait: waitCtx's cause is the budget's own timeout, which a caller
+// cancellation arriving afterwards does not replace (and a caller context that
+// ended first leaves as its own cause).
+func buildTimeoutError(waitCtx context.Context, err error, imageID string) error {
+	var budget, timeout *Error
+	if err == nil || !errors.As(context.Cause(waitCtx), &budget) || budget.Source != SourceSDK ||
+		budget.Code != CodeRequestTimeout || budget.Message != buildTimeoutMessage ||
+		!errors.As(err, &timeout) || timeout.Source != SourceSDK || timeout.Code != CodeRequestTimeout {
 		return err
 	}
 	return &ImageBuildTimeoutError{SDKError: timeout, ImageID: imageID}
