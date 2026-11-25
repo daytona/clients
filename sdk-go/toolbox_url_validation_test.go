@@ -4,7 +4,6 @@
 package daytona
 
 import (
-	"errors"
 	"net/http"
 	"testing"
 
@@ -78,6 +77,10 @@ func TestGet_whenDirectToolboxURLIsAccepted(t *testing.T) {
 // One toolbox URL override rule in every SDK: the same lists are in
 // sdk-python/tests/test_config_validation.py and sdk-typescript/tests/config-validation.test.ts.
 var sameRuleRefused = []string{
+	"http://%C3%A9.example/x",
+	"http://fe80::1/x",
+	"http://[xyz]/x",
+	"https://user\\x@toolbox.example/x",
 	"https://toolbox.example/tools\u0085x",
 	"https://toolbox.example/tools\u0080x",
 	"https://toolbox.example/tools\u009fx",
@@ -112,8 +115,7 @@ func TestCheckToolboxOverride_followsTheRuleSharedWithPythonAndTypeScript(t *tes
 	for _, endpoint := range sameRuleRefused {
 		t.Run("refuses "+endpoint, func(t *testing.T) {
 			// When
-			_, scopeErr := scopedToolboxURL("", "sbx", endpoint)
-			err := errors.Join(checkToolboxOverride(endpoint), scopeErr)
+			err := checkToolboxOverride(endpoint)
 			// Then
 			require.ErrorIs(t, err, ErrBadRequest)
 		})

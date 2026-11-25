@@ -55,7 +55,8 @@ export function assertPlaceholderInPath(url: string): void {
  */
 function plainAuthority(url: string): boolean {
   const authority = /^https?:\/\/([^/?#]*)/i.exec(url)?.[1] ?? ''
-  return OVERRIDE_HOST.test(authority.slice(authority.lastIndexOf('@') + 1))
+  // A backslash anywhere in the authority: WHATWG reads it as `/`, the others do not.
+  return !authority.includes('\\') && OVERRIDE_HOST.test(authority.slice(authority.lastIndexOf('@') + 1))
 }
 
 /**

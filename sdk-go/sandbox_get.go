@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -116,11 +117,24 @@ func regionOf(id string) string {
 	return region
 }
 
+// overrideAuthority is the raw authority of an http(s) URL; overrideHost is the
+// host (and optional port) of a toolbox URL override, the rule the Python and
+// TypeScript SDKs apply to the same raw text: an IPv6 literal of hex digits,
+// ':' and '.', or a name of ASCII letters, digits, "-._~!$&'()*+,;=" and
+// characters from U+00A0 up. Checked before url.Parse, which would decode a
+// percent-encoded host and drop the brackets of an IPv6 literal.
+var (
+	overrideAuthority = regexp.MustCompile(`^(?i)https?://([^/?#]*)`)
+	overrideHost      = regexp.MustCompile(
+		`^(?:\[[0-9A-Fa-f:.]+\]|(?:[A-Za-z0-9\-._~!$&'()*+,;=]|[^\x00-\x{9f}])+)(?::[0-9]*)?$`)
+)
+
 // checkToolboxOverride refuses what the shared HTTP base URL rule lets through
 // in a caller's ToolboxURL, as the Python and TypeScript SDKs refuse it:
-// whitespace, a C0 or C1 control character, DEL or U+FEFF anywhere; a port
-// above 65535; and a host that overrideHost refuses (a percent sign: an
-// encoded host or an IPv6 zone ID). URLs the API returns are not checked here.
+// whitespace, a C0 or C1 control character, DEL or U+FEFF anywhere; a
+// backslash in the authority; a raw host overrideHost refuses (a percent sign:
+// an encoded host or an IPv6 zone ID); and a port above 65535. URLs the API
+// returns are not checked here.
 func checkToolboxOverride(raw string) error {
 	const message = "ToolboxURL must be an http(s) URL with a host, a port up to 65535, " +
 		"no percent-encoded host, and no whitespace or control characters"
@@ -130,11 +144,13 @@ func checkToolboxOverride(raw string) error {
 		}
 	}
 	masked := strings.NewReplacer("{sandboxId}", "sandbox", "{sandbox_id}", "sandbox").Replace(raw)
+	match := overrideAuthority.FindStringSubmatch(masked)
+	if match == nil || strings.Contains(match[1], `\`) ||
+		!overrideHost.MatchString(match[1][strings.LastIndex(match[1], "@")+1:]) {
+		return badRequest(message)
+	}
 	// An unparsable URL is left to the shared rule, which reports it.
 	if parsed, err := url.Parse(masked); err == nil {
-		if !overrideHost(parsed.Hostname()) {
-			return badRequest(message)
-		}
 		if port := parsed.Port(); port != "" {
 			if number, convErr := strconv.Atoi(port); convErr != nil || number > 65535 {
 				return badRequest(message)
@@ -142,21 +158,4 @@ func checkToolboxOverride(raw string) error {
 		}
 	}
 	return nil
-}
-
-// overrideHost reports whether host (no port) is an IPv6 literal of hex digits,
-// ':' and '.', or a name of ASCII letters, digits, "-._~!$&'()*+,;=" and
-// characters from U+00A0 up: the host rule the Python and TypeScript SDKs
-// apply to a toolbox URL override.
-func overrideHost(host string) bool {
-	if strings.Contains(host, ":") {
-		return strings.Trim(host, "0123456789abcdefABCDEF:.") == ""
-	}
-	for _, char := range host {
-		if char < 0xa0 && !strings.ContainsRune(
-			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~!$&'()*+,;=", char) {
-			return false
-		}
-	}
-	return host != ""
 }

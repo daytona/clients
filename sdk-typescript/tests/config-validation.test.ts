@@ -24,7 +24,7 @@ describe('boolean config options', () => {
     ['otelEnabled', { otelEnabled: 'yes' as never }, 'otelEnabled must be a boolean'],
     ['otelEnabled', { otelEnabled: 1 as never }, 'otelEnabled must be a boolean'],
     ['events.enabled', { events: { enabled: 'no' as never } }, 'events.enabled must be a boolean'],
-  ] as const)('refuses a non-boolean %s when the v2 client is built', (_name, config, message) => {
+  ] as const)('refuses a non-boolean %s (%j) when the v2 client is built', (_name, config, message) => {
     const root = new Daytona({ apiKey: 'key', ...config } as DaytonaConfig)
     expect(() => root.v2).toThrow(expect.objectContaining({ ...BAD_REQUEST, message }) as Error)
   })
@@ -105,6 +105,10 @@ describe('get() toolbox URL override', () => {
 // One toolbox URL override rule in every SDK: the same lists are in
 // sdk-python/tests/test_config_validation.py and sdk-go/toolbox_url_validation_test.go.
 const SAME_RULE_REFUSED: readonly string[] = [
+  "http://%C3%A9.example/x",
+  "http://fe80::1/x",
+  "http://[xyz]/x",
+  "https://user\\x@toolbox.example/x",
   "https://toolbox.example/tools\u0085x",
   "https://toolbox.example/tools\u0080x",
   "https://toolbox.example/tools\u009fx",

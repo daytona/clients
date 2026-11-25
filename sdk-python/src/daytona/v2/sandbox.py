@@ -2395,15 +2395,18 @@ def _space_or_control(char: str) -> bool:
 
 def _plain_authority(url: str) -> bool:
     """Whether the raw authority (between ``://`` and the first ``/``, ``?``
-    or ``#``) of an http(s) URL has a host every SDK reads the same way (see
-    ``_OVERRIDE_HOST``): no ``\\``, no ``%`` (an encoded host or an IPv6 zone
-    id), and no character such as ``|`` or ``<`` that another SDK's URL parser
+    or ``#``) of an http(s) URL is one every SDK reads the same way: no
+    ``\\`` anywhere in it (one URL parser reads it as ``/``), and a host (see
+    ``_OVERRIDE_HOST``) with no ``%`` (an encoded host or an IPv6 zone id) and
+    no character such as ``|`` or ``<`` that another SDK's URL parser
     refuses."""
     match = _HTTP_URL_AUTHORITY.match(url)
     if match is None:
         return False
     authority = match.group(1)
-    return _OVERRIDE_HOST.fullmatch(authority[authority.rfind("@") + 1 :]) is not None
+    return (
+        "\\" not in authority and _OVERRIDE_HOST.fullmatch(authority[authority.rfind("@") + 1 :]) is not None
+    )
 
 
 def _check_toolbox_override_url(url: str, name: str) -> None:

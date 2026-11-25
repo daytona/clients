@@ -226,6 +226,10 @@ async def test_get_accepts_an_http_toolbox_url(
 # One toolbox URL override rule in every SDK: the same lists are in
 # sdk-typescript/tests/config-validation.test.ts and sdk-go/toolbox_url_validation_test.go.
 _SAME_RULE_REFUSED = [
+    "http://%C3%A9.example/x",
+    "http://fe80::1/x",
+    "http://[xyz]/x",
+    "https://user\\x@toolbox.example/x",
     "https://toolbox.example/tools\u0085x",
     "https://toolbox.example/tools\u0080x",
     "https://toolbox.example/tools\u009fx",
