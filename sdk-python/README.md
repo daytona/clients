@@ -1141,9 +1141,9 @@ other than `LIMIT_EXCEEDED`, or a 5xx other than 501) with backoff (0.2 s
 doubling to 5 s, or the server's retry hint when longer: the error's
 `retry_after_ms` / `retry_after_seconds`, else the `Retry-After` header)
 within the same budget, and never sooner than the wait's own poll spacing
-(0.5 s for Docker, 1 s for image and snapshot readiness). When the budget
-runs out, its timeout error carries
-the last failed read as `__cause__`. A wait without a deadline keeps
+(0.2 s for sandbox waits, 0.5 s for Docker, 1 s for image and snapshot
+readiness). When the budget runs out, its timeout error carries the last
+failed read as `__cause__`. A wait without a deadline keeps
 retrying until the server answers, the caller cancels or the client is closed
 (which ends it with `ClientClosedError`); `images.get()` / `snapshots.get()`
 with `wait="ready"` but no `timeout` make a single server-default hold and do

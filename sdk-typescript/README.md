@@ -1063,9 +1063,9 @@ stalled read, HTTP 429 other than `LIMIT_EXCEEDED`, or a 5xx other than 501)
 with backoff (200 ms doubling to 5 s, or the server's retry hint when longer:
 the error's `retryAfterMs` / `retryAfterSeconds`, else the `Retry-After`
 header) within the same budget, and never sooner than the wait's own poll
-spacing (500 ms for Docker, 1 s for image and snapshot readiness). When the
-budget runs out, its timeout error
-carries the last failed read as `cause`. A wait without a deadline keeps
+spacing (200 ms for sandbox waits, 500 ms for Docker, 1 s for image and
+snapshot readiness). When the budget runs out, its timeout error carries the
+last failed read as `cause`. A wait without a deadline keeps
 retrying until the server answers or the client is closed (which ends it with
 `ClientClosedError`); `images.get()` / `snapshots.get()` with
 `wait: 'ready'` but no `timeoutSeconds` make a single server-default hold and
