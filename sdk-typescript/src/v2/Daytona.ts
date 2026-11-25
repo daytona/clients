@@ -196,9 +196,10 @@ export class Daytona {
    * `DEFAULT_IMAGE_NOT_CONFIGURED` (400). An empty or whitespace-only image is
    * still an error, thrown before any request.
    *
-   * **Returned metadata.** The handle holds what the create response reports:
-   * id, name, state, image, and the lifecycle policy when the response
-   * carries one. The rest (`cpu`, `memory`, `disk` and their limits, `labels`,
+   * **Returned metadata.** The handle holds what the create response reports
+   * (id, name, state, image, reservation, and the lifecycle policy when the
+   * response carries one) plus what the request fixed (the class, the region,
+   * an `img_` / `snap_` id you passed). The rest (`cpu`, `memory`, `disk` and their limits, `labels`,
    * `user`, ...) is `undefined` (unknown, not empty) until a detail read, and
    * a sandbox that is already started when the create answers (the usual
    * case) gets none. Call `sandbox.refreshData()` before reading them. The

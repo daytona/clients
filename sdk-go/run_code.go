@@ -17,9 +17,11 @@ import (
 // local cause through errors.Is. Cleanup is best-effort: its failure does not
 // replace the local error, and a successful interrupt does not confirm cell exit.
 // Writers and callbacks run synchronously and must not block indefinitely.
-// Any failure after process creation returns the partial result with
-// Process.ProcessID and unknown Reason alongside the error, including without
-// writers or callbacks. Other failures do not retry the stream or trigger
+// Any other failure after process creation (a transport or stream error) returns
+// the partial result with Process.ProcessID and unknown Reason alongside the
+// error, including without writers or callbacks; a run the sandbox ended before
+// the code reached a kernel returns ProcessReasonFailed with ErrKernelUnavailable
+// (see Sandbox.RunCode). Other failures do not retry the stream or trigger
 // additional interruption; Timeout retains its documented interrupt semantics.
 // Reconnect that process to wait, resume its logs, or interrupt it explicitly.
 type RunCodeOptions struct {
@@ -59,13 +61,16 @@ type RunCodeOptions struct {
 //
 // The first run of a language starts its kernel and installs it when the image
 // does not ship it: Python installs ipykernel from PyPI (pypi.org,
-// files.pythonhosted.org) unless the image's Python has it; TypeScript and
-// JavaScript download Deno from dl.deno.land unless deno is on the image's PATH.
+// files.pythonhosted.org) unless the image's Python has it and its venv module;
+// TypeScript and JavaScript download Deno from dl.deno.land unless deno is on
+// the image's PATH.
 // That run takes a few seconds longer, and a network policy blocking those hosts
-// prevents the install: allow them or use an image that ships the kernel. A run
-// that fails before the code reaches a kernel returns ErrKernelUnavailable
+// prevents the install: allow them or use an image that ships the kernel. When
+// the sandbox ends the run before the code reaches a kernel (most often a kernel
+// that could not be installed or started), RunCode returns ErrKernelUnavailable
 // (source SDK) carrying the sandbox's setup diagnostic, alongside the partial
-// result with ProcessReasonFailed. A kernel lost mid-run returns its partial
+// result with ProcessReasonFailed. The sandbox reports no error code for such a
+// run, so a context deleted while the run was queued returns it too. A kernel lost mid-run returns its partial
 // output with ProcessReasonLost and a nil error; the next run starts a new kernel.
 func (s *Sandbox) RunCode(ctx context.Context, code string, opts *RunCodeOptions) (*RunCodeResult, error) {
 	return s.Interpreter().Run(ctx, code, opts)
@@ -74,7 +79,9 @@ func (s *Sandbox) RunCode(ctx context.Context, code string, opts *RunCodeOptions
 // Run executes code and returns stdout, stderr, rich outputs and kernel errors.
 // Timeout includes time queued behind another run in the same context. An
 // expired queued run returns ProcessReasonTimedOut with an empty ProcessID.
-// Callbacks must not synchronously run more code in the same context.
+// Callbacks must not synchronously run more code in the same context. A run the
+// sandbox ended before the code reached a kernel returns ErrKernelUnavailable
+// with the partial result, as described on Sandbox.RunCode.
 func (s *Interpreter) Run(ctx context.Context, code string, opts *RunCodeOptions) (*RunCodeResult, error) {
 	options := RunCodeOptions{}
 	if opts != nil {

@@ -346,10 +346,11 @@ class AsyncDaytona:
         explicitly.
 
         **Returned metadata.** The handle holds what the create response
-        reports: id, name, state, image, and the lifecycle policy when the
-        response carries one. The rest (``cpu``, ``memory``, ``disk`` and
-        their limits, ``labels``, ``user``, ...) is ``None`` (unknown, not
-        empty) until a detail read, and a sandbox that is already started when
+        reports (id, name, state, image, reservation, and the lifecycle policy
+        when the response carries one) plus what the request fixed (the class,
+        the region, an `img_` / `snap_` id you passed). The rest (``cpu``,
+        ``memory``, ``disk`` and their limits, ``labels``, ``user``, ...) is
+        ``None`` (unknown, not empty) until a detail read, and a sandbox that is already started when
         the create answers (the usual case) gets none. Call
         :meth:`AsyncSandbox.refresh_data` before reading them. The same holds
         for :meth:`create_from_snapshot`, :meth:`create_from_build` and

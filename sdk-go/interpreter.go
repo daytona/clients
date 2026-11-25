@@ -59,7 +59,8 @@ func (c *InterpreterContext) Close(ctx context.Context) error {
 }
 
 // Run executes code in this context. A lost context returns ErrSessionNotFound;
-// the SDK never recreates it or reruns the code automatically.
+// the SDK never recreates it or reruns the code automatically. A kernel the
+// sandbox could not reach returns ErrKernelUnavailable, as on Sandbox.RunCode.
 func (c *InterpreterContext) Run(
 	ctx context.Context, code string, opts *InterpreterContextRunOptions,
 ) (*RunCodeResult, error) {

@@ -5,7 +5,6 @@ package daytona
 
 import (
 	"bytes"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -27,10 +26,14 @@ func interpreterSetupFailedRoutes(t *testing.T, frames []any) map[string]http.Ha
 
 func interpreterSetupFailedFrames() []any {
 	return []any{
-		map[string]any{"cursor": "1", "timestamp": 1, "channel": "setup",
-			"data": "Preparing the python kernel (first use): installing ipykernel\n"},
-		map[string]any{"cursor": "2", "timestamp": 2, "channel": "setup",
-			"data": "code run failed: " + interpreterInstallFailure + "\n"},
+		map[string]any{
+			"cursor": "1", "timestamp": 1, "channel": "setup",
+			"data": "Preparing the python kernel (first use): installing ipykernel\n",
+		},
+		map[string]any{
+			"cursor": "2", "timestamp": 2, "channel": "setup",
+			"data": "code run failed: " + interpreterInstallFailure + "\n",
+		},
 	}
 }
 
@@ -39,7 +42,7 @@ func requireKernelSetupError(t *testing.T, err error) *Error {
 	require.ErrorIs(t, err, ErrKernelUnavailable)
 	require.ErrorIs(t, err, ErrServiceUnavailable)
 	var sdkErr *Error
-	require.True(t, errors.As(err, &sdkErr))
+	require.ErrorAs(t, err, &sdkErr)
 	require.Equal(t, SourceSDK, sdkErr.Source)
 	require.Equal(t, http.StatusServiceUnavailable, sdkErr.StatusCode)
 	return sdkErr
@@ -84,11 +87,30 @@ func TestRunCode_whenKernelSetupFailedWhileStreaming(t *testing.T) {
 	sandbox := interpreterTestSandbox(t, fake)
 	var stdout bytes.Buffer
 	// When
-	_, err := sandbox.RunCode(t.Context(), "print(1)", &RunCodeOptions{Stdout: &stdout})
+	result, err := sandbox.RunCode(t.Context(), "print(1)", &RunCodeOptions{Stdout: &stdout})
 	// Then
 	sdkErr := requireKernelSetupError(t, err)
 	require.Contains(t, sdkErr.Message, interpreterInstallFailure)
 	require.Empty(t, stdout.String())
+	require.NotNil(t, result)
+	require.Equal(t, "p", result.Process.ProcessID)
+	require.Equal(t, ProcessReasonFailed, result.Process.Reason)
+}
+
+func TestRunCode_whenKernelSetupFailedInExplicitContext(t *testing.T) {
+	// Given
+	fake := newFakeServer(t, interpreterSetupFailedRoutes(t, interpreterSetupFailedFrames()))
+	bound, err := interpreterTestSandbox(t, fake).Interpreter().ConnectContext("ctx", "python")
+	require.NoError(t, err)
+	// When
+	result, err := bound.Run(t.Context(), "print(1)", nil)
+	// Then
+	sdkErr := requireKernelSetupError(t, err)
+	require.Contains(t, sdkErr.Message, interpreterInstallFailure)
+	require.Equal(t, ProcessReasonFailed, result.Process.Reason)
+	require.JSONEq(t,
+		`{"code":"print(1)","kind":"code","language":"python","sessionId":"ctx","keepLogs":"on_exit_ttl"}`,
+		string(fake.requests()[0].Body))
 }
 
 func TestRunCode_whenKernelLostReturnsPartialResult(t *testing.T) {
@@ -98,8 +120,10 @@ func TestRunCode_whenKernelLostReturnsPartialResult(t *testing.T) {
 	routes["GET /processes/p/logs"] = jsonHandler(t, map[string]any{
 		"frames": []any{
 			map[string]any{"cursor": "1", "timestamp": 1, "channel": "stdout", "data": "partial\n"},
-			map[string]any{"cursor": "2", "timestamp": 2, "channel": "setup",
-				"data": "kernel died mid-execution: connection closed\n"},
+			map[string]any{
+				"cursor": "2", "timestamp": 2, "channel": "setup",
+				"data": "kernel died mid-execution: connection closed\n",
+			},
 		},
 		"nextCursor": "2", "truncatedHead": false, "eof": true,
 	})

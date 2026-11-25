@@ -1,0 +1,7 @@
+**Interpreter first-run and create-handle docs** — Python, TypeScript and Go:
+`run_code()` / `runCode()` / `RunCode` document what the first run of a language
+installs and which hosts it needs. `create*()` documents that the returned
+handle holds only what the create response reports (call `refresh_data()` /
+`refreshData()` / `Refresh` before reading resources or labels), and that
+`/proc/meminfo` shows the memory present now, which can grow toward
+`memory_max`, while `nproc` shows the CPU limit.

@@ -411,7 +411,7 @@ export class InterpreterContext {
    * set when the context is created. If the context vanished, the typed
    * SESSION_NOT_FOUND error surfaces unchanged so the caller can recreate the
    * context and decide what code, if any, is safe to rerun. A kernel that
-   * could not be started throws `KernelUnavailableError`, as
+   * the sandbox could not reach throws `KernelUnavailableError`, as
    * {@link InterpreterService.run} describes.
    */
   public async run(code: string, options: InterpreterContextRunOptions = {}): Promise<InterpreterResult> {
@@ -581,14 +581,17 @@ export class InterpreterService {
    * **First run of a language.** The sandbox starts the language's kernel on
    * its first run, installing it when the image does not ship it: Python
    * installs `ipykernel` from PyPI (`pypi.org`, `files.pythonhosted.org`)
-   * unless the image's Python already has it; TypeScript and JavaScript
+   * unless the image's Python already has it and its `venv` module;
+   * TypeScript and JavaScript
    * download Deno from `dl.deno.land` unless `deno` is on the image's `PATH`.
    * That run takes a few seconds longer, and under a network policy that
    * blocks those hosts it cannot install the kernel: allow those domains, or
-   * use an image that ships `ipykernel` / `deno`. When the run fails before
-   * the code reaches a kernel (one that could not be installed or started),
-   * this throws `KernelUnavailableError` (503, source `SDK`) carrying the
-   * sandbox's setup diagnostic. A kernel that stops during the run returns
+   * use an image that ships `ipykernel` / `deno`. When the sandbox ends the
+   * run before the code reaches a kernel (most often a kernel that could not
+   * be installed or started), this throws `KernelUnavailableError` (503,
+   * source `SDK`) carrying the sandbox's setup diagnostic; the sandbox
+   * reports no error code for such a run, so a context deleted while the run
+   * was queued throws it too. A kernel that stops during the run returns
    * the output produced so far with `process.reason === 'lost'`; its state
    * is gone and the next run starts a new kernel.
    */

@@ -415,8 +415,9 @@ make asynchronous callback work cancellation-aware when needed.
   `persistent`, `spot`, `spotEvictedAt`,
   `lifecyclePolicy`, `forkedFrom`, `user`, and `error` (network policy is read through `getNetworkPolicy()`).
   A handle from `create*()` holds only what the create response carries (id,
-  name, state, image and, when reported, the lifecycle policy) until something
-  reads the sandbox, and a sandbox that is already started when the create
+  name, state, image, reservation and, when reported, the lifecycle policy)
+  plus what the request fixed (`sandboxClass`, `region`, an `img_` / `snap_`
+  id you passed) until something reads the sandbox, and a sandbox that is already started when the create
   answers (the usual case) is not read: call `refreshData()` before reading
   `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
   response does not report. Until then they are `undefined` (unknown). A
@@ -584,7 +585,7 @@ seconds; `-1` asks the server to apply its maximum.
 Linux sizing uses only `resources: { cpu, cpuMax, memory, memoryMax, disk, diskMax }`.
 CPU is in cores; memory and disk are in GiB and must convert exactly to whole
 MiB. Readback preserves exact GiB values. Inside the sandbox, `nproc` reports
-the CPU limit (`cpuMax`), while memory can start near the guaranteed `memory`
+the CPU limit (`cpuMax * 2` vCPUs), while memory can start near the guaranteed `memory`
 and grow on demand up to `memoryMax`: `/proc/meminfo` and `free` show the
 memory present now, and `sandbox.metrics()` reports the limit as the total.
 `createFromSnapshot()` inherits the
@@ -972,7 +973,7 @@ code-process handle later does not recreate it.
 The first run of a language in a sandbox starts its kernel and installs it when
 the image does not ship it, which adds a few seconds: Python installs
 `ipykernel` from PyPI (`pypi.org`, `files.pythonhosted.org`) unless the image's
-Python already has it, and TypeScript / JavaScript download Deno from
+Python already has it and its `venv` module, and TypeScript / JavaScript download Deno from
 `dl.deno.land` unless `deno` is on the image's `PATH`. A sandbox whose network
 policy blocks those hosts needs an image that ships the kernel, or those
 domains in `allowDomains`. When the kernel cannot be installed or started, the
