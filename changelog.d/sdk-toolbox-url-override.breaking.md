@@ -1,16 +1,10 @@
-**Toolbox URL override checked up front** — `get()`'s `toolbox_url` /
-`toolboxUrl` (Go `ToolboxURL`) follows one rule in every SDK. It must be an
-absolute `http` / `https` URL with a host, an optional port up to 65535, no
-query or fragment, no empty authority and no `\` in the authority. The host,
-as written, is an IPv6 literal or a name of ASCII letters, digits,
-`-._~!$&'()*+,;=` and non-ASCII characters: no `%` (so no percent-encoded
-host or IPv6 zone ID), and no `|`, `<`, `"`, `^` or `{`. A non-ASCII host
-must also be one the SDK's URL parser accepts, and the user-info part follows
-each parser's own rules. The URL may contain no whitespace (Python's
-`str.isspace()` set; a space in the path, which Python used to
-percent-encode, included), no C0 or C1 control character, DEL or U+FEFF,
-and no lone surrogate (in Go, no invalid UTF-8). A
-`{sandbox_id}` / `{sandboxId}` placeholder is allowed only in the path. Python
-and TypeScript refuse such a URL before the sandbox is read instead of failing
-on the first toolbox call; Go, which already checked the scheme, host, query
-and fragment, refuses the rest too.
+**Toolbox URL override checked up front** — `get()` refuses a `toolbox_url` /
+`toolboxUrl` (Go `ToolboxURL`) that is not an absolute `http` / `https` URL
+with a host, an optional port up to 65535 and no query or fragment, raising
+`BadRequestError` (400, `BAD_REQUEST`, source `SDK`; Go `ErrBadRequest`)
+before any request instead of failing on the first toolbox call. The same
+rule holds in every SDK: no whitespace or control characters anywhere (a URL
+with a space in its path must now be percent-encoded, `%20`; Python used to
+encode it), no `\` in the authority, and a host that is an IPv6 literal or a
+plain name (no `%`, `|`, `<`, `"`, `^` or `{`). A `{sandbox_id}` /
+`{sandboxId}` placeholder is allowed only in the path.
