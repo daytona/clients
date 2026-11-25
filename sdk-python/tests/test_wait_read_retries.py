@@ -24,12 +24,17 @@ from typing import Optional
 
 import httpx
 import pytest
+import respx
 from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 from test_core import _sandbox_detail_payload, bind_api
+from test_events import _API_KEY as _EVENTS_API_KEY
+from test_events import _API_URL as _EVENTS_API_URL
+from test_events import _started_predicate as _events_started_predicate
+from test_events import ticket_mock
 
 from daytona.v2._core import RequestSpec, error_from_response
-from daytona.v2._events import WaitOutcome, _run_poll_loop, _TargetPredicate
+from daytona.v2._events import WaitHub, WaitOutcome, _run_poll_loop, _TargetPredicate
 from daytona.v2._image_pull import ImagePull
 from daytona.v2._read_retry import (
     READ_RETRY_MIN_DELAY_S,
@@ -59,7 +64,7 @@ from daytona.v2.errors import (
 )
 from daytona.v2.image import ImageBuilder
 from daytona.v2.services import AsyncImagesService, AsyncSnapshotsService
-from daytona.v2.types import DaytonaConfig
+from daytona.v2.types import DaytonaConfig, SandboxEventsConfig
 
 pytestmark = pytest.mark.anyio
 
@@ -665,3 +670,53 @@ async def test_artifact_and_pull_retries_keep_the_one_second_poll_spacing() -> N
     )
     await ImagePull(transport, 60).run(RequestSpec("POST", "/images"), wait=True)  # type: ignore[arg-type]
     assert _gaps(transport)[2] >= 0.99
+
+
+async def test_the_events_hub_ends_a_wait_whose_probe_finds_the_client_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The live hub, not its polling fallback (this module turns events off).
+    monkeypatch.setenv("DAYTONA_SANDBOX_EVENTS", "1")
+
+    async def black_hole(_uri: str, _protos: list[str]) -> object:
+        await asyncio.sleep(3600)
+        raise AssertionError("unreachable")
+
+    hub = WaitHub(
+        _EVENTS_API_URL, _EVENTS_API_KEY, config=SandboxEventsConfig(enabled=True), connector=black_hole
+    )
+    hub._early_probe_s = 0.02
+    probes = 0
+
+    async def probe() -> WaitOutcome:
+        nonlocal probes
+        probes += 1
+        raise ClientClosedError()
+
+    try:
+        with respx.mock:
+            ticket_mock("region-a")
+            # A closed client ends the wait, as a refused credential does,
+            # instead of being probed again until the guard below.
+            with pytest.raises(ClientClosedError):
+                await asyncio.wait_for(
+                    hub.wait("abc-region-a", _events_started_predicate(), timeout=0, sandbox_poll_fn=probe), 2
+                )
+        assert probes == 1
+    finally:
+        await hub._close_hub()
+
+
+async def test_a_closed_client_in_the_final_reserve_is_not_a_timeout() -> None:
+    closed = ClientClosedError()
+    transport = _Scripted([closed])
+    sandbox = _sandbox(transport)
+    sandbox._hub = _ProbingHub(then_time_out=True)  # type: ignore[assignment]
+    with pytest.raises(ClientClosedError) as raised:
+        await sandbox.wait(until="started", timeout=1)
+    assert raised.value is closed
+
+
+def test_a_status_above_5xx_is_not_retryable() -> None:
+    assert not retryable_read_error(create_error("odd", 600, None, None))
+    assert retryable_read_error(create_error("odd", 599, None, None))

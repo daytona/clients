@@ -85,7 +85,7 @@ def retryable_read_error(error: BaseException) -> bool:
         return False
     if error.status_code == 429:
         return error.code != "LIMIT_EXCEEDED"
-    return error.status_code >= 500 and error.status_code != 501
+    return 500 <= error.status_code < 600 and error.status_code != 501
 
 
 class ReadRetry:
