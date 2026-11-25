@@ -1080,9 +1080,9 @@ first, in one page; there is no paging.
 instead of merging. Without `branch` it pulls the branch's configured
 upstream; with `branch` (which must name the checked-out branch, else
 `BadRequestError`) and for `push()` the remote defaults to `origin`. `remote` names a remote configured in the repository (see
-`listRemotes()` / `addRemote()`), not a URL. `username` and `password` are
-used only together: either one alone is ignored and the operation runs
-without credentials.
+`listRemotes()` / `addRemote()`), not a URL. The SDK sends `username`
+and `password` as given, but the sandbox uses credentials only as a pair: with
+just one of them the git operation runs without credentials.
 
 A timeout ends the SDK's wait, not the operation in the sandbox: a clone that
 times out can keep running and leave its destination directory behind, and a
