@@ -438,6 +438,134 @@ async def test_unlisted_gap_and_completion_reasons_pass_through_unchanged():
     assert not result.output_complete
 
 
+# The same text as TypeScript (build-logs.test.ts, "writes control events ...").
+async def test_control_event_fallback_text_is_the_wire_fields_in_compact_json():
+    wire = (
+        event("state", {"status": "building", "error": None, "deadline_at": "2026-11-25T10:00:00Z"})
+        + event("unavailable", {"reason": "source missing"})
+        + event(
+            "gap",
+            {
+                "reason": "truncated",
+                "requested_offset": "0",
+                "first_available_offset": "3",
+                "dropped_bytes": "3",
+            },
+            "checkpoint-3",
+        )
+        + event(
+            "error",
+            {"error": "build failed: é", "code": "BUILD_FAILED", "retryable": False, "trace_id": "t-1"},
+        )
+    )
+    api, _, _ = setup([wire])
+    output: list[str] = []
+    with pytest.raises(BuildLogInterruptedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=output.append)
+    assert failure.value.code == "BUILD_FAILED"
+    assert output == [
+        '[build logs: state] {"type":"state","status":"building","deadline_at":"2026-11-25T10:00:00Z"}\n',
+        '[build logs: unavailable] {"type":"unavailable","reason":"source missing"}\n',
+        (
+            '[build logs: gap] {"type":"gap","reason":"truncated","requested_offset":"0",'
+            '"first_available_offset":"3","dropped_bytes":"3","cursor":"checkpoint-3"}\n'
+        ),
+        (
+            '[build logs: error] {"type":"error","error":"build failed: é","code":"BUILD_FAILED",'
+            '"retryable":false,"trace_id":"t-1"}\n'
+        ),
+    ]
+
+
+async def test_control_event_fallback_text_for_a_source_change():
+    api, _, _ = setup([event("source_changed", {"reason": "rebuilt"})])
+    output: list[str] = []
+    with pytest.raises(BuildLogInterruptedError) as failure:
+        await follow_build_logs(api, DISCOVERY, on_logs=output.append)
+    assert failure.value.code == "BUILD_LOG_SOURCE_CHANGED"
+    assert output == ['[build logs: source_changed] {"type":"source_changed","reason":"rebuilt"}\n']
+
+
+async def test_control_events_go_only_to_the_event_callback_when_one_is_given():
+    api, _, _ = setup([event("state", {"status": "pending"}) + done(output_complete=False)])
+    output: list[str] = []
+    events: list[BuildLogEvent] = []
+    await follow_build_logs(api, DISCOVERY, on_logs=output.append, on_event=events.append)
+    assert output == []
+    assert [item.type for item in events] == ["state", "done"]
+
+
+LOGS_URL_BY_ID = f"https://logs.example/build-logs/images/{UUID}"
+DISCOVERY_BY_NAME = "/images/my-image/build-logs-url"
+
+
+async def test_an_image_followed_by_name_is_resolved_to_the_id_the_destination_names():
+    api, requests, _ = setup(
+        [httpx.Response(200, json={"id": UUID}), log(b"ok", 0) + done(2)], url=LOGS_URL_BY_ID
+    )
+    output: list[str] = []
+    result = await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=output.append)
+    assert output == ["ok"]
+    assert result.status == "ready"
+    assert result.cursor == cursor(2)
+    assert [str(request.url).split("?")[0] for request in requests] == [
+        "https://api.example/images/my-image/build-logs-url",
+        "https://api.example/images/my-image",
+        LOGS_URL_BY_ID,
+    ]
+
+
+async def test_an_image_name_resolving_to_another_id_is_refused():
+    api, requests, _ = setup(
+        [httpx.Response(200, json={"id": "00000000-0000-0000-0000-000000000000"})], url=LOGS_URL_BY_ID
+    )
+    with pytest.raises(BuildLogInterruptedError, match="invalid build log URL") as failure:
+        await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
+    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
+    # The destination is never contacted.
+    assert len(requests) == 2
+
+
+async def test_an_image_lookup_answer_without_an_id_is_refused():
+    api, requests, _ = setup([httpx.Response(200, json={"name": "my-image"})], url=LOGS_URL_BY_ID)
+    with pytest.raises(BuildLogInterruptedError, match="invalid image response: id") as failure:
+        await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
+    assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
+    assert len(requests) == 2
+
+
+async def test_an_image_lookup_http_error_is_raised_unchanged():
+    api, _, _ = setup(
+        [
+            httpx.Response(
+                404, json={"code": "IMAGE_NOT_FOUND", "source": "DAYTONA_API", "message": "image not found"}
+            )
+        ],
+        url=LOGS_URL_BY_ID,
+    )
+    with pytest.raises(NotFoundError):
+        await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
+
+
+async def test_an_image_lookup_the_server_could_not_answer_is_retried():
+    api, requests, _ = setup(
+        [
+            httpx.Response(503, json={"code": "SERVICE_UNAVAILABLE"}),
+            httpx.Response(200, json={"id": UUID}),
+            done(),
+        ],
+        url=LOGS_URL_BY_ID,
+    )
+    await follow_build_logs(api, DISCOVERY_BY_NAME, on_logs=lambda _: None)
+    assert [str(request.url).split("?")[0] for request in requests] == [
+        "https://api.example/images/my-image/build-logs-url",
+        "https://api.example/images/my-image",
+        "https://api.example/images/my-image/build-logs-url",
+        "https://api.example/images/my-image",
+        LOGS_URL_BY_ID,
+    ]
+
+
 async def test_diagnostics_are_visible_without_event_callback():
     api, _, _ = setup(
         [
@@ -1044,14 +1172,20 @@ async def test_invalid_discovery_target_never_receives_credentials(url):
 )
 @pytest.mark.parametrize("follow", [False, True])
 async def test_noncanonical_destination_refused_without_forwarding_credentials(follow, url):
-    api, requests, _ = setup([], url=url)
+    # A followed image whose URL names another resource is looked up by the
+    # requested value first (it may be a name); the lookup confirms that id.
+    lookup = [httpx.Response(200, json={"id": "image"})] if follow else []
+    api, requests, _ = setup(lookup, url=url)
     with pytest.raises(DaytonaError) as failure:
         if follow:
             await follow_build_logs(api, DISCOVERY, on_logs=lambda _: None)
         else:
             await read_build_logs(api, DISCOVERY)
     assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
-    assert len(requests) == 1
+    # Only the API is contacted, never the destination.
+    assert requests[0].url.path == DISCOVERY
+    assert all(request.url.host == "api.example" for request in requests)
+    assert [request.url.path for request in requests[1:]] in ([], ["/images/image"])
 
 
 async def test_redirects_do_not_forward_credentials_even_with_redirect_enabled_client():
@@ -1124,7 +1258,11 @@ async def test_discovery_accepts_another_single_segment_collection(collection, f
 )
 @pytest.mark.parametrize("follow", [False, True])
 async def test_discovery_rejects_different_resource_identity(collection, requested, target_path, follow):
-    api, requests, _ = setup([], url="https://logs.example/build-logs" + target_path)
+    # A followed image is looked up by the requested value (it may be a name);
+    # here the lookup confirms that id, and the URL still names another resource.
+    looked_up = follow and collection == "images"
+    lookup = [httpx.Response(200, json={"id": requested})] if looked_up else []
+    api, requests, _ = setup(lookup, url="https://logs.example/build-logs" + target_path)
     path = f"/{collection}/{quote(requested, safe='')}/build-logs-url"
     with pytest.raises(DaytonaError) as failure:
         if follow:
@@ -1132,7 +1270,7 @@ async def test_discovery_rejects_different_resource_identity(collection, request
         else:
             await read_build_logs(api, path)
     assert failure.value.code == "BUILD_LOG_PROTOCOL_ERROR"
-    assert len(requests) == 1
+    assert len(requests) == (2 if looked_up else 1)
 
 
 async def test_one_shot_rejects_oversized_chunked_bytes_and_closes_without_draining():

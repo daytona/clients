@@ -275,6 +275,17 @@ export async function* buildLogMessages(response: Response): AsyncIterable<Messa
   }
 }
 
+/**
+ * The line `onLogs` receives for a control event when no `onEvent` is given:
+ * `[build logs: <type>] ` and the event's wire fields as compact JSON (`type`
+ * first, absent fields left out), the same text in both SDKs.
+ */
+function controlText(type: string, fields: Readonly<Record<string, string | boolean | undefined>>): string {
+  const body: Record<string, string | boolean> = { type }
+  for (const [key, value] of Object.entries(fields)) if (value !== undefined) body[key] = value
+  return `[build logs: ${type}] ${JSON.stringify(body)}\n`
+}
+
 class Observer {
   cursor?: string
   private offset?: bigint
@@ -288,16 +299,15 @@ class Observer {
     this.cursor = options.cursor === undefined ? undefined : cursor(options.cursor)
     this.offset = this.cursor === undefined ? 0n : undefined
   }
-  private async emit(event: BuildLogEvent, output = ''): Promise<void> {
+  /** `control` is a control event's wire fields, the fallback text's source. */
+  private async emit(event: BuildLogEvent, output = '', control?: Readonly<Record<string, string | boolean | undefined>>): Promise<void> {
     // Frozen before any callback sees it: a callback cannot rewrite the event,
     // nor the `done` result the call returns.
     deepFrozen(event)
     try {
       if (output) await interruptible(Promise.resolve(this.options.onLogs(output)), this.signal)
       if (this.options.onEvent) await interruptible(Promise.resolve(this.options.onEvent(event)), this.signal)
-      else if (['state', 'gap', 'unavailable', 'source_changed', 'error'].includes(event.type)) {
-        await interruptible(Promise.resolve(this.options.onLogs(`[build logs: ${event.type}] ${JSON.stringify(event)}\n`)), this.signal)
-      }
+      else if (control !== undefined) await interruptible(Promise.resolve(this.options.onLogs(controlText(event.type, control))), this.signal)
     } catch (cause) { throw new CallbackError(cause) }
   }
   private checkpoint(id: string): string {
@@ -315,7 +325,7 @@ class Observer {
           // An RFC 3339 timestamp, by the rule of every response timestamp.
           if (!isRfc3339(deadlineAt)) throw new ProtocolError('invalid build deadline')
         }
-        await this.emit({ type: 'state', status: data.status, deadlineAt, error })
+        await this.emit({ type: 'state', status: data.status, deadlineAt, error }, '', { status: data.status, error, deadline_at: deadlineAt })
         break
       }
       case 'log': {
@@ -338,21 +348,28 @@ class Observer {
           firstAvailableOffset: data.first_available_offset,
           droppedBytes: data.dropped_bytes,
           cursor: checkpoint,
-        }, this.decoder.decode())
+        }, this.decoder.decode(), {
+          reason: data.reason,
+          requested_offset: data.requested_offset,
+          first_available_offset: data.first_available_offset,
+          dropped_bytes: data.dropped_bytes,
+          cursor: checkpoint,
+        })
         this.decoder = new TextDecoder('utf-8', { ignoreBOM: true })
         this.cursor = checkpoint; this.offset = first; this.gap = true
         break
       }
       case 'unavailable': {
-        await this.emit({ type: 'unavailable', reason: data.reason })
+        await this.emit({ type: 'unavailable', reason: data.reason }, '', { reason: data.reason })
         break
       }
       case 'source_changed': {
-        await this.emit({ type: 'source_changed', reason: data.reason })
+        await this.emit({ type: 'source_changed', reason: data.reason }, '', { reason: data.reason })
         throw new BuildLogInterruptedError(data.reason, { cursor: this.cursor, code: 'BUILD_LOG_SOURCE_CHANGED' })
       }
       case 'error': {
-        await this.emit({ type: 'error', error: data.error, code: data.code, retryable: data.retryable, traceId: data.trace_id ?? undefined })
+        const traceId = data.trace_id ?? undefined
+        await this.emit({ type: 'error', error: data.error, code: data.code, retryable: data.retryable, traceId }, '', { error: data.error, code: data.code, retryable: data.retryable, trace_id: traceId })
         if (data.retryable) throw new Retry(data.error)
         throw new BuildLogInterruptedError(data.error, { cursor: this.cursor, code: data.code })
       }
@@ -382,10 +399,19 @@ class Observer {
   }
 }
 
-function destination(api: HttpTransport, payload: api.BuildLogsUrl, discoveryPath: string): HttpTransport {
+/** The destination names another resource than the one discovery asked about. */
+class IdentityMismatch extends ProtocolError {}
+
+/**
+ * The validated destination of `payload`'s URL. Its resource id must be the
+ * one `discoveryPath` names, or `canonicalId` when the caller resolved that
+ * value (an image name) to its id.
+ */
+function destination(api: HttpTransport, payload: api.BuildLogsUrl, discoveryPath: string, canonicalId?: string): HttpTransport {
   const { url: raw } = payload
   if (!raw || raw.length > 4096 || /[\x00-\x20\x7f\\?#]/.test(raw)) throw new ProtocolError('invalid build log URL')
   let url: URL
+  let same: boolean
   try {
     if (!/^https?:\/\//i.test(raw) || /^https?:\/\/[^/]*@/i.test(raw)) throw new ProtocolError('build log URL must be absolute without userinfo')
     url = new URL(raw)
@@ -395,12 +421,45 @@ function destination(api: HttpTransport, payload: api.BuildLogsUrl, discoveryPat
     const requested = /^\/(images|sandboxes)\/([^/]+)\/build-logs-url$/.exec(discoveryPath)
     const actual = /\/build-logs\/[^/]+\/([^/%]+)$/.exec(url.pathname)
     const requestedCollection = requested?.[1]
-    if (!requested || !actual || (requestedCollection !== 'images' && requestedCollection !== 'sandboxes') ||
-        !sameBuildLogResource(requestedCollection, decodeURIComponent(requested[2]!), actual[1]!)) {
+    if (!requested || !actual || (requestedCollection !== 'images' && requestedCollection !== 'sandboxes')) {
       throw new ProtocolError('unexpected build log route')
     }
+    same = sameBuildLogResource(requestedCollection, canonicalId ?? decodeURIComponent(requested[2]!), actual[1]!)
   } catch { throw new ProtocolError('invalid build log URL') }
+  if (!same) throw new IdentityMismatch('invalid build log URL')
   return api.withBaseUrl(url.toString())
+}
+
+/**
+ * `destination`, for a discovery that may name an image by its name.
+ * Discovery answers with the image's canonical id, which a name never
+ * matches: on an identity mismatch the value is resolved with the API
+ * (`GET /images/{value}`, as every image method resolves names) and the URL
+ * is held to the id it answers with, just as strictly.
+ */
+async function resolvedDestination(api: HttpTransport, payload: api.BuildLogsUrl, discoveryPath: string, signal?: AbortSignal): Promise<HttpTransport> {
+  let imageSegment: string | undefined
+  try {
+    return destination(api, payload, discoveryPath)
+  } catch (error) {
+    // The discovery path's segment, already encoded.
+    imageSegment = error instanceof IdentityMismatch ? /^\/images\/([^/]+)\/build-logs-url$/.exec(discoveryPath)?.[1] : undefined
+    if (imageSegment === undefined) throw error
+  }
+  const deadline = requestDeadline(api.defaultTimeout)
+  const response = await api.fetch(`/images/${imageSegment}`, { signal, redirect: 'manual', credentials: 'omit' }, false)
+  let canonical: string
+  try {
+    // Retried as discovery is.
+    if (response.status === 429 || response.status >= 500) throw new Retry(`build log image lookup HTTP ${response.status}`, retryAfter(response))
+    if (!response.ok) throw await httpError(response, deadline)
+    const body = await finiteBody(response, deadline, 'discovery')
+    try { canonical = text(jsonObject(body).id) } catch { throw new ProtocolError('invalid image response: id') }
+  } finally {
+    await cancelResponse(response)
+  }
+  if (!canonical) throw new ProtocolError('invalid image response: id')
+  return destination(api, payload, discoveryPath, canonical)
 }
 function requestDeadline(timeout: number): number | undefined {
   const delay = boundedTimerDelay(timeout)
@@ -586,15 +645,16 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
       let delay: number
       try {
         if (!target) {
-          let payload: api.BuildLogsUrl
-          try { payload = await discovery(api, path, controller.signal) } catch (error) {
+          try {
+            const payload = await discovery(api, path, controller.signal)
+            target = await resolvedDestination(api, payload, path, controller.signal)
+          } catch (error) {
             // An HTTP error of the discovery request (a 404 for an unknown
             // image, a 401, ...) is the caller's answer: raised as its mapped
             // typed error, not wrapped as an interruption (as Python).
             if (error instanceof DaytonaError && error.statusCode !== undefined && !(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw new DiscoveryFailure(error)
             throw error
           }
-          target = destination(api, payload, path)
         }
         const query = new URLSearchParams({ follow: 'true', format: 'sse' })
         if (observer.cursor !== undefined) query.set('cursor', observer.cursor)

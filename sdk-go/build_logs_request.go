@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -42,7 +43,27 @@ func discoverBuildLogs(ctx context.Context, api *apiClient, path string) (*build
 	if err != nil {
 		return nil, buildLogProtocol(err.Error())
 	}
-	return buildLogDestination(api, raw, path)
+	destination, err := buildLogDestination(api, raw, path, "")
+	// The discovery path's segment, already encoded.
+	segment, image := strings.CutPrefix(strings.TrimSuffix(path, "/build-logs-url"), "/images/")
+	if err == nil || !errors.Is(err, errBuildLogIdentity) || !image {
+		return destination, err
+	}
+	// Discovery answers with the image's canonical ID, which a name never
+	// matches: resolve the value with the API (GET /images/{value}, as every
+	// image method resolves names) and hold the URL to that ID just as strictly.
+	var current JSONValue
+	if err = api.do(discoveryCtx, apiRequest{Path: "/images/" + segment, Result: &current}); err != nil {
+		return nil, err
+	}
+	var canonical string
+	if object, err = parseObject(current, "image"); err == nil {
+		canonical, err = field[string](object, "id", true)
+	}
+	if err != nil || canonical == "" {
+		return nil, buildLogProtocol("invalid image response: id")
+	}
+	return buildLogDestination(api, raw, path, canonical)
 }
 
 func (t buildLogTarget) readFinite(ctx context.Context, spec apiRequest, limit int64) (data []byte, failure error) {
