@@ -127,9 +127,10 @@ func artifactWaitError(ctx context.Context, err error) error {
 	if errors.As(context.Cause(ctx), &sdkError) {
 		// Already the budget's timeout, wrapping the last failed read
 		// (artifactRetryError): keep that cause.
-		var own *Error
-		if errors.As(err, &own) && own.Code == sdkError.Code && own.Source == sdkError.Source &&
-			own.Message == sdkError.Message {
+		// A direct assertion: a join that merely contains the budget error
+		// (transportError) still maps to the plain budget error.
+		if own, ok := err.(*Error); ok && own.Code == sdkError.Code && //nolint:errorlint // See above.
+			own.Source == sdkError.Source && own.Message == sdkError.Message {
 			return err
 		}
 		return sdkError

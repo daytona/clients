@@ -474,3 +474,20 @@ func TestReadRetryable_whenStatusIsAbove5xx_failsFast(t *testing.T) {
 	require.False(t, readRetryable(&Error{StatusCode: 999}))
 	require.True(t, readRetryable(&Error{StatusCode: 599}))
 }
+
+func TestArtifactWaitError_whenBudgetEndsWithoutAFailedRead_returnsThePlainTimeout(t *testing.T) {
+	ctx, cancel := artifactWaitContext(t.Context(), time.Nanosecond, "artifact did not become ready before timeout")
+	defer cancel()
+	<-ctx.Done()
+	var budget *Error
+	require.ErrorAs(t, context.Cause(ctx), &budget)
+
+	// transportError joins the context error with the budget error.
+	err := artifactWaitError(ctx, transportError(ctx, ctx.Err()))
+
+	require.Same(t, budget, err)
+	// The retry wrapper, a copy of the budget error, is kept with its cause.
+	wrapped := artifactRetryError(ctx, transportError(ctx, ctx.Err()), &Error{StatusCode: http.StatusServiceUnavailable})
+	require.Same(t, wrapped, artifactWaitError(ctx, wrapped))
+	require.ErrorIs(t, wrapped, ErrServiceUnavailable)
+}
