@@ -362,6 +362,7 @@ func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacin
 			synctest.Test(t, func(t *testing.T) {
 				// Given: the read that confirms the report shows the state before the pause.
 				var stamps []time.Time
+				var holds []string
 				read := scriptedReads(t, "running", "paused")
 				sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
 					if r.Method == http.MethodPost {
@@ -369,6 +370,7 @@ func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacin
 						return
 					}
 					stamps = append(stamps, time.Now())
+					holds = append(holds, r.URL.Query().Get("wait"))
 					read(w, r)
 				})
 				sandbox.client.stateSource = eventSource(test.frame)
@@ -379,7 +381,39 @@ func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacin
 				require.Equal(t, SandboxStatePaused, sandbox.State())
 				require.Len(t, stamps, 2)
 				require.GreaterOrEqual(t, stamps[1].Sub(stamps[0]), waitMinInterval)
+				require.Equal(t, []string{"", "paused"}, holds)
 			})
 		})
 	}
+}
+
+func TestLifecycle_whenConfirmingReadLeavesLessThanSpacing_firstLongPollReadsAtOnce(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given: the confirming read takes 900 ms of a 1 s budget and shows the
+		// state before the pause, leaving less than the minimum spacing.
+		began := time.Now()
+		var stamps []time.Duration
+		var holds []string
+		read := scriptedReads(t, "running", "paused")
+		sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				writeJSON(t, w, map[string]string{})
+				return
+			}
+			stamps = append(stamps, time.Since(began))
+			holds = append(holds, r.URL.Query().Get("wait"))
+			if len(stamps) == 1 {
+				time.Sleep(900 * time.Millisecond)
+			}
+			read(w, r)
+		})
+		sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStatePaused, RawState: "paused"})
+		// When
+		err := sandbox.Pause(t.Context(), &LifecycleWaitOptions{Timeout: time.Second})
+		// Then: the long poll reads at once instead of being pushed past the deadline.
+		require.NoError(t, err)
+		require.Equal(t, SandboxStatePaused, sandbox.State())
+		require.Equal(t, []time.Duration{0, 900 * time.Millisecond}, stamps)
+		require.Equal(t, []string{"", "paused"}, holds)
+	})
 }
