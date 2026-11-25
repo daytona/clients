@@ -43,7 +43,7 @@ export function isRetryableReadError(error: unknown): error is DaytonaError {
   if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return true
   if (!(error instanceof DaytonaError) || error.statusCode === undefined) return false
   if (error.statusCode === 429) return error.code !== 'LIMIT_EXCEEDED'
-  return error.statusCode >= 500 && error.statusCode !== 501
+  return error.statusCode >= 500 && error.statusCode < 600 && error.statusCode !== 501
 }
 
 /**

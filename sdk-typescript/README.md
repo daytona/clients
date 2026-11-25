@@ -1065,8 +1065,9 @@ the error's `retryAfterMs` / `retryAfterSeconds`, else the `Retry-After`
 header) within the same budget. When the budget runs out, its timeout error
 carries the last failed read as `cause`. A wait without a deadline keeps
 retrying until the server answers or the client is closed (which ends it with
-`ClientClosedError`); `images.get()` / `snapshots.get()` without a
-`timeoutSeconds` make one hold and retry nothing. Any other failure,
+`ClientClosedError`); `images.get()` / `snapshots.get()` with
+`wait: 'ready'` but no `timeoutSeconds` make a single server-default hold and
+do not retry. Any other failure,
 such as an authentication error, is thrown at once, with one exception: while
 the events stream is live, its early probes of a sandbox wait keep waiting
 through any failure but 401, 403 and 404, and the wait's timeout then carries

@@ -158,6 +158,7 @@ describe('the read retry policy', () => {
     createDaytonaError('limit', 429, 'LIMIT_EXCEEDED', 'DAYTONA_API'),
     new RequestTimeoutError('wait ran out', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' }),
     new TypeError('not an SDK error'),
+    createDaytonaError('odd', 600),
   ])('does not retry %s', (error) => {
     expect(isRetryableReadError(error)).toBe(false)
   })
