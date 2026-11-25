@@ -1,4 +1,0 @@
-**Git docs** — README coverage of `init`, `add_remote`, `reset` modes,
-`restore`, git config, unpaged `history()`, fast-forward-only `pull()`,
-configured remote names and credential pairing, and a warning that a timed-out
-clone keeps running in the sandbox.

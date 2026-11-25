@@ -1164,9 +1164,8 @@ export class Sandbox {
    * `captureImage()` captures its disk once it is stopped; a macOS sandbox
    * that is not persistent has neither option.
    * The API also refuses with `ConflictError` (409) a sandbox that is not
-   * running, one with an attached volume, and one whose saved state the
-   * platform cannot resume (it booted the sandbox in a shape that cannot be
-   * snapshotted; the SDK has no option that asks for a resumable boot).
+   * running, one whose saved state is unavailable, one with an attached
+   * volume, and a snapshot name that already exists.
    * The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).

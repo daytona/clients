@@ -650,7 +650,8 @@ captures an anonymous one that is deleted after that long unused (idle expiry
 applies only to anonymous images: passing both is a 400). Wait for either with
 `images.get(image.id, { wait: 'ready' })`. `sandbox.createSnapshot(name)` captures a snapshot of a running Linux sandbox, memory included. A macOS sandbox cannot be
 snapshotted (pausing a persistent one keeps its memory), and the API answers 409 for a
-sandbox with an attached volume or one the platform cannot resume. Both need
+sandbox with an attached volume or whose saved state is unavailable, and for a
+snapshot name that already exists. Both need
 `write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
 they throw `ForbiddenError` (403).
 
