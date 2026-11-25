@@ -412,11 +412,15 @@ func TestMalformedPlatformTokenIsNotCached(t *testing.T) {
 	}
 }
 
-// The same for a project key the login mints: it is not cached.
+// The same for a project key the login mints: it is not cached, and the key
+// the server created is revoked by id with the login's credential, so it does
+// not stay valid until it expires.
 func TestMalformedMintedProjectKeyIsNotCached(t *testing.T) {
 	f := newFakeAPI(t)
 	f.on("GET", "/orgs", 200, organizationsFixture())
 	f.on("POST", "/projects/"+testProjP1+"/api-keys", 201, apiKeyFixture("8", testProjP1, `dtn_secret\n`, []string{"read:sandboxes"}))
+	revokePath := "/projects/" + testProjP1 + "/api-keys/88888888-8888-8888-8888-888888888888"
+	f.handle("DELETE", revokePath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	d := cfgDir(t)
 	oidcProfile(t, d, f.srv.URL, time.Hour)
 	_, errb, code := run(t, d, nil, "sandbox", "list", "-o", "json")
@@ -426,4 +430,6 @@ func TestMalformedMintedProjectKeyIsNotCached(t *testing.T) {
 	st, _ := config.Open(d)
 	cr, _ := st.LoadCredentials()
 	require.Empty(t, cr.Profiles["default"].WorkloadKeys)
+	revoke := findRequest(t, f, "DELETE", revokePath)
+	require.Equal(t, "Bearer jwt", revoke.Auth)
 }
