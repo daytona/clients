@@ -335,8 +335,8 @@ export interface SandboxSecretsInfo {
 /**
  * The action a lifecycle trigger fires: `onTimeout` / `onIdleTimeout`.
  *
- * `delete` is available for every sandbox; `stop` requires a persistent macOS
- * sandbox. Pause a macOS sandbox with its explicit `pause()` operation.
+ * `delete` is available for every sandbox; `stop` requires persistence and
+ * is unavailable on GPU sandboxes. `pause` requires a persistent Linux sandbox.
  */
 export type LifecycleAction = 'stop' | 'pause' | 'delete'
 
@@ -498,6 +498,8 @@ export interface CreateRequestBaseOptions {
  * ceiling.
  */
 export interface CreateSandboxOptions extends CreateRequestBaseOptions {
+  /** Preserve disk across stop/start and memory and processes across pause/resume. */
+  readonly persistent?: boolean
   readonly volumes?: readonly VolumeMount[]
   readonly env?: Readonly<Record<string, string>>
   readonly resources?: Resources

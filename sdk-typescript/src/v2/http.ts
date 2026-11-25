@@ -13,7 +13,7 @@ import { nestedDeeperThan } from './jsonDepth.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 import { BodyTooLarge, DEFAULT_MAX_RESPONSE_BYTES, declaresMoreThan, IdleWatchdog, isSmallRequestBody, readCappedBody, tooLargeMessage } from './bodyLimit.js'
 import { boundedAdapter } from './boundedAdapter.js'
-import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
+import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState } from './types.js'
 import { SDK_VERSION } from '../version.js'
 import { credentialSafeDiagnostics } from '../diagnostics.js'
 
@@ -2293,12 +2293,12 @@ export function lifecycleBody(
 /**
  * Reject lifecycle actions the sandbox class and persistence forbid.
  *
- * `delete` is legal everywhere; `stop` requires a persistent macOS sandbox.
- * Use the explicit pause operation rather than a lifecycle-policy action.
+ * `delete` is legal everywhere; `stop` requires persistence, except on GPU.
+ * `pause` requires a persistent Linux sandbox.
  */
 export function assertLifecycleClassSupport(
   lifecyclePolicy: LifecyclePolicyOptions | undefined,
-  options: { sandboxClass: SandboxClass; persistent: boolean; action?: string },
+  options: { sandboxClass: string; persistent: boolean; action?: string },
 ): void {
   if (!lifecyclePolicy) return
   const { sandboxClass, persistent, action = 'create' } = options
@@ -2313,14 +2313,14 @@ export function assertLifecycleClassSupport(
 }
 
 /** Whether a lifecycle policy can use this action. */
-function lifecycleActionAllowed(action: string, sandboxClass: SandboxClass, persistent: boolean): boolean {
+function lifecycleActionAllowed(action: string, sandboxClass: string, persistent: boolean): boolean {
   switch (action) {
     case 'delete':
       return true
     case 'stop':
-      return persistent && sandboxClass === 'macos'
+      return persistent && sandboxClass !== 'gpu'
     case 'pause':
-      return false
+      return persistent && sandboxClass === 'linux'
     default:
       // Unknown values never reach here — lifecycleBody rejects them.
       return true

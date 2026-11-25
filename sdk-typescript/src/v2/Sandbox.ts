@@ -30,6 +30,7 @@ import { ProcessService, PtyService, WAIT_READ_SLACK_MS } from './Process.js'
 import { systemMetricsFromWire } from './toolboxModels.js'
 import { isRfc3339 } from './rfc3339.js'
 import type * as api from './gen/api-types.js'
+import { retrySandboxTransition } from './sandboxTransitionRetry.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import {
   assertLifecycleClassSupport,
@@ -585,7 +586,9 @@ export class Sandbox {
     try {
       const sandbox = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(this.id)}`, requestConfig).then((response) => response.data)
       assertSandboxResponse(sandbox)
-      this.observed = metadataFromSandbox(sandbox)
+      const observed = metadataFromSandbox(sandbox)
+      // Persistence is immutable; an omitted optional field does not erase it.
+      this.observed = { ...observed, persistent: observed.persistent ?? this.observed.persistent }
       this.refreshToolbox(sandbox)
     } catch (error) {
       // An earlier slice/transport timer and an API HTTP 408 remain request
@@ -850,6 +853,7 @@ export class Sandbox {
       body.memory = options.memory
     }
     if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
+    const sourcePersistent = this.persistent
     // waitSeconds 0 is one request, as for create: the route is the same for
     // every class, so an unknown class is not read first; the fork then carries
     // the source's class only when this handle knows it.
@@ -865,8 +869,13 @@ export class Sandbox {
     }
     const sandboxClass = this.sandboxClass
     const rawSandboxClass = this.rawSandboxClass
+    const persistent = this.persistent ?? sourcePersistent
     const sourceState = this.state
-    const response = await this.api.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
+    const http = this.api
+    const response = await retrySandboxTransition(
+      () => http.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body),
+      { ensureOpen: this.httpOptions?.ensureOpen, signal: http.defaults.signal },
+    )
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // Checked before the fork handle or any further request, as for a create.
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
@@ -892,6 +901,7 @@ export class Sandbox {
         // A fork has its source's class; it names its source.
         sandboxClass,
         rawSandboxClass,
+        persistent,
         forkedFrom,
         toolboxProxyUrl: scopedProxyToolboxUrl(forkToolbox, forked.id),
       },
@@ -914,7 +924,11 @@ export class Sandbox {
       assertSandboxResponse(detail)
       // A detail without `forked_from` keeps the source's id the fork already names.
       const observed = metadataFromSandbox(detail)
-      fork.observed = observed.forkedFrom === undefined || observed.forkedFrom === '' ? { ...observed, forkedFrom } : observed
+      fork.observed = {
+        ...observed,
+        forkedFrom: observed.forkedFrom === undefined || observed.forkedFrom === '' ? forkedFrom : observed.forkedFrom,
+        persistent: observed.persistent ?? persistent,
+      }
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: forkToolbox ?? detail.toolbox_proxy_url })
     } catch (error) {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
@@ -1037,13 +1051,18 @@ export class Sandbox {
     const body = lifecycleBody(options)
     if (!body) throw createDaytonaError('updateLifecyclePolicy requires at least one lifecycle field', 400, 'BAD_REQUEST', 'SDK')
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    const sandboxClass = await this.requireSandboxClass()
-    if (sandboxClass === 'macos' && this.persistent === undefined) await this.refreshData()
-    assertLifecycleClassSupport(options, {
-      sandboxClass,
-      persistent: this.persistent === true,
-      action: 'updateLifecyclePolicy',
-    })
+    const needsPersistence = options.onTimeout === 'stop' || options.onTimeout === 'pause' ||
+      options.onIdleTimeout === 'stop' || options.onIdleTimeout === 'pause'
+    if (this.sandboxClass === undefined ||
+      ((this.sandboxClass === 'macos' || needsPersistence) && this.persistent === undefined)) await this.refreshData()
+    const sandboxClass = this.rawSandboxClass ?? this.sandboxClass
+    if (this.persistent !== undefined && sandboxClass !== undefined) {
+      assertLifecycleClassSupport(options, {
+        sandboxClass,
+        persistent: this.persistent,
+        action: 'updateLifecyclePolicy',
+      })
+    }
     const resp = await this.api
       .patch<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(`/sandboxes/${strictUriEncode(this.id)}/lifecycle-policy`, body)
     this.learnEventDestination(eventDestinationFromHeaders(resp.headers))
@@ -1135,7 +1154,11 @@ export class Sandbox {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)
     const body: api.CreateImageCaptureRequest = imageOptionsBody({ name: options.name, idleExpirySeconds: options.idleExpirySeconds })
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body)
+    const http = this.api
+    const { data } = await retrySandboxTransition(
+      () => http.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body),
+      { ensureOpen: this.httpOptions?.ensureOpen, signal: http.defaults.signal },
+    )
     const operationId = acknowledgedId(data, 'image capture')
     const image = await this.api.get<api.ImageListItem>(`/images/${pathSegment(operationId, 'image id')}`).then((response) => response.data)
     return new Image(INTERNAL, image)
@@ -1154,7 +1177,10 @@ export class Sandbox {
     // The snapshot response carries its class.
     const http = this.api
     const encodedId = strictUriEncode(this.id)
-    const response = await http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name })
+    const response = await retrySandboxTransition(
+      () => http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name }),
+      { ensureOpen: this.httpOptions?.ensureOpen, signal: http.defaults.signal },
+    )
     const operationId = acknowledgedId(response.data, 'snapshot create')
     const snapshot = await http.get<api.Snapshot>(`/snapshots/${pathSegment(operationId, 'snapshot id')}`).then((result) => result.data)
     return new Snapshot(INTERNAL, snapshot)

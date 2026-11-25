@@ -18,7 +18,7 @@ const BASE_KEYS = optionKeys<CreateRequestBaseOptions>()({
 })
 export const CREATE_KEYS = optionKeys<CreateSandboxOptions>()({
   ...BASE_KEYS, volumes: true, env: true, resources: true, secrets: true, spot: true,
-  user: true, networkPolicy: true, cpuArch: true, cpuType: true,
+  user: true, networkPolicy: true, cpuArch: true, cpuType: true, persistent: true,
 })
 export const SNAPSHOT_CREATE_KEYS = optionKeys<CreateSandboxFromSnapshotOptions>()(BASE_KEYS)
 export const MACOS_CREATE_KEYS = optionKeys<CreateMacosSandboxOptions>()({
