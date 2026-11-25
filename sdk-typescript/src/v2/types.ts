@@ -251,7 +251,7 @@ export interface SnapshotRef {
  * Sandbox resources; CPU is cores (1 core = 2 vCPUs), memory and disk are GiB.
  * `cpu`/`memory`/`disk` are the request: what is reserved and
  * billed as a floor. `cpuMax`/`memoryMax`/`diskMax` are the limits, the
- * system cap when omitted: the sandbox boots with `cpuMax`, while its memory
+ * system cap when omitted: the sandbox boots with `cpuMax * 2` vCPUs, while its memory
  * can start smaller and grow on demand up to `memoryMax` (see
  * {@link CreateSandboxOptions}, "Visible resources"). Set each limit equal to
  * its request for a fixed shape. Requests below the platform minimums are

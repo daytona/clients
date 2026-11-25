@@ -429,7 +429,7 @@ class Resources:
 
     ``cpu``/``memory``/``disk`` are the request: what is reserved and billed as a
     floor. ``cpu_max``/``memory_max``/``disk_max`` are the limits, the system
-    cap when omitted: the sandbox boots with ``cpu_max``, while its memory can
+    cap when omitted: the sandbox boots with ``cpu_max * 2`` vCPUs, while its memory can
     start smaller and grow on demand up to ``memory_max`` (see
     :meth:`AsyncDaytona.create`, "Visible resources"). Set each limit equal to its
     request for a fixed shape. Requests below the platform minimums are raised
