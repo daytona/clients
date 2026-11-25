@@ -126,6 +126,22 @@ class _CallerError(errors.DaytonaError):
         self.attempt = attempt
 
 
+class _SlottedError(errors.DaytonaError):
+    __slots__ = ("attempt",)
+
+    def __init__(self, attempt: int) -> None:
+        super().__init__(f"attempt {attempt}")
+        self.attempt = attempt
+
+
+@pytest.mark.parametrize("copier", [copy.copy, copy.deepcopy, lambda e: pickle.loads(pickle.dumps(e))])
+def test_slotted_subclasses_keep_their_slots(copier: Callable[[_SlottedError], _SlottedError]) -> None:
+    restored = copier(_SlottedError(4))
+    assert type(restored) is _SlottedError
+    assert restored.attempt == 4
+    assert restored.message == "attempt 4"
+
+
 def test_caller_subclasses_round_trip() -> None:
     restored = pickle.loads(pickle.dumps(_CallerError("db", 3)))
     assert type(restored) is _CallerError
