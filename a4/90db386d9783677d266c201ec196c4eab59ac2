@@ -1,0 +1,51 @@
+changelog.d/build-logs-fallback-text.changed.md
+  s_b5788db0bcfac8::t_f2e1aaf9950191 1-7
+sdk-typescript/tests/build-logs.test.ts
+  s_b5788db0bcfac8::t_85648522d372b7 309-340,730-775
+  s_b5788db0bcfac8::t_a09a18d78ed1d0 779-781,783-784
+  s_b5788db0bcfac8::t_05985ac63349e5 776
+sdk-typescript/src/v2/BuildLogs.ts
+  s_b5788db0bcfac8::t_e9ec72b6e58a14 453-454
+  s_b5788db0bcfac8::t_cea4167c91f1fa 402-410,414,424,427,429,432-440,442-444,448-449,451-452,455-463,648-651
+  s_b5788db0bcfac8::t_55fbff08a487bf 441,445-447,450
+  s_b5788db0bcfac8::t_bc1afe5ccfbd0c 278-288,302-303,310,328,351-357,363,367,371-372
+sdk-go/build_logs_identity.go
+  s_b5788db0bcfac8::t_12698bb8cd461d 8,22-29,44,47-54
+changelog.d/build-logs-follow-by-name.fixed.md
+  s_b5788db0bcfac8::t_f2e1aaf9950191 1-5
+sdk-go/build_logs_request.go
+  s_b5788db0bcfac8::t_fae9019332ec30 46,50
+  s_b5788db0bcfac8::t_12698bb8cd461d 11,51-54,57-58,62-66
+  s_b5788db0bcfac8::t_e0cac7b13e493f 47-49,55-56
+  s_b5788db0bcfac8::t_a13fc1cb6a8554 59-61
+sdk-python/tests/test_build_logs.py
+  s_b5788db0bcfac8::t_dcece992b1d371 448-453,456-459,539-543
+  s_b5788db0bcfac8::t_e55687fd5da3e0 1175-1178,1185-1188
+  s_b5788db0bcfac8::t_1f5569398b7ea8 441-447,454-455,460-468,477-538,544-568,1261-1265,1273
+  s_b5788db0bcfac8::t_06c982d226ca7d 469-476
+sdk-python/src/daytona/v2/build_logs.py
+  s_b5788db0bcfac8::t_73ff12e71592af 426-434,448-450,453,459-460,488-491,532-538,543-544,547,552,554-555
+  s_b5788db0bcfac8::t_55fbff08a487bf 680-681,685
+  s_b5788db0bcfac8::t_eab44c27c7dae6 668,928
+  s_b5788db0bcfac8::t_e585d398eea1c8 686-693
+  s_b5788db0bcfac8::t_00aa51a2c18422 628-637,659-660,663-664,669-679,682-684,694-698,929-930
+  s_b5788db0bcfac8::t_6fd9ab4005478b 699-700
+sdk-go/build_logs_identity_test.go
+  s_b5788db0bcfac8::t_b35915e062bc72 52-54,61-65,104-105,114-119,141-206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a490db386d9783677d266c201ec196c4eab59ac2",
+  "prompts": {},
+  "sessions": {
+    "s_b5788db0bcfac8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defaefaf0ffed9xI1aKFESdygL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
