@@ -159,15 +159,17 @@ func liveEventsUpdate(t *testing.T, ctx context.Context, ch <-chan events.Update
 }
 
 // ticketRetryAfter reads retry_after_seconds from a rate-limited ticket mint,
-// defaulting to one minute when the body does not carry it.
+// defaulting to one minute when the body does not carry it. The hint is capped
+// at two minutes so it can neither overflow nor outlast the test's context.
 func ticketRetryAfter(err error) time.Duration {
+	const fallback, ceiling = time.Minute, 2 * time.Minute
 	match := regexp.MustCompile(`"retry_after_seconds":\s*(\d+)`).FindStringSubmatch(err.Error())
 	if match == nil {
-		return time.Minute
+		return fallback
 	}
-	seconds, parseErr := strconv.Atoi(match[1])
-	if parseErr != nil {
-		return time.Minute
+	seconds, parseErr := strconv.ParseInt(match[1], 10, 64)
+	if parseErr != nil || seconds > int64(ceiling/time.Second) {
+		return ceiling
 	}
 	return time.Duration(seconds) * time.Second
 }
