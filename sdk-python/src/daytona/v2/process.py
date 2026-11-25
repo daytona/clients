@@ -409,10 +409,12 @@ class AsyncProcessHandle:
     async def close_stdin(self) -> None:
         """Close the stdin of an exec process (EOF).
 
-        A PTY has no end-of-input signal of its own: on a PTY handle the
-        sandbox answers :class:`~daytona.v2.errors.BadRequestError` (400,
-        "send ^D (0x04) as data instead"). Write ``"\\x04"`` (Ctrl-D) with :meth:`write_stdin`
-        instead: in the terminal's default (canonical) mode, at the start of a
+        On a code or session handle it raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError` before any
+        request. A PTY has no end-of-input signal of its own: on a PTY handle
+        the sandbox answers :class:`~daytona.v2.errors.BadRequestError` (400,
+        "send ^D (0x04) as data instead"). Write ``"\\x04"`` (Ctrl-D) with
+        :meth:`write_stdin` instead: in the terminal's default (canonical) mode, at the start of a
         line, the program reads it as end of input; a program that puts the
         terminal in raw mode receives the byte as data.
         """

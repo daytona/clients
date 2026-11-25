@@ -460,8 +460,9 @@ class AsyncSandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """Whether the sandbox is persistent: it can stop, pause, resume and
-        fork, and a stop keeps its disk. ``None`` until a read reports it (a
+        """Whether the sandbox is persistent, which stop, pause, resume and fork
+        require (fork also refuses a sandbox with attached volumes, and the
+        class decides what each supports); a stop keeps its disk. ``None`` until a read reports it (a
         create handle can still be ``None``; :meth:`refresh_data` fills it in).
         """
         return self._info.persistent

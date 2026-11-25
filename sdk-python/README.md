@@ -453,8 +453,10 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   replacement only; reset is an explicit JSON `null`; the SDK does not auto-GET
   or auto-retry around stale `If-Match`. Pass `if_match` exactly as the last
   read or update returned its `etag` (an opaque, quoted string): a stale one
-  raises `PreconditionFailedError` (412), and a malformed value raises
-  `BadRequestError` (400). Domain allow-lists imply default-deny:
+  raises `PreconditionFailedError` (412). The SDK refuses an empty `if_match`,
+  or one that is not printable ASCII or has leading or trailing spaces, with
+  `BadRequestError` (400) before sending; the API answers 400 for some other
+  malformed values (`'"bogus"'`, for one). Domain allow-lists imply default-deny:
   omitting `block_all` while setting `allow_domains` lets the API normalize it
   to `true`, while an explicit `block_all=False` is rejected locally with
   `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allow_cidrs` needs

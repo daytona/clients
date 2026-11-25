@@ -363,8 +363,9 @@ export class Sandbox {
     return this.observed.macBootMode
   }
   /**
-   * Whether the sandbox is persistent: it can stop, pause, resume and fork, and
-   * a stop keeps its disk. Undefined until a read reports it (a create handle
+   * Whether the sandbox is persistent, which stop, pause, resume and fork
+   * require (fork also refuses a sandbox with attached volumes, and the class
+   * decides what each supports); a stop keeps its disk. Undefined until a read reports it (a create handle
    * can still be undefined; `refreshData()` fills it in).
    */
   public get persistent(): boolean | undefined { return this.observed.persistent }

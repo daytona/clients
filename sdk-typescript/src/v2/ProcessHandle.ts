@@ -134,8 +134,9 @@ export class ProcessHandle {
   }
 
   /**
-   * Close the stdin of an exec process (EOF). A pty has no end-of-input signal
-   * of its own: on a pty handle the sandbox answers `BadRequestError` (400,
+   * Close the stdin of an exec process (EOF). On a code or session handle it
+   * throws `UnsupportedOperationError` before any request. A pty has no
+   * end-of-input signal of its own: on a pty handle the sandbox answers `BadRequestError` (400,
    * "send ^D (0x04) as data instead"). Write `'\x04'`
    * (Ctrl-D) with {@link writeStdin} instead: in the terminal's default
    * (canonical) mode, at the start of a line, the program reads it as end of

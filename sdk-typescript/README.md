@@ -389,8 +389,10 @@ make asynchronous callback work cancellation-aware when needed.
   replacement only; reset is an explicit JSON `null`; the SDK does not auto-GET
   or auto-retry around stale `If-Match`. Pass `ifMatch` exactly as the last
   read or update returned its `etag` (an opaque, quoted string): a stale one
-  throws `PreconditionFailedError` (412), and a malformed value throws
-  `BadRequestError` (400). Domain allow-lists imply default-deny:
+  throws `PreconditionFailedError` (412). The SDK refuses an empty `ifMatch`,
+  or one that is not printable ASCII or has leading or trailing spaces, with
+  `BadRequestError` (400) before sending; the API answers 400 for some other
+  malformed values (`'"bogus"'`, for one). Domain allow-lists imply default-deny:
   omitting `blockAll` while setting `allowDomains` lets the API normalize it to
   `true`, while an explicit `blockAll: false` is rejected locally with
   `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allowCidrs` needs
