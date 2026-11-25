@@ -839,7 +839,7 @@ deadline), and
 `kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
 (`'TERM'`), in `kill()` and in what `wait()` and `get()` report. `kill()` sends
 `TERM` by default, which an interactive shell (a pty's default shell, from
-`pty.start()` with no command) ignores: stop one with `{ signal: 'HUP' }` or `'KILL'`, or pass
+`pty.start()` with no command) ignores: stop one with `{ signal: 'HUP' }` or `{ signal: 'KILL' }`, or pass
 `escalateAfterSeconds` to follow `TERM` with `KILL`. Reconnected
 `kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
 `kill()`), not a way to recover a parsed `InterpreterResult` on another worker.
