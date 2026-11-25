@@ -226,6 +226,8 @@ async def test_get_accepts_an_http_toolbox_url(
 # One toolbox URL override rule in every SDK: the same lists are in
 # sdk-typescript/tests/config-validation.test.ts and sdk-go/toolbox_url_validation_test.go.
 _SAME_RULE_REFUSED = [
+    # A lone surrogate; Go's list has its UTF-8 form (invalid UTF-8).
+    "https://toolbox.example/tools\ud800x",
     "http://%C3%A9.example/x",
     "http://fe80::1/x",
     "http://[xyz]/x",
@@ -249,6 +251,7 @@ _SAME_RULE_REFUSED = [
     "https://h:+80/x",
 ]
 _SAME_RULE_ACCEPTED = [
+    "https://toolbox.example/tools\U0001f600x",
     "https://toolbox.example/tools%20x",
     "http://my_host.example/x",
     "http://xn--bcher-kva.example/x",

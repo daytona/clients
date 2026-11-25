@@ -105,6 +105,8 @@ describe('get() toolbox URL override', () => {
 // One toolbox URL override rule in every SDK: the same lists are in
 // sdk-python/tests/test_config_validation.py and sdk-go/toolbox_url_validation_test.go.
 const SAME_RULE_REFUSED: readonly string[] = [
+  // A lone surrogate; Go's list has its UTF-8 form (invalid UTF-8).
+  'https://toolbox.example/tools\ud800x',
   "http://%C3%A9.example/x",
   "http://fe80::1/x",
   "http://[xyz]/x",
@@ -128,6 +130,8 @@ const SAME_RULE_REFUSED: readonly string[] = [
   "https://h:+80/x",
 ]
 const SAME_RULE_ACCEPTED: readonly string[] = [
+  // A paired surrogate is an astral character (U+1F600), accepted in every SDK.
+  'https://toolbox.example/tools\ud83d\ude00x',
   "https://toolbox.example/tools%20x",
   "http://my_host.example/x",
   "http://xn--bcher-kva.example/x",

@@ -68,10 +68,12 @@ const OVERRIDE_HOST = /^(?:\[[0-9A-Fa-f:.]+\]|(?:[A-Za-z0-9\-._~!$&'()*+,;=]|[^\
 
 /**
  * Whitespace (Python's `str.isspace()` set), a C0 or C1 control character,
- * DEL or U+FEFF: the set every SDK refuses in a toolbox URL override.
+ * DEL, U+FEFF or an unpaired UTF-16 surrogate (Python refuses the surrogate,
+ * Go its UTF-8 form as invalid): the set every SDK refuses in a toolbox URL
+ * override. With the `u` flag, the surrogate range matches only an unpaired one.
  */
 function hasSpaceOrControl(url: string): boolean {
-  return hasSpace(url) || /[\u0000-\u001f\u007f-\u009f\ufeff]/.test(url)
+  return hasSpace(url) || /[\u0000-\u001f\u007f-\u009f\ufeff]/.test(url) || /[\ud800-\udfff]/u.test(url)
 }
 
 /**

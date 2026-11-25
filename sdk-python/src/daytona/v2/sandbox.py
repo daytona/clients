@@ -2387,10 +2387,13 @@ _OVERRIDE_HOST: Final = re.compile(
 
 
 def _space_or_control(char: str) -> bool:
-    """Whitespace (``str.isspace()``), a C0 or C1 control character, DEL or
-    U+FEFF: the set every SDK refuses in a toolbox URL override."""
+    """Whitespace (``str.isspace()``), a C0 or C1 control character, DEL,
+    U+FEFF or a surrogate code point (Go refuses its UTF-8 form as invalid):
+    the set every SDK refuses in a toolbox URL override."""
     code = ord(char)
-    return char.isspace() or code <= 0x1F or 0x7F <= code <= 0x9F or code == 0xFEFF
+    return (
+        char.isspace() or code <= 0x1F or 0x7F <= code <= 0x9F or code == 0xFEFF or 0xD800 <= code <= 0xDFFF
+    )
 
 
 def _plain_authority(url: str) -> bool:

@@ -77,6 +77,8 @@ func TestGet_whenDirectToolboxURLIsAccepted(t *testing.T) {
 // One toolbox URL override rule in every SDK: the same lists are in
 // sdk-python/tests/test_config_validation.py and sdk-typescript/tests/config-validation.test.ts.
 var sameRuleRefused = []string{
+	// The UTF-8 form of a lone surrogate; the other lists have the surrogate itself.
+	"https://toolbox.example/tools\xed\xa0\x80x",
 	"http://%C3%A9.example/x",
 	"http://fe80::1/x",
 	"http://[xyz]/x",
@@ -101,6 +103,7 @@ var sameRuleRefused = []string{
 }
 
 var sameRuleAccepted = []string{
+	"https://toolbox.example/tools\U0001F600x",
 	"https://toolbox.example/tools%20x",
 	"http://my_host.example/x",
 	"http://xn--bcher-kva.example/x",
