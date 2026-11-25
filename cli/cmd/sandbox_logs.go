@@ -311,6 +311,7 @@ func usageHistoryTable(h gen.SandboxUsageHistory) output.Table {
 			period.StartAt.UTC().Format(time.RFC3339),
 			(time.Duration(period.DurationMs) * time.Millisecond).String(),
 			strconv.FormatFloat(period.CpuCoreSeconds, 'f', -1, 64),
+			strconv.FormatFloat(period.MemoryByteSeconds, 'f', -1, 64),
 			strconv.FormatInt(period.MemoryPeakBytes, 10),
 			strconv.FormatInt(period.DiskUsedBytes, 10),
 			strconv.FormatInt(period.DiskReadBytes, 10),
@@ -320,7 +321,7 @@ func usageHistoryTable(h gen.SandboxUsageHistory) output.Table {
 		})
 	}
 	return output.Table{
-		Headers: []string{"START", "DURATION", "CPU CORE-SECONDS", "MEMORY PEAK BYTES", "DISK USED BYTES", "DISK READ BYTES", "DISK WRITTEN BYTES", "NET RECEIVED BYTES", "NET SENT BYTES"},
+		Headers: []string{"START", "DURATION", "CPU CORE-SECONDS", "MEMORY BYTE-SECONDS", "MEMORY PEAK BYTES", "DISK USED BYTES", "DISK READ BYTES", "DISK WRITTEN BYTES", "NET RECEIVED BYTES", "NET SENT BYTES"},
 		Rows:    rows,
 	}
 }

@@ -88,7 +88,7 @@ func TestSandboxUsageHistoryTableShowsThePeriods(t *testing.T) {
 	body := usageHistoryFixture(id)
 	body["periods"] = append(body["periods"].([]map[string]any), map[string]any{
 		"start_at": "2026-09-13T00:01:00Z", "duration_ms": 30500, "cpu_core_seconds": 0.25,
-		"memory_byte_seconds": 1, "memory_peak_bytes": 2048, "disk_used_bytes": 4096, "disk_read_bytes": 10,
+		"memory_byte_seconds": 1536.5, "memory_peak_bytes": 2048, "disk_used_bytes": 4096, "disk_read_bytes": 10,
 		"disk_written_bytes": 20, "network_received_bytes": 30, "network_sent_bytes": 40,
 	})
 	history := expectedRequest{method: http.MethodGet, path: "/sandboxes/" + id + "/usage/history", status: 200, response: fixtureJSON(body)}
@@ -99,9 +99,9 @@ func TestSandboxUsageHistoryTableShowsThePeriods(t *testing.T) {
 	require.Len(t, lines, 5)
 	require.Equal(t, "Resolution: one row per minute", lines[0])
 	require.Empty(t, lines[1])
-	require.Equal(t, []string{"START", "DURATION", "CPU", "CORE-SECONDS", "MEMORY", "PEAK", "BYTES", "DISK", "USED", "BYTES", "DISK", "READ", "BYTES", "DISK", "WRITTEN", "BYTES", "NET", "RECEIVED", "BYTES", "NET", "SENT", "BYTES"}, strings.Fields(lines[2]))
-	require.Equal(t, []string{"2026-09-13T00:00:00Z", "1m0s", "1", "512", "1024", "0", "0", "0", "0"}, strings.Fields(lines[3]))
-	require.Equal(t, []string{"2026-09-13T00:01:00Z", "30.5s", "0.25", "2048", "4096", "10", "20", "30", "40"}, strings.Fields(lines[4]))
+	require.Equal(t, []string{"START", "DURATION", "CPU", "CORE-SECONDS", "MEMORY", "BYTE-SECONDS", "MEMORY", "PEAK", "BYTES", "DISK", "USED", "BYTES", "DISK", "READ", "BYTES", "DISK", "WRITTEN", "BYTES", "NET", "RECEIVED", "BYTES", "NET", "SENT", "BYTES"}, strings.Fields(lines[2]))
+	require.Equal(t, []string{"2026-09-13T00:00:00Z", "1m0s", "1", "512", "512", "1024", "0", "0", "0", "0"}, strings.Fields(lines[3]))
+	require.Equal(t, []string{"2026-09-13T00:01:00Z", "30.5s", "0.25", "1536.5", "2048", "4096", "10", "20", "30", "40"}, strings.Fields(lines[4]))
 	require.NotContains(t, stdout, "history")
 
 	stdout, _, err = runCLI(t, []string{"sandbox", "usage", id, "--history"}, []expectedRequest{detail, history})
