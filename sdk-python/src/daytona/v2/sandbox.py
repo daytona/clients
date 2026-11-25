@@ -2377,28 +2377,41 @@ def _assert_placeholder_in_path(url: str) -> None:
         )
 
 
-_URL_SPACE_OR_CONTROL: Final = re.compile(r"[\s\x00-\x1f\x7f]")
 _HTTP_URL_AUTHORITY: Final = re.compile(r"https?://([^/?#]*)", re.IGNORECASE)
+# The host (and optional port) of a toolbox URL override, one rule in every
+# SDK: an IPv6 literal of hex digits, ':' and '.', or a name of ASCII letters,
+# digits, '-._~!$&'()*+,;=' and characters from U+00A0 up.
+_OVERRIDE_HOST: Final = re.compile(
+    r"(?:\[[0-9A-Fa-f:.]+\]|(?:[A-Za-z0-9\-._~!$&'()*+,;=]|[^\x00-\x9f])+)(?::[0-9]*)?"
+)
+
+
+def _space_or_control(char: str) -> bool:
+    """Whitespace (``str.isspace()``), a C0 or C1 control character, DEL or
+    U+FEFF: the set every SDK refuses in a toolbox URL override."""
+    code = ord(char)
+    return char.isspace() or code <= 0x1F or 0x7F <= code <= 0x9F or code == 0xFEFF
 
 
 def _plain_authority(url: str) -> bool:
     """Whether the raw authority (between ``://`` and the first ``/``, ``?``
-    or ``#``) of an http(s) URL is one every SDK reads the same way: not
-    empty, no ``\\``, and no ``%`` in the host (so no IPv6 zone id either),
-    as the TypeScript and Go SDKs check."""
+    or ``#``) of an http(s) URL has a host every SDK reads the same way (see
+    ``_OVERRIDE_HOST``): no ``\\``, no ``%`` (an encoded host or an IPv6 zone
+    id), and no character such as ``|`` or ``<`` that another SDK's URL parser
+    refuses."""
     match = _HTTP_URL_AUTHORITY.match(url)
     if match is None:
         return False
     authority = match.group(1)
-    host = authority[authority.rfind("@") + 1 :]
-    return bool(host) and "\\" not in authority and "%" not in host
+    return _OVERRIDE_HOST.fullmatch(authority[authority.rfind("@") + 1 :]) is not None
 
 
 def _check_toolbox_override_url(url: str, name: str) -> None:
     """Refuse a caller's toolbox URL override that is not an absolute http(s)
     URL with a host and no query or fragment, before any request: the Go SDK's
-    rule, plus a valid port and no whitespace or control characters. A
-    ``{sandbox_id}`` placeholder is allowed in the path only."""
+    rule, plus a valid port, a host of the characters every SDK reads the
+    same way, and no whitespace or control characters. A ``{sandbox_id}``
+    placeholder is allowed in the path only."""
     masked = url
     for placeholder in _SANDBOX_ID_PLACEHOLDERS:
         masked = masked.replace(placeholder, "sandbox")
@@ -2414,7 +2427,7 @@ def _check_toolbox_override_url(url: str, name: str) -> None:
         parsed is not None
         and bool(parsed.hostname)
         and _plain_authority(masked)
-        and _URL_SPACE_OR_CONTROL.search(masked) is None
+        and not any(_space_or_control(char) for char in masked)
         and "?" not in masked
         and "#" not in masked
     )

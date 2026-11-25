@@ -15,6 +15,7 @@ from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, Daytona, DaytonaConfig
 from daytona.v2 import BadRequestError, SandboxEventsConfig
+from daytona.v2.sandbox import _check_toolbox_override_url
 from daytona.v2.types import DaytonaConfig as DaytonaConfigV2
 from daytona.v2.types import JsonObject
 
@@ -121,6 +122,22 @@ def test_a_non_boolean_otel_enabled_is_refused_before_the_v0_client_is_built() -
     _assert_bad_request(error, "otel_enabled must be a boolean")
 
 
+@pytest.mark.parametrize("client", [Daytona, AsyncDaytona])
+def test_root_v0_refuses_a_non_boolean_otel_enabled_before_loading_v0(
+    client: Callable[[Any], Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import daytona._client as root_client
+
+    def load(_name: str) -> object:
+        raise AssertionError("v0 must not be loaded")
+
+    monkeypatch.setattr(root_client, "_load_v0", load)
+    root = client(DaytonaConfig(api_key="key", otel_enabled="yes"))  # type: ignore[arg-type]
+    with pytest.raises(BadRequestError) as error:
+        _ = root.v0
+    _assert_bad_request(error, "otel_enabled must be a boolean")
+
+
 _URL_MESSAGE = "toolbox_url must be an http(s) URL with a host and no query or fragment"
 _PLACEHOLDER_MESSAGE = "placeholder in a toolbox URL is only supported in the path"
 
@@ -180,17 +197,19 @@ async def test_get_refuses_a_toolbox_url_that_is_no_http_url_before_any_request(
 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
-    "toolbox_url",
+    ("toolbox_url", "resolved"),
     [
-        "https://toolbox.example/sandboxes/sbx",
-        "HTTP://127.0.0.1:8080/",
-        "http://[::1]:8080/sbx",
-        "https://user@toolbox.example/sbx",
-        "https://toolbox.example/{sandboxId}/tools",
-        "https://toolbox.example/{sandbox_id}",
+        ("https://toolbox.example/sandboxes/sbx", "https://toolbox.example/sandboxes/sbx"),
+        ("HTTP://127.0.0.1:8080/", "HTTP://127.0.0.1:8080"),
+        ("http://[::1]:8080/sbx", "http://[::1]:8080/sbx"),
+        ("https://user@toolbox.example/sbx", "https://user@toolbox.example/sbx"),
+        ("https://toolbox.example/{sandboxId}/tools", "https://toolbox.example/sbx/tools"),
+        ("https://toolbox.example/{sandbox_id}", "https://toolbox.example/sbx"),
     ],
 )
-async def test_get_accepts_an_http_toolbox_url(monkeypatch: pytest.MonkeyPatch, toolbox_url: str) -> None:
+async def test_get_accepts_an_http_toolbox_url(
+    monkeypatch: pytest.MonkeyPatch, toolbox_url: str, resolved: str
+) -> None:
     with FakeApi([]) as fake:
         fake._responses.append(PlannedResponse(200, _detail(fake.url)))
         monkeypatch.setenv("DAYTONA_V2_API_URL", fake.url)
@@ -199,4 +218,50 @@ async def test_get_accepts_an_http_toolbox_url(monkeypatch: pytest.MonkeyPatch, 
         ) as root:
             sandbox = await root.v2.get("sbx", toolbox_url=toolbox_url)
         assert sandbox.id == "sbx"
+        # The override, not the API's toolbox URL, is where toolbox calls go.
+        assert sandbox._toolbox_proxy_url == resolved
         assert len(fake.requests) == 1
+
+
+# One toolbox URL override rule in every SDK: the same lists are in
+# sdk-typescript/tests/config-validation.test.ts and sdk-go/toolbox_url_validation_test.go.
+_SAME_RULE_REFUSED = [
+    "https://toolbox.example/tools\u0085x",
+    "https://toolbox.example/tools\u0080x",
+    "https://toolbox.example/tools\u009fx",
+    "https://toolbox.example/tools\ufeffx",
+    "https://toolbox.example/tools\u00a0x",
+    "https://toolbox.example/tools\u3000x",
+    "https://toolbox\u0080.example/tools",
+    "https://toolbox\ufeff.example/tools",
+    "http://a|b.example/x",
+    "http://a<b.example/x",
+    'http://a"b.example/x',
+    "http://a^b.example/x",
+    "http://a{b.example/x",
+    "http://[fe80::1%25eth0]:8080/x",
+    "http://%41.example/x",
+    "https://toolbox.example:99999/x",
+    "https://h:+80/x",
+]
+_SAME_RULE_ACCEPTED = [
+    "https://toolbox.example/tools%20x",
+    "http://my_host.example/x",
+    "http://xn--bcher-kva.example/x",
+    "http://b\u00fccher.example/x",
+    "http://[::1]:8080/x",
+    "https://user@toolbox.example/x",
+    "https://toolbox.example:65535/{sandboxId}",
+    "http://127.0.0.1/x",
+]
+
+
+@pytest.mark.parametrize("url", _SAME_RULE_REFUSED)
+def test_the_shared_toolbox_url_rule_refuses(url: str) -> None:
+    with pytest.raises(BadRequestError):
+        _check_toolbox_override_url(url, "toolbox_url")
+
+
+@pytest.mark.parametrize("url", _SAME_RULE_ACCEPTED)
+def test_the_shared_toolbox_url_rule_accepts(url: str) -> None:
+    _check_toolbox_override_url(url, "toolbox_url")

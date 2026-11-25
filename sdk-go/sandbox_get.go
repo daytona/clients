@@ -117,22 +117,22 @@ func regionOf(id string) string {
 }
 
 // checkToolboxOverride refuses what the shared HTTP base URL rule lets through
-// in a caller's ToolboxURL, as the Python and TypeScript SDKs refuse it: a
-// space or control character anywhere, a port above 65535 and a percent sign
-// in the host (an encoded host or an IPv6 zone ID). URLs the API returns are
-// not checked here.
+// in a caller's ToolboxURL, as the Python and TypeScript SDKs refuse it:
+// whitespace, a C0 or C1 control character, DEL or U+FEFF anywhere; a port
+// above 65535; and a host that overrideHost refuses (a percent sign: an
+// encoded host or an IPv6 zone ID). URLs the API returns are not checked here.
 func checkToolboxOverride(raw string) error {
 	const message = "ToolboxURL must be an http(s) URL with a host, a port up to 65535, " +
 		"no percent-encoded host, and no whitespace or control characters"
 	for _, char := range raw {
-		if char <= ' ' || char == 0x7f || unicode.IsSpace(char) {
+		if char <= ' ' || (char >= 0x7f && char <= 0x9f) || char == 0xfeff || unicode.IsSpace(char) {
 			return badRequest(message)
 		}
 	}
 	masked := strings.NewReplacer("{sandboxId}", "sandbox", "{sandbox_id}", "sandbox").Replace(raw)
 	// An unparsable URL is left to the shared rule, which reports it.
 	if parsed, err := url.Parse(masked); err == nil {
-		if strings.Contains(parsed.Host, "%") {
+		if !overrideHost(parsed.Hostname()) {
 			return badRequest(message)
 		}
 		if port := parsed.Port(); port != "" {
@@ -142,4 +142,21 @@ func checkToolboxOverride(raw string) error {
 		}
 	}
 	return nil
+}
+
+// overrideHost reports whether host (no port) is an IPv6 literal of hex digits,
+// ':' and '.', or a name of ASCII letters, digits, "-._~!$&'()*+,;=" and
+// characters from U+00A0 up: the host rule the Python and TypeScript SDKs
+// apply to a toolbox URL override.
+func overrideHost(host string) bool {
+	if strings.Contains(host, ":") {
+		return strings.Trim(host, "0123456789abcdefABCDEF:.") == ""
+	}
+	for _, char := range host {
+		if char < 0xa0 && !strings.ContainsRune(
+			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~!$&'()*+,;=", char) {
+			return false
+		}
+	}
+	return host != ""
 }

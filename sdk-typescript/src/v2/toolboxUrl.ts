@@ -6,6 +6,7 @@
 /** Toolbox URL templates and the checks on a caller's toolbox URL override (internal). */
 
 import { badRequest } from './options.js'
+import { hasSpace } from './pyText.js'
 
 // Both placeholder spellings are documented (README.md) and must work in
 // either SDK: a template is often copied between a Python and a TypeScript
@@ -47,21 +48,36 @@ export function assertPlaceholderInPath(url: string): void {
 
 /**
  * Whether the raw authority (between `://` and the first `/`, `?` or `#`) of
- * an http(s) URL is one every SDK reads the same way: not empty, no `\`, and
- * no `%` in the host (an encoded host or an IPv6 zone ID). The WHATWG parser would
+ * an http(s) URL has a host every SDK reads the same way (`OVERRIDE_HOST`): no
+ * `\`, no `%` (an encoded host or an IPv6 zone ID), no `|` or `<`. The WHATWG parser would
  * otherwise rewrite `https:///h`, `https://h\p` and `http://%41.example/`
  * into hosts the Go and Python SDKs refuse.
  */
 function plainAuthority(url: string): boolean {
   const authority = /^https?:\/\/([^/?#]*)/i.exec(url)?.[1] ?? ''
-  const host = authority.slice(authority.lastIndexOf('@') + 1)
-  return host !== '' && !authority.includes('\\') && !host.includes('%')
+  return OVERRIDE_HOST.test(authority.slice(authority.lastIndexOf('@') + 1))
+}
+
+/**
+ * The host (and optional port) of a toolbox URL override, one rule in every
+ * SDK: an IPv6 literal of hex digits, `:` and `.`, or a name of ASCII letters,
+ * digits, `-._~!$&'()*+,;=` and characters from U+00A0 up.
+ */
+const OVERRIDE_HOST = /^(?:\[[0-9A-Fa-f:.]+\]|(?:[A-Za-z0-9\-._~!$&'()*+,;=]|[^\u0000-\u009f])+)(?::[0-9]*)?$/u
+
+/**
+ * Whitespace (Python's `str.isspace()` set), a C0 or C1 control character,
+ * DEL or U+FEFF: the set every SDK refuses in a toolbox URL override.
+ */
+function hasSpaceOrControl(url: string): boolean {
+  return hasSpace(url) || /[\u0000-\u001f\u007f-\u009f\ufeff]/.test(url)
 }
 
 /**
  * Refuse a caller's toolbox URL override that is not an absolute http(s) URL
  * with a host and no query or fragment, before any request: the Go SDK's
- * rule, plus a valid port and no whitespace or control characters. A
+ * rule, plus a valid port, a host of the characters every SDK reads the same
+ * way, and no whitespace or control characters. A
  * `{sandboxId}` placeholder is allowed in the path only.
  */
 export function assertToolboxOverrideUrl(url: string, name: string): void {
@@ -76,7 +92,7 @@ export function assertToolboxOverrideUrl(url: string, name: string): void {
   const valid = hostname !== ''
     && /^https?:\/\//i.test(masked)
     && plainAuthority(masked)
-    && !/[\s\u0000-\u001f\u007f]/.test(masked)
+    && !hasSpaceOrControl(masked)
     && !masked.includes('?')
     && !masked.includes('#')
   if (!valid) throw badRequest(`${name} must be an http(s) URL with a host and no query or fragment`)

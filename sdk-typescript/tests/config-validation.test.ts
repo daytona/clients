@@ -11,6 +11,7 @@ import { Daytona, setV0ModuleLoaderForTests } from '../src/Daytona'
 import type { DaytonaConfig } from '../src/index'
 import { clientAt } from './helpers/client'
 import { startFakeApi } from './networkPolicyTestServer'
+import { assertToolboxOverrideUrl } from '../src/v2/toolboxUrl'
 import type { PlannedResponse } from './networkPolicyTestServer'
 
 const BAD_REQUEST = { name: 'BadRequestError', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' }
@@ -77,13 +78,13 @@ describe('get() toolbox URL override', () => {
   })
 
   it.each([
-    ['an https URL', 'https://toolbox.example/sandboxes/sbx'],
-    ['an upper-case scheme and a port', 'HTTP://127.0.0.1:8080/'],
-    ['an IPv6 host', 'http://[::1]:8080/sbx'],
-    ['userinfo', 'https://user@toolbox.example/sbx'],
-    ['a path placeholder', 'https://toolbox.example/{sandboxId}/tools'],
-    ['the snake_case placeholder', 'https://toolbox.example/{sandbox_id}'],
-  ] as const)('accepts %s', async (_name, toolboxUrl) => {
+    ['an https URL', 'https://toolbox.example/sandboxes/sbx', 'https://toolbox.example/sandboxes/sbx'],
+    ['an upper-case scheme and a port', 'HTTP://127.0.0.1:8080/', 'HTTP://127.0.0.1:8080'],
+    ['an IPv6 host', 'http://[::1]:8080/sbx', 'http://[::1]:8080/sbx'],
+    ['userinfo', 'https://user@toolbox.example/sbx', 'https://user@toolbox.example/sbx'],
+    ['a path placeholder', 'https://toolbox.example/{sandboxId}/tools', 'https://toolbox.example/sbx/tools'],
+    ['the snake_case placeholder', 'https://toolbox.example/{sandbox_id}', 'https://toolbox.example/sbx'],
+  ] as const)('accepts %s', async (_name, toolboxUrl, resolved) => {
     const planned: PlannedResponse[] = []
     const api = await startFakeApi(planned)
     planned.push({ status: 200, body: { id: 'sbx', class: 'linux', name: 'sbx', status: 'running', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, port_map: [], region_id: 'region-a', toolbox_proxy_url: `${api.url}/toolbox` } })
@@ -91,10 +92,54 @@ describe('get() toolbox URL override', () => {
     try {
       const sandbox = await client.v2.get('sbx', { toolboxUrl })
       expect(sandbox.id).toBe('sbx')
+      // The override, not the API's toolbox URL, is where toolbox calls go.
+      expect(Reflect.get(sandbox, 'toolboxProxyUrl')).toBe(resolved)
       expect(api.requests).toHaveLength(1)
     } finally {
       await client.close()
       await api.close()
     }
+  })
+})
+
+// One toolbox URL override rule in every SDK: the same lists are in
+// sdk-python/tests/test_config_validation.py and sdk-go/toolbox_url_validation_test.go.
+const SAME_RULE_REFUSED: readonly string[] = [
+  "https://toolbox.example/tools\u0085x",
+  "https://toolbox.example/tools\u0080x",
+  "https://toolbox.example/tools\u009fx",
+  "https://toolbox.example/tools\ufeffx",
+  "https://toolbox.example/tools\u00a0x",
+  "https://toolbox.example/tools\u3000x",
+  "https://toolbox\u0080.example/tools",
+  "https://toolbox\ufeff.example/tools",
+  "http://a|b.example/x",
+  "http://a<b.example/x",
+  "http://a\"b.example/x",
+  "http://a^b.example/x",
+  "http://a{b.example/x",
+  "http://[fe80::1%25eth0]:8080/x",
+  "http://%41.example/x",
+  "https://toolbox.example:99999/x",
+  "https://h:+80/x",
+]
+const SAME_RULE_ACCEPTED: readonly string[] = [
+  "https://toolbox.example/tools%20x",
+  "http://my_host.example/x",
+  "http://xn--bcher-kva.example/x",
+  "http://b\u00fccher.example/x",
+  "http://[::1]:8080/x",
+  "https://user@toolbox.example/x",
+  "https://toolbox.example:65535/{sandboxId}",
+  "http://127.0.0.1/x",
+]
+
+describe('the toolbox URL override rule shared with Python and Go', () => {
+  it.each(SAME_RULE_REFUSED)('refuses %j', (url) => {
+    expect(() => assertToolboxOverrideUrl(url, 'toolboxUrl')).toThrow(expect.objectContaining(BAD_REQUEST) as Error)
+  })
+
+  it.each(SAME_RULE_ACCEPTED)('accepts %j', (url) => {
+    expect(() => assertToolboxOverrideUrl(url, 'toolboxUrl')).not.toThrow()
   })
 })
