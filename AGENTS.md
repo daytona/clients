@@ -596,8 +596,8 @@ skipping exist only in the TypeScript tool).
   options.
   A per-call timeout (a wait's budget plus its slack, for a process wait
   its round's hold plus the slack, the `run()` / `session.run()` create
-  hold included; a sandbox create POST that asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
-  healthy hold is never cut, with no bound when the request timeout is `0`
+  hold included; a sandbox create POST that asks the server to hold,
+  bounded by max(request timeout, hold + 5 s) so a healthy hold is never cut, with no bound when the request timeout is `0`
   or the hold is above the timer maximum, while a create with no hold stays
   an ordinary request; a git remote call, `fs.move()`'s `timeout` /
   `timeoutSeconds` (Go `MoveOptions.Timeout`, where zero keeps the request
