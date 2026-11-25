@@ -1,0 +1,23 @@
+sdk-go/image_wait.go
+  s_da52886f8bc83e::t_0a20f0678bbb92 130-133
+sdk-go/README.md
+  s_da52886f8bc83e::t_0a20f0678bbb92 218-220,226-227
+sdk-go/read_retry_test.go
+  s_da52886f8bc83e::t_c483671de76e98 477-493
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70d48d202fdf95bb243933fe5ec8a03d26737a6c",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
