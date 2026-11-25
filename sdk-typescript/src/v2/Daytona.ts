@@ -33,6 +33,7 @@ import { attachHub, detachHub, eventsHubConfig } from './events.js'
 import type { EventsHubConfig, WaitHub } from './events.js'
 import type { AuditActionList, ProjectApiKey, CreateFromBuildOptions, FindByNameOptions, LifecycleWaitOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxInfo, SearchResult, SearchSandboxesOptions, SandboxDto } from './types.js'
 import { isBlank } from './pyText.js'
+import { iterPages } from './pages.js'
 
 export { DEFAULT_V2_API_URL } from './clientConfig.js'
 
@@ -321,16 +322,7 @@ export class Daytona {
 
   public async *iter(options: ListSandboxesOptions = {}): AsyncIterable<Sandbox> {
     options = snapshotOptions('ListSandboxesOptions', options, LIST_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
   /**

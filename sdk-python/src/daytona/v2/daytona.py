@@ -75,6 +75,7 @@ from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import Sandbox as SandboxDto
 from ._gen.api import SandboxListItem
 from ._otel import load_opentelemetry_support
+from ._pages import iter_pages
 from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
@@ -1218,19 +1219,16 @@ class AsyncDaytona:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[AsyncSandbox]:
-        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
-        seen_cursors: set[str] = set()
-        page_cursor = cursor
-        if page_cursor is not None:
-            seen_cursors.add(page_cursor)
-        while True:
-            page = await self.list(cursor=page_cursor, limit=limit)
-            for item in page.items:
-                yield item
-            if not page.next_cursor or page.next_cursor == page_cursor or page.next_cursor in seen_cursors:
-                return
-            seen_cursors.add(page.next_cursor)
-            page_cursor = page.next_cursor
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size).
+
+        A page read that fails on a dropped connection or HTTP 429 / 502 /
+        503 / 504 is tried again, up to three reads. The error that ends the
+        walk carries ``page_cursor``, the cursor of the page that failed:
+        ``iter(cursor=error.page_cursor)`` resumes with that page, after the
+        items already yielded (``None``: the walk's first page).
+        """
+        async for item in iter_pages(lambda page_cursor: self.list(cursor=page_cursor, limit=limit), cursor):
+            yield item
 
     async def start(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Start a sandbox by handle or id; see :meth:`AsyncSandbox.start`."""

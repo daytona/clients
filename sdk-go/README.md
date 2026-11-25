@@ -196,6 +196,14 @@ if errors.As(err, &apiErr) {
 }
 ```
 
+Every `ListAll` (and `SearchAll`, `ListEndpointsAll`) reads a page again after
+a dropped connection or an HTTP 429, 502, 503 or 504, up to three reads of
+that page, waiting at least as long as the server's retry hint (a hint above
+10 seconds is not waited for). The `*daytona.Error` that ends a walk carries
+`PageCursor`, the cursor of the page that failed (empty for the first page):
+pass it as `Cursor` to the same call to resume with that page, after the items
+already yielded.
+
 ## Durations and waits
 
 Every duration is a `time.Duration`:

@@ -8,7 +8,6 @@ import uuid
 from collections.abc import Sequence as SequenceABC
 from typing import (
     AsyncIterator,
-    Awaitable,
     Callable,
     Dict,
     Literal,
@@ -62,6 +61,7 @@ from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
 from ._image_context import prepared_context
 from ._image_pull import ImagePull
+from ._pages import iter_pages
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
 from .errors import ClientTimeoutError, DaytonaError, NotFoundError, create_error
@@ -89,9 +89,6 @@ from .types import (
     VolumeType,
 )
 
-_T = TypeVar("_T")
-
-
 _path = path_segment
 
 # The types a create may name, from the contract.
@@ -106,25 +103,6 @@ def _additional_cursor_from_mapping(payload: Mapping[str, JsonValue]) -> Optiona
         return next_cursor
     camel_case_cursor = payload.get("nextCursor")
     return camel_case_cursor if isinstance(camel_case_cursor, str) else None
-
-
-async def _iter_pages(
-    fetch_page: Callable[[Optional[str]], Awaitable[ListResult[_T]]], cursor: Optional[str] = None
-) -> AsyncIterator[_T]:
-    seen_cursors: set[str] = set()
-    if cursor is not None:
-        seen_cursors.add(cursor)
-    current_cursor = cursor
-    while True:
-        page = await fetch_page(current_cursor)
-        for item in page.items:
-            yield item
-        next_cursor = page.next_cursor
-        # An empty cursor ends the list too, as in TypeScript.
-        if not next_cursor or next_cursor == current_cursor or next_cursor in seen_cursors:
-            return
-        seen_cursors.add(next_cursor)
-        current_cursor = next_cursor
 
 
 def _check_context_image_options(name: str | None, idle_expiry_seconds: int | None) -> None:
@@ -442,7 +420,7 @@ class AsyncImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> AsyncIterator[Image]:
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self.list(
                 anonymous=anonymous,
                 sandbox_id=sandbox_id,
@@ -672,7 +650,7 @@ class AsyncSnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[Snapshot]:
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self.list(
                 name=name,
                 sandbox_id=sandbox_id,
@@ -744,7 +722,7 @@ class AsyncVolumesService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[Volume]:
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self._list_page(
                 cursor=next_cursor,
                 limit=limit,
@@ -929,7 +907,7 @@ class AsyncReservationsService:
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> AsyncIterator[MacReservation]:
         """Every reservation of the organization, draining page by page."""
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self.list(cursor=next_cursor, limit=limit),
             cursor,
         ):
@@ -1157,7 +1135,7 @@ class AsyncSecretsService:
     async def iter(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> AsyncIterator[Secret]:
-        async for item in _iter_pages(lambda next_cursor: self.list(cursor=next_cursor, limit=limit), cursor):
+        async for item in iter_pages(lambda next_cursor: self.list(cursor=next_cursor, limit=limit), cursor):
             yield item
 
     async def get(self, name: str, /) -> Secret:

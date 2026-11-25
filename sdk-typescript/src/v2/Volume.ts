@@ -20,6 +20,7 @@ import { NotFoundError } from './errors/DaytonaError.js'
 import { MAX_INT32, assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
+import { iterPages } from './pages.js'
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -122,16 +123,7 @@ export class VolumesService {
 
   public async *iter(options: ListVolumesOptions = {}): AsyncIterable<Volume> {
     options = snapshotOptions('ListVolumesOptions', options, LIST_VOLUMES_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.listPage({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.listPage({ ...options, cursor }), options.cursor)
   }
 
   /** Get a volume by id or name; optionally create it when absent. */

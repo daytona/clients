@@ -517,7 +517,14 @@ class Daytona:
         return self._bridge.call(lambda: self._impl.get_project_budget())
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Sandbox]:
-        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size).
+
+        A page read that fails on a dropped connection or HTTP 429 / 502 /
+        503 / 504 is tried again, up to three reads. The error that ends the
+        walk carries ``page_cursor``, the cursor of the page that failed:
+        ``iter(cursor=error.page_cursor)`` resumes with that page, after the
+        items already yielded (``None``: the walk's first page).
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_iter(

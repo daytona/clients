@@ -1234,6 +1234,23 @@ persistent sandboxes, volumes, images and snapshots) the refusal still names
 the limit but leaves out the counts, so `current` and `max` are `None`;
 contact support to request a higher one. Other rate-limited requests keep raising plain `RateLimitError`.
 
+Every `iter()` (and `ports.iter_endpoints()`) reads a page again after a
+dropped connection or an HTTP 429, 502, 503 or 504, up to three reads of that
+page, waiting at least as long as the server's retry hint (a hint above 10
+seconds is not waited for). The error that ends a walk carries `page_cursor`,
+the cursor of the page that failed (`None` for the first page): pass it as
+`cursor` to the same `iter()` call to resume with that page, after the items
+already yielded:
+
+```python
+try:
+    for sandbox in d.v2.iter():
+        handle(sandbox)
+except daytona.v2.DaytonaError as e:
+    for sandbox in d.v2.iter(cursor=e.page_cursor):  # resumes at the failed page
+        handle(sandbox)
+```
+
 On a sandbox that is deleted or being deleted, `set_labels()`,
 `update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls
 (`ports.expose()`, `ports.list_endpoints()`, `ports.preview_link()`,
