@@ -213,11 +213,12 @@ Every duration is a `time.Duration`:
   `Images.Get` / `Snapshots.Get` with `Wait` and a positive `Timeout`, the
   readiness waits of `Images.Pull`, `Images.BuildAndWait` and
   `CreateFromBuild`) retry a read that fails transiently (no response, a
-  client read timeout, HTTP 429 other than `LIMIT_EXCEEDED`, or a 5xx other
-  than 501) with backoff (200 ms doubling to 5 s, or the server's `RetryAfter`
-  when longer) within the same budget, and never sooner than the wait's own
-  poll spacing (200 ms for sandbox waits, 500 ms for Docker, 1 s for image
-  and snapshot readiness). The timeout then wraps the last failed read. A wait without a deadline keeps retrying until the server answers,
+  client read timeout, HTTP 429 other than `daytona.ErrLimitExceeded`, or a
+  5xx other than 501) with backoff (200 ms doubling to 5 s, or the server's
+  `RetryAfter` when longer) within the same budget, and never sooner than the
+  wait's own poll spacing (200 ms for sandbox waits, 500 ms for Docker, 1 s
+  for image and snapshot readiness). The timeout then wraps the last failed
+  read. A wait without a deadline keeps retrying until the server answers,
   the context ends or the client is closed. `Images.Get` / `Snapshots.Get`
   with `Wait` but no `Timeout` make a single server-default hold and do not
   retry. Any other failure returns at once, with one exception: while the
