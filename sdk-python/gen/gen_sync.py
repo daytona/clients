@@ -487,6 +487,7 @@ def _emit_class(module: str, cls: type) -> str:
     direct_properties: frozenset[str] = getattr(cls, "_SYNC_DIRECT_PROPERTIES", frozenset())
     loop_variants: Mapping[str, str] = getattr(cls, "_SYNC_LOOP_VARIANTS", {})
     after_wraps: Mapping[str, str] = getattr(cls, "_SYNC_AFTER_WRAP", {})
+    on_submits: Mapping[str, str] = getattr(cls, "_SYNC_ON_SUBMIT", {})
     for m in sorted(_members(cls), key=lambda m: (m.kind == "property", m.name)):
         if name == "AsyncDaytona" and m.name == "close":
             lines.append("    def close(self) -> None:")
@@ -573,7 +574,13 @@ def _emit_class(module: str, cls: type) -> str:
             if loop_variant is not None:
                 lines.append("        if self._bridge.on_loop_thread():")
                 lines.append(f"            return self._impl.{loop_variant}({fwd})")
-            inner = f"self._bridge.call(lambda: self._impl.{m.name}({fwd}))"
+            # A method listed in the class's `_SYNC_ON_SUBMIT` (a watch's
+            # stop()) also runs the named non-blocking method on the caller's
+            # thread as the call is handed to the loop, which a blocking
+            # callback may hold.
+            on_submit = on_submits.get(m.name)
+            submit_arg = "" if on_submit is None else f", on_submit=self._impl.{on_submit}"
+            inner = f"self._bridge.call(lambda: self._impl.{m.name}({fwd}){submit_arg})"
             after_wrap = after_wraps.get(m.name)
             if after_wrap is not None:
                 # A method listed in the class's `_SYNC_AFTER_WRAP` returns an

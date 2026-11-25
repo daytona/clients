@@ -108,11 +108,15 @@ class SyncBridge:
     def closed(self) -> bool:
         return self._closed
 
-    def call(self, operation: Callable[[], Awaitable[T]]) -> T:
+    def call(
+        self, operation: Callable[[], Awaitable[T]], *, on_submit: Callable[[], None] | None = None
+    ) -> T:
         """Run ``operation()`` on the bridge loop and block for its result.
 
         Takes a zero-argument callable rather than ``(func, *args)`` so the
-        coroutine is built by the caller and stays fully typed.
+        coroutine is built by the caller and stays fully typed. ``on_submit``
+        runs on the caller's thread once the call is accepted, just before it
+        is handed to the loop, which may be busy with a blocking callback.
         """
         if self._closed:
             raise ClientClosedError(f"{self._name} is closed")
@@ -156,7 +160,10 @@ class SyncBridge:
         future: concurrent.futures.Future[T] | None = None
         try:
             with self._lock:
-                future = self._portal_locked().start_task_soon(run_and_signal)
+                portal = self._portal_locked()
+                if on_submit is not None:
+                    on_submit()
+                future = portal.start_task_soon(run_and_signal)
             return future.result()
         except KeyboardInterrupt as interrupt:
             if future is None:

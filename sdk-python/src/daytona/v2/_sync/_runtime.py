@@ -97,7 +97,7 @@ class UnboundBridge(SyncBridge):
         self._closed = False
         self._name = "an unbound handle"
 
-    def call(self, operation: object) -> object:  # type: ignore[override]
+    def call(self, operation: object, *, on_submit: object = None) -> object:  # type: ignore[override]
         raise create_error(
             "handle is not bound to a client; connect it through "
             "`sandbox.process.connect(handle.to_json())` (or the matching namespace) first",

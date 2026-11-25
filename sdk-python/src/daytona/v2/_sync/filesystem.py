@@ -294,7 +294,7 @@ class WatchHandle:
         """
         if self._bridge.on_loop_thread():
             return self._impl._stop_nowait()
-        return self._bridge.call(lambda: self._impl.stop())
+        return self._bridge.call(lambda: self._impl.stop(), on_submit=self._impl._request_stop)
 
     def wait_for_exit(self) -> Exception | None:
         """Wait until the watch ends and return :attr:`exit_error` (its own callback: at once).

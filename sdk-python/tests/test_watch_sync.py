@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Optional
 
@@ -153,3 +154,95 @@ def test_a_sync_callback_cannot_wait_for_or_stop_another_watch(bridge: SyncBridg
         assert f"{method}() on another watch" in str(error)
     assert other.exit_error is None
     other.stop()
+
+
+def test_an_external_stop_is_not_starved_by_a_blocking_callback_and_its_backlog(bridge: SyncBridge) -> None:
+    names = [f"f{index}.txt" for index in range(200)]
+    fs, stream = _fs(bridge, *names)
+    seen: list[str] = []
+    exits: list[Optional[Exception]] = []
+    in_flight = threading.Event()
+    release = threading.Event()
+
+    def on_event(event: FilesystemEvent) -> None:
+        seen.append(event.name)
+        if len(seen) == 1:
+            in_flight.set()
+            # Blocks the SDK's loop thread, as a slow synchronous callback does.
+            assert release.wait(timeout=5)
+        else:
+            time.sleep(0.01)
+
+    handle = fs.watch_dir("/w", on_event, on_exit=exits.append)
+    stream.release.set()
+    assert in_flight.wait(timeout=5)
+
+    stopper = threading.Thread(target=handle.stop)
+    stopper.start()
+    # stop() is waiting for the callback in flight, not running the backlog.
+    stopper.join(timeout=0.2)
+    assert stopper.is_alive()
+    release.set()
+    started = time.monotonic()
+    stopper.join(timeout=5)
+
+    assert not stopper.is_alive()
+    assert time.monotonic() - started < 1
+    # Nothing after the callback in flight; on_exit ran before stop() returned.
+    assert seen == ["f0.txt"]
+    assert exits == [None]
+    assert handle.exit_error is None
+
+
+def test_other_sync_calls_run_between_the_deliveries_of_a_backlog(bridge: SyncBridge) -> None:
+    names = [f"f{index}.txt" for index in range(1000)]
+    fs, stream = _fs(bridge, *names)
+    seen: list[str] = []
+    first = threading.Event()
+
+    def on_event(event: FilesystemEvent) -> None:
+        seen.append(event.name)
+        first.set()
+        time.sleep(0.002)
+
+    handle = fs.watch_dir("/w", on_event)
+    stream.release.set()
+    assert first.wait(timeout=5)
+
+    # exit_error is read on the loop: it waits for one delivery, not for the backlog.
+    assert handle.exit_error is None
+    delivered = len(seen)
+    handle.stop()
+
+    assert delivered < len(names) // 2
+    assert len(seen) < len(names)
+
+
+@pytest.mark.anyio
+async def test_an_async_watch_backlog_of_plain_callbacks_lets_other_tasks_run() -> None:
+    names = [f"f{index}.txt" for index in range(50)]
+    stream = _Stream(["event: start", "data: {}", ""] + [line for name in names for line in _fs_frame(name)])
+    fs = AsyncFileSystemService(_Transport(stream))  # type: ignore[arg-type]
+    seen: list[str] = []
+    observed: list[int] = []
+    done = asyncio.Event()
+
+    def on_event(event: FilesystemEvent) -> None:
+        seen.append(event.name)
+        if len(seen) == len(names):
+            done.set()
+
+    async def ticker() -> None:
+        while not done.is_set():
+            observed.append(len(seen))
+            await asyncio.sleep(0)
+
+    handle = await fs.watch_dir("/w", on_event)
+    tick = asyncio.create_task(ticker())
+    stream.release.set()
+    await asyncio.wait_for(done.wait(), timeout=5)
+    await tick
+    await handle.stop()
+
+    assert any(0 < count < len(names) for count in observed)
+    assert seen == names

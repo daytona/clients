@@ -981,7 +981,8 @@ receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
 returned; a failure before the watch starts (a refused connection, an HTTP
 error, a stream that ends before `start`) is raised from `watch_dir()` and
 does not call it. `stop()` returns once a callback that is already running,
-and `on_exit`, have finished.
+and `on_exit`, have finished; no event queued behind that callback is
+delivered, even when a blocking synchronous callback holds a backlog.
 
 To stop a watch from an event, signal the code that holds the handle (an
 `asyncio.Event`, or a `threading.Event` with the synchronous client) and call
