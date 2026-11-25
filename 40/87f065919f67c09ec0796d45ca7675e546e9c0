@@ -1,0 +1,80 @@
+sdk-go/run_code_output.go
+  s_6ad00827bee284::t_7e7b508728298b 17,49-53,88-107
+  s_6ad00827bee284::t_2b5d46501a1a93 108
+sdk-go/README.md
+  s_6ad00827bee284::t_555aa2b4995be8 82-91
+sdk-python/src/daytona/v2/_sync/types.py
+  s_6ad00827bee284::t_bb26b1025fb744 77-80
+sdk-typescript/src/v2/Interpreter.ts
+  s_6ad00827bee284::t_8dc038396c1ee0 246-248
+  s_6ad00827bee284::t_606bc998144a6b 267-280
+  s_6ad00827bee284::t_bc3e1b6cc3f4f8 413-415
+  s_6ad00827bee284::t_32e003f47128ab 529-533
+  s_6ad00827bee284::t_bfae25482692b5 21
+  s_6ad00827bee284::t_e6b9a4abfa202a 580-593
+sdk-python/tests/test_interpreter_setup_failure.py
+  s_6ad00827bee284::t_2b3ed49ec88bf9 156-170
+  s_6ad00827bee284::t_ea989e3591155f 1-155
+sdk-python/README.md
+  s_6ad00827bee284::t_edacd89f320751 1066
+  s_6ad00827bee284::t_32316958470378 472-478
+  s_6ad00827bee284::t_31978f30412e0f 667-671
+  s_6ad00827bee284::t_1e56780793aedc 471
+  s_6ad00827bee284::t_688cdfc55336f4 1052-1065,1067-1074
+sdk-go/run_code_setup_failure_test.go
+  s_6ad00827bee284::t_4b3ba482dcca64 1-114
+sdk-typescript/src/v2/Daytona.ts
+  s_6ad00827bee284::t_b51def2fede695 199-207
+sdk-go/run_code_collect.go
+  s_6ad00827bee284::t_7e7b508728298b 31,108
+sdk-go/sandbox_create.go
+  s_6ad00827bee284::t_1fc03b8c8a33cb 28-35
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_6ad00827bee284::t_bbbe7a3566d218 388
+sdk-typescript/src/v2/Sandbox.ts
+  s_6ad00827bee284::t_d3c22f7bac01ab 544
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_6ad00827bee284::t_bbbe7a3566d218 162-184
+sdk-typescript/src/v2/types.ts
+  s_6ad00827bee284::t_1ff3b4190f7000 253-256
+  s_6ad00827bee284::t_58e2fb5f9b0b8e 494-504
+changelog.d/interpreter-setup-failure.fixed.md
+  s_6ad00827bee284::t_97f4c0692713b6 1
+sdk-python/src/daytona/v2/sandbox.py
+  s_6ad00827bee284::t_b920277d82428d 740
+sdk-python/src/daytona/v2/interpreter.py
+  s_6ad00827bee284::t_f08b4eacfdd6e8 518-519
+  s_6ad00827bee284::t_1db8603fb43140 359-367,370-374
+  s_6ad00827bee284::t_a02d156d26cd2d 233-235
+  s_6ad00827bee284::t_8854a1a8026be8 92-104
+  s_6ad00827bee284::t_33cdef489cdb84 24
+  s_6ad00827bee284::t_ef7490b3983d18 368-369
+sdk-python/src/daytona/v2/daytona.py
+  s_6ad00827bee284::t_46ba22a6e025ec 334-348
+  s_6ad00827bee284::t_94c3b34dde161a 349-356
+sdk-typescript/tests/interpreter-setup-failure.test.ts
+  s_6ad00827bee284::t_5d98d0270e9431 1-106
+sdk-python/src/daytona/v2/types.py
+  s_6ad00827bee284::t_aadea3ed466062 431-434
+  s_6ad00827bee284::t_a46cd1479bef63 1501-1504
+sdk-python/src/daytona/v2/_sync/interpreter.py
+  s_6ad00827bee284::t_bbbe7a3566d218 71-73,127-142
+sdk-go/run_code.go
+  s_6ad00827bee284::t_1fc03b8c8a33cb 59-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4087f065919f67c09ec0796d45ca7675e546e9c0",
+  "prompts": {},
+  "sessions": {
+    "s_6ad00827bee284": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_def29e545ffeXKrEjPby9vpX7o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
