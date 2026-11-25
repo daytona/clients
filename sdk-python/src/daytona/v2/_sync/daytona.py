@@ -165,7 +165,8 @@ class Daytona:
         size themselves from the CPU count (``pytest -n auto``,
         ``make -j$(nproc)``) start one worker per visible CPU; pass an explicit
         worker count when you need the guarantee instead of the limit. Memory
-        can instead start small and grow on demand up to ``memory_max``:
+        can instead start small and grow on demand up to ``memory_max`` (the
+        deployment cap when omitted):
         ``/proc/meminfo`` and ``free`` then show the memory present now (about
         the guaranteed ``memory`` plus some headroom at first), not the limit,
         while :meth:`Sandbox.metrics` reports the limit as the total.
@@ -176,7 +177,7 @@ class Daytona:
         **Returned metadata.** The handle holds what the create response
         reports (id, name, state, image, reservation, and the lifecycle policy
         when the response carries one) plus what the request fixed (the class,
-        the region, an `img_` / `snap_` id you passed). The rest (``cpu``,
+        the region, an ``img_`` / ``snap_`` id you passed). The rest (``cpu``,
         ``memory``, ``disk`` and their limits, ``labels``, ``user``, ...) is
         ``None`` (unknown, not empty) until a detail read. ``create()`` does
         not read the sandbox itself when the create response already reports

@@ -497,7 +497,8 @@ export interface CreateRequestBaseOptions {
  * from the CPU count (`pytest -n auto`, `make -j$(nproc)`) start one worker
  * per visible CPU; pass an explicit worker count when you need the guarantee
  * instead of the limit. Memory can instead start small and grow on demand up
- * to `memoryMax`: `/proc/meminfo` and `free` then show the memory present now
+ * to `memoryMax` (the deployment cap when omitted): `/proc/meminfo` and
+ * `free` then show the memory present now
  * (about the guaranteed `memory` plus some headroom at first), not the limit,
  * while `sandbox.metrics()` reports the limit as the total. Programs that
  * size themselves from total memory at startup (a JVM's default heap, for
