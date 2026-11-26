@@ -5,6 +5,7 @@
 
 // allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
 
+import { nameErrorClass } from '../errors.js'
 import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, isRedirectStatus, redirectError, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
@@ -675,4 +676,5 @@ function interruptible(pending: Promise<void>, signal: AbortSignal): Promise<voi
   })
 }
 
+nameErrorClass(BuildLogInterruptedError, 'BuildLogInterruptedError')
 registerV2ErrorClass('BuildLogInterruptedError', BuildLogInterruptedError)

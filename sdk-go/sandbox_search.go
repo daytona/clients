@@ -89,6 +89,7 @@ func snapshotSearchOptions(opts *SearchSandboxesOptions) SearchSandboxesOptions 
 	result.Classes = slices.Clone(opts.Classes)
 	result.Regions = slices.Clone(opts.Regions)
 	result.Spot = clonePointer(opts.Spot)
+	result.Persistent = clonePointer(opts.Persistent)
 	result.MinCores, result.MaxCores = clonePointer(opts.MinCores), clonePointer(opts.MaxCores)
 	result.MinMemoryMiB, result.MaxMemoryMiB = clonePointer(opts.MinMemoryMiB), clonePointer(opts.MaxMemoryMiB)
 	result.MinDiskMiB, result.MaxDiskMiB = clonePointer(opts.MinDiskMiB), clonePointer(opts.MaxDiskMiB)

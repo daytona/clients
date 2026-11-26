@@ -429,12 +429,13 @@ def test_image_builder_is_built_only_from_a_source() -> None:
 
 
 @pytest.mark.anyio
-async def test_lifecycle_requests_reach_the_server_whatever_the_class() -> None:
+@pytest.mark.parametrize("sandbox_class", ["linux", "macos"])
+async def test_lifecycle_requests_reach_the_server_whatever_the_class(sandbox_class: str) -> None:
     refusal = create_error("not supported", 409, "NOT_SUPPORTED_FOR_CLASS", "DAYTONA_API")
     for verb in ("stop", "pause", "resume"):
         api = _Api([refusal])
         mac = AsyncSandbox._from_api(
-            _detail("mac", "running", **{"class": "macos", "persistent": False}), api, None
+            _detail("mac", "running", **{"class": sandbox_class, "persistent": False}), api, None
         )
         with pytest.raises(type(refusal)):
             await getattr(mac, verb)()

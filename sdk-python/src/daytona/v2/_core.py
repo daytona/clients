@@ -862,7 +862,7 @@ def assert_lifecycle_class_support(
     lifecycle: Optional[JsonObject],
     *,
     sandbox_class: str,
-    persistent: bool,
+    persistent: Optional[bool],
     action: str = "create",
 ) -> None:
     """Reject lifecycle settings unavailable for this sandbox's class and persistence."""
@@ -880,15 +880,15 @@ def assert_lifecycle_class_support(
     )
 
 
-def _lifecycle_action_allowed(action: str, sandbox_class: str, persistent: bool) -> bool:
+def _lifecycle_action_allowed(action: str, sandbox_class: str, persistent: Optional[bool]) -> bool:
     """Available lifecycle actions for Linux and macOS sandboxes."""
     match action:
         case "delete":
             return True
         case "stop":
-            return persistent and sandbox_class == "macos"
+            return persistent is not False and sandbox_class != "gpu"
         case "pause":
-            return False
+            return persistent is not False and sandbox_class == "linux"
         case _:
             # Unknown values never reach here — lifecycle_body rejects them.
             return True
@@ -2110,7 +2110,7 @@ def list_shape(
 
 
 _SEARCH_LIST_FIELDS = ("sandbox_class", "region")
-_SEARCH_BOOLEAN_FIELDS = ("spot",)
+_SEARCH_BOOLEAN_FIELDS = ("persistent", "spot")
 _SEARCH_NUMBER_FIELDS = ("min_cores", "max_cores")
 _SEARCH_INTEGER_FIELDS = ("min_memory_mib", "max_memory_mib", "min_disk_mib", "max_disk_mib")
 _SEARCH_CHOICES: Dict[str, Tuple[str, ...]] = {
@@ -2253,13 +2253,10 @@ def header_text(value: str, name: str) -> str:
     blank value or ``local`` as the default region (not sent)."""
     if not value:
         raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-    if not all(" " <= char <= "~" for char in value) or value[0] == " " or value[-1] == " ":
-        raise create_error(
-            f"{name} must be printable ASCII with no leading or trailing whitespace",
-            400,
-            "BAD_REQUEST",
-            "SDK",
-        )
+    if not all(" " <= char <= "~" for char in value):
+        raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
+    if value[0] == " " or value[-1] == " ":
+        raise create_error(f"{name} must have no leading or trailing whitespace", 400, "BAD_REQUEST", "SDK")
     return value
 
 
@@ -2390,12 +2387,14 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
 
 def parse_search_page(
     payload: JsonValue,
-    check_sandbox: Callable[[JsonValue], object],
+    check_item: Callable[[JsonValue], object],
+    item_field: str = "sandboxes",
 ) -> Tuple[List[JsonObject], Optional[str], int, SearchTotalRelation, str]:
-    """Split a ``GET /sandboxes/search`` body into items, cursor, total, and relation.
+    """Split a search response into items, cursor, total, and relation.
 
-    The search contract is an object with a ``sandboxes`` array of sandbox
-    objects (each checked by ``check_sandbox``, as a detail is), a
+    The search contract is an object with an ``item_field`` array (``sandboxes``
+    by default, or ``secrets`` / ``volumes``) of objects, each checked by
+    ``check_item`` as a detail is, a
     non-negative integer ``total``, a string ``total_relation`` and a string or null
     ``next_cursor``. Anything else is the SDK's own :class:`BadRequestError`
     naming the field, never an empty or truncated page — an ``items`` array is
@@ -2407,12 +2406,12 @@ def parse_search_page(
 
     if not isinstance(payload, dict):
         raise malformed("is not a JSON object")
-    raw_sandboxes = payload.get("sandboxes")
-    if not isinstance(raw_sandboxes, list):
-        raise malformed("is missing the sandboxes array")
-    for item in raw_sandboxes:
-        check_sandbox(item)
-    items = [expect_object(item) for item in raw_sandboxes]
+    raw_items = payload.get(item_field)
+    if not isinstance(raw_items, list):
+        raise malformed(f"is missing the {item_field} array")
+    for item in raw_items:
+        check_item(item)
+    items = [expect_object(item) for item in raw_items]
     total = payload.get("total")
     if total is None:
         raise malformed("is missing its total")

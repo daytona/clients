@@ -8,7 +8,7 @@ import type { AxiosInstance } from 'axios'
 import { createHttpClient, HttpTransport } from './http.js'
 import type { HttpClientOptions } from './http.js'
 import { assertKnownOptions, badRequest, snapshotOptions } from './options.js'
-import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL } from './internal.js'
 import { BadRequestError, ClientClosedError } from './errors/DaytonaError.js'
 import type { ImageBuilder } from './Image.js'
@@ -83,6 +83,8 @@ export class Daytona {
     this.macModels = new MacModelsService(INTERNAL, this.api)
     this.hubShared = config.sharedHub ?? true
     this.hubEventsConfig = eventsHubConfig(connection.events)
+    // The hub identity is the API key itself for key auth.
+    concealFields(this, ['apiKey', 'hubIdentityKey'])
     credentialSafeDiagnostics(this, () => ({ type: 'DaytonaV2' }))
   }
 

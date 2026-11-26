@@ -101,6 +101,18 @@ func (c *ComputerUse) Status(ctx context.Context) (*ComputerUseStatus, error) {
 	return parseDesktopStatus(raw)
 }
 
+// ParseComputerUseStatus decodes a computer-use status response body (the
+// JSON the toolbox returns for GET /computeruse/status) exactly as
+// [ComputerUse.Status] does, for applications that reach the toolbox through
+// their own transport. A body that breaks the contract returns an [*Error]
+// with code BAD_REQUEST and source SDK.
+func ParseComputerUseStatus(body []byte) (*ComputerUseStatus, error) {
+	if err := checkJSON(body); err != nil {
+		return nil, err
+	}
+	return parseDesktopStatus(JSONValue(body))
+}
+
 func desktopRead(ctx context.Context, sandbox *Sandbox, spec toolboxRequest) (JSONValue, error) {
 	var raw JSONValue
 	spec.Result = &raw

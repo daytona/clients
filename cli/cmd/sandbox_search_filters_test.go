@@ -13,6 +13,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSandboxSearch_filtersWhenPersistenceFlagIsSet(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		flags []string
+		want  string
+	}{
+		{"true", []string{"--persistent"}, "limit=100&persistent=true"},
+		{"explicit true", []string{"--persistent=true"}, "limit=100&persistent=true"},
+		{"false", []string{"--persistent=false"}, "limit=100&persistent=false"},
+		{"unset", nil, "limit=100"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			args := append([]string{"sandbox", "search"}, tc.flags...)
+			// When
+			_, _, err := runCLI(t, args, []expectedRequest{{
+				method: http.MethodGet, path: "/sandboxes/search", status: 200,
+				query: tc.want, response: `{"total":0,"total_relation":"eq","sandboxes":[]}`,
+			}})
+			// Then
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestSandboxSearch_mergesLabelsWhenCompatible(t *testing.T) {
 	// Given
 	args := []string{"sandbox", "search", "--labels", `{"team":"infra"}`, "--label", "team=infra", "--label", "name=worker"}

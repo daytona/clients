@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeUserSuspended is USER_SUSPENDED (API).
+const CodeUserSuspended = "USER_SUSPENDED"
+
+// ErrUserSuspended matches code USER_SUSPENDED, independently of its source.
+var ErrUserSuspended = codeSentinel{"USER_SUSPENDED", 403}
+
 // CodeWorkloadPlaneElsewhere is WORKLOAD_PLANE_ELSEWHERE (API).
 const CodeWorkloadPlaneElsewhere = "WORKLOAD_PLANE_ELSEWHERE"
 
@@ -118,14 +124,12 @@ const CodeRegionRequired = "REGION_REQUIRED"
 // ErrRegionRequired matches code REGION_REQUIRED, independently of its source.
 var ErrRegionRequired = codeSentinel{"REGION_REQUIRED", 400}
 
-// CodeIdempotencyKeyRequired is IDEMPOTENCY_KEY_REQUIRED (ROUTER).
-const CodeIdempotencyKeyRequired = "IDEMPOTENCY_KEY_REQUIRED"
-
-// ErrIdempotencyKeyRequired matches code IDEMPOTENCY_KEY_REQUIRED, independently of its source.
-var ErrIdempotencyKeyRequired = codeSentinel{"IDEMPOTENCY_KEY_REQUIRED", 400}
-
 func catalogStatus6(source, code string) int {
 	switch code {
+	case "USER_SUSPENDED":
+		if source == "DAYTONA_API" {
+			return 403
+		}
 	case "WORKLOAD_PLANE_ELSEWHERE":
 		if source == "DAYTONA_API" {
 			return 501
@@ -199,10 +203,6 @@ func catalogStatus6(source, code string) int {
 			return 400
 		}
 	case "REGION_REQUIRED":
-		if source == "DAYTONA_ROUTER" {
-			return 400
-		}
-	case "IDEMPOTENCY_KEY_REQUIRED":
 		if source == "DAYTONA_ROUTER" {
 			return 400
 		}

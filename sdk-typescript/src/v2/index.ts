@@ -47,7 +47,7 @@ export type {
   RestoreOptions,
 } from './Git.js'
 export { InterpreterContext, InterpreterService } from './Interpreter.js'
-export { ComputerUseService } from './ComputerUse.js'
+export { ComputerUseService, parseComputerUseStatus } from './ComputerUse.js'
 export {
   AddonProcessesService,
   A11yService,
@@ -76,8 +76,8 @@ export { SecretsService } from './Secret.js'
 export { VolumesService } from './Volume.js'
 export { SandboxVolumesService } from './SandboxVolumes.js'
 export type { PullVolumeOptions, PullVolumeResult } from './SandboxVolumes.js'
-export type { ListVolumesOptions, Volume, GetVolumeOptions, CreateVolumeOptions, DeleteVolumeOptions } from './Volume.js'
-export type { ListSecretsOptions, Secret, SetSecretOptions } from './Secret.js'
+export type { ListVolumesOptions, SearchVolumesOptions, Volume, GetVolumeOptions, CreateVolumeOptions, DeleteVolumeOptions } from './Volume.js'
+export type { ListSecretsOptions, SearchSecretsOptions, Secret, SetSecretOptions } from './Secret.js'
 export type { BuildContext } from './contextUpload.js'
 export { DISABLED } from './types.js'
 export * as codes from './codes.js'

@@ -469,14 +469,14 @@ func TestDestructiveRefusalPrecedesNetwork(t *testing.T) {
 		{"profile", "delete", "p-1"},
 	}
 	for _, c := range cases {
-		args := append(append([]string{}, c...), "--api-url", dead, "--api-key", "k", "--org", "o-1", "--project", "p-1")
+		args := append(append([]string{}, c...), "--api-url", dead, "--api-key", bearerFor(c), "--org", "o-1", "--project", "p-1")
 		_, errb, code := run(t, d, nil, args...)
 		if code != cerr.ExitUsage || !has(errb, "--yes") {
 			t.Errorf("%v: exit %d (want 2 before any network call): %s", c, code, errb)
 		}
 	}
 	// --dry-run on member remove is read-only and must not be gated.
-	_, errb, code := run(t, d, nil, "member", "remove", "u-1", "--dry-run", "--api-url", dead, "--api-key", "k", "--org", "o-1")
+	_, errb, code := run(t, d, nil, "member", "remove", "u-1", "--dry-run", "--api-url", dead, "--api-key", testLoginBearer, "--org", "o-1")
 	if code == cerr.ExitUsage {
 		t.Fatalf("--dry-run must not require --yes: %s", errb)
 	}
