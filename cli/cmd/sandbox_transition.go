@@ -13,7 +13,9 @@ import (
 )
 
 // retrySandboxTransition repeats only a POST the server explicitly refused
-// before creating anything. Readiness waits begin after this acceptance budget.
+// before creating anything. The 30-second window admits retries; an admitted
+// POST keeps the API request timeout and caller context, matching the SDKs.
+// Readiness waits begin after acceptance.
 func retrySandboxTransition(ctx context.Context, post func() error) error {
 	deadline := time.Now().Add(30 * time.Second)
 	for {

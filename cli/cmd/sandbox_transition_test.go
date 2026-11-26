@@ -137,3 +137,51 @@ func TestRetrySandboxTransition_returnsContextExit_whenAlreadyEnded(t *testing.T
 		})
 	}
 }
+
+func TestRetrySandboxTransition_preservesRequestBudget_whenAttemptIsAdmitted(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		firstDuration time.Duration
+		retry         bool
+		accepted      bool
+		wantCalls     int
+		wantDuration  time.Duration
+	}{
+		{"first attempt", 31 * time.Second, false, true, 1, 31 * time.Second},
+		{"accepted retry", 24 * time.Second, true, true, 2, 31 * time.Second},
+		{"refused retry", 24 * time.Second, true, false, 2, 31 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				// Given a first request or an admitted retry outlasting the retry window.
+				calls := 0
+				refusal := &api.APIError{Code: "SANDBOX_TRANSITION_IN_PROGRESS", Body: map[string]any{"retry_after_seconds": float64(5)}}
+				start := time.Now()
+				// When each admitted POST uses its ordinary request budget.
+				err := retrySandboxTransition(t.Context(), func() error {
+					calls++
+					if calls == 1 {
+						<-time.After(tc.firstDuration)
+						if tc.retry {
+							return refusal
+						}
+					} else {
+						<-time.After(2 * time.Second)
+					}
+					if !tc.accepted {
+						return refusal
+					}
+					return nil
+				})
+				// Then acceptance survives and a late refusal admits no further retry.
+				if tc.accepted {
+					require.NoError(t, err)
+				} else {
+					require.Same(t, refusal, err)
+				}
+				require.Equal(t, tc.wantCalls, calls)
+				require.Equal(t, tc.wantDuration, time.Since(start))
+			})
+		})
+	}
+}
