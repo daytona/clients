@@ -1,0 +1,19 @@
+sdk-python/README.md
+  s_83d59457471a6f::t_947dab72d82df6 415,417-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9425dc519b7b08fa311c42f8427b30a058026439",
+  "prompts": {},
+  "sessions": {
+    "s_83d59457471a6f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de94db0d2ffe7Zh93rIYAqZpyU",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
