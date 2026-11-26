@@ -72,6 +72,12 @@ daytona login --token dtn_… # a project API key
 The CLI connects to the Daytona API (`https://api.daytona.com`), the same
 default as the SDKs.
 
+The 0.x CLI keeps its own configuration (`config.json`), which this CLI does
+not read: sign in again with `daytona login`, or keep using the 0.x CLI as
+`daytona-v0` (Homebrew `daytonaio/cli/daytona@0`). Until this CLI has a saved
+profile, its "not logged in" error and `whoami` mention it when they find the
+0.x file.
+
 A browser or device login selects your personal organization and its default
 project the first time and remembers your last choice afterwards. Switch with
 `daytona org use <name>` and `daytona project use <name>`; override for one
@@ -646,7 +652,7 @@ While a sandbox is stopped, commands that work inside it
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
 | `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
-| `3` | authentication: no credential, or HTTP 401 |
+| `3` | authentication: no credential, a static credential on a command that needs a `daytona login` session, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE`, or the configuration's `active_profile`, that names a profile that does not exist (on the commands that use the selected profile) |
 | `6` | conflict: HTTP 409, 412 and 501, and HTTP 429 `LIMIT_EXCEEDED` (an organization limit) |
@@ -697,7 +703,16 @@ integer seconds, as the API stores them.
 ## Credentials
 
 The CLI sends whatever credential you give it and lets the server decide what
-it may do. Precedence: `--api-key` > `DAYTONA_API_KEY` > the active profile.
+it may do, with one exception: the commands whose API routes admit only a login
+session — `billing`, `invite`, `key`, `member`, `org-key`, `project`,
+`service-account`, and `org` except `org limits` — refuse a static credential
+(`--api-key`, `DAYTONA_API_KEY`, `login --token`) before choosing an
+organization or sending a request (exit 3; a credential saved for another API
+URL is refused first, exit 2, as below), because the server would answer
+every API key there, valid or not, with the same 401. A bearer shaped like a
+JWT (a login's access token) is still sent; a 401 on these commands says
+they need a `daytona login` session. Precedence: `--api-key` >
+`DAYTONA_API_KEY` > the active profile.
 An explicit credential is the only one used for that command — the CLI never
 falls back to your saved login, and an empty `--api-key` is a usage error.
 A static credential (`--api-key`, `DAYTONA_API_KEY`, `login --token`) is sent

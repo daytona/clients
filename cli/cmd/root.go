@@ -66,7 +66,8 @@ destructive actions. When piped, redirected or run with --output json it is a
 strict tool: no prompts, --yes required for destructive verbs, JSON on stdout,
 diagnostics on stderr, and an error is one JSON object on stderr.
 Authorization is decided by the server; the CLI only presents the credential
-you give it.
+you give it, except that commands that need a login session refuse an API key
+before sending it.
 
 Get started:
   daytona login                     browser login (or --device on a remote host)
@@ -101,7 +102,7 @@ Get started:
 			a.Ctx = cmd.Context()
 			installAuth(a)
 			cmd.SetContext(context.WithValue(cmd.Context(), ctxKey{}, a))
-			return nil
+			return refuseStaticCredential(cmd, a)
 		},
 	}
 	root.SetOut(stdout)
@@ -150,6 +151,7 @@ Get started:
 	root.InitDefaultHelpCmd()
 	root.InitDefaultCompletionCmd()
 	normalizeTree(root)
+	documentLoginOnly(root)
 	return root
 }
 

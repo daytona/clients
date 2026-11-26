@@ -61,6 +61,7 @@ func runCLIWithOutput(t *testing.T, output string, args []string, expected []exp
 func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected []expectedRequest) (string, string, error) {
 	t.Helper()
 	var index int
+	bearer := bearerFor(args)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !assert.Less(t, index, len(expected), "unexpected request %s %s", r.Method, r.URL.String()) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -70,7 +71,7 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 		index++
 		assert.Equal(t, exp.method, r.Method)
 		assert.Equal(t, exp.path, r.URL.Path)
-		assert.Equal(t, "Bearer k", r.Header.Get("Authorization"))
+		assert.Equal(t, "Bearer "+bearer, r.Header.Get("Authorization"))
 		assert.Equal(t, "cli", r.Header.Get("X-Daytona-Source"))
 		if exp.contentType != "" {
 			assert.Contains(t, r.Header.Get("Content-Type"), exp.contentType)
@@ -119,7 +120,7 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 	if output == "" {
 		output = "json"
 	}
-	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", "k", "-o", output}, args...))
+	root.SetArgs(append([]string{"--api-url", server.URL, "--api-key", bearer, "-o", output}, args...))
 	contextTimeout := opts.contextTimeout
 	if contextTimeout == 0 {
 		contextTimeout = 2 * time.Second
