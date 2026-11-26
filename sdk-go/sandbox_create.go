@@ -55,7 +55,10 @@ func prepareLinuxCreate(image string, options CreateOptions) (preparedCreate, er
 	if err != nil {
 		return prepared, err
 	}
-	if err = lifecyclePolicyClassSupport(options.LifecyclePolicy, SandboxInfo{Class: SandboxClassLinux}); err != nil {
+	persistent := options.Persistent != nil && *options.Persistent
+	if err = lifecyclePolicyClassSupport(options.LifecyclePolicy, SandboxInfo{
+		Class: SandboxClassLinux, Persistent: &persistent,
+	}); err != nil {
 		return prepared, err
 	}
 	switch options.CPUArch {
@@ -73,6 +76,7 @@ func prepareLinuxCreate(image string, options CreateOptions) (preparedCreate, er
 	prepared.body.Image = createTrim(image)
 	prepared.body.CPUArch, prepared.body.CPUType = options.CPUArch, options.CPUType
 	prepared.body.User, prepared.body.Spot = options.User, clonePointer(options.Spot)
+	prepared.body.Persistent = clonePointer(options.Persistent)
 	return prepared, nil
 }
 

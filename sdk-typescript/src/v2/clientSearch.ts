@@ -129,6 +129,7 @@ export function searchQueryParams(input: SearchSandboxesOptions): SearchQueryPar
     image_ref: optionalQueryText(options.imageRef, 'imageRef'),
     image_ref_prefix: optionalQueryText(options.imageRefPrefix, 'imageRefPrefix'),
     labels: options.labels === undefined ? undefined : labelsParam(options.labels),
+    persistent: boolParam(options.persistent, 'persistent'),
     spot: boolParam(options.spot, 'spot'),
     forked_from: optionalQueryText(options.forkedFrom, 'forkedFrom'),
     min_cores: numberParam(options.minCores, 'minCores'),

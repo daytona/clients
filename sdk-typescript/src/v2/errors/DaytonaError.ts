@@ -683,6 +683,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   MANAGEMENT_PLANE_ELSEWHERE: NotSupportedError,
   NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL: BadRequestError,
   NETWORK_POLICY_TRANSITION_IN_PROGRESS: ConflictError,
+  SANDBOX_TRANSITION_IN_PROGRESS: ConflictError,
   STALE_NETWORK_POLICY_REVISION: PreconditionFailedError,
   NOT_SUPPORTED_FOR_CLASS: NotSupportedForClassError,
   IMAGE_NOT_FOUND: ImageNotFoundError,

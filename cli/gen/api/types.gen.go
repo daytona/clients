@@ -111,6 +111,7 @@ const (
 	ROLEINUSE                           ApiErrorCode = "ROLE_IN_USE"
 	RUNNERHASSANDBOXES                  ApiErrorCode = "RUNNER_HAS_SANDBOXES"
 	SANDBOXABUSEHOLD                    ApiErrorCode = "SANDBOX_ABUSE_HOLD"
+	SANDBOXTRANSITIONINPROGRESS         ApiErrorCode = "SANDBOX_TRANSITION_IN_PROGRESS"
 	SEARCHNOTCONFIGURED                 ApiErrorCode = "SEARCH_NOT_CONFIGURED"
 	SEARCHUNAVAILABLE                   ApiErrorCode = "SEARCH_UNAVAILABLE"
 	SECRETALREADYEXISTS                 ApiErrorCode = "SECRET_ALREADY_EXISTS"
@@ -340,6 +341,8 @@ func (e ApiErrorCode) Valid() bool {
 	case RUNNERHASSANDBOXES:
 		return true
 	case SANDBOXABUSEHOLD:
+		return true
+	case SANDBOXTRANSITIONINPROGRESS:
 		return true
 	case SEARCHNOTCONFIGURED:
 		return true
@@ -3151,6 +3154,9 @@ type CreateSandboxRequest struct {
 
 	// NetworkPolicy Outbound network rules applied to the sandbox.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
+
+	// Persistent Whether writable state persists across stops. Defaults to `false`.
+	Persistent *bool `json:"persistent,omitempty"`
 
 	// Ports Ports exposed when the sandbox starts.
 	Ports *[]PortMapping `json:"ports,omitempty"`
@@ -7978,7 +7984,7 @@ type SearchSandboxesParams struct {
 	// may be at most 12,288 bytes; a longer one answers 400.
 	Labels *string `form:"labels,omitempty" json:"labels,omitempty"`
 
-	// Persistent Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.
+	// Persistent Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes.
 	Persistent *bool `form:"persistent,omitempty" json:"persistent,omitempty"`
 
 	// Spot Spot-tier sandboxes only (`true`) or on-demand only (`false`).

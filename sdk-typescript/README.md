@@ -352,9 +352,11 @@ make asynchronous callback work cancellation-aware when needed.
   where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
   older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. Use `search()` for
   eventually consistent, all-region filtering by `states`, `sandboxClass`,
-  `region`, `labels`, resource/timestamp bounds, `sort`, `order`, and other
+  `region`, `labels`, `persistent`, resource/timestamp bounds, `sort`, `order`, and other
   search options. `states` accepts a public state or array, for example
   `{ states: ['started', 'paused'] }`; `unknown` is not searchable.
+  `persistent: true` selects persistent sandboxes; `false` selects ephemeral
+  sandboxes, and omitting it (or JavaScript `null`) leaves both kinds.
   `region` takes region IDs; a region that contains other regions (a geo
   group, or `earth`) matches every region inside it, and an unknown region is
   a `BadRequestError`. Timestamp filters are half-open:
@@ -1072,6 +1074,33 @@ the key. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 
+### Persistent Linux sandboxes
+
+Pass `persistent: true` to `daytona.v2.create()` or `createFromBuild()` to
+preserve a Linux sandbox. `stop()` / `start()` keep its disk but boot fresh
+processes; `pause()` / `resume()` also preserve memory and running processes.
+These verbs and Linux `fork()` require persistence.
+Sandboxes with attached volumes cannot pause or fork.
+When neither a per-create policy nor a project lifecycle default overrides it,
+a persistent Linux sandbox has
+a 300-second lifetime timeout (`timeoutSeconds: 300`) whose action is pause;
+this is not an idle timeout.
+
+Lifecycle policies accept `delete` everywhere, `stop` on persistent sandboxes
+except GPU, and `pause` on persistent Linux sandboxes. For example:
+
+```ts
+const saved = await daytona.v2.create('python', {
+  persistent: true,
+  lifecyclePolicy: { timeoutSeconds: 600, onTimeout: 'pause' },
+})
+await saved.pause()
+await saved.resume()
+```
+
+`createFromSnapshot()` inherits persistence from the snapshot; it does not
+accept a `persistent` option.
+
 ### Waiting for lifecycle states
 
 Use `sandbox.wait({ until: 'started', timeoutSeconds: 120 })` to wait for a
@@ -1101,6 +1130,16 @@ and an unexpected non-SDK error during the wait. A running Linux source produces
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
+
+`fork()`, `captureImage()` and `createSnapshot()` automatically retry
+`SANDBOX_TRANSITION_IN_PROGRESS` conflicts for up to 30 seconds from their
+first submission attempt. Delays use `retryAfterSeconds`, clamped to 1–5
+seconds. Other conflicts are not retried, and expiry throws the last conflict.
+The window limits new retries; an admitted POST keeps its normal request timeout.
+This applies to a fork's source still starting, stopping or pausing; image capture
+still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
+still starting.
+Fork's readiness wait budget starts after acceptance, independently of retries.
 
 `await sandbox.delete()` and `await daytona.v2.delete(sandbox)` wait until the
 sandbox is `destroyed` (a 404 while waiting counts as destroyed). A sandbox

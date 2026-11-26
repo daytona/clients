@@ -125,6 +125,7 @@ var requestFields = map[string]*Fields{
 			"allow_domains": &Fields{IsList: true, List: nil},
 			"block_all":     nil,
 		}},
+		"persistent": nil,
 		"ports": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
 			"port":  nil,
 			"proto": nil,

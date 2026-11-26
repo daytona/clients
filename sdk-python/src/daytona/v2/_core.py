@@ -862,7 +862,7 @@ def assert_lifecycle_class_support(
     lifecycle: Optional[JsonObject],
     *,
     sandbox_class: str,
-    persistent: bool,
+    persistent: Optional[bool],
     action: str = "create",
 ) -> None:
     """Reject lifecycle settings unavailable for this sandbox's class and persistence."""
@@ -880,15 +880,15 @@ def assert_lifecycle_class_support(
     )
 
 
-def _lifecycle_action_allowed(action: str, sandbox_class: str, persistent: bool) -> bool:
+def _lifecycle_action_allowed(action: str, sandbox_class: str, persistent: Optional[bool]) -> bool:
     """Available lifecycle actions for Linux and macOS sandboxes."""
     match action:
         case "delete":
             return True
         case "stop":
-            return persistent and sandbox_class == "macos"
+            return persistent is not False and sandbox_class != "gpu"
         case "pause":
-            return False
+            return persistent is not False and sandbox_class == "linux"
         case _:
             # Unknown values never reach here — lifecycle_body rejects them.
             return True
@@ -2103,7 +2103,7 @@ def list_shape(
 
 
 _SEARCH_LIST_FIELDS = ("sandbox_class", "region")
-_SEARCH_BOOLEAN_FIELDS = ("spot",)
+_SEARCH_BOOLEAN_FIELDS = ("persistent", "spot")
 _SEARCH_NUMBER_FIELDS = ("min_cores", "max_cores")
 _SEARCH_INTEGER_FIELDS = ("min_memory_mib", "max_memory_mib", "min_disk_mib", "max_disk_mib")
 _SEARCH_CHOICES: Dict[str, Tuple[str, ...]] = {

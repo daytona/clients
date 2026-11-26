@@ -4,6 +4,12 @@
 
 package daytona
 
+// CodeIdleOutOfRange is IDLE_OUT_OF_RANGE (API).
+const CodeIdleOutOfRange = "IDLE_OUT_OF_RANGE"
+
+// ErrIdleOutOfRange matches code IDLE_OUT_OF_RANGE, independently of its source.
+var ErrIdleOutOfRange = codeSentinel{"IDLE_OUT_OF_RANGE", 400}
+
 // CodeCreateTTLOutOfRange is CREATE_TTL_OUT_OF_RANGE (API).
 const CodeCreateTTLOutOfRange = "CREATE_TTL_OUT_OF_RANGE"
 
@@ -118,14 +124,12 @@ const CodeSecretAlreadyExists = "SECRET_ALREADY_EXISTS"
 // ErrSecretAlreadyExists matches code SECRET_ALREADY_EXISTS, independently of its source.
 var ErrSecretAlreadyExists = codeSentinel{"SECRET_ALREADY_EXISTS", 412}
 
-// CodeUserSuspended is USER_SUSPENDED (API).
-const CodeUserSuspended = "USER_SUSPENDED"
-
-// ErrUserSuspended matches code USER_SUSPENDED, independently of its source.
-var ErrUserSuspended = codeSentinel{"USER_SUSPENDED", 403}
-
 func catalogStatus5(source, code string) int {
 	switch code {
+	case "IDLE_OUT_OF_RANGE":
+		if source == "DAYTONA_API" {
+			return 400
+		}
 	case "CREATE_TTL_OUT_OF_RANGE":
 		if source == "DAYTONA_API" {
 			return 400
@@ -201,10 +205,6 @@ func catalogStatus5(source, code string) int {
 	case "SECRET_ALREADY_EXISTS":
 		if source == "DAYTONA_API" {
 			return 412
-		}
-	case "USER_SUSPENDED":
-		if source == "DAYTONA_API" {
-			return 403
 		}
 	}
 	return 0

@@ -1647,7 +1647,7 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
 
-    const linux = createSandbox({ id: 'linux', status: 'running', class: 'linux', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    const linux = createSandbox({ id: 'linux', status: 'running', class: 'linux', persistent: false, name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await expect(linux.updateLifecyclePolicy({ onIdleTimeout: 'pause' })).rejects.toThrow('lifecyclePolicy.onIdleTimeout=pause')
     await expect(linux.updateLifecyclePolicy({ onTimeout: 'stop' })).rejects.toThrow('lifecyclePolicy.onTimeout=stop')
 
@@ -10620,18 +10620,15 @@ describe('macOS sandboxes and reservations', () => {
     expect(createSandbox({ id: 'lin', status: 'running', class: 'linux', name: 'lin', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key').macBootMode).toBeUndefined()
   })
 
-  it('refuses class-gated calls for a sandbox class it does not know instead of assuming linux', async () => {
+  it('refuses a waiting fork for a sandbox class it does not know instead of assuming linux', async () => {
     const client = macClient()
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-    const patch = jest.spyOn(api, 'patch')
     const unknown = createSandbox({ id: 'odd', status: 'running', class: 'future-class', name: 'odd', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     expect(unknown.sandboxClass).toBe('unknown')
     expect(unknown.rawSandboxClass).toBe('future-class')
-    await expect(unknown.updateLifecyclePolicy({ onIdleTimeout: 'delete' })).rejects.toBeInstanceOf(UnsupportedOperationError)
     await expect(unknown.fork()).rejects.toThrow('unsupported sandbox class future-class')
     expect(post).not.toHaveBeenCalled()
-    expect(patch).not.toHaveBeenCalled()
   })
 
   it('allows class-independent calls for a sandbox class it does not know', async () => {

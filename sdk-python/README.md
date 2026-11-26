@@ -412,8 +412,10 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
   older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. `d.v2.search(...)` queries
   the eventually consistent, all-region search API (`GET /sandboxes/search`)
-  and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
+  and carries every filter: `states`, `sandbox_class`, `region`, `labels`, `persistent`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...
+  `persistent=True` selects persistent sandboxes; `False` selects ephemeral
+  sandboxes, and omitting it (or `None`) leaves both kinds.
   `states` takes the SDK's sandbox states (`states=["started", "paused"]`);
   `"unknown"` is not searchable. `region` takes region IDs; a region that
   contains other regions (a geo group, or `earth`) matches every region inside
@@ -688,9 +690,22 @@ to apply its maximum.
 Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
 disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
 convert to a whole number of MiB (`value * 1024`), else `BadRequestError`.
-Sizes read back exactly. `create_from_snapshot()` inherits the snapshot's
+Sizes read back exactly.
+
+Pass `persistent=True` to Linux `create()` or `create_from_build()` to keep disk
+across stop/start and memory and processes across pause/resume. Omitted or
+`None` leaves the server default (`False`); an explicit `False` is sent as such.
+Linux stop/start, pause/resume and fork require persistence; forks
+inherit it. Delete erases the writable state.
+When neither a per-create policy nor a project lifecycle default overrides it,
+the platform lifetime timeout pauses persistent Linux sandboxes after 300 seconds;
+this is not an idle timeout. Sandboxes with volumes cannot pause or fork (409).
+Lifecycle policies support `delete`
+everywhere, `stop` for persistent non-GPU sandboxes, and `pause` for persistent Linux.
+
+`create_from_snapshot()` inherits the snapshot's
 configuration and takes no resources, CPU selectors, environment, volumes,
-secrets or network policy.
+secrets, network policy or persistence override.
 
 `images.get(id, wait="ready", timeout=120)` and
 `snapshots.get(id, wait="ready", timeout=120)` wait for the artifact to
@@ -1178,6 +1193,16 @@ ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
+
+`fork()`, `capture_image()` and `create_snapshot()` retry only
+`SANDBOX_TRANSITION_IN_PROGRESS`, for up to 30 seconds from their first submission.
+This window limits new retries; an admitted POST keeps its normal request timeout.
+This applies to a fork's source still starting, stopping or pausing; image capture
+still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
+still starting.
+The server's `retry_after_seconds` hint is clamped to 1–5 seconds (1 when absent).
+On expiry the last error is raised unchanged. Other conflicts are not retried;
+fork's readiness budget starts after submission succeeds.
 
 `sandbox.delete()` and `d.v2.delete(sandbox)` wait until the sandbox is
 `destroyed` (a 404 while waiting counts as destroyed). A sandbox with volumes

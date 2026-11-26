@@ -62,6 +62,9 @@ func searchQuery(options SearchSandboxesOptions) (url.Values, error) {
 	if options.Spot != nil {
 		query.Set("spot", strconv.FormatBool(*options.Spot))
 	}
+	if options.Persistent != nil {
+		query.Set("persistent", strconv.FormatBool(*options.Persistent))
+	}
 	return query, nil
 }
 
