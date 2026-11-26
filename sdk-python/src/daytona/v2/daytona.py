@@ -53,7 +53,7 @@ from ._core import (
     RequestSpec,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
-    check_label_keys,
+    check_labels,
     expect_object,
     finite_number,
     gib_to_mib,
@@ -65,6 +65,8 @@ from ._core import (
     parse_search_page,
     parse_timestamp,
     path_segment,
+    query_text,
+    region_filter,
     region_selector,
     rfc3339_timestamp,
     sandbox_state,
@@ -962,18 +964,23 @@ class AsyncDaytona:
         ``destroying`` are left out. A deployment without search raises
         :class:`SearchNotConfiguredError` (501).
 
-        ``region`` scopes the read the way it scopes a create: it is sent as
-        the same ``x-daytona-region`` selector ``create*()`` sends, and
-        ``"local"`` (or omitting it) means the default region — so the
-        lookup uses the same regional API endpoint as the named create.
+        ``region`` selects a region the way it selects one for a create: a
+        named region returns only sandboxes in that region (sent as the
+        search's ``region_ids`` filter, alongside the same
+        ``x-daytona-region`` selector ``create*()`` sends; an unknown region
+        is the API's 400). ``"local"``, a blank value or omitting it applies no
+        region filter: every region is searched, as before.
         """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-blank string", 400, "BAD_REQUEST", "SDK")
+        query_text(name, "name")
         # The same selector create*() sends: blank or "local" is the default region.
         selector = region_selector(region if region is not None else self._target)
         headers: Dict[str, str] = {"x-daytona-region": selector} if selector is not None else {}
         found: list[AsyncSandbox] = []
         params: Dict[str, JsonValue] = {"labels": json.dumps({_NAME_LABEL: name}), "limit": 100}
+        if selector is not None:
+            params["region_ids"] = region_filter(selector)
         seen_cursors: set[str] = set()
         while True:
             payload = await self._api.send(
@@ -1753,7 +1760,7 @@ def _labels_with_name(config: CreateConfig) -> dict[str, str] | None:
     """
     labels = _string_map(config.get("labels"))
     if labels is not None:
-        check_label_keys(labels)
+        check_labels(labels)
     named = _named_create(config.get("name"))
     if named is None:
         return labels
@@ -1807,6 +1814,9 @@ def _create_body(config: CreateConfig) -> CreateBody:
     given_name = config.get("name")
     if isinstance(given_name, str) and not given_name.strip():
         raise create_error("name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
+    if isinstance(given_name, str):
+        # It is stamped as the name label too, so it follows the label rule.
+        query_text(given_name, "name")
     # The platform's architectures (the contract's CpuArchitecture), as for the
     # image option: SDK inputs are closed.
     if config.get("cpu_arch") is not None and config.get("cpu_arch") not in ("amd64", "arm64"):

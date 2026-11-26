@@ -68,7 +68,7 @@ from ._image_context import prepared_context
 from ._image_pull import ImagePull
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
-from .errors import ClientTimeoutError, DaytonaError, NotFoundError, create_error
+from .errors import ClientTimeoutError, ConflictError, DaytonaError, NotFoundError, create_error
 from .image import ImageBuilder
 from .types import (
     CpuArch,
@@ -108,6 +108,9 @@ _path = path_segment
 _VOLUME_CREATE_TYPES: Tuple[str, ...] = tuple(
     str(member.value) for member in VolumeTypeWire if member.name != "UNKNOWN_DEFAULT_OPEN_API"
 )
+# The pauses before each read of a volume another caller created first (seconds,
+# as TypeScript's VOLUME_CONFLICT_REREAD_DELAYS_MS).
+_VOLUME_CONFLICT_REREAD_DELAYS: Tuple[float, ...] = (0.0, 0.05, 0.1, 0.2, 0.4)
 
 
 def _additional_cursor_from_mapping(payload: Mapping[str, JsonValue]) -> Optional[str]:
@@ -899,7 +902,14 @@ class AsyncVolumesService:
             yield item
 
     async def get(self, name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume:
-        """Fetch by id or name; ``id_only`` disables name fallback."""
+        """Fetch by id or name; ``id_only`` disables name fallback.
+
+        ``create=True`` creates the volume named ``name_or_id`` when none is
+        found. When another caller creates that name first (the create answers
+        409 ``CONFLICT``), the volume is read again by name, a few times over
+        about a second, and returned; the conflict is raised if it never
+        becomes readable. Any other error is raised as it is.
+        """
         _refuse_resource_search_name(name_or_id, "volume")
         path = f"/volumes/{_path(name_or_id, 'name_or_id')}"
         # A truthy string must never act as True (it would create a volume).
@@ -912,7 +922,19 @@ class AsyncVolumesService:
         except NotFoundError:
             if not create or id_only:
                 raise
+        try:
             return await self.create(name=name_or_id)
+        except ConflictError as conflict:
+            # Only the name conflict a racing create causes; any other 409 is raised.
+            if conflict.status_code != 409 or conflict.code != "CONFLICT":
+                raise
+            for delay in _VOLUME_CONFLICT_REREAD_DELAYS:
+                await anyio.sleep(delay)
+                try:
+                    return _volume(expect_volume(await self._transport.send(RequestSpec("GET", path))))
+                except NotFoundError:
+                    continue
+            raise
 
     async def create(
         self,

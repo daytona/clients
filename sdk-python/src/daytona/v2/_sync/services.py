@@ -363,7 +363,14 @@ class VolumesService:
         return self._bridge.call(lambda: self._impl.delete(name_or_id, id_only=id_only))
 
     def get(self, name_or_id: str, /, *, create: bool = False, id_only: bool = False) -> Volume:
-        """Fetch by id or name; ``id_only`` disables name fallback."""
+        """Fetch by id or name; ``id_only`` disables name fallback.
+
+        ``create=True`` creates the volume named ``name_or_id`` when none is
+        found. When another caller creates that name first (the create answers
+        409 ``CONFLICT``), the volume is read again by name, a few times over
+        about a second, and returned; the conflict is raised if it never
+        becomes readable. Any other error is raised as it is.
+        """
         return self._bridge.call(lambda: self._impl.get(name_or_id, create=create, id_only=id_only))
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Volume]:

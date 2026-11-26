@@ -313,9 +313,10 @@ permanent behavior of `name=`. The exact semantics, all server-side:
 
 `find_by_name(name, region=…)` returns **all** sandboxes carrying that exact `name`
 label, newest first, as a tuple (names are not unique); `destroyed`/`destroying`
-ones are left out. It is the one list method that is not a single page. It reads sandbox search with an exact `name` label match,
-in the region a create with the same `region` lands in (`region` defaults to
-none, i.e., the server's default, exactly as on `create*()`). A new sandbox
+ones are left out. It is the one list method that is not a single page. It reads sandbox search with an exact `name` label match.
+A named `region` returns only the sandboxes in that region (the region a create
+with the same `region` lands in); omitting it, or `"local"`, searches every
+region. A new sandbox
 appears in search shortly after its create, so a lookup right after a
 create can miss it — the get-or-create below stays safe, because the repeat
 create derives the same key and returns the same sandbox. A deployment

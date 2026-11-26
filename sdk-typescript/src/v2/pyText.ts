@@ -36,3 +36,20 @@ export function strip(value: string): string {
   while (end > start && isSpace(value, end - 1)) end--
   return value.slice(start, end)
 }
+
+/** Whether `value` holds a UTF-16 surrogate without its pair (it has no UTF-8 form). @internal */
+export function hasLoneSurrogate(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index)
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1)
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        index++
+        continue
+      }
+      return true
+    }
+    if (unit >= 0xdc00 && unit <= 0xdfff) return true
+  }
+  return false
+}

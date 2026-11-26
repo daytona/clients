@@ -5,7 +5,7 @@
 
 import { strictUriEncode } from './http.js'
 import { badRequest } from './options.js'
-import { isBlank } from './pyText.js'
+import { hasLoneSurrogate, isBlank } from './pyText.js'
 
 /**
  * `.` and `..` are no ids: as a request-path segment, URL resolution removes
@@ -35,23 +35,6 @@ export function pathSegment(value: unknown, name: string): string {
   refuseDotSegment(value, name)
   if (hasLoneSurrogate(value)) throw badRequest(`${name} must not contain a surrogate code point`)
   return strictUriEncode(value)
-}
-
-/** Whether `value` holds a UTF-16 surrogate without its pair (it has no UTF-8 form). @internal */
-export function hasLoneSurrogate(value: string): boolean {
-  for (let index = 0; index < value.length; index++) {
-    const unit = value.charCodeAt(index)
-    if (unit >= 0xd800 && unit <= 0xdbff) {
-      const next = value.charCodeAt(index + 1)
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        index++
-        continue
-      }
-      return true
-    }
-    if (unit >= 0xdc00 && unit <= 0xdfff) return true
-  }
-  return false
 }
 
 /**

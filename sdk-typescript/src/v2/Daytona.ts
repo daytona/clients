@@ -293,8 +293,11 @@ export class Daytona {
    * deployment without search answers {@link SearchNotConfiguredError} (501).
    *
    * This all-matches lookup is the exception to the one-page list rule.
-   * `region` scopes the read the way it scopes a create; omit it or pass
-   * `'local'` to use the default region.
+   * `region` selects a region the way it selects one for a create: a named
+   * region returns only sandboxes in that region (sent as the search's
+   * `region_ids` filter, alongside the selector a create sends; an unknown
+   * region is the API's 400). Omitting it, a blank value or `'local'`
+   * applies no region filter: every region is searched.
    */
   public async findByName(name: string, options: FindByNameOptions = {}): Promise<readonly Sandbox[]> {
     return findSandboxesByName(this.sandboxContext, name, options)

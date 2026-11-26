@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"time"
 	"unicode/utf8"
 )
 
@@ -83,8 +84,17 @@ func (v *Volumes) ListAll(ctx context.Context, opts *ListVolumesOptions) iter.Se
 	})
 }
 
+// volumeConflictRereadDelays are the pauses before each read of a volume
+// another caller created first (as the Python and TypeScript SDKs).
+var volumeConflictRereadDelays = []time.Duration{
+	0, 50 * time.Millisecond, 100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond,
+}
+
 // Get fetches a volume by ID or name. Create requests creation on ErrNotFound;
-// IDOnly always suppresses creation. Other server errors are preserved.
+// IDOnly always suppresses creation. When another caller creates that name
+// first (the create answers 409 CONFLICT), the volume is read again by name, a
+// few times over about a second, and returned; the conflict is returned if it
+// never becomes readable. Other server errors are preserved.
 func (v *Volumes) Get(ctx context.Context, nameOrID string, opts *GetVolumeOptions) (*Volume, error) {
 	segment, err := resourceSegment(nameOrID, "volume")
 	if err != nil {
@@ -94,14 +104,38 @@ func (v *Volumes) Get(ctx context.Context, nameOrID string, opts *GetVolumeOptio
 	if opts != nil {
 		options = *opts
 	}
-	var raw JSONValue
-	err = v.client.api().do(ctx, apiRequest{
-		Path: "/volumes/" + segment, Query: volumeRefQuery(options.IDOnly), Result: &raw,
-	})
-	if err != nil {
-		if options.Create && !options.IDOnly && errors.Is(err, ErrNotFound) {
-			return v.Create(ctx, nameOrID, nil)
+	result, err := v.read(ctx, segment, options.IDOnly)
+	if err == nil || !options.Create || options.IDOnly || !errors.Is(err, ErrNotFound) {
+		return result, err
+	}
+	created, createErr := v.Create(ctx, nameOrID, nil)
+	var conflict *Error
+	// Only the name conflict a racing create causes; any other 409 is returned.
+	if createErr == nil || !errors.As(createErr, &conflict) || conflict.StatusCode != http.StatusConflict ||
+		conflict.Code != "CONFLICT" {
+		return created, createErr
+	}
+	for _, delay := range volumeConflictRereadDelays {
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, transportError(ctx, ctx.Err())
+		case <-timer.C:
 		}
+		result, err = v.read(ctx, segment, false)
+		if !errors.Is(err, ErrNotFound) {
+			return result, err
+		}
+	}
+	return nil, createErr
+}
+
+func (v *Volumes) read(ctx context.Context, segment string, idOnly bool) (*Volume, error) {
+	var raw JSONValue
+	if err := v.client.api().do(ctx, apiRequest{
+		Path: "/volumes/" + segment, Query: volumeRefQuery(idOnly), Result: &raw,
+	}); err != nil {
 		return nil, err
 	}
 	result, err := parseVolume(raw)

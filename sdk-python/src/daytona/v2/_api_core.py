@@ -8,6 +8,8 @@ import dataclasses
 from datetime import datetime
 from typing import Iterator, Mapping, Optional
 
+from pydantic import create_model
+
 from . import _gen
 from ._core import (
     INT32_MAX,
@@ -75,12 +77,25 @@ def expect_audit_actions(value: TransportPayload) -> AuditActionList:
     )
 
 
+# The current API key response as the SDK reads it: `sync_to_v0` is key-sync
+# bookkeeping the public ProjectApiKey does not carry, so it is optional and
+# unchecked, as TypeScript checks only the fields it reads (a later API may drop
+# or retype it). Every other field keeps its checks: the module stays the
+# generated one, which the required-key and field checks key on.
+_CurrentApiKeyWire = create_model(
+    _gen.api.ProjectApiKeyWithContext.__name__,
+    __base__=_gen.api.ProjectApiKeyWithContext,
+    __module__=_gen.api.ProjectApiKeyWithContext.__module__,
+    sync_to_v0=(Optional[object], None),
+)
+
+
 def expect_current_api_key(value: TransportPayload) -> ProjectApiKey:
     wire = _expect_model_from_dict(
         value,
-        _gen.api.ProjectApiKeyWithContext,
+        _CurrentApiKeyWire,
         "current API key response",
-        _gen.api.ProjectApiKeyWithContext.from_dict,
+        _CurrentApiKeyWire.from_dict,
     )
     return ProjectApiKey(
         id=wire.id,

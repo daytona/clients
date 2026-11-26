@@ -7,7 +7,7 @@ import { withoutNullOptions } from './clientOptionKeys.js'
 import { acknowledgedId, checkResponse } from './responseFields.js'
 import { pathSegment, usablePathId } from './pathSegment.js'
 import type { ResponseFields } from './responseFields.js'
-import { isBlank } from './pyText.js'
+import { hasLoneSurrogate, isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL, assertInternal } from './internal.js'
@@ -853,6 +853,7 @@ export class Sandbox {
     const body: api.ForkRequest = {}
     if (options.name !== undefined) {
       if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('fork name must be a non-empty string when given')
+      if (hasLoneSurrogate(options.name)) throw badRequest('fork name must not contain a lone surrogate')
       body.name = options.name
     }
     if (options.memory !== undefined) {
