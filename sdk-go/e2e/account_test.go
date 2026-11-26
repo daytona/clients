@@ -52,17 +52,25 @@ func TestAccountVolumes(t *testing.T) {
 		require.Equal(t, name, got.Name)
 	})
 	t.Run("list all", func(t *testing.T) {
-		// When
-		var found bool
-		for volume, listErr := range client.Volumes().ListAll(ctx, &daytona.ListVolumesOptions{Limit: 100}) {
-			require.NoError(t, listErr)
-			if volume.ID == created.ID {
-				found = true
-				break
+		// When / Then: lists read eventually consistent search, so poll briefly.
+		eventually(ctx, t, 30*time.Second, func() (bool, error) {
+			for volume, listErr := range client.Volumes().ListAll(ctx, &daytona.ListVolumesOptions{Limit: 100}) {
+				if listErr != nil {
+					return false, listErr
+				}
+				if volume.ID == created.ID {
+					return true, nil
+				}
 			}
-		}
-		// Then
-		require.True(t, found)
+			return false, nil
+		})
+	})
+	t.Run("search", func(t *testing.T) {
+		// When / Then
+		eventually(ctx, t, 30*time.Second, func() (bool, error) {
+			page, searchErr := client.Volumes().Search(ctx, &daytona.SearchVolumesOptions{Name: name, Limit: 1})
+			return searchErr == nil && len(page.Items) == 1 && page.Items[0].ID == created.ID, searchErr
+		})
 	})
 	t.Run("missing", func(t *testing.T) {
 		// When
@@ -103,17 +111,25 @@ func TestAccountSecrets(t *testing.T) {
 		require.Equal(t, &description, got.Description)
 	})
 	t.Run("list all", func(t *testing.T) {
-		// When
-		var found bool
-		for secret, listErr := range client.Secrets().ListAll(ctx, &daytona.ListSecretsOptions{Limit: 100}) {
-			require.NoError(t, listErr)
-			if secret.Name == name {
-				found = true
-				break
+		// When / Then: lists read eventually consistent search, so poll briefly.
+		eventually(ctx, t, 30*time.Second, func() (bool, error) {
+			for secret, listErr := range client.Secrets().ListAll(ctx, &daytona.ListSecretsOptions{Limit: 100}) {
+				if listErr != nil {
+					return false, listErr
+				}
+				if secret.Name == name {
+					return true, nil
+				}
 			}
-		}
-		// Then
-		require.True(t, found)
+			return false, nil
+		})
+	})
+	t.Run("search", func(t *testing.T) {
+		// When / Then
+		eventually(ctx, t, 30*time.Second, func() (bool, error) {
+			page, searchErr := client.Secrets().Search(ctx, &daytona.SearchSecretsOptions{Name: name, Limit: 1})
+			return searchErr == nil && len(page.Items) == 1 && page.Items[0].Name == name, searchErr
+		})
 	})
 	t.Run("guard", func(t *testing.T) {
 		// When

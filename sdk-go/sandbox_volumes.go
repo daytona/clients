@@ -21,11 +21,24 @@ func (s *Sandbox) Volumes() *SandboxVolumes { return &SandboxVolumes{sandbox: s}
 
 // PullVolumeOptions configures one volume submission/check.
 type PullVolumeOptions struct {
-	// Timeout is the server wait, at most 30 seconds. Zero selects the server's
-	// 30-second default; NoWait sends a zero wait. Expiry does not cancel work.
-	// Other negative sentinels, including WaitForever, return ErrBadRequest.
+	// Timeout is the wait. Zero selects the server's 30-second default; NoWait
+	// sends a zero wait. Up to 30 seconds is one request the sandbox holds for
+	// that long; a longer wait is spent in rounds of at most 30 seconds with
+	// the same request ID while the result is pending, and WaitForever (or a
+	// duration above 2,147,483.647 seconds) has no deadline. Expiry does not
+	// cancel work. Other negative values, including NoTimeout, return
+	// ErrBadRequest.
 	Timeout time.Duration
 }
+
+const (
+	// pullVolumeRound is the longest server hold of one pull request (the
+	// contract's waitMs maximum), so no request stays open for a longer wait.
+	pullVolumeRound = 30 * time.Second
+	// pullVolumeRoundMin paces rounds a sandbox answers pending early, so an
+	// early answer never makes a busy loop.
+	pullVolumeRoundMin = time.Second
+)
 
 // PullVolumeStatus is an attached-volume pull outcome.
 type PullVolumeStatus string
@@ -54,11 +67,14 @@ type PullVolumeResult struct {
 	RawStatus string
 }
 
-// Pull submits/checks once, preserving requestID; pending results and errors
-// never cause automatic retries. Retain requestID for later checks or retries.
+// Pull submits/checks a pull, preserving requestID. Retain requestID for
+// later checks or retries.
 // volumeID and requestID require 1–128 ASCII letters, digits, "_" or "-".
 // NoWait submits new work or retrieves a known identity without retrying it;
-// a positive wait retries pending, unavailable or rate-limited work.
+// during a positive wait the sandbox itself retries pending, unavailable or
+// rate-limited work. A wait up to 30 seconds is one request; a longer one is
+// spent in rounds of at most 30 seconds while the result is pending. The SDK
+// never retries an error returned to it.
 func (v *SandboxVolumes) Pull(
 	ctx context.Context, volumeID, requestID string, opts *PullVolumeOptions,
 ) (*PullVolumeResult, error) {
@@ -72,11 +88,61 @@ func (v *SandboxVolumes) Pull(
 	if opts != nil {
 		timeout = opts.Timeout
 	}
-	if timeout < 0 && timeout != NoWait || timeout > 30*time.Second {
-		return nil, badRequest("Timeout must be in 0..30 seconds or NoWait")
+	if timeout < 0 && timeout != NoWait && timeout != WaitForever {
+		return nil, badRequest("Timeout must not be negative, except NoWait or WaitForever")
 	}
+	if timeout == WaitForever || timeout > pullVolumeRound {
+		rounds := pullVolumeRounds{volumes: v, now: time.Now, pause: buildLogPause}
+		return rounds.pull(ctx, volumeID, requestID, timeout)
+	}
+	return v.pullRound(ctx, volumeID, requestID, timeout)
+}
+
+// pullVolumeRounds waits a long pull out in rounds; now and pause are seams.
+type pullVolumeRounds struct {
+	volumes *SandboxVolumes
+	now     func() time.Time
+	pause   func(context.Context, time.Duration) error
+}
+
+func (r pullVolumeRounds) pull(ctx context.Context, volumeID, requestID string, timeout time.Duration,
+) (*PullVolumeResult, error) {
+	var deadline time.Time
+	if timeout != WaitForever && timeout <= maxTimerDuration {
+		deadline = r.now().Add(timeout)
+	}
+	for {
+		started := r.now()
+		hold := pullVolumeRound
+		if !deadline.IsZero() {
+			hold = max(min(hold, deadline.Sub(started)), time.Millisecond)
+		}
+		result, err := r.volumes.pullRound(ctx, volumeID, requestID, hold)
+		if err != nil {
+			return nil, err
+		}
+		now := r.now()
+		if result.Status != PullVolumeStatusPending || !deadline.IsZero() && !now.Before(deadline) {
+			return result, nil
+		}
+		if pause := pullVolumeRoundMin - now.Sub(started); pause > 0 {
+			// Never return early: a pause cut at the deadline is followed by
+			// one last check there.
+			if !deadline.IsZero() {
+				pause = min(pause, deadline.Sub(now))
+			}
+			if pauseErr := r.pause(ctx, pause); pauseErr != nil {
+				return nil, transportError(ctx, pauseErr)
+			}
+		}
+	}
+}
+
+// pullRound sends one request; timeout is zero (the server default), NoWait or at most one round.
+func (v *SandboxVolumes) pullRound(ctx context.Context, volumeID, requestID string, timeout time.Duration,
+) (*PullVolumeResult, error) {
 	body := toolbox.PullVolumeRequest{RequestId: requestID}
-	wait := 30 * time.Second
+	wait := pullVolumeRound
 	switch {
 	case timeout == NoWait:
 		wait = 0

@@ -10,7 +10,7 @@ import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import { SearchProbe, refuseSearchName, searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
-import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 import { followBuildLogs } from './BuildLogs.js'
 import type { BuildLogFollowOptions, BuildLogFollowResult } from './BuildLogs.js'
 import { Image, ImageBuilder, Snapshot, buildImageRequest, imageOptionsBody, isImageBuilder } from './Image.js'
@@ -109,6 +109,7 @@ export class ImagesService {
     private readonly apiTransport?: HttpTransport | HttpTransportConfig,
   ) {
     assertInternal(token, 'ImagesService')
+    concealFields(this, ['apiTransport', 'resolvedApiTransport'])
     credentialSafeDiagnostics(this, () => ({ type: 'ImagesService' }))
   }
 

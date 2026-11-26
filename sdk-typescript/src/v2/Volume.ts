@@ -5,6 +5,8 @@
 
 import { isBlank } from './pyText.js'
 import { pageParams } from './pageParams.js'
+import { sleep } from './http.js'
+import { ConflictError } from './errors/DaytonaError.js'
 import { pathSegment } from './pathSegment.js'
 import { deepFrozen, frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
@@ -13,7 +15,7 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import type * as api from './gen/api-types.js'
-import type { JsonValue, ListResult, VolumeState, VolumeType } from './types.js'
+import type { JsonValue, ListResult, SearchOrder, SearchResult, SearchTimestamp, VolumeState, VolumeType } from './types.js'
 import { VolumeStatus as VOLUME_STATUSES, VolumeType as VOLUME_TYPES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { NotFoundError } from './errors/DaytonaError.js'
@@ -21,6 +23,10 @@ import { MAX_INT32, assertKnownOptions, assertOptionsObject, badRequest, optionK
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 import { iterPages } from './pages.js'
+import { searchTimestamp } from './clientSearch.js'
+import { commaList, omitNullSearchOptions, resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
+import type { CommonResourceSearchOptions } from './resourceSearch.js'
+import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFirst.js'
 
 /** A volume that preserves files between sandboxes. */
 export interface Volume {
@@ -62,10 +68,21 @@ export interface ListVolumesOptions {
   readonly limit?: number
 }
 
+export interface SearchVolumesOptions extends CommonResourceSearchOptions {
+  readonly types?: Exclude<VolumeType, 'unknown'> | readonly Exclude<VolumeType, 'unknown'>[] | null
+  readonly statuses?: 'ready' | 'deleting' | 'error' | readonly ('ready' | 'deleting' | 'error')[] | null
+  readonly imported?: boolean | null
+  readonly lastUsedStartAt?: SearchTimestamp | null
+  readonly lastUsedEndAt?: SearchTimestamp | null
+  readonly sort?: 'created_at' | 'updated_at' | 'name' | 'used_bytes' | 'last_used_at' | 'size_gib' | null
+  readonly order?: SearchOrder | null
+}
+
 const GET_VOLUME_KEYS = optionKeys<GetVolumeOptions>()({ create: true, idOnly: true })
 const CREATE_VOLUME_KEYS = optionKeys<CreateVolumeOptions>()({ name: true, sizeGib: true, type: true })
 const DELETE_VOLUME_KEYS = optionKeys<DeleteVolumeOptions>()({ idOnly: true })
 const LIST_VOLUMES_KEYS = optionKeys<ListVolumesOptions>()({ cursor: true, limit: true })
+const SEARCH_VOLUMES_KEYS = optionKeys<SearchVolumesOptions>()({ q: true, name: true, namePrefix: true, types: true, statuses: true, imported: true, createdStartAt: true, createdEndAt: true, updatedStartAt: true, updatedEndAt: true, lastUsedStartAt: true, lastUsedEndAt: true, sort: true, order: true, cursor: true, limit: true })
 
 function refConfig(options?: DeleteVolumeOptions): { readonly params: { readonly id_only: true } } | undefined {
   return options?.idOnly ? { params: { id_only: true } } : undefined
@@ -76,7 +93,7 @@ const VOLUME: ResponseFields = {
   size_gib: 'integer?', error: 'string?', last_used_at: 'timestamp?', options: 'object?', used_bytes: 'integer?', used_bytes_at: 'timestamp?',
 }
 
-function mapVolume(value: api.Volume): Volume {
+function mapVolume(value: unknown): Volume {
   const volume = checkResponse<api.Volume>(value, VOLUME, 'volume')
   return deepFrozen({
     id: volume.id,
@@ -100,6 +117,7 @@ function mapVolume(value: api.Volume): Volume {
 
 /** Manage named volumes and attach them with `create({ volumes })`. */
 export class VolumesService {
+  private readonly searchProbe = new SearchProbe()
   /** @internal */
   constructor(token: Internal, api: AxiosInstance)
   /** Built by the SDK: get it from the client or a sandbox. */
@@ -111,9 +129,30 @@ export class VolumesService {
 
   private async listPage(options: ListVolumesOptions): Promise<ListResult<Volume>> {
     const params = pageParams(options.cursor, options.limit)
-    const { data } = await this.api.get<api.ListVolumesResponse>('/volumes', { params })
+    const data = await searchOrList(
+      async () => (await this.api.get<api.ListVolumesResponse>('/volumes/search', { params })).data,
+      async () => (await this.api.get<api.ListVolumesResponse>('/volumes', { params })).data,
+      this.searchProbe,
+      'volumes',
+    )
     const page = listPage<api.Volume>(data, 'volumes', 'volume list')
     return frozenPage({ items: page.items.map(mapVolume), nextCursor: page.nextCursor })
+  }
+
+  public async search(options: SearchVolumesOptions = {}): Promise<SearchResult<Volume>> {
+    options = snapshotOptions('SearchVolumesOptions', options, SEARCH_VOLUMES_KEYS) ?? {}
+    const normalized = omitNullSearchOptions(options)
+    const params = resourceSearchParams(normalized, ['created_at', 'updated_at', 'name', 'used_bytes', 'last_used_at', 'size_gib'])
+    if (normalized.types !== undefined) params.type = commaList('types', normalized.types, VOLUME_TYPES)
+    if (normalized.statuses !== undefined) params.status = commaList('statuses', normalized.statuses, ['ready', 'deleting', 'error'])
+    if (normalized.imported !== undefined) {
+      if (typeof normalized.imported !== 'boolean') throw badRequest('imported must be a boolean')
+      params.imported = normalized.imported ? 'true' : 'false'
+    }
+    if (normalized.lastUsedStartAt !== undefined) params.last_used_start_at = searchTimestamp(normalized.lastUsedStartAt)
+    if (normalized.lastUsedEndAt !== undefined) params.last_used_end_at = searchTimestamp(normalized.lastUsedEndAt)
+    const { data } = await this.api.get<api.ListVolumesResponse>('/volumes/search', { params })
+    return resourceSearchResult(data, 'volumes', mapVolume)
   }
 
   public async list(options: ListVolumesOptions = {}): Promise<ListResult<Volume>> {
@@ -126,8 +165,17 @@ export class VolumesService {
     yield* iterPages((cursor) => this.listPage({ ...options, cursor }), options.cursor)
   }
 
-  /** Get a volume by id or name; optionally create it when absent. */
+  /**
+   * Get a volume by id or name; optionally create it when absent.
+   *
+   * `create: true` creates the volume named `nameOrId` when none is found.
+   * When another caller creates that name first (the create answers 409
+   * `CONFLICT`), the volume is read again by name, a few times over about a
+   * second, and returned; the conflict is thrown if it never becomes
+   * readable. Any other error is thrown as it is.
+   */
   public async get(nameOrId: string, options: GetVolumeOptions = {}): Promise<Volume> {
+    refuseResourceSearchName(nameOrId, 'volume')
     // The id first, then the options, as Python checks them.
     const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
     if (typeof options !== 'object' || options === null || Array.isArray(options)) {
@@ -144,10 +192,23 @@ export class VolumesService {
       const { data } = await this.api.get<api.Volume>(path, refConfig(options))
       return mapVolume(data)
     } catch (e) {
-      if (options.create && !options.idOnly && e instanceof NotFoundError) {
-        return this.create({ name: nameOrId })
+      if (!options.create || options.idOnly || !(e instanceof NotFoundError)) throw e
+    }
+    try {
+      return await this.create({ name: nameOrId })
+    } catch (conflict) {
+      // Only the name conflict a racing create causes; any other 409 is thrown.
+      if (!(conflict instanceof ConflictError) || conflict.statusCode !== 409 || conflict.code !== 'CONFLICT') throw conflict
+      for (const delayMs of VOLUME_CONFLICT_REREAD_DELAYS_MS) {
+        await sleep(delayMs)
+        try {
+          const { data } = await this.api.get<api.Volume>(path)
+          return mapVolume(data)
+        } catch (reread) {
+          if (!(reread instanceof NotFoundError)) throw reread
+        }
       }
-      throw e
+      throw conflict
     }
   }
 
@@ -157,6 +218,7 @@ export class VolumesService {
     assertOptionsObject('CreateVolumeOptions', options)
     assertKnownOptions('CreateVolumeOptions', options, CREATE_VOLUME_KEYS)
     if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('name must be a non-empty string')
+    refuseResourceSearchName(options.name, 'volume')
     // The type before the size, as Python checks them.
     if (options.type !== undefined && !(VOLUME_TYPES as readonly unknown[]).includes(options.type)) {
       throw badRequest(`type must be one of ${VOLUME_TYPES.join(', ')}`)
@@ -175,6 +237,7 @@ export class VolumesService {
 
   /** Requests deletion and returns once the API accepts it. */
   public async delete(nameOrId: string, options: DeleteVolumeOptions = {}): Promise<void> {
+    refuseResourceSearchName(nameOrId, 'volume')
     // The id first, then the options, as Python checks them.
     const path = `/volumes/${pathSegment(nameOrId, 'nameOrId')}`
     assertKnownOptions('DeleteVolumeOptions', options, DELETE_VOLUME_KEYS)
@@ -182,3 +245,7 @@ export class VolumesService {
     await this.api.delete(path, refConfig(options))
   }
 }
+
+// The pauses before each read of a volume another caller created first (as
+// Python's _VOLUME_CONFLICT_REREAD_DELAYS, in milliseconds).
+const VOLUME_CONFLICT_REREAD_DELAYS_MS: readonly number[] = [0, 50, 100, 200, 400]

@@ -14,7 +14,7 @@ import (
 func TestOrgGet_UUIDRefSkipsOrgList(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodGet, "/orgs/"+testOrgP, http.StatusOK, organizationFixture(testOrgP, "Personal", true))
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "dtno_orgkey", "org", "get", strings.ToUpper(testOrgP), "-o", "json")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "org", "get", strings.ToUpper(testOrgP), "-o", "json")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, testOrgP, mustJSON(t, stdout)["id"])
 	require.Len(t, api.requests, 1)

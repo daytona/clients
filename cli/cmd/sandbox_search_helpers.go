@@ -37,6 +37,9 @@ func fetchSandboxSearchPage(ctx context.Context, client *api.Client, queryText s
 	if flags.spotSet {
 		params.Spot = &flags.spot
 	}
+	if flags.persistentSet {
+		params.Persistent = &flags.persistent
+	}
 	setSearchParam(&params.ForkedFrom, flags.forkedFrom)
 	setSearchFloat(&params.MinCores, flags.minCores, flags.minCoresSet)
 	setSearchFloat(&params.MaxCores, flags.maxCores, flags.maxCoresSet)

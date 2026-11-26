@@ -20,8 +20,23 @@ import {
   ScreenService,
   type ComputerUseTransport,
 } from './ComputerUseNamespaces.js'
+import { mapComputerUseStatusResponse } from './ComputerUseMappers.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
+
+/**
+ * Decodes a computer-use status response body exactly as
+ * `sandbox.computerUse.status()` does, for apps that reach the toolbox through
+ * their own transport. `body` is the decoded JSON value of the toolbox's
+ * `GET /computeruse/status` response (`await response.json()`), not the
+ * response text, which is refused as not an object. An unrecognized status/desktop pair comes back as
+ * `{ status: 'unknown', desktop: 'unknown' }` with the raw values; a body that
+ * breaks the contract throws `BadRequestError` (400, `BAD_REQUEST`, source
+ * `SDK`) naming the field. The result is frozen.
+ */
+export function parseComputerUseStatus(body: unknown): ComputerUseStatusResponse {
+  return mapComputerUseStatusResponse(body)
+}
 
 /** Sandbox computer-use namespace (`sandbox.computerUse`): the desktop and its input devices. */
 export class ComputerUseService {

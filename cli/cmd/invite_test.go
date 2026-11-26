@@ -201,7 +201,7 @@ func TestInviteCreatePrintsAcceptURL(t *testing.T) {
 	d := cfgDir(t)
 	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/invitations", 201, invitationWithAcceptURLFixture(testInviteLink))
 
-	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "create", "new@example.com")
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", testLoginBearer, "-o", "table", "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "create", "new@example.com")
 	if code != 0 {
 		t.Fatalf("create: %d %s", code, errb)
 	}
@@ -221,7 +221,7 @@ func TestInviteCreatePrintsTheTokenForARelativeAcceptURL(t *testing.T) {
 	f := newFakeAPI(t)
 	d := cfgDir(t)
 	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/invitations", 201, invitationWithAcceptURLFixture("/dashboard/user/invitations?token="+testInviteToken))
-	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "create", "new@example.com")
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", testLoginBearer, "-o", "table", "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "create", "new@example.com")
 	if code != 0 {
 		t.Fatalf("create: %d %s", code, errb)
 	}
@@ -235,7 +235,7 @@ func TestInviteCreateFallsBackToTheLinkWhenARelativeTokenIsMalformed(t *testing.
 	d := cfgDir(t)
 	rel := "/dashboard/user/invitations?token=dtni_short"
 	f.on("POST", "/orgs/0000000a-0000-4000-8000-00000000a001/invitations", 201, invitationWithAcceptURLFixture(rel))
-	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "table", "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "create", "new@example.com")
+	out, errb, code := run(t, d, nil, "--api-url", f.srv.URL, "--api-key", testLoginBearer, "-o", "table", "--org", "0000000a-0000-4000-8000-00000000a001", "invite", "create", "new@example.com")
 	if code != 0 {
 		t.Fatalf("create: %d %s", code, errb)
 	}
@@ -271,7 +271,7 @@ func TestInviteCreateWithoutRoleUsesServerDefault(t *testing.T) {
 }
 
 func TestInviteRevokePreflightRunsBeforeOrgResolution(t *testing.T) {
-	_, errb, code := run(t, cfgDir(t), nil, "invite", "revoke", "11111111-1111-1111-1111-111111111111", "--api-url", "http://127.0.0.1:1", "--api-key", "k")
+	_, errb, code := run(t, cfgDir(t), nil, "invite", "revoke", "11111111-1111-1111-1111-111111111111", "--api-url", "http://127.0.0.1:1", "--api-key", testLoginBearer)
 	if code != cerr.ExitUsage || !has(errb, "--yes") {
 		t.Fatalf("%d %s", code, errb)
 	}

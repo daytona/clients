@@ -856,6 +856,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.MANAGEMENT_PLANE_ELSEWHERE: NotSupportedError,
     codes.NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL: BadRequestError,
     codes.NETWORK_POLICY_TRANSITION_IN_PROGRESS: ConflictError,
+    codes.SANDBOX_TRANSITION_IN_PROGRESS: ConflictError,
     codes.STALE_NETWORK_POLICY_REVISION: PreconditionFailedError,
     codes.NOT_SUPPORTED_FOR_CLASS: NotSupportedForClassError,
     codes.IMAGE_NOT_FOUND: ImageNotFoundError,

@@ -52,6 +52,12 @@ const CodeNetworkPolicyTransitionInProgress = "NETWORK_POLICY_TRANSITION_IN_PROG
 // ErrNetworkPolicyTransitionInProgress matches code NETWORK_POLICY_TRANSITION_IN_PROGRESS, independently of its source.
 var ErrNetworkPolicyTransitionInProgress = codeSentinel{"NETWORK_POLICY_TRANSITION_IN_PROGRESS", 409}
 
+// CodeSandboxTransitionInProgress is SANDBOX_TRANSITION_IN_PROGRESS (API).
+const CodeSandboxTransitionInProgress = "SANDBOX_TRANSITION_IN_PROGRESS"
+
+// ErrSandboxTransitionInProgress matches code SANDBOX_TRANSITION_IN_PROGRESS, independently of its source.
+var ErrSandboxTransitionInProgress = codeSentinel{"SANDBOX_TRANSITION_IN_PROGRESS", 409}
+
 // CodeStaleNetworkPolicyRevision is STALE_NETWORK_POLICY_REVISION (API).
 const CodeStaleNetworkPolicyRevision = "STALE_NETWORK_POLICY_REVISION"
 
@@ -118,12 +124,6 @@ const CodeImageTooLarge = "IMAGE_TOO_LARGE"
 // ErrImageTooLarge matches code IMAGE_TOO_LARGE, independently of its source.
 var ErrImageTooLarge = codeSentinel{"IMAGE_TOO_LARGE", 409}
 
-// CodeIdleOutOfRange is IDLE_OUT_OF_RANGE (API).
-const CodeIdleOutOfRange = "IDLE_OUT_OF_RANGE"
-
-// ErrIdleOutOfRange matches code IDLE_OUT_OF_RANGE, independently of its source.
-var ErrIdleOutOfRange = codeSentinel{"IDLE_OUT_OF_RANGE", 400}
-
 func catalogStatus4(source, code string) int {
 	switch code {
 	case "BILLING_FORBIDDEN":
@@ -155,6 +155,10 @@ func catalogStatus4(source, code string) int {
 			return 400
 		}
 	case "NETWORK_POLICY_TRANSITION_IN_PROGRESS":
+		if source == "DAYTONA_API" {
+			return 409
+		}
+	case "SANDBOX_TRANSITION_IN_PROGRESS":
 		if source == "DAYTONA_API" {
 			return 409
 		}
@@ -201,10 +205,6 @@ func catalogStatus4(source, code string) int {
 	case "IMAGE_TOO_LARGE":
 		if source == "DAYTONA_API" {
 			return 409
-		}
-	case "IDLE_OUT_OF_RANGE":
-		if source == "DAYTONA_API" {
-			return 400
 		}
 	}
 	return 0

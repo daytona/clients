@@ -82,6 +82,10 @@ type ErrorDetails struct {
 	// Bytes is the artifact's size in bytes (CodeImageTooLarge,
 	// CodeSnapshotTooLarge); nil when not reported.
 	Bytes *int64
+	// RetryAfterSeconds is the body's retry_after_seconds hint, typically set by
+	// CodeSandboxTransitionInProgress; nil when absent, negative or mistyped.
+	// Unlike RetryAfter, it excludes HTTP and millisecond hints.
+	RetryAfterSeconds *int64
 }
 
 // Error returns the message with its code and HTTP status, omitting absent or
