@@ -1763,11 +1763,6 @@ def _create_body(config: CreateConfig) -> CreateBody:
     if lifecycle_raw is not None and not isinstance(lifecycle_raw, dict):
         raise create_error("lifecycle_policy must be an object", 400, "BAD_REQUEST", "SDK")
     lifecycle = lifecycle_body(lifecycle_raw, creating=True) if lifecycle_raw is not None else None
-    assert_lifecycle_class_support(
-        lifecycle,
-        sandbox_class=route,
-        persistent=None if source_kind == "snapshot" else config.get("persistent") is True,
-    )
     # A mistyped value is refused, never silently dropped.
     for key, kind, description in (
         ("name", str, "a string"),
@@ -1780,6 +1775,11 @@ def _create_body(config: CreateConfig) -> CreateBody:
         ("auto_renew", bool, "a boolean"),
     ):
         _optional_typed(config, key, kind, description)
+    assert_lifecycle_class_support(
+        lifecycle,
+        sandbox_class=route,
+        persistent=None if source_kind == "snapshot" else config.get("persistent") is True,
+    )
     # A blank name is refused, as fork() and find_by_name() refuse one: omit the
     # name for a generated one.
     given_name = config.get("name")

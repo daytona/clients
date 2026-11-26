@@ -117,7 +117,7 @@ def test_snapshot_create_has_no_persistence_override(client: type[AsyncClient | 
     assert "persistent" not in parameters
 
 
-@pytest.mark.parametrize("sandbox_class", ["linux", "macos", "gpu"])
+@pytest.mark.parametrize("sandbox_class", ["linux", "macos", "gpu", "future"])
 @pytest.mark.parametrize("persistent", [False, True, None])
 @pytest.mark.parametrize("action", ["delete", "stop", "pause"])
 def test_lifecycle_support_matrix(sandbox_class: str, persistent: bool | None, action: str) -> None:
@@ -171,7 +171,9 @@ async def test_persistent_linux_create_accepts_lifecycle_policy(
                 persistent=True, wait_seconds=0, lifecycle_policy={"on_timeout": action}
             )
     # Then the selected action reaches the API.
-    assert json.loads(api.requests[0].body)["lifecycle_policy"] == {"on_timeout": action}
+    body = json.loads(api.requests[0].body)
+    assert body["persistent"] is True
+    assert body["lifecycle_policy"] == {"on_timeout": action}
     assert sandbox.persistent is True
 
 
@@ -198,6 +200,8 @@ async def test_linux_policy_update_resolves_unknown_persistence(
                     await sandbox.update_lifecycle_policy(on_timeout="pause")
     # Then one detail read decides whether the update may be submitted.
     assert [request.method for request in api.requests] == (["GET", "PATCH"] if persistent else ["GET"])
+    if persistent:
+        assert json.loads(api.requests[-1].body) == {"on_timeout": "pause"}
 
 
 @pytest.mark.anyio
@@ -210,10 +214,14 @@ async def test_invalid_persistence_is_refused_before_submission(
         monkeypatch.setenv("DAYTONA_V2_API_URL", api.url)
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
             # When the create options are validated.
-            with pytest.raises(BadRequestError, match="persistent"):
+            with pytest.raises(BadRequestError, match="persistent must be a boolean"):
                 if build:
-                    await root.v2.create_from_build(ImageBuilder.from_registry("alpine"), persistent=1)
+                    await root.v2.create_from_build(
+                        ImageBuilder.from_registry("alpine"),
+                        persistent=1,
+                        lifecycle_policy={"on_timeout": "pause"},
+                    )
                 else:
-                    await root.v2.create(persistent=1)
+                    await root.v2.create(persistent=1, lifecycle_policy={"on_timeout": "pause"})
     # Then neither a build nor a create was submitted.
     assert api.requests == []

@@ -5,14 +5,41 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 import respx
 from test_client_lifecycle_contract import _detail
 
 from daytona import AsyncDaytona, DaytonaConfig
+from daytona.v2 import BadRequestError
 
 _BASE = "https://api.invalid"
+
+
+@pytest.mark.anyio
+@respx.mock
+@pytest.mark.parametrize(
+    ("sandbox_class", "action"),
+    [("gpu", "stop"), ("gpu", "pause"), ("macos", "pause"), ("future-class", "pause")],
+)
+async def test_class_forbids_policy_even_when_persistence_is_unknown(
+    monkeypatch: pytest.MonkeyPatch, sandbox_class: str, action: str
+) -> None:
+    # Given a known class whose detail still omits persistence.
+    monkeypatch.setenv("DAYTONA_V2_API_URL", _BASE)
+    read = respx.get(f"{_BASE}/sandboxes/sbx").mock(
+        return_value=httpx.Response(200, json=_detail("sbx", "running", **{"class": sandbox_class}))
+    )
+    async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
+        sandbox = await root.v2.get("sbx")
+        # When requesting an action forbidden by class alone.
+        with pytest.raises(BadRequestError):
+            await sandbox.update_lifecycle_policy(on_timeout=action)
+    # Then only the initial detail and persistence refresh were requested.
+    assert read.call_count == 2
+    assert all(call.request.method == "GET" for call in respx.calls)
 
 
 @pytest.mark.anyio
@@ -39,6 +66,7 @@ async def test_delete_policy_is_sent_for_every_raw_class(
     assert policy.on_timeout == "delete"
     assert read.call_count == 1
     assert patch.call_count == 1
+    assert json.loads(patch.calls[0].request.content) == {"on_timeout": "delete"}
 
 
 @pytest.mark.anyio
