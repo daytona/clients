@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"testing"
@@ -64,9 +65,21 @@ func TestCreate_whenPersistentLifecyclePolicyIsRequested(t *testing.T) {
 			_, err := client.Create(t.Context(), "", &CreateOptions{
 				Persistent: &persistent, Wait: NoWait, LifecyclePolicy: &LifecyclePolicyOptions{OnTimeout: action},
 			})
-			// Then validation allows the request.
+			// Then the request includes persistence and the requested policy.
 			require.NoError(t, err)
-			require.Len(t, fake.requests(), 1)
+			requests := fake.requests()
+			require.Len(t, requests, 1)
+			var body struct {
+				Persistent *bool `json:"persistent"`
+				Lifecycle  *struct {
+					OnTimeout LifecycleAction `json:"on_timeout"`
+				} `json:"lifecycle_policy"`
+			}
+			require.NoError(t, json.Unmarshal(requests[0].Body, &body))
+			require.NotNil(t, body.Persistent)
+			require.True(t, *body.Persistent)
+			require.NotNil(t, body.Lifecycle)
+			require.Equal(t, action, body.Lifecycle.OnTimeout)
 		})
 	}
 }
