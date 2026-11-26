@@ -1,0 +1,37 @@
+cli/cmd/catalog_test.go
+  s_13dc1dfef3c825::t_b5b2b659164178 41,91-93,102-104
+  s_13dc1dfef3c825::t_45e68fd923e861 33-40
+cli/cmd/volume_more_test.go
+  s_13dc1dfef3c825::t_0290f75a2ced64 85
+cli/cmd/volume.go
+  s_13dc1dfef3c825::t_b5b2b659164178 50-52,109,120,154-156
+cli/cmd/search_first_test.go
+  s_13dc1dfef3c825::t_6228cf50c088f7 137-138,140-143,155-164
+  s_13dc1dfef3c825::t_0290f75a2ced64 116
+  s_13dc1dfef3c825::t_b5b2b659164178 146
+  s_13dc1dfef3c825::t_99a3cabfa153e6 139
+  s_13dc1dfef3c825::t_754b2a74b081a6 113-115,117-136,144-145,147-154,165-181
+cli/cmd/secret.go
+  s_13dc1dfef3c825::t_b5b2b659164178 111
+  s_13dc1dfef3c825::t_b7b35fec3c9ed2 40-42,120,145-147
+cli/cmd/volume_test.go
+  s_13dc1dfef3c825::t_0290f75a2ced64 8,18-21,50,76
+cli/cmd/search_first.go
+  s_13dc1dfef3c825::t_b5b2b659164178 8,10,47-48,55-91,104-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b6413e85cf4e73425be7ccb6d48ed179c52559f1",
+  "prompts": {},
+  "sessions": {
+    "s_13dc1dfef3c825": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b4d9187ffe82XBcuic15esKW",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
