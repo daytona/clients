@@ -4,7 +4,7 @@
  */
 
 import { loadV0, type V0ModuleExports } from '#v0-loader'
-import { credentialSafeDiagnostics } from './diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from './diagnostics.js'
 import { SDK_VERSION } from './version.js'
 import { DEFAULT_V2_API_URL, Daytona as DaytonaV2 } from './v2/Daytona.js'
 import { DaytonaError as DaytonaErrorV2, NotSupportedError } from './v2/errors/DaytonaError.js'
@@ -179,8 +179,10 @@ export class Daytona {
 
   constructor(config?: DaytonaConfig) {
     warnLegacyApiUrl()
-    this.config = snapshotConfig(config ?? {})
+    this.config = concealFields(snapshotConfig(config ?? {}), ['apiKey', 'jwtToken'])
     credentialSafeDiagnostics(this.config, () => ({ type: 'DaytonaConfig' }))
+    // The v0 client is the 0.x SDK's own object, which keeps its credential.
+    concealFields(this, ['config', 'v2Client', 'v0Client'])
     credentialSafeDiagnostics(this, () => ({ type: 'Daytona' }))
     if (this.config.target !== undefined) warnTargetDeprecated()
     // Wrapped in the moved-member guard (MOVED_TO_V0_GUARD below).

@@ -2240,13 +2240,10 @@ def header_text(value: str, name: str) -> str:
     blank value or ``local`` as the default region (not sent)."""
     if not value:
         raise create_error(f"{name} must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-    if not all(" " <= char <= "~" for char in value) or value[0] == " " or value[-1] == " ":
-        raise create_error(
-            f"{name} must be printable ASCII with no leading or trailing whitespace",
-            400,
-            "BAD_REQUEST",
-            "SDK",
-        )
+    if not all(" " <= char <= "~" for char in value):
+        raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
+    if value[0] == " " or value[-1] == " ":
+        raise create_error(f"{name} must have no leading or trailing whitespace", 400, "BAD_REQUEST", "SDK")
     return value
 
 

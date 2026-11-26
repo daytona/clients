@@ -6,7 +6,7 @@
 import { AuthenticationError, BadRequestError } from './errors/DaytonaError.js'
 import { createPlatformTokenProvider, DEFAULT_REQUEST_TIMEOUT_MS } from './http.js'
 import type { HttpClientOptions } from './http.js'
-import { assertKnownOptions, badRequest, boundedTimerDelay, optionalSeconds, snapshotOptions } from './options.js'
+import { assertKnownOptions, badRequest, boundedTimerDelay, headerText, optionalSeconds, snapshotOptions } from './options.js'
 import { SANDBOX_EVENTS_CONFIG_KEYS, V2_CONFIG_KEYS } from './types.js'
 import type { DaytonaConfig, SandboxEventsConfig } from './types.js'
 import { DEFAULT_MAX_RESPONSE_BYTES, maxResponseBytesOption } from './bodyLimit.js'
@@ -43,6 +43,24 @@ function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', va
   if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
     throw new BadRequestError(`${name} must be a non-empty string when provided`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
+}
+
+/**
+ * The credential sent as `Authorization: Bearer <credential>`. Surrounding HTTP
+ * whitespace (space, tab, CR, LF) is trimmed from an explicit value, as from an
+ * ambient one, so a key read from a file with its trailing newline works. What
+ * remains must be printable ASCII: otherwise `BadRequestError` naming the field
+ * or the variable, never the value, before any request (Python and Go check
+ * the same way).
+ */
+function credential(explicitName: 'apiKey' | 'jwtToken', explicit: string | undefined, envName: string, readAmbient: boolean): string | undefined {
+  if (explicit !== undefined) {
+    const trimmed = explicit.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '')
+    if (trimmed.length === 0) throw badRequest(`${explicitName} must not be blank`)
+    return headerText(trimmed, explicitName)
+  }
+  const ambient = readAmbient ? optionalNonBlankEnv(envName) : undefined
+  return ambient === undefined ? undefined : headerText(ambient, envName)
 }
 
 function connectionPoolMaxsize(value: number | undefined): number | undefined {
@@ -103,7 +121,8 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   // Ambient values are trimmed and a blank one is unset; a slash-only URL
   // is unset too.
   const apiUrl = optionalNonBlankEnv('DAYTONA_V2_API_URL')?.replace(/\/+$/, '') || DEFAULT_V2_API_URL
-  // Explicit values are used as given; an explicitly empty one is an error,
+  // Explicit values are used as given (a credential trimmed of surrounding
+  // whitespace, see `credential`); an explicitly empty one is an error,
   // never "unset". An explicit credential wins over the ambient environment:
   // config.jwtToken suppresses DAYTONA_API_KEY and config.apiKey suppresses
   // DAYTONA_JWT_TOKEN, so an exported key never collides with the credential
@@ -111,8 +130,11 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   assertPresentStringOption('apiKey', config.apiKey)
   assertPresentStringOption('jwtToken', config.jwtToken)
   assertPresentStringOption('projectId', config.projectId)
-  const apiKey = config.apiKey ?? (config.jwtToken !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_API_KEY'))
-  const jwtToken = config.jwtToken ?? (config.apiKey !== undefined ? undefined : optionalNonBlankEnv('DAYTONA_JWT_TOKEN'))
+  // An explicit credential of either kind suppresses both ambient ones,
+  // which are then never read.
+  const readAmbient = config.apiKey === undefined && config.jwtToken === undefined
+  const apiKey = credential('apiKey', config.apiKey, 'DAYTONA_API_KEY', readAmbient)
+  const jwtToken = credential('jwtToken', config.jwtToken, 'DAYTONA_JWT_TOKEN', readAmbient)
   const projectId = config.projectId ?? optionalNonBlankEnv('DAYTONA_PROJECT_ID')
   const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
   // Above the timer maximum (about 24.8 days) means no bound, like 0.

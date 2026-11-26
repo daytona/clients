@@ -327,7 +327,29 @@ major version; Go uses its module path's `/v2` suffix instead:
   truthiness); an explicitly empty `api_key` / `jwt_token` / `project_id`
   (`apiKey` / `jwtToken` / `projectId`) is a `BadRequestError` (400,
   `BAD_REQUEST`, source `SDK`), like every invalid-configuration error,
-  including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. Missing
+  including TS's refused `apiUrl` / `serverUrl` / `toolboxUrl` keys. The
+  API key or JWT is the one explicit value that is trimmed: surrounding HTTP
+  whitespace (space, tab, CR, LF) is removed, as the TypeScript and Go HTTP
+  stacks did on the wire before the SDK checked it (Python's refused a padded
+  value; ambient ones are trimmed as above). An empty explicit credential is
+  the non-empty-string error above (checked before trimming); a
+  whitespace-only one is `must not be blank`; a trimmed one that is not
+  printable ASCII fails the header rule (`header_text` / `headerText`, Go
+  `headerText`: `must be printable ASCII`, or for an untrimmed header value
+  such as an idempotency key `must have no leading or trailing whitespace`).
+  Each is that error, naming the field, option or variable, never the value.
+  An explicit credential of either kind leaves both ambient credentials
+  unread.
+  Python redacts a header the HTTP client refuses from every error text it
+  raises or chains (`_transport_errors.py`, spans included) and refuses a
+  non-ASCII bearer before encoding it (`bearer`). In TypeScript, credentials and the fields
+  holding them on the root and v2 clients, handles, transports and auth
+  providers are non-enumerable (`concealFields` in `src/diagnostics.ts`), and
+  SDK-built axios instances add the bearer per request (unless the request
+  names `Authorization`, `null` included) instead of keeping it in
+  `defaults.headers`; a test walks every enumerable property of those objects
+  for a credential. `d.v0` is the bundled 0.x client, which keeps its own
+  credential handling and storage. Missing
   credentials are `AuthenticationError` (401, `UNAUTHORIZED`, `SDK`). The
   TS root validates the copy it keeps: every enumerable key (own or
   inherited) must be known, each known key and the nested `events` are read

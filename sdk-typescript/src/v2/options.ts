@@ -86,9 +86,9 @@ export function headerText(value: string, name: string): string {
   if (value.length === 0) throw badRequest(`${name} must be a non-empty string`)
   for (let index = 0; index < value.length; index++) {
     const unit = value.charCodeAt(index)
-    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
+    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII`)
   }
-  if (value.startsWith(' ') || value.endsWith(' ')) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
+  if (value.startsWith(' ') || value.endsWith(' ')) throw badRequest(`${name} must have no leading or trailing whitespace`)
   return value
 }
 
