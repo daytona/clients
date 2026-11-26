@@ -352,9 +352,11 @@ make asynchronous callback work cancellation-aware when needed.
   where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
   older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. Use `search()` for
   eventually consistent, all-region filtering by `states`, `sandboxClass`,
-  `region`, `labels`, resource/timestamp bounds, `sort`, `order`, and other
+  `region`, `labels`, `persistent`, resource/timestamp bounds, `sort`, `order`, and other
   search options. `states` accepts a public state or array, for example
   `{ states: ['started', 'paused'] }`; `unknown` is not searchable.
+  `persistent: true` selects persistent sandboxes; `false` selects ephemeral
+  sandboxes, and omitting it (or JavaScript `null`) leaves both kinds.
   `region` takes region IDs; a region that contains other regions (a geo
   group, or `earth`) matches every region inside it, and an unknown region is
   a `BadRequestError`. Timestamp filters are half-open:
