@@ -1,0 +1,27 @@
+sdk-python/README.md
+  s_da52886f8bc83e::t_d330801c44a7f2 1141-1143
+sdk-python/tests/test_wait_read_retries.py
+  s_da52886f8bc83e::t_0112dc8af0fbbe 521-527
+changelog.d/wait-read-retries.fixed.md
+  s_da52886f8bc83e::t_0112dc8af0fbbe 7-12
+sdk-python/src/daytona/v2/_events.py
+  s_da52886f8bc83e::t_0112dc8af0fbbe 730-732
+sdk-go/docker_boundary_test.go
+  s_da52886f8bc83e::t_0112dc8af0fbbe 73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0cbd309eaf55706c306c397a26f90e222bceefe3",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

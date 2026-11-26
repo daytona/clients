@@ -1,0 +1,21 @@
+sdk-python/tests/test_transfer_cancel.py
+  s_24803b7d9359b3::t_bdb1e0d2609664 272,283-304,309-313,557-614
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  s_24803b7d9359b3::t_3846836debbe28 7-24,39,53-60,171-172,206-207,225,230-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09af6eabbb117a94fd6cc061981df4181dc8ee67",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

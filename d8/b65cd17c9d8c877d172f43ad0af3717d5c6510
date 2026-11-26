@@ -1,0 +1,23 @@
+changelog.d/758-persistence-search.added.md
+  s_6766125bb4b0f4::t_9d753896277bde 1-2
+changelog.d/758-lifecycle-policies.added.md
+  s_6766125bb4b0f4::t_9d753896277bde 1-2
+changelog.d/758-linux-persistent-sandboxes.added.md
+  s_6766125bb4b0f4::t_9d753896277bde 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d8b65cd17c9d8c877d172f43ad0af3717d5c6510",
+  "prompts": {},
+  "sessions": {
+    "s_6766125bb4b0f4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de92797b3ffeticJ277K2WGlM1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+cli/README.md
+  s_b970ccea92d9b1::t_e8278b7272060d 674-681
+  s_b970ccea92d9b1::t_5576b77224943d 623
+cli/cmd/root.go
+  s_b970ccea92d9b1::t_713e6057e2e678 104,153
+cli/cmd/login_only_test.go
+  s_b970ccea92d9b1::t_a68fda50369b81 141,167-174,224,228-231
+  s_b970ccea92d9b1::t_47bcc61e37c018 1-21,37-140,142-166,175-223,225-227,232-266
+  s_b970ccea92d9b1::t_e51fa7e3c10794 22-36
+cli/cmd/command_more_test.go
+  s_b970ccea92d9b1::t_4ecaf968e22b04 32,40,48,157
+cli/cmd/catalog_test.go
+  s_b970ccea92d9b1::t_40429a6ffe71cc 61,71,118
+cli/cmd/billing_test.go
+  s_b970ccea92d9b1::t_4ecaf968e22b04 25,34,44,53,65,76,88,102,113,125,137,156,179,183,209,211,213,315,369,375
+changelog.d/cli-login-only-commands.fixed.md
+  s_b970ccea92d9b1::t_efe9582734b087 1-8
+cli/cmd/org_uuid_more_test.go
+  s_b970ccea92d9b1::t_40429a6ffe71cc 17
+cli/cmd/login_only.go
+  s_b970ccea92d9b1::t_5e53b3646d3dac 1-120
+cli/cmd/member_test.go
+  s_b970ccea92d9b1::t_4ecaf968e22b04 143
+  s_b970ccea92d9b1::t_e51fa7e3c10794 16
+cli/cmd/invite_test.go
+  s_b970ccea92d9b1::t_4ecaf968e22b04 204,224,238,274
+cli/cmd/region.go
+  s_b970ccea92d9b1::t_dcd539c2b89e77 79-81
+cli/cmd/auth_login_command.go
+  s_b970ccea92d9b1::t_e8278b7272060d 38-41
+cli/cmd/cli_contract_test.go
+  s_b970ccea92d9b1::t_4ecaf968e22b04 583,596
+cli/cmd/auth_test.go
+  s_b970ccea92d9b1::t_40429a6ffe71cc 472
+  s_b970ccea92d9b1::t_4ecaf968e22b04 479
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "049a1bf7f9ac4ad1adbb41fe00dac4209497679e",
+  "prompts": {},
+  "sessions": {
+    "s_b970ccea92d9b1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3568bffevm7h9dNr3a3xBu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

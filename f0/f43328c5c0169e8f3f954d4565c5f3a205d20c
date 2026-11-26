@@ -1,0 +1,30 @@
+sdk-typescript/tests/wait-read-retries.test.ts
+  s_da52886f8bc83e::t_2114b48f86fef2 568-615
+sdk-typescript/README.md
+  s_da52886f8bc83e::t_853c1259de96ff 1066-1069
+sdk-typescript/src/v2/sandboxWait.ts
+  s_da52886f8bc83e::t_732805d5b81cb7 7,245
+sdk-typescript/src/v2/Images.ts
+  s_da52886f8bc83e::t_853c1259de96ff 323-324
+sdk-typescript/src/v2/artifactOptions.ts
+  s_da52886f8bc83e::t_853c1259de96ff 83-84
+sdk-typescript/src/v2/events.ts
+  s_da52886f8bc83e::t_a310c447cfd1cc 19
+  s_da52886f8bc83e::t_732805d5b81cb7 1150-1151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0f43328c5c0169e8f3f954d4565c5f3a205d20c",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

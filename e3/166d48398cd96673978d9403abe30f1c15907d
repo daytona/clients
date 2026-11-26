@@ -1,0 +1,41 @@
+cli/cmd/sandbox_transition.go
+  s_400de7c4619dfa::t_80eef425d0cd9f 20-21,38
+changelog.d/758-transition-deadline.fixed.md
+  s_6766125bb4b0f4::t_1d6dc999984539 1-2
+cli/cmd/sandbox_transition_test.go
+  s_400de7c4619dfa::t_dd75bceeff75c2 118,121,124
+  s_400de7c4619dfa::t_92bc62054d813c 109,113-117,119-120,122-123,125-138
+  s_f363f00f945b37::t_d6daed3dde5b1c 139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3166d48398cd96673978d9403abe30f1c15907d",
+  "prompts": {},
+  "sessions": {
+    "s_400de7c4619dfa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de9270e2cffeTgK1MeN6SO0Yzr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6766125bb4b0f4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de92797b3ffeticJ277K2WGlM1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f363f00f945b37": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de92725b2ffeYUoM3yUQ64slUx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

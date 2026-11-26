@@ -1,0 +1,35 @@
+SECURITY.md
+  s_e26152c3e6ca81::t_ae2435ef4fb41e 17,21-22
+sdk-python/README.md
+  s_e26152c3e6ca81::t_954e8a6f7e5410 9-11,14-19,208
+upgrade/python/README.md
+  s_e26152c3e6ca81::t_ae2435ef4fb41e 16-18
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_954e8a6f7e5410 9,12-16
+  s_e26152c3e6ca81::t_0e395f21ff7e9c 17
+upgrade/typescript/README.md
+  s_e26152c3e6ca81::t_ae2435ef4fb41e 15-17
+examples/python/images.py
+  s_e26152c3e6ca81::t_c953194cdc4a84 2-61
+examples/typescript/images/index.ts
+  s_e26152c3e6ca81::t_849f96ae7faa16 1-13,16-17,28-37,39-58
+  s_e26152c3e6ca81::t_b6b8a7a7c62029 14-15,18-27,38
+cli/README.md
+  s_e26152c3e6ca81::t_d659369dadf26d 21-23,26-27,41-42,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c30ded12b753ad33675957f77e275813078b76b2",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

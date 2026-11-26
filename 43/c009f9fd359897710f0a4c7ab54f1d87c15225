@@ -1,0 +1,27 @@
+cli/cmd/sandbox_create.go
+  s_d999daaefd2648::t_da05cc1cfac126 78,148-152,177-178,188-189
+cli/cmd/sandbox_persistent_test.go
+  s_d999daaefd2648::t_4e0e752dd49de1 72-76,78-83
+  s_d999daaefd2648::t_46027baa945db0 24,40,56,77
+  s_d999daaefd2648::t_478a11cfb9bf33 1-23,25-39,41-55,57-71,84-101
+cli/cmd/sandbox_actions_more_test.go
+  s_d999daaefd2648::t_4e0e752dd49de1 263-264,275-276
+cli/cmd/sandbox_lifecycle.go
+  s_d999daaefd2648::t_da05cc1cfac126 16-17,21-23,30-31,53-54,59,61,92-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43c009f9fd359897710f0a4c7ab54f1d87c15225",
+  "prompts": {},
+  "sessions": {
+    "s_d999daaefd2648": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb9a07e2ffevnirtQoEG2Ylur",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,123 @@
+changelog.d/docs-search-ordering.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-3
+  s_e26152c3e6ca81::t_120f08d116ade9 1
+changelog.d/examples-readme-follower.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/examples-images-rename.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/docs-fs-glob.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-3
+  s_e26152c3e6ca81::t_3faa930bfc9e7c 1
+changelog.d/docs-build-context-region.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_a71aee860cff33 1
+changelog.d/docs-kill-interactive-shell.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-3
+  s_e26152c3e6ca81::t_689e59e35d7b25 1
+changelog.d/examples-image-cleanup.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-4
+changelog.d/cli-help-secret-set.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-3
+changelog.d/docs-default-image.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_a0cf12e76b8b91 1
+changelog.d/examples-git-claims.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/docs-capture-session-examples.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_780b8dc2a097fd 1
+changelog.d/docs-fs-list-depth.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2
+  s_e26152c3e6ca81::t_0c7e52b74fdbc4 1
+changelog.d/docs-docker-off.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_340c5f2cdfdfe3 1
+changelog.d/cli-readme-cursors.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2
+  s_e26152c3e6ca81::t_6c9aaa9fa6fc48 1
+changelog.d/docs-pty-close-stdin.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-4
+  s_e26152c3e6ca81::t_7812cb6ec79078 1
+changelog.d/docs-create-timeout-range.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-3
+  s_e26152c3e6ca81::t_f82aa8df89b2d3 1
+changelog.d/docs-v0-import-guard.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_ccd21df10b1b51 1
+changelog.d/cli-readme-ci-output.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2
+  s_e26152c3e6ca81::t_bc385206ca34cd 1
+changelog.d/cli-readme-units.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2
+  s_e26152c3e6ca81::t_d1ad8e0ce84688 1
+changelog.d/docs-create-snapshot.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_4a5ec419b95d00 1
+changelog.d/cli-help-volume-flag.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/docs-if-match.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-4
+  s_e26152c3e6ca81::t_f4584da77f685c 1
+changelog.d/docs-python-asyncio.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2
+  s_e26152c3e6ca81::t_6cabed437323a5 1
+changelog.d/docs-persistence-lifecycle.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-4
+  s_e26152c3e6ca81::t_8a3e3f1731de67 1
+changelog.d/docs-reservations-get.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-3
+  s_e26152c3e6ca81::t_953b9679061486 1
+changelog.d/cli-help-search.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-3
+changelog.d/docs-image-regions.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_41b640a60fb619 1
+changelog.d/docs-volume-ids.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_0ccaa04a1ca2f0 1
+changelog.d/cli-help-get-id-or-name.fixed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1-2
+changelog.d/cli-help-required-roles.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/cli-help-volume-create-name.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/cli-readme-lifecycle-deadlines.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 2-3
+  s_e26152c3e6ca81::t_584d7989899480 1
+changelog.d/docs-fs-upload-atomic.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_710f3f03c3e1ac 1
+changelog.d/cli-help-auto-renew.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/upgrade-guide-stable.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/cli-help-cp.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-2
+changelog.d/examples-volume-notes.fixed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1-3
+changelog.d/docs-computer-use-availability.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 2-3
+  s_e26152c3e6ca81::t_6036a48d401ce7 1
+changelog.d/docs-account.changed.md
+  s_e26152c3e6ca81::t_6ba4292e6e9fba 1-3
+changelog.d/docs-git-operations.changed.md
+  s_e26152c3e6ca81::t_aba4792b0fac9f 1-4
+changelog.d/docs-retries-timeouts.changed.md
+  s_e26152c3e6ca81::t_38893bc1678c59 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cfc6ee0c71cd5c7e6c1e0695b303c777a2e12779",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

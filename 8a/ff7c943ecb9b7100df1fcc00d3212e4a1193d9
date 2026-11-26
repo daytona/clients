@@ -1,0 +1,24 @@
+sdk-python/src/daytona/handle/async_pty_handle.py
+  s_10413bdfe4b841::t_596cf7384946f0 146-149
+  s_10413bdfe4b841::t_e033f532c13e4d 16,145,153-156,162-165,167-174
+  s_10413bdfe4b841::t_139b58c094b3ca 157-158,166
+sdk-python/tests/test_pty_handle.py
+  s_10413bdfe4b841::t_7a975dc0975c1d 7,454-545
+  s_10413bdfe4b841::t_febcecef8fc0a4 546-547
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8aff7c943ecb9b7100df1fcc00d3212e4a1193d9",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+sdk-typescript/tests/search-persistent.test.ts
+  s_83d59457471a6f::t_165f416bd8dfcb 1-46
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_83d59457471a6f::t_947dab72d82df6 36
+sdk-typescript/src/v2/clientSearch.ts
+  s_83d59457471a6f::t_947dab72d82df6 132
+sdk-typescript/src/v2/types.ts
+  s_83d59457471a6f::t_947dab72d82df6 781-782
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01de3cd1ffdb87516ade2cad3c78eaacacc4ca18",
+  "prompts": {},
+  "sessions": {
+    "s_83d59457471a6f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de94db0d2ffe7Zh93rIYAqZpyU",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

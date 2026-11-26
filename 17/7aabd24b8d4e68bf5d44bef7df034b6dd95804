@@ -1,0 +1,65 @@
+changelog.d/cli-help-auto-renew.fixed.md
+  s_e26152c3e6ca81::t_99fb6c279b6079 1
+changelog.d/cli-help-cp-search.fixed.md
+  s_e26152c3e6ca81::t_7a66fa781f7f2d 1
+changelog.d/cli-help-get-and-volume.fixed.md
+  s_e26152c3e6ca81::t_69e9637c114ea5 1
+changelog.d/cli-help-required-roles.fixed.md
+  s_e26152c3e6ca81::t_55667d3a6ef6a6 1
+changelog.d/cli-help-secret-set.fixed.md
+  s_e26152c3e6ca81::t_795b51139c6847 1
+changelog.d/cli-help-volume-flag.fixed.md
+  s_e26152c3e6ca81::t_5aee96e18f46de 1
+changelog.d/cli-readme-scripting.fixed.md
+  s_e26152c3e6ca81::t_11a64c30cbe214 1
+changelog.d/docs-account.added.md
+  s_e26152c3e6ca81::t_2be0f5faecd541 1
+changelog.d/docs-capture-session-examples.fixed.md
+  s_e26152c3e6ca81::t_90dc4e22a4a187 1
+changelog.d/docs-create-snapshot.fixed.md
+  s_e26152c3e6ca81::t_2ec1a729021479 1
+changelog.d/docs-default-image-regions.fixed.md
+  s_e26152c3e6ca81::t_ff10a98990782d 1
+changelog.d/docs-fs-glob-list.fixed.md
+  s_e26152c3e6ca81::t_fa9d497408cdb2 1
+changelog.d/docs-git-operations.added.md
+  s_e26152c3e6ca81::t_78445ee0e42598 1
+changelog.d/docs-operational-notes.added.md
+  s_e26152c3e6ca81::t_62446af83b5013 1
+changelog.d/docs-persistence-lifecycle.fixed.md
+  s_e26152c3e6ca81::t_b71802d13fd026 1
+changelog.d/docs-pty-close-stdin.fixed.md
+  s_e26152c3e6ca81::t_7de58fad215841 1
+changelog.d/docs-removed-error.fixed.md
+  s_e26152c3e6ca81::t_675f216b7ef755 1
+changelog.d/docs-retries-timeouts.added.md
+  s_e26152c3e6ca81::t_0c1afe433b0067 1
+changelog.d/docs-v0-import-guard.fixed.md
+  s_e26152c3e6ca81::t_913787eefc22fe 1
+changelog.d/examples-git-claims.fixed.md
+  s_e26152c3e6ca81::t_c438ec26665471 1
+changelog.d/examples-image-cleanup.fixed.md
+  s_e26152c3e6ca81::t_a0c09bdde5ce42 1
+changelog.d/examples-images-rename.fixed.md
+  s_e26152c3e6ca81::t_97eb7ef493ee7d 1
+changelog.d/examples-readme-follower.fixed.md
+  s_e26152c3e6ca81::t_dc1051602c188f 1
+changelog.d/examples-volume-notes.fixed.md
+  s_e26152c3e6ca81::t_fd264d56686455 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "177aabd24b8d4e68bf5d44bef7df034b6dd95804",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

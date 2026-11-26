@@ -1,0 +1,60 @@
+sdk-python/src/daytona/v2/_auth.py
+  s_450c83ea6ec946::t_5a214f0aad1568 146,149
+  s_450c83ea6ec946::t_304fc338847d29 16-17
+sdk-go/doc.go
+  s_450c83ea6ec946::t_d13317bbfc8ef6 100-102
+sdk-go/options_test.go
+  s_450c83ea6ec946::t_a5e29a7ee5fc75 33-34,65-101,103,105
+  s_450c83ea6ec946::t_012b97802fae12 102
+  s_450c83ea6ec946::t_4d0cda7ff91017 104,106-107
+sdk-go/options.go
+  s_450c83ea6ec946::t_25cfa959a34fe0 39-40
+sdk-typescript/README.md
+  s_450c83ea6ec946::t_d13317bbfc8ef6 40,42,103-106,153
+sdk-typescript/src/v2/clientConfig.ts
+  s_450c83ea6ec946::t_5087b24b4be2b8 9,48-58,125-126
+sdk-python/src/daytona/v2/_transport.py
+  s_450c83ea6ec946::t_1438700ec858ef 168,296,328,337,365,434,459,758,875,878,894,896-897,985,1100,1103
+  s_450c83ea6ec946::t_5a214f0aad1568 51
+sdk-go/options_env.go
+  s_450c83ea6ec946::t_a5e29a7ee5fc75 63-80
+  s_450c83ea6ec946::t_1f09c8eeda0348 38-40,59-62,81-82
+  s_450c83ea6ec946::t_4ba43ec6aab358 83-84
+changelog.d/credential-format.security.md
+  s_450c83ea6ec946::t_ff08bbd8ead911 1-8
+sdk-python/tests/test_client_config.py
+  s_450c83ea6ec946::t_bcf7ad5c71e455 108-116,130-134,138-140,152-155
+  s_450c83ea6ec946::t_5dd54f45a77310 16,100-101,105-107,117-129,135-137,141-151,156
+  s_450c83ea6ec946::t_511485dd2ac6bc 157-158
+sdk-python/src/daytona/v2/_otel.py
+  s_450c83ea6ec946::t_5a214f0aad1568 12,74-75
+sdk-python/src/daytona/v2/_transport_errors.py
+  s_450c83ea6ec946::t_1588b932e16c35 1-44,47-49
+  s_450c83ea6ec946::t_bcf7ad5c71e455 45-46
+sdk-python/tests/test_transport_error_redaction.py
+  s_450c83ea6ec946::t_cc2bf3ca82bc13 1-90,92-143
+  s_450c83ea6ec946::t_3e60d8a3052aff 91
+sdk-typescript/tests/client-config.test.ts
+  s_450c83ea6ec946::t_6a656d08709e48 223-248
+sdk-python/README.md
+  s_450c83ea6ec946::t_d13317bbfc8ef6 147-150
+sdk-python/src/daytona/v2/daytona.py
+  s_450c83ea6ec946::t_4c2064513bb089 1445-1449,1451-1455,1488-1498
+  s_450c83ea6ec946::t_5139ae8e0c8158 1499-1500
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78c59c770d2590edcca10b8de3f97d6db0441086",
+  "prompts": {},
+  "sessions": {
+    "s_450c83ea6ec946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3b8c9ffemgoEzkgpQFwDrO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

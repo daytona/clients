@@ -1,0 +1,23 @@
+sdk-python/src/daytona/v2/daytona.py
+  s_6ad00827bee284::t_86fc2fdaa73dd6 353-355
+sdk-typescript/src/v2/Daytona.ts
+  s_6ad00827bee284::t_86fc2fdaa73dd6 203-206
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_6ad00827bee284::t_86fc2fdaa73dd6 181-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9deb7fd48a2b776e50ba6cdd60c050144e7d9090",
+  "prompts": {},
+  "sessions": {
+    "s_6ad00827bee284": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_def29e545ffeXKrEjPby9vpX7o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

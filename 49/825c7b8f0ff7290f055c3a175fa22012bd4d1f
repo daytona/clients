@@ -1,0 +1,33 @@
+sdk-python/src/daytona/v2/_core.py
+  s_11caeff751953a::t_1b2c8dc36254df 110,1879
+changelog.d/751-process-signal-inputs.fixed.md
+  s_11caeff751953a::t_eadbab968d10c7 1-11
+sdk-go/interpreter_r3_contexts_test.go
+  s_11caeff751953a::t_f56394d5c19915 36-37,39
+sdk-typescript/src/v2/ProcessWire.ts
+  s_11caeff751953a::t_1b2c8dc36254df 109-112
+changelog.d/751-process-interpreter-git-inputs.fixed.md
+  s_11caeff751953a::t_eadbab968d10c7 1-16
+sdk-go/process_signal.go
+  s_11caeff751953a::t_dd33d33376d607 23,49,59,63
+sdk-go/process_signal_inputs_test.go
+  s_11caeff751953a::t_5320b685aaef70 52-80
+sdk-go/interpreter_contexts.go
+  s_11caeff751953a::t_dd33d33376d607 24-25,31-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "49825c7b8f0ff7290f055c3a175fa22012bd4d1f",
+  "prompts": {},
+  "sessions": {
+    "s_11caeff751953a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0668b50ffeOv73s7qSp5mgQQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

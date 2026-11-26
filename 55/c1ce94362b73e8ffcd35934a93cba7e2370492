@@ -1,0 +1,20 @@
+sdk-go/sandbox_wait_revalidation_test.go
+  s_bd8e772cc63f66::t_0b2e9251c58bfc 365,373,384,389-418
+  s_bd8e772cc63f66::t_858c2a7e2f8ef0 419
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55c1ce94362b73e8ffcd35934a93cba7e2370492",
+  "prompts": {},
+  "sessions": {
+    "s_bd8e772cc63f66": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a41a73ffeI1UxOH6bGD07IM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

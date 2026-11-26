@@ -1,0 +1,86 @@
+sdk-python/src/daytona/v2/sandbox.py
+  s_d999daaefd2648::t_5e00f8d6b81660 1608
+  s_cac027eeb4a33c::t_0464597898d5f3 80,1357,1472-1473,1617,1761-1762,1787-1788
+  s_cac027eeb4a33c::t_1cb7b25f53927c 1370-1371,1404
+  s_d999daaefd2648::t_e6505da0844d59 1741
+  s_cac027eeb4a33c::t_fa072faba23c14 47
+  s_cac027eeb4a33c::t_f4e1ee753834c3 1405-1407,1742-1743,1776-1778
+  s_d999daaefd2648::t_939f7a3877f914 1609-1611
+  s_cac027eeb4a33c::t_8ea4e9bd75872f 358,959-961,1429,1504-1505,1510-1511,1521,1606-1607,1613
+  s_cac027eeb4a33c::t_89c208a97f2121 1779
+sdk-python/tests/test_transition_retry.py
+  s_cac027eeb4a33c::t_ffd4992b2740d6 204-243
+  s_cac027eeb4a33c::t_61a3cb6a2f0aad 13
+  s_cac027eeb4a33c::t_b832852d44b2c2 1-12,14-91,93-95,97-140,142-144,146-159,161-166,168-203
+  s_cac027eeb4a33c::t_9c6f9d1091fa32 92,96,141,145,160,167
+sdk-python/tests/test_sandbox_transition_operations.py
+  s_cac027eeb4a33c::t_4d409d11e347cf 14,139-146,163-170
+  s_cac027eeb4a33c::t_9c6f9d1091fa32 27-33,65,69,86-94,98-100,120-131,147-162
+  s_cac027eeb4a33c::t_78ef46961b0f00 1-13,15-26,34,36-64,66-68,70-85,95-97,101-119,132-138
+  s_cac027eeb4a33c::t_7709ee07a3fb12 35
+sdk-python/src/daytona/v2/daytona.py
+  s_d999daaefd2648::t_e6505da0844d59 310-312,646-648
+  s_cac027eeb4a33c::t_2e61c2da904ec0 858,870
+  s_cac027eeb4a33c::t_f4e1ee753834c3 313-314,645,649-651
+  s_cac027eeb4a33c::t_0464597898d5f3 286,308-309,371,401,424,614,674,750,1765,1796
+  s_cac027eeb4a33c::t_1cb7b25f53927c 840-841
+  s_cac027eeb4a33c::t_7c60be9a64c259 315
+  s_cac027eeb4a33c::t_36dfec81f85bbe 652
+sdk-python/src/daytona/v2/_core.py
+  s_cac027eeb4a33c::t_0464597898d5f3 865,883,889,891
+sdk-python/tests/test_core.py
+  s_cac027eeb4a33c::t_1991332108be16 4122-4123,4130-4134
+  s_d999daaefd2648::t_939f7a3877f914 12735
+sdk-python/tests/test_persistence_metadata.py
+  s_cac027eeb4a33c::t_fa072faba23c14 26,28,40
+  s_cac027eeb4a33c::t_45d64d81150e31 1-25,27,29-39,41-103
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_cac027eeb4a33c::t_a221a5485a066d 78-79,139-142,270-273,318-319
+  s_cac027eeb4a33c::t_197c5150ab0726 465
+  s_cac027eeb4a33c::t_ed6fd719836c4d 77
+sdk-python/tests/test_linux_persistence.py
+  s_cac027eeb4a33c::t_9c6f9d1091fa32 25-39,52-56,64,69-70,73,79-80,126-128,133-135,138-140
+  s_cac027eeb4a33c::t_1991332108be16 1-14,16-24,40-51,57-63,65-68,71-72,74-78,81-112,114-125,129-132,136-137,141-157
+  s_cac027eeb4a33c::t_4d409d11e347cf 15,158-200
+  s_cac027eeb4a33c::t_61a3cb6a2f0aad 113
+  s_cac027eeb4a33c::t_023612d7beebb7 201-219
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_cac027eeb4a33c::t_023612d7beebb7 432-433,438
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_cac027eeb4a33c::t_197c5150ab0726 114,136-137,143,202,230,288
+  s_cac027eeb4a33c::t_a221a5485a066d 141-142,261,265-267
+  s_cac027eeb4a33c::t_705b6056a51d06 138-140
+  s_cac027eeb4a33c::t_bfdb43b9e22283 262-264
+  s_cac027eeb4a33c::t_d273e297d5e3f3 268
+sdk-python/src/daytona/v2/_transition_retry.py
+  s_cac027eeb4a33c::t_0464597898d5f3 1-7,9-18,20-21
+  s_cac027eeb4a33c::t_7d9ba6a22da7c9 27-33
+  s_cac027eeb4a33c::t_8ea4e9bd75872f 8,19,22-26
+sdk-python/tests/test_lifecycle_policy_reads.py
+  s_cac027eeb4a33c::t_fa072faba23c14 4,43
+  s_cac027eeb4a33c::t_1991332108be16 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7cd03b805efc040841f64b6955538bf3b54ad67",
+  "prompts": {},
+  "sessions": {
+    "s_cac027eeb4a33c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb994b93ffeKpfbNO60RqOETX",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_d999daaefd2648": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb9a07e2ffevnirtQoEG2Ylur",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

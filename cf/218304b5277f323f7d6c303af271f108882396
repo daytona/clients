@@ -1,0 +1,19 @@
+sdk-go/lifecycle_persistence_test.go
+  s_725f6de4e08f07::t_22c7375dadda60 7,68,70-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf218304b5277f323f7d6c303af271f108882396",
+  "prompts": {},
+  "sessions": {
+    "s_725f6de4e08f07": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de926f641ffeAXSjDOX6xw8vsp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

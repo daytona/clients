@@ -1,0 +1,21 @@
+cli/internal/config/legacy.go
+  s_b970ccea92d9b1::t_ce9794a94ec85c 29-32
+cli/internal/config/legacy_test.go
+  s_b970ccea92d9b1::t_ce9794a94ec85c 59-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "080a4ab7f7159d6d5369d39cecec94be3ce4a1ae",
+  "prompts": {},
+  "sessions": {
+    "s_b970ccea92d9b1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3568bffevm7h9dNr3a3xBu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+sdk-go/exec_stream.go
+  s_8ccdc884dcfa86::t_32128dff676640 100,102-105
+  s_8ccdc884dcfa86::t_13243e219f8e9f 101
+sdk-go/process_stream.go
+  s_8ccdc884dcfa86::t_e08715b447db85 94-95,101,114-117,128-140,143-152,157-159,168-169,171,173-178,180,183,186,195-196,223,225,227
+  s_8ccdc884dcfa86::t_13243e219f8e9f 224,226
+sdk-python/src/daytona/v2/build_logs.py
+  s_8ccdc884dcfa86::t_8d3f5e78853722 250-254,718
+sdk-typescript/src/v2/BuildLogs.ts
+  s_8ccdc884dcfa86::t_c70d9fb159c3e1 87-92,474
+sdk-typescript/tests/build-logs-http-errors.test.ts
+  s_8ccdc884dcfa86::t_c70d9fb159c3e1 135,142-165
+  s_8ccdc884dcfa86::t_16f59e4a330775 166
+changelog.d/build-log-permanent-errors.changed.md
+  s_8ccdc884dcfa86::t_b6799ab55c44d1 1-7
+changelog.d/build-log-typed-cause.fixed.md
+  s_8ccdc884dcfa86::t_b6799ab55c44d1 1-5
+  s_8ccdc884dcfa86::t_52538d7df5e660 6-9
+sdk-go/exec_follow_idle_test.go
+  s_8ccdc884dcfa86::t_ff5c33b8eeca18 229-235,238
+  s_8ccdc884dcfa86::t_32128dff676640 216-228,236-237,239-304
+sdk-python/tests/test_build_logs_http_errors.py
+  s_8ccdc884dcfa86::t_177ad0de642667 9-11,197-226
+  s_8ccdc884dcfa86::t_7837ab5ec8ab72 227-228
+sdk-go/README.md
+  s_8ccdc884dcfa86::t_2179de3402754b 215-217
+sdk-go/fs.go
+  s_8ccdc884dcfa86::t_95fbe09c43e324 43-44,58,60-61
+sdk-go/fs_search.go
+  s_8ccdc884dcfa86::t_c3e30f683ff844 19-20,30-31
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_8ccdc884dcfa86::t_4cc48c2300aaeb 54-57,98-101,119-122,203-206,218-221
+sdk-python/src/daytona/v2/filesystem.py
+  s_8ccdc884dcfa86::t_a6cad7ae921091 607-610,648-651,677-680,701-704,734-737
+sdk-typescript/src/v2/types.ts
+  s_8ccdc884dcfa86::t_eb1f2cb31a0aee 1225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91416d1b4f89a3b3d388c3c0e47f8839131f9607",
+  "prompts": {},
+  "sessions": {
+    "s_8ccdc884dcfa86": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b85d6ffewDZ0J2Dq0Q1525",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

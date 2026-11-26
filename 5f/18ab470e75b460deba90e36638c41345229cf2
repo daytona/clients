@@ -1,0 +1,24 @@
+sdk-python/tests/test_interpreter_shutdown.py
+  s_24803b7d9359b3::t_d4af83b2aa5fc3 115,409
+  s_24803b7d9359b3::t_b79d36b2585da5 14,35-36,112,406
+  s_24803b7d9359b3::t_a3239c86f68baf 38-70,77,80,93,110,338,341,365,404
+  s_24803b7d9359b3::t_46869e92c54afb 37
+sdk-python/README.md
+  s_24803b7d9359b3::t_a9d079967b6e0c 91-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f18ab470e75b460deba90e36638c41345229cf2",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

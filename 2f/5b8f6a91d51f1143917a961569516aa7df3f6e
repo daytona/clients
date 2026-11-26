@@ -1,0 +1,44 @@
+sdk-python/README.md
+  s_24803b7d9359b3::t_0ea7d45d6fa3a4 92-98,1037-1038
+  s_24803b7d9359b3::t_95560120d66280 1039-1040
+sdk-python/src/daytona/v2/_context_upload.py
+  s_24803b7d9359b3::t_537ae67eb85b37 28,369-384
+sdk-python/tests/test_transfer_cancel.py
+  s_24803b7d9359b3::t_e42b26e2e99dff 16,141-157,159-160,162-171
+  s_24803b7d9359b3::t_b03acd38bff359 158,161
+  s_24803b7d9359b3::t_6478f16400e3a9 172-173
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  s_24803b7d9359b3::t_537ae67eb85b37 23,27,109-113,123-127,200-205,248-257
+  s_24803b7d9359b3::t_e42b26e2e99dff 128,135-137
+  s_24803b7d9359b3::t_0ea7d45d6fa3a4 6-8
+  s_24803b7d9359b3::t_386b6039f14c3d 138
+sdk-python/src/daytona/v2/filesystem.py
+  s_24803b7d9359b3::t_f3c1c0b5503a36 66
+  s_24803b7d9359b3::t_537ae67eb85b37 452,501
+  s_24803b7d9359b3::t_0ea7d45d6fa3a4 489-490
+changelog.d/python-transfer-cancel-wakeups.fixed.md
+  s_24803b7d9359b3::t_0ea7d45d6fa3a4 5-6
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_24803b7d9359b3::t_0ea7d45d6fa3a4 71-72
+sdk-python/tests/test_interpreter_shutdown.py
+  s_24803b7d9359b3::t_32abe731e2d01b 299-314,325-428,430-431
+  s_24803b7d9359b3::t_8a2046efb9e2ae 315-324,429
+changelog.d/python-shutdown-refusal.fixed.md
+  s_24803b7d9359b3::t_0ea7d45d6fa3a4 6-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f5b8f6a91d51f1143917a961569516aa7df3f6e",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+sdk-typescript/tests/client-config.test.ts
+  s_d224a4b57159e6::t_f9dab89ad5bcf4 459-462
+sdk-typescript/src/v2/BuildLogs.ts
+  s_d224a4b57159e6::t_1cae7f23fad14d 472
+sdk-typescript/tests/build-logs.test.ts
+  s_d224a4b57159e6::t_f9dab89ad5bcf4 7,91-132
+  s_d224a4b57159e6::t_5ac42b01da2cf5 133
+sdk-typescript/tests/unit.test.ts
+  s_d224a4b57159e6::t_f9dab89ad5bcf4 2908-2909,12611
+  s_d224a4b57159e6::t_c5f7c4fd7399d9 12612
+sdk-typescript/tests/error-fidelity.test.ts
+  s_d224a4b57159e6::t_5c5c476d0714ec 67-69
+  s_d224a4b57159e6::t_f9dab89ad5bcf4 91,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0b7e9ac10451f457d8ff94bf5ec0815f4066bd5",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

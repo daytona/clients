@@ -1,0 +1,14 @@
+contract/api-openapi.json
+  h_e7759ddd73fa65 432,3036-3039,27949,28075,30083,32945-32951
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "638b909557ddd05bb37a38c2663363cb3dabcb46",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

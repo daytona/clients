@@ -1,0 +1,21 @@
+sdk-typescript/src/v2/types.ts
+  s_6ad00827bee284::t_2d4a943ab4d6fc 254
+sdk-python/src/daytona/v2/types.py
+  s_6ad00827bee284::t_2d4a943ab4d6fc 432
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "273331de7c2d692b5d485494fe665784574838bb",
+  "prompts": {},
+  "sessions": {
+    "s_6ad00827bee284": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_def29e545ffeXKrEjPby9vpX7o",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

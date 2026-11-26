@@ -1,0 +1,31 @@
+cli/internal/input/request_fields_gen.go
+  s_6e322574d5704f::t_704e0a3c8a2e2f 128
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_fb683fe2b3df34::t_fd4a113d04f19f 3
+sdk-typescript/src/v2/gen/api.ts
+  s_fb683fe2b3df34::t_fc8d2a866f1db2 2961,4107-4108,18155,18227,19385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "824cf649f8f2bf7c546f7150fcb677f1bd88b120",
+  "prompts": {},
+  "sessions": {
+    "s_6e322574d5704f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb993428ffeEYt3rRgPNVFklC",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_fb683fe2b3df34": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb992f5fffe4JbMV0Dn0Q2BZ3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

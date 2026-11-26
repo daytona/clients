@@ -1,0 +1,19 @@
+sdk-go/build_logs_request.go
+  s_b5788db0bcfac8::t_87dbc7a438fb14 11,20-21,50-51,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0abf673139b9c91627c97b3ae3c6e12c28cea89",
+  "prompts": {},
+  "sessions": {
+    "s_b5788db0bcfac8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defaefaf0ffed9xI1aKFESdygL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

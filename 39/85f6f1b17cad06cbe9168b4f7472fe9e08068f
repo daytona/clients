@@ -1,0 +1,21 @@
+cli/cmd/login_only_test.go
+  s_b970ccea92d9b1::t_9fad6f1044caad 362
+  s_b970ccea92d9b1::t_bc056592c6e256 361,363-385
+  s_b970ccea92d9b1::t_72552bed0fcf47 282-330,333-335,340-346,348-352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3985f6f1b17cad06cbe9168b4f7472fe9e08068f",
+  "prompts": {},
+  "sessions": {
+    "s_b970ccea92d9b1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3568bffevm7h9dNr3a3xBu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

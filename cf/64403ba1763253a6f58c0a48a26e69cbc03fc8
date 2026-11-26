@@ -1,0 +1,14 @@
+sdk-python/pyproject.toml
+  h_e7759ddd73fa65 2,15-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf64403ba1763253a6f58c0a48a26e69cbc03fc8",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

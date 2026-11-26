@@ -1,0 +1,23 @@
+sdk-python/src/daytona/v2/errors.py
+  s_d224a4b57159e6::t_61af13166b3b82 105-116
+sdk-python/tests/test_error_pickle.py
+  s_d224a4b57159e6::t_ed5c2734286de8 16,27-28,35,113
+  s_d224a4b57159e6::t_8b3372a9ad0cb1 29-34,52-54,99-101
+  s_d224a4b57159e6::t_a7332ef010974e 1-15,17-26,36-51,55-98,102-112,114-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a072fb7ddcc8bb011220f3244c193d603fb3adc1",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+cli/cmd/sandbox_search.go
+  s_680d0d36c83fce::t_221e7b9579c072 57-62
+cli/cmd/blank_args_test.go
+  s_680d0d36c83fce::t_e009a66b9f5724 41-42,58,72
+  s_680d0d36c83fce::t_774bd9eb671dbf 150,152-153
+  s_680d0d36c83fce::t_991a01ed74db66 8-9,19-21,27-28,30-38,43,45,47-48,50,67-68,82-106,108-117,120-122,128,136-137,140,144-145,149,151
+  s_680d0d36c83fce::t_9fc58f22d09f09 39-40,44
+cli/cmd/config.go
+  s_680d0d36c83fce::t_221e7b9579c072 33-36
+cli/cmd/usage_errors.go
+  s_680d0d36c83fce::t_221e7b9579c072 8,35-39,43-45,47,62-76,86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b42e6e052691e8356b14bd646c6154cc82053ac8",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

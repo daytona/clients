@@ -1,0 +1,89 @@
+sdk-go/errors_response.go
+  s_d999daaefd2648::t_13228ccd86a528 81
+sdk-go/codes_catalog_8.go
+  s_fb683fe2b3df34::t_9208be2c09dd18 1-18
+sdk-go/create_from_build_test.go
+  s_fb683fe2b3df34::t_630ac8d320db97 39,44,79
+sdk-go/sandbox_lifecycle.go
+  s_fb683fe2b3df34::t_2454bd06183cd2 13,22-23
+sdk-go/sandbox_create.go
+  s_fb683fe2b3df34::t_ddc9225c647258 58-61,79
+sdk-go/errors.go
+  s_fb683fe2b3df34::t_2454bd06183cd2 80
+  s_d999daaefd2648::t_6cbfe22e3c0804 78-79
+sdk-go/sandbox_policy_test.go
+  s_fb683fe2b3df34::t_630ac8d320db97 17,19,99,118
+  s_d999daaefd2648::t_2b86d81e4eca8c 100
+sdk-go/sandbox_wait_read.go
+  s_fb683fe2b3df34::t_f38f1c6ef01794 95
+sdk-go/sandbox_policy.go
+  s_fb683fe2b3df34::t_ddc9225c647258 25-27
+  s_d999daaefd2648::t_2b86d81e4eca8c 12-13
+sdk-go/capture.go
+  s_fb683fe2b3df34::t_ddc9225c647258 43,72
+  s_d999daaefd2648::t_fc776f4d68417a 26-28,60-62
+sdk-go/sandbox_transition_test.go
+  s_d999daaefd2648::t_e3374e9098a8bd 153
+  s_d999daaefd2648::t_2b86d81e4eca8c 13,143
+  s_fb683fe2b3df34::t_bb978f4d60a0ff 1-12,14-142,144-152,154-166
+sdk-go/create_submit.go
+  s_fb683fe2b3df34::t_ddc9225c647258 129,136-137
+  s_fb683fe2b3df34::t_1fccbcebe7166a 138
+sdk-go/sandbox_transition.go
+  s_fb683fe2b3df34::t_2454bd06183cd2 24-27
+  s_fb683fe2b3df34::t_ddc9225c647258 1-23,28-39
+sdk-go/create_options.go
+  s_fb683fe2b3df34::t_ddc9225c647258 44-45,49,59-60
+  s_d999daaefd2648::t_18534d58f41cb2 46-47
+  s_d999daaefd2648::t_68a2c0dad41dff 48
+sdk-go/lifecycle_persistence_test.go
+  s_fb683fe2b3df34::t_bb978f4d60a0ff 8,30
+  s_fb683fe2b3df34::t_2d13ea796c88f5 73-93
+  s_fb683fe2b3df34::t_630ac8d320db97 1-7,9-29,31-72
+sdk-go/sandbox_transition_methods_test.go
+  s_d999daaefd2648::t_2b86d81e4eca8c 13,43
+  s_fb683fe2b3df34::t_bb978f4d60a0ff 1-12,14-42,44-105
+  s_fb683fe2b3df34::t_2d13ea796c88f5 106-146
+sdk-go/create_persistence_test.go
+  s_fb683fe2b3df34::t_630ac8d320db97 1-99
+sdk-go/persistence_observation_test.go
+  s_fb683fe2b3df34::t_ea60be9bc63790 61
+  s_fb683fe2b3df34::t_bf0aaa0e35ec8c 1-60,62-73
+sdk-go/macos_create.go
+  s_fb683fe2b3df34::t_2454bd06183cd2 42,44
+sdk-go/sandbox.go
+  s_fb683fe2b3df34::t_f38f1c6ef01794 132,141-147
+  s_fb683fe2b3df34::t_6b22bc3db96b83 148-149
+sdk-go/sandbox_policy_options.go
+  s_fb683fe2b3df34::t_ddc9225c647258 16-17,85-86,89-91
+sdk-go/sandbox_lifecycle_fork.go
+  s_fb683fe2b3df34::t_ddc9225c647258 63,147
+  s_fb683fe2b3df34::t_2454bd06183cd2 37
+  s_d999daaefd2648::t_fc776f4d68417a 38-40
+sdk-go/create_validation_test.go
+  s_fb683fe2b3df34::t_630ac8d320db97 125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56307cb5a86418807ff10e97a8ac87000463765b",
+  "prompts": {},
+  "sessions": {
+    "s_d999daaefd2648": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb9a07e2ffevnirtQoEG2Ylur",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_fb683fe2b3df34": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb992f5fffe4JbMV0Dn0Q2BZ3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

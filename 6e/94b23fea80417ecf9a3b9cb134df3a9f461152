@@ -1,0 +1,32 @@
+sdk-python/tests/test_config_validation.py
+  s_d224a4b57159e6::t_b7ab4d83cbde73 229-232
+sdk-python/src/daytona/v2/sandbox.py
+  s_d224a4b57159e6::t_dea997a34f7451 2398-2401
+  s_d224a4b57159e6::t_a3aefe895de954 2407-2409
+sdk-typescript/src/v2/toolboxUrl.ts
+  s_d224a4b57159e6::t_dea997a34f7451 58-59
+sdk-go/sandbox_get.go
+  s_d224a4b57159e6::t_dea997a34f7451 10,120-131,134-137,147-151
+sdk-go/toolbox_url_validation_test.go
+  s_d224a4b57159e6::t_b7ab4d83cbde73 80-83,118
+sdk-typescript/tests/config-validation.test.ts
+  s_d224a4b57159e6::t_b7ab4d83cbde73 27,108-111
+changelog.d/sdk-toolbox-url-override.breaking.md
+  s_d224a4b57159e6::t_9b4496f2a55d54 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e94b23fea80417ecf9a3b9cb134df3a9f461152",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
