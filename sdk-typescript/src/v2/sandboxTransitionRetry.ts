@@ -20,7 +20,7 @@ export async function retrySandboxTransition<T>(
   const deadline = Math.min(Date.now() + 30_000, options.deadline ?? Infinity)
   for (;;) {
     options.ensureOpen?.()
-    if (options.signal?.aborted) throw new TransferCancelledError()
+    if (options.signal?.aborted) throw new TransferCancelledError('sandbox transition retry cancelled')
     try {
       return await attempt()
     } catch (error) {
@@ -31,19 +31,19 @@ export async function retrySandboxTransition<T>(
       if (remaining <= 0) throw error
       await retryDelay(Math.min(delay, remaining), options.signal)
       options.ensureOpen?.()
-      if (options.signal?.aborted) throw new TransferCancelledError()
+      if (options.signal?.aborted) throw new TransferCancelledError('sandbox transition retry cancelled')
       if (Date.now() >= deadline) throw error
     }
   }
 }
 
 function retryDelay(ms: number, signal: GenericAbortSignal | undefined): Promise<void> {
-  if (signal?.aborted) return Promise.reject(new TransferCancelledError())
+  if (signal?.aborted) return Promise.reject(new TransferCancelledError('sandbox transition retry cancelled'))
   return new Promise((resolve, reject) => {
     const abort = (): void => {
       clearTimeout(timer)
       signal?.removeEventListener?.('abort', abort)
-      reject(new TransferCancelledError())
+      reject(new TransferCancelledError('sandbox transition retry cancelled'))
     }
     const timer = setTimeout(() => {
       signal?.removeEventListener?.('abort', abort)

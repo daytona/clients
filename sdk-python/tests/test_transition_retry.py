@@ -157,6 +157,7 @@ async def test_cancellation_interrupts_backoff(monkeypatch: pytest.MonkeyPatch) 
     # Given a transition conflict and a cancellable sleep.
     started = anyio.Event()
     finished = anyio.Event()
+    cancelled = anyio.Event()
 
     async def sleeping(seconds: float) -> None:
         started.set()
@@ -170,16 +171,25 @@ async def test_cancellation_interrupts_backoff(monkeypatch: pytest.MonkeyPatch) 
         return_value=httpx.Response(409, json={"code": _CODE, "message": "busy", "source": "DAYTONA_API"})
     )
     api = AsyncTransport("https://api.invalid", "key")
+
+    async def submit() -> None:
+        try:
+            await _transition_retry.send_with_transition_retry(api, _SPEC)
+        except anyio.get_cancelled_exc_class():
+            cancelled.set()
+            raise
+
     try:
         # When the caller cancels during backoff.
         async with anyio.create_task_group() as group:
-            group.start_soon(_transition_retry.send_with_transition_retry, api, _SPEC)
+            group.start_soon(submit)
             await started.wait()
             group.cancel_scope.cancel()
     finally:
         await api.close()
     # Then cancellation unwinds without another request.
     assert finished.is_set()
+    assert cancelled.is_set()
     assert route.call_count == 1
 
 

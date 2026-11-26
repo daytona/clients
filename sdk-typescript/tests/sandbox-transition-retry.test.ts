@@ -89,7 +89,29 @@ describe('sandbox transition retry', () => {
     controller.abort()
     // Then cancellation interrupts the delay and releases its timer.
     expect(await result).toBeInstanceOf(TransferCancelledError)
+    expect(await result).toMatchObject({
+      message: 'sandbox transition retry cancelled',
+      statusCode: 499,
+      code: 'REQUEST_CANCELLED',
+      source: 'SDK',
+    })
     expect(attempt).toHaveBeenCalledTimes(1)
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it.each([true, false])('reports transition cancellation before backoff (already aborted=%s)', async (alreadyAborted) => {
+    // Given cancellation before submission or while the first request is rejected,
+    const controller = new AbortController()
+    if (alreadyAborted) controller.abort()
+    const attempt = jest.fn(async () => {
+      controller.abort()
+      throw transition()
+    })
+    // When retrying, then cancellation keeps its SDK shape and operation context.
+    await expect(retrySandboxTransition(attempt, { signal: controller.signal })).rejects.toMatchObject({
+      message: 'sandbox transition retry cancelled', code: 'REQUEST_CANCELLED', statusCode: 499, source: 'SDK',
+    })
+    expect(attempt).toHaveBeenCalledTimes(alreadyAborted ? 0 : 1)
     expect(jest.getTimerCount()).toBe(0)
   })
 
