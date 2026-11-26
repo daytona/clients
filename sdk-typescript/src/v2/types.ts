@@ -500,10 +500,11 @@ export interface CreateRequestBaseOptions {
 export interface CreateSandboxOptions extends CreateRequestBaseOptions {
   /**
    * Preserve disk across stop/start and memory and processes across pause/resume.
-   * Linux stop, start, restart, pause, resume and fork require persistence.
+   * Linux stop, start, pause, resume and fork require persistence.
    * Persistent Linux creation accepts volumes, but attached volumes prevent
-   * pause and fork (409). Forks inherit persistence. Without a lifecycle policy,
-   * the default lifetime timeout pauses after 300 seconds instead of deleting.
+   * pause and fork (409). Forks inherit persistence. When neither a per-create
+   * policy nor a project lifecycle default overrides it, the platform lifetime
+   * timeout pauses after 300 seconds instead of deleting.
    * Omitted or null uses the server default (false).
    */
   readonly persistent?: boolean

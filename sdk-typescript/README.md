@@ -1052,8 +1052,10 @@ differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 Pass `persistent: true` to `daytona.v2.create()` or `createFromBuild()` to
 preserve a Linux sandbox. `stop()` / `start()` keep its disk but boot fresh
 processes; `pause()` / `resume()` also preserve memory and running processes.
-These verbs require persistence. Sandboxes with attached volumes cannot pause
-or fork. Without a lifecycle-policy override, a persistent Linux sandbox has
+These verbs and Linux `fork()` require persistence.
+Sandboxes with attached volumes cannot pause or fork.
+When neither a per-create policy nor a project lifecycle default overrides it,
+a persistent Linux sandbox has
 a 300-second lifetime timeout (`timeoutSeconds: 300`) whose action is pause;
 this is not an idle timeout.
 
@@ -1106,6 +1108,7 @@ a paused or stopped source waits for `stopped`, within the same wait budget.
 `SANDBOX_TRANSITION_IN_PROGRESS` conflicts for up to 30 seconds from their
 first submission attempt. Delays use `retryAfterSeconds`, clamped to 1–5
 seconds. Other conflicts are not retried, and expiry throws the last conflict.
+The window limits new retries; an admitted POST keeps its normal request timeout.
 This applies to a fork's source still starting, stopping or pausing; image capture
 still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
 still starting.
