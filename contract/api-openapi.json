@@ -301,7 +301,7 @@
             }
           }
         },
-        "description": "The request was rate limited, the service is overloaded, or a limit was reached (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `TOO_MANY_REQUESTS`)",
+        "description": "The request was rate limited, the service is overloaded, a limit was reached, or the sandbox is busy (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `DELETE_LOCK_TIMEOUT`, `TOO_MANY_REQUESTS`)",
         "headers": {
           "Retry-After": {
             "$ref": "#/components/headers/Retry-After"
@@ -418,6 +418,7 @@
           "SIGNUP_NOT_INVITED",
           "USER_SUSPENDED",
           "OVERLOADED",
+          "DELETE_LOCK_TIMEOUT",
           "RATE_LIMITED",
           "LIMIT_EXCEEDED",
           "IMAGE_TOO_LARGE",
@@ -429,7 +430,6 @@
           "SECRET_ALREADY_EXISTS",
           "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL",
           "NETWORK_POLICY_TRANSITION_IN_PROGRESS",
-          "SANDBOX_TRANSITION_IN_PROGRESS",
           "BILLING_DISABLED",
           "BILLING_UNREACHABLE",
           "BILLING_UNAVAILABLE",
@@ -488,6 +488,8 @@
           "ECR_CREDENTIALS_INVALID",
           "ECR_ACCOUNT_MISMATCH",
           "ECR_OWNERSHIP_UNVERIFIABLE",
+          "BUCKET_ROLE_INVALID",
+          "BUCKET_ROLE_UNVERIFIABLE",
           "IMAGE_NOT_FOUND",
           "IMAGE_NOT_READY",
           "IMAGE_BUILD_FAILED",
@@ -1360,30 +1362,40 @@
         "type": "object"
       },
       "BucketCredentials": {
-        "description": "Secret names used to access an external bucket.",
+        "description": "How the platform accesses an external bucket: either both secret names, or\n`role_arn` alone.",
         "properties": {
           "access_key_secret": {
             "description": "The project secret containing the access key.",
             "example": "AWS_KEY",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_arn": {
+            "description": "An IAM role in your AWS account that the platform assumes, with your\norganization ID as its `ExternalId`. Replaces the secret names; AWS\nbuckets only.",
+            "example": "arn:aws:iam::123456789012:role/daytona-bucket",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "secret_key_secret": {
             "description": "The project secret containing the secret key.",
             "example": "AWS_SECRET",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": [
-          "access_key_secret",
-          "secret_key_secret"
-        ],
         "type": "object"
       },
       "BucketOptions": {
         "description": "The customer's own bucket, for a bucket volume with origin `external`.",
         "properties": {
           "credentials": {
-            "description": "The secret names used to access the bucket.",
+            "description": "How the platform accesses the bucket: two project secret names, or an\nIAM role to assume.",
             "oneOf": [
               {
                 "type": "null"
@@ -2469,9 +2481,9 @@
             ]
           },
           "secrets": {
-            "description": "Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.",
+            "description": "Project secrets to attach. Each is a secret name, injected under an\nenvironment variable of the same name, or an object that names the\nvariable: `{\"name\": \"tenant-a-openai\", \"env\": \"OPENAI_API_KEY\"}`.\nSecret values are used only for requests to their allowed hosts.",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SandboxSecretAttachment"
             },
             "type": "array"
           },
@@ -2938,6 +2950,10 @@
               "null"
             ]
           },
+          "desktop": {
+            "$ref": "#/components/schemas/DesktopConfig",
+            "description": "Provision a Linux desktop. An empty object selects XFCE at 1280\u00d7720.\nRequires desktop creates to be enabled. Boot limits must be at least\n1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME."
+          },
           "disk_max_mib": {
             "description": "Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when\nrestoring a snapshot, it must equal the captured disk size or be absent.",
             "format": "int32",
@@ -3033,10 +3049,6 @@
               }
             ]
           },
-          "persistent": {
-            "description": "Whether writable state persists across stops. Defaults to `false`.",
-            "type": "boolean"
-          },
           "ports": {
             "description": "Ports exposed when the sandbox starts.",
             "items": {
@@ -3052,9 +3064,9 @@
             ]
           },
           "secrets": {
-            "description": "Secret names made available to the sandbox.",
+            "description": "Project secrets to attach. Each is a secret name, injected under an\nenvironment variable of the same name, or an object that names the\nvariable: `{\"name\": \"tenant-a-openai\", \"env\": \"OPENAI_API_KEY\"}`.",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SandboxSecretAttachment"
             },
             "type": "array"
           },
@@ -3226,6 +3238,24 @@
         ],
         "type": "object"
       },
+      "DataPolicy": {
+        "description": "The data policy of an organization, project or sandbox. `standard`: the default. `zdr`: zero data retention, which is not available yet: no sandbox can be created under it.",
+        "enum": [
+          "standard",
+          "zdr"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "DataPolicyStatus": {
+        "description": "Whether the current data policy applies in every region. `pending`: at least one region has not applied it yet; read it again to check. `effective`: every region applies it.",
+        "enum": [
+          "pending",
+          "effective"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "DeclineInvitationRequest": {
         "properties": {
           "token": {
@@ -3235,6 +3265,84 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "DesktopConfig": {
+        "additionalProperties": false,
+        "description": "Desktop settings. Omit a member for its default: xfce, 1280\u00d7720.",
+        "properties": {
+          "environment": {
+            "default": "xfce",
+            "description": "Desktop session: xfce or gnome. Omitted = xfce.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DesktopEnvironment"
+              }
+            ]
+          },
+          "resolution": {
+            "default": {
+              "height": 720,
+              "width": 1280
+            },
+            "description": "Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DesktopResolution"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "DesktopEnvironment": {
+        "description": "Linux desktop session selected at create time.",
+        "enum": [
+          "xfce",
+          "gnome"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "DesktopResolution": {
+        "additionalProperties": false,
+        "description": "Supported display geometry: 1024\u00d7768, 1280\u00d7720, or 1920\u00d71080.",
+        "properties": {
+          "height": {
+            "description": "Height in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "DesktopSettings": {
+        "description": "Concrete create-time desktop settings. This records the request, not the\nlive guest state; GET /computeruse/display/info reports the live display size.",
+        "properties": {
+          "environment": {
+            "$ref": "#/components/schemas/DesktopEnvironment",
+            "description": "Desktop session the sandbox was created with."
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/DesktopResolution",
+            "description": "Exactly 1024\u00d7768, 1280\u00d7720, or 1920\u00d71080."
+          }
+        },
+        "required": [
+          "environment",
+          "resolution"
         ],
         "type": "object"
       },
@@ -5613,6 +5721,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The organization's data policy, set by Daytona. A project can be\nstricter than its organization, never looser."
+          },
           "from_v0": {
             "description": "Whether the organization was migrated from Daytona v0.",
             "type": "boolean"
@@ -7044,6 +7156,10 @@
               "null"
             ]
           },
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The project's own data policy. The policy new sandboxes are created\nunder is `zdr` when the project or its organization is `zdr`."
+          },
           "default": {
             "description": "Whether this is the organization's default project.",
             "type": "boolean"
@@ -7353,6 +7469,57 @@
           "period_start_date",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "ProjectDataPolicy": {
+        "description": "A project's data policy.",
+        "properties": {
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The project's own data policy."
+          },
+          "effective_data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The policy new sandboxes in the project are created under: `zdr` when\nthe project or its organization is `zdr`."
+          },
+          "not_covered": {
+            "description": "Existing resources of the project the effective policy does not cover,\nat most 1000: a policy applies only to sandboxes created after it is\nset. These are the live sandboxes created under the standard policy,\nand every image, snapshot and volume of the project. The list holds\nthe resources the organization's home region knows of.",
+            "items": {
+              "$ref": "#/components/schemas/UncoveredResource"
+            },
+            "type": "array"
+          },
+          "not_covered_count": {
+            "description": "How many existing resources the effective policy does not cover; more\nthan the length of `not_covered` when the list is cut at 1000.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "notice": {
+            "description": "What the effective policy means for sandbox creation, or null under the\nstandard policy.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_id": {
+            "description": "The project ID.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DataPolicyStatus",
+            "description": "Whether every region applies the project's current data policy."
+          }
+        },
+        "required": [
+          "project_id",
+          "data_policy",
+          "effective_data_policy",
+          "status",
+          "not_covered",
+          "not_covered_count",
+          "notice"
         ],
         "type": "object"
       },
@@ -8313,6 +8480,14 @@
               "null"
             ]
           },
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The data policy the sandbox was created under. It never changes: a\nlater change to the project's or organization's policy applies only to\nsandboxes created after it."
+          },
+          "desktop": {
+            "$ref": "#/components/schemas/DesktopSettings",
+            "description": "Desktop settings this sandbox was created with: the create request, or for\na restored or forked sandbox the settings captured from its source. Not\nlive state: a desktop restart can change them. GET /computeruse/display/info\nreports the live display size. Omitted when the sandbox has no desktop, and\nfrom batch-wait (`GET /sandboxes/batch-wait`) snapshots."
+          },
           "disk_max_mib": {
             "description": "Maximum writable disk size in MiB.",
             "format": "int32",
@@ -8961,6 +9136,60 @@
         "type": "string",
         "x-daytona-open-enum": true
       },
+      "SandboxSecretAttachment": {
+        "description": "One secret to attach: a secret name, injected under that name, or an\nobject that names the variable separately.",
+        "oneOf": [
+          {
+            "description": "The secret name. The secret is injected under an environment variable\nof the same name.",
+            "type": "string"
+          },
+          {
+            "$ref": "#/components/schemas/SandboxSecretAttachmentBinding",
+            "description": "A secret and the environment variable it is injected under."
+          }
+        ]
+      },
+      "SandboxSecretAttachmentBinding": {
+        "additionalProperties": false,
+        "description": "A secret and the environment variable it is injected under.",
+        "properties": {
+          "env": {
+            "description": "The environment variable the secret is injected under. Defaults to the\nsecret name.",
+            "example": "OPENAI_API_KEY",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "The secret name.",
+            "example": "tenant-a-openai",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "SandboxSecretBinding": {
+        "description": "One attached secret as a sandbox reports it.",
+        "properties": {
+          "env": {
+            "description": "The environment variable the secret is injected under.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The secret name.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "env"
+        ],
+        "type": "object"
+      },
       "SandboxSecrets": {
         "description": "The secrets attached to a sandbox: the requested names and how far the\nsandbox has applied them.",
         "properties": {
@@ -8971,6 +9200,13 @@
               "integer",
               "null"
             ]
+          },
+          "bindings": {
+            "description": "The requested secrets and the environment variable each is injected\nunder, in the order of `secrets`.",
+            "items": {
+              "$ref": "#/components/schemas/SandboxSecretBinding"
+            },
+            "type": "array"
           },
           "capture_status": {
             "description": "For a restored or forked sandbox, how much of the source's secrets the\ncopy received: `complete`, `partial` or an unknown status.",
@@ -9460,6 +9696,20 @@
         ],
         "type": "object"
       },
+      "SetProjectDataPolicyRequest": {
+        "additionalProperties": false,
+        "description": "Body of the project data policy write. Unknown fields are rejected.",
+        "properties": {
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The project's data policy. Only `zdr` will be accepted: switching a\nproject back to `standard` is done by Daytona."
+          }
+        },
+        "required": [
+          "data_policy"
+        ],
+        "type": "object"
+      },
       "SetRegistryRequest": {
         "description": "Registry credentials. Passwords are encrypted at rest and are write-only.",
         "properties": {
@@ -9560,9 +9810,9 @@
         "additionalProperties": false,
         "properties": {
           "secrets": {
-            "description": "The complete desired set of project secret names. Required; send `[]`\nto detach every secret.",
+            "description": "The complete desired set of project secrets. Each is a secret name,\ninjected under an environment variable of the same name, or an object\nthat names the variable. Required; send `[]` to detach every secret.",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SandboxSecretAttachment"
             },
             "type": "array"
           }
@@ -10091,6 +10341,43 @@
         ],
         "type": "object"
       },
+      "UncoveredResource": {
+        "description": "A resource of the project that the data policy does not cover.",
+        "properties": {
+          "id": {
+            "description": "The resource ID.",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/UncoveredResourceKind",
+            "description": "The kind of the resource."
+          },
+          "name": {
+            "description": "The resource name, or null when the resource has none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "UncoveredResourceKind": {
+        "description": "The kind of a resource.",
+        "enum": [
+          "sandbox",
+          "image",
+          "snapshot",
+          "volume"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "UpdateAuditConfigRequest": {
         "properties": {
           "disabled": {
@@ -10414,6 +10701,37 @@
             "minimum": 1,
             "type": [
               "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "UpdateSecretRequest": {
+        "additionalProperties": false,
+        "description": "A partial update of an existing secret. Every field is optional; an\nabsent field keeps its stored value. Without `value`, `allowed_domains`\ncan only remove hosts from the stored scope.",
+        "properties": {
+          "allowed_domains": {
+            "description": "The replacement egress scope, in the same form as on create. Without\n`value`, every entry must already be covered by the stored scope: a\nrequest can remove hosts the value reaches, never add them. To add\nhosts, send `value` too. Omit it to keep the stored scope.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "description": {
+            "description": "The replacement description; `null` clears it. Omit it to keep the\nstored description.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "description": "The replacement value (max 64 KiB). Write-only \u2014 never echoed back.\nOmit it to keep the stored value.",
+            "type": [
+              "string",
               "null"
             ]
           }
@@ -24176,6 +24494,177 @@
         "x-required-entitlement": "project_budgets"
       }
     },
+    "/projects/{project_id}/data-policy": {
+      "get": {
+        "description": "Returns the project's data policy, the policy new sandboxes are created under, and the existing resources that policy does not cover. The read waits up to two seconds for every region to apply the current policy.",
+        "operationId": "get_project_data_policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDataPolicy"
+                }
+              }
+            },
+            "description": "The project data policy",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The project ID is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Project not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:projects"
+            ]
+          }
+        ],
+        "summary": "Get the project data policy",
+        "tags": [
+          "projects"
+        ]
+      },
+      "put": {
+        "description": "Switching a project to the zero-data-retention data policy (`zdr`) is not available yet, so this operation refuses every request. Once available it will accept only `zdr` (only Daytona can switch a project back to `standard`), require the zero-data-retention entitlement, and list the existing resources the policy does not cover.",
+        "operationId": "set_project_data_policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectDataPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDataPolicy"
+                }
+              }
+            },
+            "description": "The project data policy",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The project ID or the request body is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The caller cannot change the project, or the request asks for the standard policy, which only Daytona can set (`FORBIDDEN`). Switching a project to zero data retention is not available yet (`FEATURE_NOT_ENABLED`). The organization's plan does not include zero data retention (`ENTITLEMENT_REQUIRED`).",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Project not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:projects"
+            ]
+          }
+        ],
+        "summary": "Set the project data policy",
+        "tags": [
+          "projects"
+        ],
+        "x-required-entitlement": "zero_data_retention"
+      }
+    },
     "/projects/{project_id}/lifecycle-policy": {
       "get": {
         "operationId": "get_project_lifecycle_policy",
@@ -27009,7 +27498,7 @@
             }
           },
           {
-            "description": "Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes.",
+            "description": "Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.",
             "in": "query",
             "name": "persistent",
             "required": false,
@@ -27338,6 +27827,9 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "security": [
@@ -27946,7 +28438,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox is still starting, stopping or pausing; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`).",
+            "description": "The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -28072,7 +28564,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox is still starting (Linux, Windows) or stopping (macOS); retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`).",
+            "description": "The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -29759,7 +30251,7 @@
               }
             }
           },
-          "description": "Full replacement of the secrets attached to the sandbox, by project secret name. Values are never sent or returned.",
+          "description": "Full replacement of the secrets attached to the sandbox, by project secret name and optionally the environment variable each is injected under. Values are never sent or returned.",
           "required": true
         },
         "responses": {
@@ -29792,7 +30284,7 @@
                 }
               }
             },
-            "description": "The request is invalid, names an unknown secret, or the sandbox class is unsupported (`BAD_REQUEST`)",
+            "description": "The request is invalid, names an unknown secret, moves an attached secret to another variable, or the sandbox class is unsupported (`BAD_REQUEST`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -29828,7 +30320,7 @@
                 }
               }
             },
-            "description": "A sandbox transition, memory snapshot or fork is in progress (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox has failed, was deleted or is lost (`CONFLICT`).",
+            "description": "A sandbox transition, memory snapshot or fork is in progress (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox has failed, was deleted or is lost (`CONFLICT`). The sandbox is a DGX Spark sandbox, which does not support runtime secrets (`NOT_SUPPORTED_FOR_CLASS`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -29860,6 +30352,39 @@
             },
             "description": "The If-Match header is missing (`IF_MATCH_REQUIRED`)",
             "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
@@ -30080,7 +30605,7 @@
                 }
               }
             },
-            "description": "The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox is still starting; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`)",
+            "description": "The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`)",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -30566,6 +31091,54 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "This deployment serves secret lists from search; use the search route named in the error's replacement field (`GONE`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -30744,6 +31317,21 @@
               }
             }
           },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
           "503": {
             "content": {
               "application/json": {
@@ -30752,7 +31340,7 @@
                 }
               }
             },
-            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`)",
+            "description": "Search is temporarily unavailable (`SEARCH_UNAVAILABLE`). Secrets are temporarily unavailable (`SERVICE_UNAVAILABLE`)",
             "headers": {
               "Retry-After": {
                 "$ref": "#/components/headers/Retry-After"
@@ -30834,6 +31422,39 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -30896,6 +31517,39 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -30915,8 +31569,132 @@
           "secrets"
         ]
       },
+      "patch": {
+        "description": "Changes any subset of the value, the allowed domains and the description,\nand keeps the rest. Without `value`, `allowed_domains` can only remove\nhosts from the scope. Running sandboxes receive a changed value or scope\nwithout a restart.",
+        "operationId": "update_secret",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SecretName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecretRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Secret"
+                }
+              }
+            },
+            "description": "The secret",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request body is invalid, or it adds hosts to the allowed domains without a new value (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secret not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`)",
+            "headers": {
+              "Retry-After": {
+                "$ref": "#/components/headers/Retry-After"
+              },
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": [
+              "write:secrets"
+            ]
+          },
+          {
+            "platform_token": [
+              "write:secrets"
+            ]
+          }
+        ],
+        "summary": "Update a secret",
+        "tags": [
+          "secrets"
+        ]
+      },
       "put": {
-        "description": "Values are encrypted at rest and are write-only.",
+        "description": "Values are encrypted at rest and are write-only. A name is 1 to 256\ncharacters: a letter or underscore, then letters, digits, underscores or\nhyphens. A name with a hyphen is attached to a sandbox under an explicit\n`env`.",
         "operationId": "set_secret",
         "parameters": [
           {
@@ -31029,6 +31807,21 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Secrets are temporarily unavailable; try again (`BAD_GATEWAY`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           },
           "503": {
             "content": {
@@ -31792,6 +32585,21 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "This deployment serves volume lists from search; use the search route named in the error's replacement field (`GONE`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
           }
         },
         "security": [
@@ -32568,6 +33376,16 @@
       "source": "DAYTONA_API",
       "status": 409
     },
+    "BUCKET_ROLE_INVALID": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "BUCKET_ROLE_UNVERIFIABLE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 502
+    },
     "CHARGE_FAILED": {
       "extras": [],
       "source": "DAYTONA_API",
@@ -32619,6 +33437,13 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 400
+    },
+    "DELETE_LOCK_TIMEOUT": {
+      "extras": [
+        "retry_after_seconds"
+      ],
+      "source": "DAYTONA_API",
+      "status": 429
     },
     "DISK_NOT_READY": {
       "extras": [],
@@ -32941,13 +33766,6 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 403
-    },
-    "SANDBOX_TRANSITION_IN_PROGRESS": {
-      "extras": [
-        "retry_after_seconds"
-      ],
-      "source": "DAYTONA_API",
-      "status": 409
     },
     "SEARCH_NOT_CONFIGURED": {
       "extras": [],

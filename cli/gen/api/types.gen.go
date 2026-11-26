@@ -29,6 +29,8 @@ const (
 	BUCKETCREATEFAILED                  ApiErrorCode = "BUCKET_CREATE_FAILED"
 	BUCKETDELETEFAILED                  ApiErrorCode = "BUCKET_DELETE_FAILED"
 	BUCKETNOTEMPTY                      ApiErrorCode = "BUCKET_NOT_EMPTY"
+	BUCKETROLEINVALID                   ApiErrorCode = "BUCKET_ROLE_INVALID"
+	BUCKETROLEUNVERIFIABLE              ApiErrorCode = "BUCKET_ROLE_UNVERIFIABLE"
 	CHARGEFAILED                        ApiErrorCode = "CHARGE_FAILED"
 	CHARGENOTFOUND                      ApiErrorCode = "CHARGE_NOT_FOUND"
 	CHARGENOTSUCCEEDED                  ApiErrorCode = "CHARGE_NOT_SUCCEEDED"
@@ -40,6 +42,7 @@ const (
 	CREATEBODYTOOLARGE                  ApiErrorCode = "CREATE_BODY_TOO_LARGE"
 	CREATETTLOUTOFRANGE                 ApiErrorCode = "CREATE_TTL_OUT_OF_RANGE"
 	DEFAULTIMAGENOTCONFIGURED           ApiErrorCode = "DEFAULT_IMAGE_NOT_CONFIGURED"
+	DELETELOCKTIMEOUT                   ApiErrorCode = "DELETE_LOCK_TIMEOUT"
 	DISKNOTREADY                        ApiErrorCode = "DISK_NOT_READY"
 	ECRACCOUNTMISMATCH                  ApiErrorCode = "ECR_ACCOUNT_MISMATCH"
 	ECRCREDENTIALSINVALID               ApiErrorCode = "ECR_CREDENTIALS_INVALID"
@@ -111,7 +114,6 @@ const (
 	ROLEINUSE                           ApiErrorCode = "ROLE_IN_USE"
 	RUNNERHASSANDBOXES                  ApiErrorCode = "RUNNER_HAS_SANDBOXES"
 	SANDBOXABUSEHOLD                    ApiErrorCode = "SANDBOX_ABUSE_HOLD"
-	SANDBOXTRANSITIONINPROGRESS         ApiErrorCode = "SANDBOX_TRANSITION_IN_PROGRESS"
 	SEARCHNOTCONFIGURED                 ApiErrorCode = "SEARCH_NOT_CONFIGURED"
 	SEARCHUNAVAILABLE                   ApiErrorCode = "SEARCH_UNAVAILABLE"
 	SECRETALREADYEXISTS                 ApiErrorCode = "SECRET_ALREADY_EXISTS"
@@ -178,6 +180,10 @@ func (e ApiErrorCode) Valid() bool {
 		return true
 	case BUCKETNOTEMPTY:
 		return true
+	case BUCKETROLEINVALID:
+		return true
+	case BUCKETROLEUNVERIFIABLE:
+		return true
 	case CHARGEFAILED:
 		return true
 	case CHARGENOTFOUND:
@@ -199,6 +205,8 @@ func (e ApiErrorCode) Valid() bool {
 	case CREATETTLOUTOFRANGE:
 		return true
 	case DEFAULTIMAGENOTCONFIGURED:
+		return true
+	case DELETELOCKTIMEOUT:
 		return true
 	case DISKNOTREADY:
 		return true
@@ -341,8 +349,6 @@ func (e ApiErrorCode) Valid() bool {
 	case RUNNERHASSANDBOXES:
 		return true
 	case SANDBOXABUSEHOLD:
-		return true
-	case SANDBOXTRANSITIONINPROGRESS:
 		return true
 	case SEARCHNOTCONFIGURED:
 		return true
@@ -839,6 +845,60 @@ func (e CpuArchitecture) Valid() bool {
 	case Amd64:
 		return true
 	case Arm64:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataPolicy.
+const (
+	Standard DataPolicy = "standard"
+	Zdr      DataPolicy = "zdr"
+)
+
+// Valid indicates whether the value is a known member of the DataPolicy enum.
+func (e DataPolicy) Valid() bool {
+	switch e {
+	case Standard:
+		return true
+	case Zdr:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataPolicyStatus.
+const (
+	DataPolicyStatusEffective DataPolicyStatus = "effective"
+	DataPolicyStatusPending   DataPolicyStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the DataPolicyStatus enum.
+func (e DataPolicyStatus) Valid() bool {
+	switch e {
+	case DataPolicyStatusEffective:
+		return true
+	case DataPolicyStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DesktopEnvironment.
+const (
+	Gnome DesktopEnvironment = "gnome"
+	Xfce  DesktopEnvironment = "xfce"
+)
+
+// Valid indicates whether the value is a known member of the DesktopEnvironment enum.
+func (e DesktopEnvironment) Valid() bool {
+	switch e {
+	case Gnome:
+		return true
+	case Xfce:
 		return true
 	default:
 		return false
@@ -1862,6 +1922,30 @@ func (e TimeoutSource) Valid() bool {
 	}
 }
 
+// Defines values for UncoveredResourceKind.
+const (
+	UncoveredResourceKindImage    UncoveredResourceKind = "image"
+	UncoveredResourceKindSandbox  UncoveredResourceKind = "sandbox"
+	UncoveredResourceKindSnapshot UncoveredResourceKind = "snapshot"
+	UncoveredResourceKindVolume   UncoveredResourceKind = "volume"
+)
+
+// Valid indicates whether the value is a known member of the UncoveredResourceKind enum.
+func (e UncoveredResourceKind) Valid() bool {
+	switch e {
+	case UncoveredResourceKindImage:
+		return true
+	case UncoveredResourceKindSandbox:
+		return true
+	case UncoveredResourceKindSnapshot:
+		return true
+	case UncoveredResourceKindVolume:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UsageHistoryResolution.
 const (
 	UsageHistoryResolutionHour   UsageHistoryResolution = "hour"
@@ -2449,18 +2533,25 @@ type BillingUsagePeriod struct {
 	TotalAmountCents int64 `json:"total_amount_cents"`
 }
 
-// BucketCredentials Secret names used to access an external bucket.
+// BucketCredentials How the platform accesses an external bucket: either both secret names, or
+// `role_arn` alone.
 type BucketCredentials struct {
 	// AccessKeySecret The project secret containing the access key.
-	AccessKeySecret string `json:"access_key_secret"`
+	AccessKeySecret *string `json:"access_key_secret,omitempty"`
+
+	// RoleArn An IAM role in your AWS account that the platform assumes, with your
+	// organization ID as its `ExternalId`. Replaces the secret names; AWS
+	// buckets only.
+	RoleArn *string `json:"role_arn,omitempty"`
 
 	// SecretKeySecret The project secret containing the secret key.
-	SecretKeySecret string `json:"secret_key_secret"`
+	SecretKeySecret *string `json:"secret_key_secret,omitempty"`
 }
 
 // BucketOptions The customer's own bucket, for a bucket volume with origin `external`.
 type BucketOptions struct {
-	// Credentials The secret names used to access the bucket.
+	// Credentials How the platform accesses the bucket: two project secret names, or an
+	// IAM role to assume.
 	Credentials *BucketCredentials `json:"credentials,omitempty"`
 
 	// Endpoint Non-AWS S3 endpoint (`http(s)://…`); absent or empty means AWS.
@@ -2888,8 +2979,11 @@ type CreateMacosSandboxRequest struct {
 	// Reservation Omitted uses any Mac reservation of the organization in the region that fits this size. "new" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
 	Reservation *string `json:"reservation,omitempty"`
 
-	// Secrets Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.
-	Secrets *[]string `json:"secrets,omitempty"`
+	// Secrets Project secrets to attach. Each is a secret name, injected under an
+	// environment variable of the same name, or an object that names the
+	// variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+	// Secret values are used only for requests to their allowed hosts.
+	Secrets *[]SandboxSecretAttachment `json:"secrets,omitempty"`
 
 	// Volumes Disk volumes to attach, as on Linux: at most 8, each read-write. Each
 	// volume uses its `size_gib` (100 GiB when omitted) of disk space on the
@@ -3116,6 +3210,11 @@ type CreateSandboxRequest struct {
 	// CreateTimeoutSeconds Seconds allowed for the sandbox to reach `running`. Defaults to 3600; `-1` uses the maximum.
 	CreateTimeoutSeconds *int64 `json:"create_timeout_seconds,omitempty"`
 
+	// Desktop Provision a Linux desktop. An empty object selects XFCE at 1280×720.
+	// Requires desktop creates to be enabled. Boot limits must be at least
+	// 1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME.
+	Desktop *DesktopConfig `json:"desktop,omitempty"`
+
 	// DiskMaxMib Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when
 	// restoring a snapshot, it must equal the captured disk size or be absent.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
@@ -3155,9 +3254,6 @@ type CreateSandboxRequest struct {
 	// NetworkPolicy Outbound network rules applied to the sandbox.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
 
-	// Persistent Whether writable state persists across stops. Defaults to `false`.
-	Persistent *bool `json:"persistent,omitempty"`
-
 	// Ports Ports exposed when the sandbox starts.
 	Ports *[]PortMapping `json:"ports,omitempty"`
 
@@ -3166,8 +3262,10 @@ type CreateSandboxRequest struct {
 	// the organization's, then `earth`.
 	RegionId *string `json:"region_id,omitempty"`
 
-	// Secrets Secret names made available to the sandbox.
-	Secrets *[]string `json:"secrets,omitempty"`
+	// Secrets Project secrets to attach. Each is a secret name, injected under an
+	// environment variable of the same name, or an object that names the
+	// variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+	Secrets *[]SandboxSecretAttachment `json:"secrets,omitempty"`
 
 	// Spot Whether to use discounted interruptible capacity. Defaults to `false`.
 	Spot *bool `json:"spot,omitempty"`
@@ -3241,10 +3339,57 @@ type CreateVolumeRequest struct {
 	Type *VolumeType `json:"type,omitempty"`
 }
 
+// DataPolicy The data policy of an organization, project or sandbox. `standard`: the default. `zdr`: zero data retention, which is not available yet: no sandbox can be created under it.
+type DataPolicy string
+
+// DataPolicyStatus Whether the current data policy applies in every region. `pending`: at least one region has not applied it yet; read it again to check. `effective`: every region applies it.
+type DataPolicyStatus string
+
 // DeclineInvitationRequest defines model for DeclineInvitationRequest.
 type DeclineInvitationRequest struct {
 	// Token The invitation token.
 	Token string `json:"token"`
+}
+
+// DesktopConfig Desktop settings. Omit a member for its default: xfce, 1280×720.
+type DesktopConfig struct {
+	// Environment Desktop session: xfce or gnome. Omitted = xfce.
+	Environment *DesktopConfig_Environment `json:"environment,omitempty"`
+
+	// Resolution Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+	Resolution *DesktopConfig_Resolution `json:"resolution,omitempty"`
+}
+
+// DesktopConfig_Environment Desktop session: xfce or gnome. Omitted = xfce.
+type DesktopConfig_Environment struct {
+	union json.RawMessage
+}
+
+// DesktopConfig_Resolution Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+type DesktopConfig_Resolution struct {
+	union json.RawMessage
+}
+
+// DesktopEnvironment Linux desktop session selected at create time.
+type DesktopEnvironment string
+
+// DesktopResolution Supported display geometry: 1024×768, 1280×720, or 1920×1080.
+type DesktopResolution struct {
+	// Height Height in pixels.
+	Height int32 `json:"height"`
+
+	// Width Width in pixels.
+	Width int32 `json:"width"`
+}
+
+// DesktopSettings Concrete create-time desktop settings. This records the request, not the
+// live guest state; GET /computeruse/display/info reports the live display size.
+type DesktopSettings struct {
+	// Environment Desktop session the sandbox was created with.
+	Environment DesktopEnvironment `json:"environment"`
+
+	// Resolution Exactly 1024×768, 1280×720, or 1920×1080.
+	Resolution DesktopResolution `json:"resolution"`
 }
 
 // EffectiveLifecyclePolicies defines model for EffectiveLifecyclePolicies.
@@ -4388,6 +4533,10 @@ type Organization struct {
 	// CreatedAt When the organization was created.
 	CreatedAt time.Time `json:"created_at"`
 
+	// DataPolicy The organization's data policy, set by Daytona. A project can be
+	// stricter than its organization, never looser.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
 	// FromV0 Whether the organization was migrated from Daytona v0.
 	FromV0 bool `json:"from_v0"`
 
@@ -4560,6 +4709,10 @@ type OrganizationListItem struct {
 
 	// CreatedAt When the organization was created.
 	CreatedAt time.Time `json:"created_at"`
+
+	// DataPolicy The organization's data policy, set by Daytona. A project can be
+	// stricter than its organization, never looser.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
 
 	// FromV0 Whether the organization was migrated from Daytona v0.
 	FromV0 bool `json:"from_v0"`
@@ -5111,6 +5264,10 @@ type Project struct {
 	// CreatedBy The user who created the project, when visible.
 	CreatedBy *openapi_types.UUID `json:"created_by,omitempty"`
 
+	// DataPolicy The project's own data policy. The policy new sandboxes are created
+	// under is `zdr` when the project or its organization is `zdr`.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
 	// Default Whether this is the organization's default project.
 	Default bool `json:"default"`
 
@@ -5356,6 +5513,37 @@ type ProjectBudget struct {
 	// UpdatedAt When a member last set the budget, or null when no budget is set.
 	// Spend evaluations do not change it.
 	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// ProjectDataPolicy A project's data policy.
+type ProjectDataPolicy struct {
+	// DataPolicy The project's own data policy.
+	DataPolicy DataPolicy `json:"data_policy"`
+
+	// EffectiveDataPolicy The policy new sandboxes in the project are created under: `zdr` when
+	// the project or its organization is `zdr`.
+	EffectiveDataPolicy DataPolicy `json:"effective_data_policy"`
+
+	// NotCovered Existing resources of the project the effective policy does not cover,
+	// at most 1000: a policy applies only to sandboxes created after it is
+	// set. These are the live sandboxes created under the standard policy,
+	// and every image, snapshot and volume of the project. The list holds
+	// the resources the organization's home region knows of.
+	NotCovered []UncoveredResource `json:"not_covered"`
+
+	// NotCoveredCount How many existing resources the effective policy does not cover; more
+	// than the length of `not_covered` when the list is cut at 1000.
+	NotCoveredCount int64 `json:"not_covered_count"`
+
+	// Notice What the effective policy means for sandbox creation, or null under the
+	// standard policy.
+	Notice *string `json:"notice"`
+
+	// ProjectId The project ID.
+	ProjectId openapi_types.UUID `json:"project_id"`
+
+	// Status Whether every region applies the project's current data policy.
+	Status DataPolicyStatus `json:"status"`
 }
 
 // ProjectImageBuildLimits The project's concurrent image-build limit and current usage.
@@ -5853,6 +6041,18 @@ type Sandbox struct {
 	// CreatedAt When the sandbox was created.
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 
+	// DataPolicy The data policy the sandbox was created under. It never changes: a
+	// later change to the project's or organization's policy applies only to
+	// sandboxes created after it.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
+	// Desktop Desktop settings this sandbox was created with: the create request, or for
+	// a restored or forked sandbox the settings captured from its source. Not
+	// live state: a desktop restart can change them. GET /computeruse/display/info
+	// reports the live display size. Omitted when the sandbox has no desktop, and
+	// from batch-wait (`GET /sandboxes/batch-wait`) snapshots.
+	Desktop *DesktopSettings `json:"desktop,omitempty"`
+
 	// DiskMaxMib Maximum writable disk size in MiB.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
 
@@ -6089,6 +6289,18 @@ type SandboxListItem struct {
 	// Cursor Opaque token that resumes immediately after this sandbox.
 	Cursor string `json:"cursor"`
 
+	// DataPolicy The data policy the sandbox was created under. It never changes: a
+	// later change to the project's or organization's policy applies only to
+	// sandboxes created after it.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
+	// Desktop Desktop settings this sandbox was created with: the create request, or for
+	// a restored or forked sandbox the settings captured from its source. Not
+	// live state: a desktop restart can change them. GET /computeruse/display/info
+	// reports the live display size. Omitted when the sandbox has no desktop, and
+	// from batch-wait (`GET /sandboxes/batch-wait`) snapshots.
+	Desktop *DesktopSettings `json:"desktop,omitempty"`
+
 	// DiskMaxMib Maximum writable disk size in MiB.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
 
@@ -6251,11 +6463,44 @@ type SandboxSearchPage struct {
 // SandboxSearchSort defines model for SandboxSearchSort.
 type SandboxSearchSort string
 
+// SandboxSecretAttachment One secret to attach: a secret name, injected under that name, or an
+// object that names the variable separately.
+type SandboxSecretAttachment struct {
+	union json.RawMessage
+}
+
+// SandboxSecretAttachment0 The secret name. The secret is injected under an environment variable
+// of the same name.
+type SandboxSecretAttachment0 = string
+
+// SandboxSecretAttachmentBinding A secret and the environment variable it is injected under.
+type SandboxSecretAttachmentBinding struct {
+	// Env The environment variable the secret is injected under. Defaults to the
+	// secret name.
+	Env *string `json:"env,omitempty"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+}
+
+// SandboxSecretBinding One attached secret as a sandbox reports it.
+type SandboxSecretBinding struct {
+	// Env The environment variable the secret is injected under.
+	Env string `json:"env"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+}
+
 // SandboxSecrets The secrets attached to a sandbox: the requested names and how far the
 // sandbox has applied them.
 type SandboxSecrets struct {
 	// AppliedRevision Revision the sandbox has applied, or null before the first one.
 	AppliedRevision *int64 `json:"applied_revision,omitempty"`
+
+	// Bindings The requested secrets and the environment variable each is injected
+	// under, in the order of `secrets`.
+	Bindings *[]SandboxSecretBinding `json:"bindings,omitempty"`
 
 	// CaptureStatus For a restored or forked sandbox, how much of the source's secrets the
 	// copy received: `complete`, `partial` or an unknown status.
@@ -6483,6 +6728,13 @@ type SetProjectBudgetRequest struct {
 	MonthlyLimitCents int64 `json:"monthly_limit_cents"`
 }
 
+// SetProjectDataPolicyRequest Body of the project data policy write. Unknown fields are rejected.
+type SetProjectDataPolicyRequest struct {
+	// DataPolicy The project's data policy. Only `zdr` will be accepted: switching a
+	// project back to `standard` is done by Daytona.
+	DataPolicy DataPolicy `json:"data_policy"`
+}
+
 // SetRegistryRequest Registry credentials. Passwords are encrypted at rest and are write-only.
 type SetRegistryRequest struct {
 	// Description An optional user-facing description.
@@ -6540,9 +6792,10 @@ type SetSandboxPortRequest struct {
 
 // SetSandboxSecretsRequest defines model for SetSandboxSecretsRequest.
 type SetSandboxSecretsRequest struct {
-	// Secrets The complete desired set of project secret names. Required; send `[]`
-	// to detach every secret.
-	Secrets []string `json:"secrets"`
+	// Secrets The complete desired set of project secrets. Each is a secret name,
+	// injected under an environment variable of the same name, or an object
+	// that names the variable. Required; send `[]` to detach every secret.
+	Secrets []SandboxSecretAttachment `json:"secrets"`
 }
 
 // SetSecretRequest A secret value and its metadata. Values are encrypted at rest and are
@@ -6831,6 +7084,21 @@ type TokenExchange struct {
 	TokenType string `json:"token_type"`
 }
 
+// UncoveredResource A resource of the project that the data policy does not cover.
+type UncoveredResource struct {
+	// Id The resource ID.
+	Id string `json:"id"`
+
+	// Kind The kind of the resource.
+	Kind UncoveredResourceKind `json:"kind"`
+
+	// Name The resource name, or null when the resource has none.
+	Name *string `json:"name"`
+}
+
+// UncoveredResourceKind The kind of a resource.
+type UncoveredResourceKind string
+
 // UpdateAuditConfigRequest defines model for UpdateAuditConfigRequest.
 type UpdateAuditConfigRequest struct {
 	// Disabled Whether to disable audit capture.
@@ -6986,6 +7254,25 @@ type UpdateSandboxLifecyclePolicyRequest struct {
 
 	// TimeoutSeconds Seconds before the timeout action runs. Supplying a value restarts the countdown.
 	TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
+}
+
+// UpdateSecretRequest A partial update of an existing secret. Every field is optional; an
+// absent field keeps its stored value. Without `value`, `allowed_domains`
+// can only remove hosts from the stored scope.
+type UpdateSecretRequest struct {
+	// AllowedDomains The replacement egress scope, in the same form as on create. Without
+	// `value`, every entry must already be covered by the stored scope: a
+	// request can remove hosts the value reaches, never add them. To add
+	// hosts, send `value` too. Omit it to keep the stored scope.
+	AllowedDomains *[]string `json:"allowed_domains,omitempty"`
+
+	// Description The replacement description; `null` clears it. Omit it to keep the
+	// stored description.
+	Description *string `json:"description,omitempty"`
+
+	// Value The replacement value (max 64 KiB). Write-only — never echoed back.
+	// Omit it to keep the stored value.
+	Value *string `json:"value,omitempty"`
 }
 
 // UpdateServiceAccountRequest defines model for UpdateServiceAccountRequest.
@@ -7984,7 +8271,7 @@ type SearchSandboxesParams struct {
 	// may be at most 12,288 bytes; a longer one answers 400.
 	Labels *string `form:"labels,omitempty" json:"labels,omitempty"`
 
-	// Persistent Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes.
+	// Persistent Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.
 	Persistent *bool `form:"persistent,omitempty" json:"persistent,omitempty"`
 
 	// Spot Spot-tier sandboxes only (`true`) or on-demand only (`false`).
@@ -8471,6 +8758,9 @@ type UpdateProjectApiKeyJSONRequestBody = UpdateProjectApiKeyRequest
 // SetProjectBudgetJSONRequestBody defines body for SetProjectBudget for application/json ContentType.
 type SetProjectBudgetJSONRequestBody = SetProjectBudgetRequest
 
+// SetProjectDataPolicyJSONRequestBody defines body for SetProjectDataPolicy for application/json ContentType.
+type SetProjectDataPolicyJSONRequestBody = SetProjectDataPolicyRequest
+
 // UpdateProjectLifecyclePolicyJSONRequestBody defines body for UpdateProjectLifecyclePolicy for application/json ContentType.
 type UpdateProjectLifecyclePolicyJSONRequestBody = UpdateProjectLifecyclePolicyRequest
 
@@ -8537,11 +8827,86 @@ type SetSandboxSecretsJSONRequestBody = SetSandboxSecretsRequest
 // CreateSandboxSnapshotJSONRequestBody defines body for CreateSandboxSnapshot for application/json ContentType.
 type CreateSandboxSnapshotJSONRequestBody = CreateSandboxSnapshotRequest
 
+// UpdateSecretJSONRequestBody defines body for UpdateSecret for application/json ContentType.
+type UpdateSecretJSONRequestBody = UpdateSecretRequest
+
 // SetSecretJSONRequestBody defines body for SetSecret for application/json ContentType.
 type SetSecretJSONRequestBody = SetSecretRequest
 
 // CreateVolumeJSONRequestBody defines body for CreateVolume for application/json ContentType.
 type CreateVolumeJSONRequestBody = CreateVolumeRequest
+
+// AsDesktopEnvironment returns the union data inside the DesktopConfig_Environment as a DesktopEnvironment
+func (t DesktopConfig_Environment) AsDesktopEnvironment() (DesktopEnvironment, error) {
+	var body DesktopEnvironment
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDesktopEnvironment overwrites any union data inside the DesktopConfig_Environment as the provided DesktopEnvironment
+func (t *DesktopConfig_Environment) FromDesktopEnvironment(v DesktopEnvironment) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDesktopEnvironment performs a merge with any union data inside the DesktopConfig_Environment, using the provided DesktopEnvironment
+func (t *DesktopConfig_Environment) MergeDesktopEnvironment(v DesktopEnvironment) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DesktopConfig_Environment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DesktopConfig_Environment) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsDesktopResolution returns the union data inside the DesktopConfig_Resolution as a DesktopResolution
+func (t DesktopConfig_Resolution) AsDesktopResolution() (DesktopResolution, error) {
+	var body DesktopResolution
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDesktopResolution overwrites any union data inside the DesktopConfig_Resolution as the provided DesktopResolution
+func (t *DesktopConfig_Resolution) FromDesktopResolution(v DesktopResolution) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDesktopResolution performs a merge with any union data inside the DesktopConfig_Resolution, using the provided DesktopResolution
+func (t *DesktopConfig_Resolution) MergeDesktopResolution(v DesktopResolution) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DesktopConfig_Resolution) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DesktopConfig_Resolution) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // AsImageSourceValue0 returns the union data inside the ImageSourceValue as a ImageSourceValue0
 func (t ImageSourceValue) AsImageSourceValue0() (ImageSourceValue0, error) {
@@ -8715,6 +9080,68 @@ func (t PublicImageSource) MarshalJSON() ([]byte, error) {
 }
 
 func (t *PublicImageSource) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSandboxSecretAttachment0 returns the union data inside the SandboxSecretAttachment as a SandboxSecretAttachment0
+func (t SandboxSecretAttachment) AsSandboxSecretAttachment0() (SandboxSecretAttachment0, error) {
+	var body SandboxSecretAttachment0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSandboxSecretAttachment0 overwrites any union data inside the SandboxSecretAttachment as the provided SandboxSecretAttachment0
+func (t *SandboxSecretAttachment) FromSandboxSecretAttachment0(v SandboxSecretAttachment0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSandboxSecretAttachment0 performs a merge with any union data inside the SandboxSecretAttachment, using the provided SandboxSecretAttachment0
+func (t *SandboxSecretAttachment) MergeSandboxSecretAttachment0(v SandboxSecretAttachment0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSandboxSecretAttachmentBinding returns the union data inside the SandboxSecretAttachment as a SandboxSecretAttachmentBinding
+func (t SandboxSecretAttachment) AsSandboxSecretAttachmentBinding() (SandboxSecretAttachmentBinding, error) {
+	var body SandboxSecretAttachmentBinding
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSandboxSecretAttachmentBinding overwrites any union data inside the SandboxSecretAttachment as the provided SandboxSecretAttachmentBinding
+func (t *SandboxSecretAttachment) FromSandboxSecretAttachmentBinding(v SandboxSecretAttachmentBinding) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSandboxSecretAttachmentBinding performs a merge with any union data inside the SandboxSecretAttachment, using the provided SandboxSecretAttachmentBinding
+func (t *SandboxSecretAttachment) MergeSandboxSecretAttachmentBinding(v SandboxSecretAttachmentBinding) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SandboxSecretAttachment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SandboxSecretAttachment) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
