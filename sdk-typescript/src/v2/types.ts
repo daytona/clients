@@ -778,6 +778,8 @@ export interface SandboxSearchFilters {
   readonly imageRefPrefix?: string
   /** Containment: every listed label must match. */
   readonly labels?: Readonly<Record<string, string>>
+  /** Filter by persistence; omitted (or JavaScript null) leaves both kinds. */
+  readonly persistent?: boolean
   readonly spot?: boolean
   /** Sandboxes forked from this sandbox id. */
   readonly forkedFrom?: string

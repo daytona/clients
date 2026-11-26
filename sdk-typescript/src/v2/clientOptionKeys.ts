@@ -33,7 +33,7 @@ export const LIMITS_KEYS = optionKeys<GetLimitsOptions>()({ organizationId: true
 export const LIST_KEYS = optionKeys<ListSandboxesOptions>()({ cursor: true, limit: true })
 export const SEARCH_KEYS = optionKeys<SearchSandboxesOptions>()({
   q: true, namePrefix: true, idPrefix: true, states: true, sandboxClass: true, region: true,
-  imageRef: true, imageRefPrefix: true, labels: true, spot: true, forkedFrom: true,
+  imageRef: true, imageRefPrefix: true, labels: true, persistent: true, spot: true, forkedFrom: true,
   minCores: true, maxCores: true, minMemoryMib: true, maxMemoryMib: true,
   minDiskMib: true, maxDiskMib: true, createdStartAt: true, createdEndAt: true,
   updatedStartAt: true, updatedEndAt: true, lastActivityStartAt: true,
