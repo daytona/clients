@@ -38,6 +38,7 @@ it.each([
     await jest.advanceTimersByTimeAsync(11_000)
     // Then it returns without spending the readiness budget on a stale target.
     expect(await result).toMatchObject({ fork: { id: 'fork', state }, elapsed: 1000 })
+    expect(source.state).toBe(state)
     expect(sourceReads).toBe(2)
   } finally {
     jest.useRealTimers()

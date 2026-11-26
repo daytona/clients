@@ -667,7 +667,8 @@ export interface SandboxDto {
   mac_boot_mode?: string | null
   /** macOS only: the reservation selected for this sandbox. `GET /sandboxes/search` items omit it. */
   reservation_id?: string | null
-  /** macOS only; absent on `GET /sandboxes/batch-wait` items. */
+  /** Whether writable state survives stop/start and, on Linux, memory survives
+   * pause/resume; absent on `GET /sandboxes/batch-wait` items. */
   persistent?: boolean | null
   lifecycle_policy?: SandboxLifecycleDto | null
   /**

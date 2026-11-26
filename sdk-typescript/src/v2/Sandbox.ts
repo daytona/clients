@@ -363,8 +363,8 @@ export class Sandbox {
   public get macBootMode(): MacBootMode | undefined {
     return this.observed.macBootMode
   }
-  /** macOS only: whether the sandbox preserves its disk when stopped; undefined on a
-    *  handle whose metadata has not been loaded yet. */
+  /** Whether the sandbox keeps writable state across stop/start and, on Linux,
+   * memory across pause/resume; undefined until known. */
   public get persistent(): boolean | undefined { return this.observed.persistent }
   public get spot(): boolean | undefined { return this.observed.spot }
   public get spotEvictedAt(): string | undefined { return this.observed.spotEvictedAt }
@@ -932,9 +932,8 @@ export class Sandbox {
       if (timeout === undefined) return fork
       if (attempts > 1) {
         // A transition refusal invalidates the source's pre-submission state.
-        const source = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(this.id)}`, { timeout }).then((r) => r.data)
-        assertSandboxResponse(source)
-        sourceState = sandboxState(source.status)
+        await this.refreshDataWithin(timeout)
+        sourceState = this.state
       }
       const remaining = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (remaining === undefined) return fork
