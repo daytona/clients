@@ -1097,6 +1097,7 @@ class AsyncDaytona:
         image_ref: Optional[str] = None,
         image_ref_prefix: Optional[str] = None,
         labels: Optional[Mapping[str, str]] = None,
+        persistent: Optional[bool] = None,
         spot: Optional[bool] = None,
         forked_from: Optional[str] = None,
         min_cores: Optional[float] = None,
@@ -1126,7 +1127,9 @@ class AsyncDaytona:
         region inside it. ``states`` are the
         SDK's sandbox states (``started``, ``stopped``, ``error``, ...), each
         sent as the API status names it covers; ``"unknown"`` is refused.
-        ``labels`` is a containment match; the ``min_*``/``max_*`` bounds are
+        ``persistent`` filters by persistence (``None`` omits the filter);
+        ``spot`` filters by spot tier. ``labels`` is a containment match;
+        the ``min_*``/``max_*`` bounds are
         inclusive, ``*_start_at`` timestamp bounds are inclusive, and
         ``*_end_at`` bounds are exclusive. Timestamps accept RFC 3339 timestamps
         without a leap second (year 0001-9999, a real calendar date) or
@@ -1170,6 +1173,7 @@ class AsyncDaytona:
             image_ref=image_ref,
             image_ref_prefix=image_ref_prefix,
             labels=labels,
+            persistent=persistent,
             spot=spot,
             forked_from=forked_from,
             min_cores=min_cores,

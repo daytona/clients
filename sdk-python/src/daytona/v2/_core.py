@@ -2103,7 +2103,7 @@ def list_shape(
 
 
 _SEARCH_LIST_FIELDS = ("sandbox_class", "region")
-_SEARCH_BOOLEAN_FIELDS = ("spot",)
+_SEARCH_BOOLEAN_FIELDS = ("persistent", "spot")
 _SEARCH_NUMBER_FIELDS = ("min_cores", "max_cores")
 _SEARCH_INTEGER_FIELDS = ("min_memory_mib", "max_memory_mib", "min_disk_mib", "max_disk_mib")
 _SEARCH_CHOICES: Dict[str, Tuple[str, ...]] = {
