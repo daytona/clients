@@ -837,8 +837,8 @@ class AsyncDaytona:
         # status reads as `unknown`, never an error (as `wait_cap_seconds`).
         status = data.get("status")
         raw_status = status if isinstance(status, str) else None
-        # The handle holds only what the response carries, plus requested
-        # persistence, an `img_` /
+        # The handle holds what the response carries, falling back to requested
+        # persistence, plus an `img_` /
         # `snap_` id the caller passed (a name is never an id), and the class
         # the create route fixes (linux, or macos for create_macos); the rest
         # is unknown until a detail read. The response's `image` is canonical when present.
@@ -855,7 +855,9 @@ class AsyncDaytona:
                 )
             except DaytonaError:
                 lifecycle_policy = None
-        persistent = config.get("persistent")
+        persistent = data.get("persistent")
+        if not isinstance(persistent, bool):
+            persistent = config.get("persistent")
         info = _SandboxInfo(
             id=sandbox_id,
             name=str(data.get("name")) if isinstance(data.get("name"), str) else None,
