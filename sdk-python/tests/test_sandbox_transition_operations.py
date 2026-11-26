@@ -157,6 +157,7 @@ async def test_fork_readiness_budget_starts_after_retry(monkeypatch: pytest.Monk
                 },
             ),
             PlannedResponse(202, {"id": "artifact", "status": "pending", "forked_from": "src"}),
+            PlannedResponse(200, _detail("src", "running")),
             PlannedResponse(200, _detail("artifact", "running")),
         ]
     ) as api:
@@ -167,4 +168,4 @@ async def test_fork_readiness_budget_starts_after_retry(monkeypatch: pytest.Monk
     # Then the detail read still has the full wait budget.
     assert fork.state == "started"
     assert clock.now == 5
-    assert len(api.requests) == 4
+    assert len(api.requests) == 5

@@ -56,7 +56,7 @@ async def test_retry_delay_is_clamped(clock: Clock, hint: int | None, delay: int
     api = AsyncTransport("https://api.invalid", "key")
     try:
         # When submitting the operation.
-        result = await _transition_retry.send_with_transition_retry(api, _SPEC)
+        result, _ = await _transition_retry.send_with_transition_retry(api, _SPEC)
     finally:
         await api.close()
     # Then only the bounded hint controls the retry.
@@ -241,7 +241,7 @@ async def test_admitted_attempt_keeps_its_request_deadline(clock: Clock, accepte
     try:
         # When the admitted request completes after the retry window.
         if accepted:
-            result = await _transition_retry.send_with_transition_retry(api, _SPEC)
+            result, _ = await _transition_retry.send_with_transition_retry(api, _SPEC)
             assert result == {"id": "fork"}
         else:
             with pytest.raises(ConflictError) as raised:

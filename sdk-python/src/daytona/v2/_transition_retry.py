@@ -15,12 +15,13 @@ from .errors import DaytonaError
 _RETRY_BUDGET_SECONDS: Final = 30.0
 
 
-async def send_with_transition_retry(api: AsyncTransport, spec: RequestSpec) -> TransportPayload:
+async def send_with_transition_retry(api: AsyncTransport, spec: RequestSpec) -> tuple[TransportPayload, bool]:
     """Admit retries for 30 seconds without shortening an in-flight request."""
     deadline = _clock.monotonic() + _RETRY_BUDGET_SECONDS
+    retried = False
     while True:
         try:
-            return await api.send(spec)
+            return await api.send(spec), retried
         except DaytonaError as error:
             if error.code != _codes.SANDBOX_TRANSITION_IN_PROGRESS:
                 raise
@@ -31,3 +32,4 @@ async def send_with_transition_retry(api: AsyncTransport, spec: RequestSpec) -> 
             await sleep(min(delay, remaining))
             if _clock.monotonic() >= deadline:
                 raise
+            retried = True
