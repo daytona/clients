@@ -667,7 +667,9 @@ class Sandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """macOS only: whether a stop keeps the disk; ``None`` until known."""
+        """Whether writable state survives stop/start and, on Linux, memory
+        survives pause/resume; ``None`` until known.
+        """
         return self._impl.persistent
 
     @property
