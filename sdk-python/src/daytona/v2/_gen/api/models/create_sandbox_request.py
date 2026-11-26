@@ -54,6 +54,7 @@ class CreateSandboxRequest(BaseModel):
     memory_mib: Optional[StrictInt] = Field(default=None, description="Reserved memory in MiB.")
     name: Optional[StrictStr] = Field(default=None, description="Sandbox name. A name is generated when omitted.")
     network_policy: Optional[SetSandboxNetworkPolicyRequest] = Field(default=None, description="Outbound network rules applied to the sandbox.")
+    persistent: Optional[StrictBool] = Field(default=None, description="Whether writable state persists across stops. Defaults to `false`.")
     ports: Optional[List[PortMapping]] = Field(default=None, description="Ports exposed when the sandbox starts.")
     region_id: Optional[StrictStr] = Field(default=None, description="The region to create the sandbox in. Any listed region, including `earth` (anywhere). When omitted: the project's default region, then the organization's, then `earth`.")
     secrets: Optional[List[StrictStr]] = Field(default=None, description="Secret names made available to the sandbox.")
@@ -61,7 +62,7 @@ class CreateSandboxRequest(BaseModel):
     user: Optional[StrictStr] = Field(default=None, description="Default operating-system user.")
     volumes: Optional[List[VolumeMount]] = Field(default=None, description="Volumes mounted in the sandbox.")
     wait_seconds: Optional[StrictInt] = Field(default=None, description="Seconds to wait before returning. Defaults to 3; `0` returns immediately.")
-    __properties: ClassVar[List[str]] = ["cores_max", "cpu", "cpu_arch", "cpu_type", "create_timeout_seconds", "disk_max_mib", "disk_mib", "env", "idempotency_key", "image", "labels", "lifecycle_policy", "memory_max_mib", "memory_mib", "name", "network_policy", "ports", "region_id", "secrets", "spot", "user", "volumes", "wait_seconds"]
+    __properties: ClassVar[List[str]] = ["cores_max", "cpu", "cpu_arch", "cpu_type", "create_timeout_seconds", "disk_max_mib", "disk_mib", "env", "idempotency_key", "image", "labels", "lifecycle_policy", "memory_max_mib", "memory_mib", "name", "network_policy", "persistent", "ports", "region_id", "secrets", "spot", "user", "volumes", "wait_seconds"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -237,6 +238,7 @@ class CreateSandboxRequest(BaseModel):
             **({"memory_mib": obj["memory_mib"]} if "memory_mib" in obj else {}),
             **({"name": obj["name"]} if "name" in obj else {}),
             **({"network_policy": SetSandboxNetworkPolicyRequest.from_dict(obj["network_policy"]) if obj["network_policy"] is not None else None} if "network_policy" in obj else {}),
+            **({"persistent": obj["persistent"]} if "persistent" in obj else {}),
             **({"ports": [PortMapping.from_dict(_item) for _item in obj["ports"]] if obj["ports"] is not None else None} if "ports" in obj else {}),
             **({"region_id": obj["region_id"]} if "region_id" in obj else {}),
             **({"secrets": obj["secrets"]} if "secrets" in obj else {}),

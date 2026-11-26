@@ -39,8 +39,9 @@ func (c *Client) CreateMacOS(ctx context.Context, image string, opts *CreateMacO
 	if err != nil {
 		return nil, err
 	}
+	persistent := options.Persistent != nil && *options.Persistent
 	if err = lifecyclePolicyClassSupport(options.LifecyclePolicy, SandboxInfo{
-		Class: SandboxClassMacOS, Persistent: options.Persistent,
+		Class: SandboxClassMacOS, Persistent: &persistent,
 	}); err != nil {
 		return nil, err
 	}

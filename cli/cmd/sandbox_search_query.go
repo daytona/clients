@@ -35,6 +35,9 @@ func searchQueryValues(params gen.SearchSandboxesParams) url.Values {
 	if params.Spot != nil {
 		query.Set("spot", strconv.FormatBool(*params.Spot))
 	}
+	if params.Persistent != nil {
+		query.Set("persistent", strconv.FormatBool(*params.Persistent))
+	}
 	setQueryFloat(query, "min_cores", params.MinCores)
 	setQueryFloat(query, "max_cores", params.MaxCores)
 	setQueryInt(query, "min_memory_mib", params.MinMemoryMib)

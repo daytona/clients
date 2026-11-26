@@ -97,6 +97,7 @@ func newImageCaptureCommand() *cobra.Command {
 		Short: "Capture a sandbox filesystem as an image",
 		Long: "Capture only a sandbox disk as an image. For memory capture, use `daytona snapshot create`.\n" +
 			"A macOS sandbox must be persistent and stopped; the capture answers DISK_NOT_READY while its disk is not ready yet (retry later).\n" +
+			"A Linux or Windows sandbox still starting, or a macOS sandbox still stopping, is retried for up to 30 seconds before capture is accepted.\n" +
 			"Requires write:images and write:sandboxes.\n" +
 			imageNameRulesHelp + "A --name that already exists answers 409 IMAGE_NAME_TAKEN.\n" +
 			"Example:\n  daytona image capture <sandbox> --name saved-image",
@@ -120,7 +121,9 @@ func newImageCaptureCommand() *cobra.Command {
 				return err
 			}
 			var created api.Raw[gen.AsyncOperation]
-			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/images", nil, req, &created); err != nil {
+			if err := retrySandboxTransition(cmd.Context(), func() error {
+				return resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/images", nil, req, &created)
+			}); err != nil {
 				return err
 			}
 			if a.Globals.NoWait {

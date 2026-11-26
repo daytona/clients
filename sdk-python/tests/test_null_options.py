@@ -31,7 +31,7 @@ _ROUTES: dict[str, Callable[[AsyncDaytonaV2, dict[str, object]], Awaitable[objec
 _OMITTED = {
     "create": [
         "name", "labels", "ports", "lifecycle_policy", "region", "create_timeout_seconds", "idempotency_key",
-        "volumes", "env", "resources", "secrets", "spot", "user", "cpu_arch", "cpu_type",
+        "volumes", "env", "resources", "secrets", "spot", "user", "cpu_arch", "cpu_type", "persistent",
     ],
     "create_from_snapshot": [
         "name", "labels", "ports", "lifecycle_policy", "region", "create_timeout_seconds", "idempotency_key",

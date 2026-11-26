@@ -4,6 +4,7 @@
  */
 
 import { BadRequestError, nonOptionsDescription } from './errors/DaytonaError.js'
+import { hasLoneSurrogate } from './pyText.js'
 import { enumerableSymbolKey } from './symbolKeys.js'
 import type { KeyedObject } from './symbolKeys.js'
 
@@ -86,9 +87,9 @@ export function headerText(value: string, name: string): string {
   if (value.length === 0) throw badRequest(`${name} must be a non-empty string`)
   for (let index = 0; index < value.length; index++) {
     const unit = value.charCodeAt(index)
-    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
+    if (unit < 0x20 || unit > 0x7e) throw badRequest(`${name} must be printable ASCII`)
   }
-  if (value.startsWith(' ') || value.endsWith(' ')) throw badRequest(`${name} must be printable ASCII with no leading or trailing whitespace`)
+  if (value.startsWith(' ') || value.endsWith(' ')) throw badRequest(`${name} must have no leading or trailing whitespace`)
   return value
 }
 
@@ -148,9 +149,17 @@ export function assertLabels(labels: unknown): asserts labels is Readonly<Record
   assertLabelKeys(labels)
 }
 
-/** @internal Refuse an empty label key before any request: the API refuses it. */
+/**
+ * @internal Refuse labels the API cannot read, before any request, with the
+ * messages of Python's `check_labels`: an empty key, then a key or a value
+ * with a lone surrogate (no UTF-8 form), in label order.
+ */
 export function assertLabelKeys(labels: Readonly<Record<string, string>>): void {
   if (Object.keys(labels).includes('')) throw badRequest('label keys must not be empty')
+  for (const [key, value] of Object.entries(labels)) {
+    if (hasLoneSurrogate(key)) throw badRequest('label keys must not contain a lone surrogate')
+    if (hasLoneSurrogate(value)) throw badRequest('label values must not contain a lone surrogate')
+  }
 }
 
 /**

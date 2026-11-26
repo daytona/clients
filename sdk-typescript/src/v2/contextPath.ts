@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { hasLoneSurrogate } from './pathSegment.js'
+import { hasLoneSurrogate } from './pyText.js'
 import { badRequest } from './options.js'
 
 /** Refuse path strings that the filesystem would silently replace on encoding. @internal */

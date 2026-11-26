@@ -33,10 +33,12 @@ func TestExecR3_whenStreamTimesOut_mergesRetainedReplayByCursor(t *testing.T) {
 			map[string]any{"cursor": "3", "timestamp": 3, "channel": "stdout", "data": "replay"},
 		)
 		mux.HandleFunc("GET /processes/p/logs", jsonHandler(t, page))
+		// Still running at the deadline: the result is timed_out.
+		mux.HandleFunc("GET /processes/p", jsonHandler(t, processFixture("p")))
 		snapshotReads := 0
 		sandbox := dockerTimingSandbox(t, func(r *http.Request) (*http.Response, error) {
 			if r.URL.Query().Get("follow") != "true" {
-				if r.Method == http.MethodGet {
+				if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/logs") {
 					snapshotReads++
 				}
 				return (waitTestTransport{handler: mux.ServeHTTP}).RoundTrip(r)

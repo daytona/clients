@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { hasLoneSurrogate } from './pathSegment.js'
+import { hasLoneSurrogate } from './pyText.js'
 import { badRequest } from './options.js'
 import { hasSpace, isBlank, strip } from './pyText.js'
 

@@ -49,6 +49,7 @@ from ._core import (
 )
 from ._otel import OpenTelemetrySupport
 from ._shutdown import refuse_during_interpreter_shutdown, refusing_stopped_pools
+from ._transport_errors import bearer, connection_error
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
@@ -165,7 +166,7 @@ class SyncResponseStream:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
 
     def close(self) -> None:
         if self._closed:
@@ -293,7 +294,7 @@ class SyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         if spec.on_headers is not None and response.status_code < 300:
             spec.on_headers(response.headers)
         return _decode_response(response)
@@ -325,7 +326,7 @@ class SyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         if response.status_code >= 300:
             try:
                 body = read_body_sync(
@@ -334,7 +335,7 @@ class SyncTransport:
             except httpx.TimeoutException as exc:
                 raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
-                raise ConnectionError(str(exc)) from exc
+                raise connection_error(exc) from exc
             finally:
                 stream.__exit__(None, None, None)
             raise error_from_response(
@@ -362,7 +363,7 @@ class SyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         if response.status_code >= 300:
             raise error_from_response(
                 response.status_code, response.content, content_type=response.headers.get("content-type")
@@ -431,7 +432,7 @@ class AsyncResponseStream:
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
-            error = ConnectionError(str(exc))
+            error = connection_error(exc)
             self._finish_span_error(error)
             raise error from exc
         except GeneratorExit:
@@ -456,7 +457,7 @@ class AsyncResponseStream:
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
-            error = ConnectionError(str(exc))
+            error = connection_error(exc)
             self._finish_span_error(error)
             raise error from exc
         except GeneratorExit:
@@ -755,7 +756,7 @@ class AsyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         # Every public client runs on THIS transport (the sync surface bridges
         # onto it), so this is where the events hub learns a sandbox's service endpoint
         # from the response's endpoint header.
@@ -876,9 +877,10 @@ class AsyncTransport:
                 span.finish(error=exc)
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
+            error = connection_error(exc)
             if span is not None:
                 span.finish(error=exc)
-            raise ConnectionError(str(exc)) from exc
+            raise error from exc
         except BaseException as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -894,9 +896,10 @@ class AsyncTransport:
                     span.finish(status_code=response.status_code, error=ClientTimeoutError())
                 raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
+                error = connection_error(exc)
                 if span is not None:
-                    span.finish(status_code=response.status_code, error=ConnectionError(str(exc)))
-                raise ConnectionError(str(exc)) from exc
+                    span.finish(status_code=response.status_code, error=error)
+                raise error from exc
             except BaseException as exc:
                 if span is not None:
                     span.finish(status_code=response.status_code, error=exc)
@@ -987,7 +990,7 @@ class AsyncTransport:
             if isinstance(exc, httpx.TimeoutException):
                 raise ClientTimeoutError() from exc
             if isinstance(exc, httpx.HTTPError):
-                raise ConnectionError(str(exc)) from exc
+                raise connection_error(exc) from exc
             raise
         if 200 <= response.status_code < 300 and (spec.unbounded_read or spec.timeout is None):
             timeouts: object = response.request.extensions.get("timeout")
@@ -1102,9 +1105,10 @@ class AsyncTransport:
                 span.finish(error=exc)
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
+            error = connection_error(exc)
             if span is not None:
                 span.finish(error=exc)
-            raise ConnectionError(str(exc)) from exc
+            raise error from exc
         except BaseException as error:
             if span is not None:
                 span.finish(error=error)
@@ -1316,7 +1320,7 @@ def _request_headers(
     # Only the encodings the capped readers decode in bounded steps.
     request_headers["Accept-Encoding"] = ACCEPT_ENCODING
     if token:
-        request_headers["Authorization"] = f"Bearer {token}"
+        request_headers["Authorization"] = bearer(token)
     if headers:
         request_headers.update(headers)
     return request_headers

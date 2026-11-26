@@ -37,7 +37,53 @@ const customNamespaces: readonly { readonly name: string; readonly create: (api:
   { name: 'event hub', create: (api) => new WaitHub('https://api.invalid', API_KEY, {}, () => { throw new Error('unexpected socket') }, api) },
 ]
 
-function expectSafe(value: unknown, includeJSON = true): void {
+/**
+ * Every path to a credential that a generic property walker (object spread,
+ * `Object.entries`, deep-clone and error-reporting helpers) can follow from
+ * `root`: own enumerable string and symbol keys, plus Map / Set entries.
+ */
+function enumerableCredentialPaths(root: unknown, label = 'value'): string[] {
+  const found: string[] = []
+  const seen = new Set<unknown>()
+  const visit = (value: unknown, path: string): void => {
+    if (typeof value === 'string') {
+      if (['dtn_', 'dtnv_', API_KEY, ACCESS_TOKEN, JWT].some((credential) => value.includes(credential))) found.push(path)
+      return
+    }
+    if ((typeof value !== 'object' && typeof value !== 'function') || value === null || seen.has(value)) return
+    seen.add(value)
+    if (value instanceof Map) {
+      for (const [key, entry] of value) {
+        visit(key, `${path}<key>`)
+        visit(entry, `${path}<entry>`)
+      }
+    }
+    if (value instanceof Set) for (const entry of value) visit(entry, `${path}<entry>`)
+    for (const key of Reflect.ownKeys(value)) {
+      if (!Object.prototype.propertyIsEnumerable.call(value, key)) continue
+      let child: unknown
+      try {
+        child = Reflect.get(value, key)
+      } catch {
+        continue
+      }
+      visit(child, `${path}.${String(key)}`)
+    }
+  }
+  visit(root, label)
+  return found
+}
+
+function expectNotEnumerable<T extends object>(value: T): void {
+  expect(enumerableCredentialPaths(value)).toEqual([])
+  expect(JSON.stringify({ ...value })).not.toMatch(/dtn_|dtnv_|inspection_jwt_secret/)
+  for (const key of ['apiKey', 'jwtToken', 'token', 'cachedToken', 'hubIdentityKey']) {
+    expect(Object.keys(value)).not.toContain(key)
+  }
+}
+
+function expectSafe(value: unknown, includeJSON = true, walk = includeJSON): void {
+  if (walk && typeof value === 'object' && value !== null) expectNotEnumerable(value)
   let logged = ''
   const stdout = new Writable({ write(chunk, _encoding, callback) { logged += String(chunk); callback() } })
   new Console({ stdout, inspectOptions: { depth: null, showHidden: true } }).log(value)
@@ -60,9 +106,9 @@ describe('credential-safe diagnostics', () => {
     const external = axios.create({ baseURL: 'https://api.invalid', headers: { Authorization: `Bearer ${API_KEY}` } })
     // When
     const namespace = create(external)
-    // Then
-    expectSafe(namespace)
-    expectSafe({ namespace })
+    // Then: serializers only; the caller-owned Axios instance keeps its own headers.
+    expectSafe(namespace, true, false)
+    expectSafe({ namespace }, true, false)
   })
 
   it.each(customNamespaces)('does not change caller-owned Axios diagnostics for $name', ({ create }) => {
@@ -84,6 +130,9 @@ describe('credential-safe diagnostics', () => {
     const apiConfig = { apiKey: API_KEY, httpOptions: { authProvider: { token: ACCESS_TOKEN, authorizationHeader: async () => `Bearer ${ACCESS_TOKEN}` } } }
     // When
     const images = new ImagesService(INTERNAL, api, apiConfig)
+    // SAFETY: getApiTransport is the service's private, argument-free resolver
+    // that followBuildLogs() runs first.
+    ;(images as unknown as { getApiTransport(): unknown }).getApiTransport()
     // Then
     expectSafe(images)
     expect(apiConfig.apiKey).toBe(API_KEY)
@@ -184,5 +233,80 @@ describe('credential-safe diagnostics', () => {
         server.closeIdleConnections()
       })
     }
+  })
+  it('keeps credentials out of every enumerable property of the clients, handles and transports', async () => {
+    // Given: a key client with its events hub attached, and a JWT client
+    const root = new Daytona({ apiKey: API_KEY })
+    const v2 = root.v2
+    const hub = (v2 as unknown as { acquireHub(): object }).acquireHub()
+    const jwtRoot = new Daytona({ jwtToken: JWT, projectId: 'project' })
+    const api = createHttpClient('https://api.invalid', API_KEY)
+    const sandbox = createSandbox('sandbox', api, undefined, API_KEY, undefined, {
+      accessToken: ACCESS_TOKEN, toolboxUrl: 'https://toolbox.invalid',
+    })
+    const keyed = createSandbox('keyed', api, undefined, API_KEY, undefined, { toolboxUrl: 'https://toolbox.invalid' })
+    try {
+      // When: every lazily built namespace exists
+      const namespaces = [sandbox, keyed].flatMap((handle) => [
+        handle.fs, handle.git, handle.process, handle.interpreter, handle.pty,
+        handle.computerUse, handle.docker, handle.ports, handle.volumes,
+      ])
+      // Then
+      for (const holder of [
+        root, v2, hub, jwtRoot, jwtRoot.v2, v2.images, v2.snapshots, v2.volumes, v2.secrets, v2.reservations, v2.macModels,
+        sandbox, keyed, ...namespaces, { root, v2, sandbox, keyed },
+      ]) {
+        expectNotEnumerable(holder)
+      }
+      expect(Object.keys(sandbox)).not.toContain('apiKey')
+      expect(Object.keys(Reflect.get(sandbox.fs, 'transport') as object)).not.toContain('apiKey')
+      expect(sandbox.accessToken).toBe(ACCESS_TOKEN)
+    } finally {
+      await root.close()
+      await jwtRoot.close()
+    }
+  })
+
+  it('keeps a minted sandbox token out of enumerable properties', async () => {
+    // Given: a handle that mints its own toolbox token
+    const api = createHttpClient('https://api.invalid', API_KEY)
+    const sent: string[] = []
+    api.defaults.adapter = async (config) => {
+      sent.push(String(config.headers.get('Authorization')))
+      return {
+        config, status: 200, statusText: 'OK', headers: {},
+        data: { access_token: ACCESS_TOKEN, expires_at: '2099-01-01T00:00:00Z', token_type: 'Bearer', operations: [] },
+      }
+    }
+    const sandbox = createSandbox('sandbox', api, undefined, API_KEY, undefined, { toolboxUrl: 'https://toolbox.invalid' })
+    const toolbox = Reflect.get(sandbox, 'toolboxTransport') as HttpTransport
+    toolbox.http.defaults.adapter = async (config) => {
+      sent.push(String(config.headers.get('Authorization')))
+      return { config, status: 200, statusText: 'OK', headers: {}, data: { ok: true } }
+    }
+    // When
+    await toolbox.get('/files/info')
+    // Then
+    expect(sent).toEqual([`Bearer ${API_KEY}`, `Bearer ${ACCESS_TOKEN}`])
+    expect(sandbox.accessToken).toBe(ACCESS_TOKEN)
+    for (const holder of [sandbox, Reflect.get(sandbox, 'auth') as object, toolbox]) expectNotEnumerable(holder)
+  })
+
+  it('sends the API key on each request without storing it in the client defaults', async () => {
+    // Given
+    const api = createHttpClient('https://api.invalid', API_KEY)
+    const sent: string[] = []
+    api.defaults.adapter = async (config) => {
+      sent.push(String(config.headers.get('Authorization')))
+      return { config, status: 200, statusText: 'OK', headers: {}, data: {} }
+    }
+    // When
+    await api.get('/ping')
+    await api.get('/ping', { headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } })
+    await api.get('/ping', { headers: { Authorization: null } })
+    // Then: the default bearer, a per-request one that replaces it, and none
+    // when the request removes the header
+    expect(sent).toEqual([`Bearer ${API_KEY}`, `Bearer ${ACCESS_TOKEN}`, 'null'])
+    expect(enumerableCredentialPaths(api)).toEqual([])
   })
 })

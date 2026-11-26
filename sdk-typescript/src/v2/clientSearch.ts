@@ -63,6 +63,15 @@ function commaList(name: string, values: string | readonly string[]): string {
   return items.join(',')
 }
 
+/**
+ * One selected region as the search `region_ids` filter (as Python's
+ * `region_filter`): a comma would name several regions, so it is refused.
+ * @internal
+ */
+export function regionFilter(region: string): string {
+  return commaList('region', region)
+}
+
 // The contract's classes only: SDK inputs are closed.
 function searchClasses(values: string | readonly string[]): string {
   const joined = commaList('sandboxClass', values)
@@ -129,6 +138,7 @@ export function searchQueryParams(input: SearchSandboxesOptions): SearchQueryPar
     image_ref: optionalQueryText(options.imageRef, 'imageRef'),
     image_ref_prefix: optionalQueryText(options.imageRefPrefix, 'imageRefPrefix'),
     labels: options.labels === undefined ? undefined : labelsParam(options.labels),
+    persistent: boolParam(options.persistent, 'persistent'),
     spot: boolParam(options.spot, 'spot'),
     forked_from: optionalQueryText(options.forkedFrom, 'forkedFrom'),
     min_cores: numberParam(options.minCores, 'minCores'),

@@ -129,13 +129,22 @@ func (s *Sandbox) Refresh(ctx context.Context) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.info = observation.info
+	s.replaceInfo(observation.info)
 	s.reasonFromRead = true
 	s.info.ID = s.id
 	if !s.explicitToolboxURL && endpoint != "" {
 		s.toolboxURL = endpoint
 	}
 	return nil
+}
+
+// replaceInfo requires s.mu. Persistence is immutable after creation, so an
+// omitted observation retains known persistence; an explicit boolean wins.
+func (s *Sandbox) replaceInfo(info SandboxInfo) {
+	if info.Persistent == nil {
+		info.Persistent = clonePointer(s.info.Persistent)
+	}
+	s.info = info
 }
 
 func (s *Sandbox) toolbox() *toolboxClient { return s.toolboxClient }

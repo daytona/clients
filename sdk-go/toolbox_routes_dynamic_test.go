@@ -15,13 +15,15 @@ var routeForwarders = map[string][]sdkRoute{
 	"create_submit.go|POST|prepared.path": apiRouteUses("POST",
 		"/sandboxes", "/sandboxes/from-snapshot", "/sandboxes/macos"),
 	"image_list.go|GET|path": apiRouteUses("GET",
-		"/images", "/images/search", "/snapshots", "/snapshots/search"),
-	"image_wait.go|GET|":              apiRouteUses("GET", "/images/{param}", "/snapshots/{param}"),
-	"images_ready.go|GET|":            apiRouteUses("GET", "/images/{param}"),
-	"images_build.go|GET|":            nil, // Request options populated before POST; assignment inventoried below.
-	"sandbox_wait_read.go|GET|":       nil, // Zero-valued requests returned with errors, never sent.
-	"sandbox_wait_read.go|GET|w.path": apiRouteUses("GET", "/sandboxes/{param}"),
-	"sandbox_list.go|GET|path":        apiRouteUses("GET", "/sandboxes", "/sandboxes/search"),
+		"/images", "/images/search", "/snapshots", "/snapshots/search",
+		"/secrets", "/secrets/search", "/volumes", "/volumes/search"),
+	"resource_search.go|GET|r.reader.path": apiRouteUses("GET", "/secrets", "/volumes"),
+	"image_wait.go|GET|":                   apiRouteUses("GET", "/images/{param}", "/snapshots/{param}"),
+	"images_ready.go|GET|":                 apiRouteUses("GET", "/images/{param}"),
+	"images_build.go|GET|":                 nil, // Request options populated before POST; assignment inventoried below.
+	"sandbox_wait_read.go|GET|":            nil, // Zero-valued requests returned with errors, never sent.
+	"sandbox_wait_read.go|GET|w.path":      apiRouteUses("GET", "/sandboxes/{param}"),
+	"sandbox_list.go|GET|path":             apiRouteUses("GET", "/sandboxes", "/sandboxes/search"),
 	"sandbox_lifecycle.go|POST|w.path + \"/\" + transition.action": apiRouteUses("POST",
 		"/sandboxes/{param}/stop", "/sandboxes/{param}/pause", "/sandboxes/{param}/resume"),
 	"sandbox_lifecycle_start.go|POST|w.path + \"/\" + action": apiRouteUses("POST",
@@ -70,6 +72,8 @@ var routeAnchors = map[string][]sdkRoute{
 	"images_ready.go|artifactPath(\"/images\", id)":                                                                           nil,
 	"snapshots.go|artifactListReader{s.client, \"/snapshots\", &s.client.snapshotSearchFallback}":                             nil,
 	"snapshots.go|artifactPath(\"/snapshots\", id)":                                                                           nil,
+	"secret.go|artifactListReader{s.client, \"/secrets\", &s.client.secretSearchFallback}":                                    nil,
+	"volume.go|artifactListReader{v.client, \"/volumes\", &v.client.volumeSearchFallback}":                                    nil,
 	"images_build.go|request.Method, request.Path, request.Result = http.MethodPost, \"/images\", &raw":                       apiRouteUses("POST", "/images"),
 	"macos_create.go|prepared.path, prepared.class = \"/sandboxes/macos\", SandboxClassMacOS":                                 nil,
 	"sandbox_create.go|prepared.path, prepared.class = \"/sandboxes\", SandboxClassLinux":                                     nil,
