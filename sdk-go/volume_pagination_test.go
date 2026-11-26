@@ -17,7 +17,7 @@ func TestVolumeSecretList_whenContinuationExists(t *testing.T) {
 		t.Run(resource, func(t *testing.T) {
 			// Given
 			fake := newFakeServer(t, map[string]http.HandlerFunc{
-				"GET /" + resource: jsonHandler(t, map[string]any{resource: []any{}, "next_cursor": "next"}),
+				"GET /" + resource + "/search": jsonHandler(t, map[string]any{resource: []any{}, "next_cursor": "next"}),
 			})
 			client := newTestClient(t, fake.Server)
 			var cursor string
@@ -58,7 +58,7 @@ func TestVolumeSecretListAll_whenConsumerStopsOrCursorCycles(t *testing.T) {
 					fixture = secretFixture()
 				}
 				fake := newFakeServer(t, map[string]http.HandlerFunc{
-					"GET /" + resource: func(w http.ResponseWriter, r *http.Request) {
+					"GET /" + resource + "/search": func(w http.ResponseWriter, r *http.Request) {
 						next := "second"
 						if r.URL.Query().Get("cursor") == "second" {
 							next = "first"

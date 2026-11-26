@@ -49,7 +49,9 @@ type DeleteVolumeOptions struct {
 	IDOnly bool
 }
 
-// List returns exactly one volume page. Invalid pagination returns ErrBadRequest.
+// List returns exactly one volume page, preferring eventually consistent search
+// and falling back to the list route only on 404, SEARCH_NOT_CONFIGURED or a
+// non-page answer from an older API. Invalid pagination returns ErrBadRequest.
 func (v *Volumes) List(ctx context.Context, opts *ListVolumesOptions) (*Page[Volume], error) {
 	options := ListVolumesOptions{}
 	if opts != nil {
@@ -59,11 +61,10 @@ func (v *Volumes) List(ctx context.Context, opts *ListVolumesOptions) (*Page[Vol
 	if err != nil {
 		return nil, err
 	}
-	var raw JSONValue
-	if requestErr := v.client.api().do(ctx, apiRequest{
-		Path: "/volumes", Query: query, Result: &raw,
-	}); requestErr != nil {
-		return nil, requestErr
+	reader := resourceListReader{artifactListReader{v.client, "/volumes", &v.client.volumeSearchFallback}, "volumes"}
+	raw, err := reader.read(ctx, query)
+	if err != nil {
+		return nil, err
 	}
 	return resourcePage(raw, "volumes", parseVolume)
 }
@@ -85,7 +86,7 @@ func (v *Volumes) ListAll(ctx context.Context, opts *ListVolumesOptions) iter.Se
 // Get fetches a volume by ID or name. Create requests creation on ErrNotFound;
 // IDOnly always suppresses creation. Other server errors are preserved.
 func (v *Volumes) Get(ctx context.Context, nameOrID string, opts *GetVolumeOptions) (*Volume, error) {
-	segment, err := pathSegment(nameOrID)
+	segment, err := resourceSegment(nameOrID, "volume")
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +116,9 @@ func (v *Volumes) Get(ctx context.Context, nameOrID string, opts *GetVolumeOptio
 func (v *Volumes) Create(ctx context.Context, name string, opts *CreateVolumeOptions) (*Volume, error) {
 	if builderTrim(name) == "" || !utf8.ValidString(name) {
 		return nil, badRequest("name must be a non-empty UTF-8 string")
+	}
+	if err := refuseSearchName(name, "volume"); err != nil {
+		return nil, err
 	}
 	options := CreateVolumeOptions{}
 	if opts != nil {
@@ -154,7 +158,7 @@ func (v *Volumes) Create(ctx context.Context, name string, opts *CreateVolumeOpt
 // Delete requests deletion by ID or name and returns when accepted, without
 // waiting for final commits or deletion to finish. ErrNotFound is preserved.
 func (v *Volumes) Delete(ctx context.Context, nameOrID string, opts *DeleteVolumeOptions) error {
-	segment, err := pathSegment(nameOrID)
+	segment, err := resourceSegment(nameOrID, "volume")
 	if err != nil {
 		return err
 	}

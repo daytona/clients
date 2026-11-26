@@ -30,6 +30,8 @@ type Client struct {
 	searchFallback         atomic.Bool
 	imageSearchFallback    atomic.Bool
 	snapshotSearchFallback atomic.Bool
+	secretSearchFallback   atomic.Bool
+	volumeSearchFallback   atomic.Bool
 	accountLimits          accountLimitsCache
 	version                string
 }
