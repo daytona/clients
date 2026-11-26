@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConflictError, ClientClosedError, TransferCancelledError, createDaytonaError, errorOptionsFromEnvelope } from '../src/v2/errors/DaytonaError'
+import { ConflictError, ClientClosedError, createDaytonaError, errorOptionsFromEnvelope } from '../src/v2/errors/DaytonaError'
 import { createHttpClient } from '../src/v2/http'
 import { retrySandboxTransition } from '../src/v2/sandboxTransitionRetry'
 import { createSandbox } from './helpers/sandbox'
@@ -79,42 +79,6 @@ describe('sandbox transition retry', () => {
     expect(attempt).toHaveBeenCalledTimes(1)
   })
 
-  it('stops during backoff when cancelled', async () => {
-    // Given a retry waiting for its delay,
-    const controller = new AbortController()
-    const attempt = jest.fn().mockRejectedValue(transition(5))
-    const result = retrySandboxTransition(attempt, { signal: controller.signal }).catch((error: unknown) => error)
-    await jest.advanceTimersByTimeAsync(0)
-    // When the caller cancels,
-    controller.abort()
-    // Then cancellation interrupts the delay and releases its timer.
-    expect(await result).toBeInstanceOf(TransferCancelledError)
-    expect(await result).toMatchObject({
-      message: 'sandbox transition retry cancelled',
-      statusCode: 499,
-      code: 'REQUEST_CANCELLED',
-      source: 'SDK',
-    })
-    expect(attempt).toHaveBeenCalledTimes(1)
-    expect(jest.getTimerCount()).toBe(0)
-  })
-
-  it.each([true, false])('reports transition cancellation before backoff (already aborted=%s)', async (alreadyAborted) => {
-    // Given cancellation before submission or while the first request is rejected,
-    const controller = new AbortController()
-    if (alreadyAborted) controller.abort()
-    const attempt = jest.fn(async () => {
-      controller.abort()
-      throw transition()
-    })
-    // When retrying, then cancellation keeps its SDK shape and operation context.
-    await expect(retrySandboxTransition(attempt, { signal: controller.signal })).rejects.toMatchObject({
-      message: 'sandbox transition retry cancelled', code: 'REQUEST_CANCELLED', statusCode: 499, source: 'SDK',
-    })
-    expect(attempt).toHaveBeenCalledTimes(alreadyAborted ? 0 : 1)
-    expect(jest.getTimerCount()).toBe(0)
-  })
-
   it('does not retry after the client closes during backoff', async () => {
     // Given a live client at the first attempt,
     let closed = false
@@ -153,7 +117,7 @@ describe('sandbox transition retry', () => {
     // Given a retry delay longer than the requested readiness wait,
     const api = createHttpClient('https://api.example', 'key')
     const detail = { id: 'src', class: 'linux', status: 'running', name: 'source', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [], persistent: true }
-    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { ...detail, persistent: undefined } }).mockResolvedValueOnce({ data: { ...detail, id: 'new', persistent: undefined } })
+    const get = jest.spyOn(api, 'get').mockResolvedValueOnce({ data: { ...detail, persistent: undefined } }).mockResolvedValueOnce({ data: detail }).mockResolvedValueOnce({ data: { ...detail, id: 'new', persistent: undefined } })
     jest.spyOn(api, 'post').mockRejectedValueOnce(transition()).mockResolvedValue({ data: { id: 'new', status: 'pending' } })
     const source = createSandbox(detail, api)
     // When forking,
@@ -161,7 +125,7 @@ describe('sandbox transition retry', () => {
     await jest.advanceTimersByTimeAsync(1000)
     // Then the accepted fork still gets its full readiness budget.
     await expect(result).resolves.toMatchObject({ id: 'new', state: 'started', persistent: true })
-    expect(get.mock.calls[1]?.[1]?.timeout).toBe(500)
+    expect(get.mock.calls[2]?.[1]?.timeout).toBe(500)
   })
 
   it.each(['captureImage', 'createSnapshot'] as const)('%s never resubmits after an accepted operation has a failed lookup', async (method) => {

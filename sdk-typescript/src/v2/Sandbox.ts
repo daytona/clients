@@ -876,11 +876,15 @@ export class Sandbox {
     const sandboxClass = this.sandboxClass
     const rawSandboxClass = this.rawSandboxClass
     const persistent = this.persistent ?? sourcePersistent
-    const sourceState = this.state
+    let sourceState = this.state
+    let attempts = 0
     const http = this.api
     const response = await retrySandboxTransition(
-      () => http.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body),
-      { ensureOpen: this.httpOptions?.ensureOpen, signal: http.defaults.signal },
+      () => {
+        attempts++
+        return http.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
+      },
+      { ensureOpen: this.httpOptions?.ensureOpen },
     )
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // Checked before the fork handle or any further request, as for a create.
@@ -926,7 +930,15 @@ export class Sandbox {
       // With no deadline the detail read is an ordinary request, bounded by the request timeout.
       const timeout = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (timeout === undefined) return fork
-      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout }).then((r) => r.data)
+      if (attempts > 1) {
+        // A transition refusal invalidates the source's pre-submission state.
+        const source = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(this.id)}`, { timeout }).then((r) => r.data)
+        assertSandboxResponse(source)
+        sourceState = sandboxState(source.status)
+      }
+      const remaining = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
+      if (remaining === undefined) return fork
+      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout: remaining }).then((r) => r.data)
       assertSandboxResponse(detail)
       // A detail without `forked_from` keeps the source's id the fork already names.
       const observed = metadataFromSandbox(detail)
@@ -940,10 +952,7 @@ export class Sandbox {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error
     }
-    // The target comes from the source state read before the POST. If the
-    // source stops between that read and the POST, a macOS fork rests
-    // `stopped` while this waits for `started`: the call then returns the
-    // handle at the end of the budget, not at once. Callers check `fork.state`.
+    // Use the refreshed source state after a retried submission.
     const states: readonly SandboxWaitState[] = sourceState === 'started' ? ['started']
       : sandboxClass === 'linux' && sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
     // `timeoutSeconds: 0` is the state wait's no deadline.
@@ -1166,7 +1175,7 @@ export class Sandbox {
     const http = this.api
     const { data } = await retrySandboxTransition(
       () => http.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body),
-      { ensureOpen: this.httpOptions?.ensureOpen, signal: http.defaults.signal },
+      { ensureOpen: this.httpOptions?.ensureOpen },
     )
     const operationId = acknowledgedId(data, 'image capture')
     const image = await this.api.get<api.ImageListItem>(`/images/${pathSegment(operationId, 'image id')}`).then((response) => response.data)
@@ -1191,7 +1200,7 @@ export class Sandbox {
     const encodedId = strictUriEncode(this.id)
     const response = await retrySandboxTransition(
       () => http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name }),
-      { ensureOpen: this.httpOptions?.ensureOpen, signal: http.defaults.signal },
+      { ensureOpen: this.httpOptions?.ensureOpen },
     )
     const operationId = acknowledgedId(response.data, 'snapshot create')
     const snapshot = await http.get<api.Snapshot>(`/snapshots/${pathSegment(operationId, 'snapshot id')}`).then((result) => result.data)
