@@ -29,7 +29,9 @@ Type-checking the root `@daytona/sdk` declarations with `skipLibCheck: false`
 needs TypeScript 5.7 or later (and `esModuleInterop` under node10 / CommonJS
 resolution, as for the 0.x SDK): the root's `daytona.v0` type comes from the
 vendored v0 SDK, whose declarations use generic `Uint8Array<…>` and a default
-import of `isomorphic-ws`.
+import of `isomorphic-ws`. A Node-only project does not need the `dom` lib:
+`@types/node` declares the web types the declarations use from 20.16.3 on
+the 20.x line and from 22.5.2 on the 22.x line (every 24.x release works).
 
 ## Quickstart
 
@@ -1043,7 +1045,11 @@ send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (bot
 exported from `@daytona/sdk/v2`) with its requests.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
-`a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
+`a11y` and `recording`. An app that reaches the sandbox through its own
+transport can decode a status response with `parseComputerUseStatus(body)`
+(from `@daytona/sdk/v2`), which returns what `status()` returns for the same
+body. `body` is the decoded JSON value (`await response.json()`), not the
+response text. `screen.screenshot()` captures the whole screen or a
 `region`; any of `format`, `quality` or `scale` returns a compressed image.
 `a11y.tree({ scope: 'focused' })` returns at most 256 levels below the root (`maxDepth`, an
 integer from 0 to 256, default 256); a deeper UI comes back cut at that depth
@@ -1175,7 +1181,10 @@ in the Python SDK: `BadRequestError`, `AuthenticationError` (401),
 `RequestTimeoutError` (408), `ClientTimeoutError` (the client's own request
 timeout), `ConnectionError`, … They also expose `traceId` (v0 errors carry
 none), and the status-level bases have code-specific subclasses so you can
-catch as broadly or narrowly as you need. A call into a sandbox that is not
+catch as broadly or narrowly as you need. The error name of a root or
+`@daytona/sdk/v2` class is its class name (`'NotFoundError'`), also in
+minified production bundles; your own subclasses keep theirs (errors from
+`daytona.v0` are the 0.x SDK's, named as in 0.x). A call into a sandbox that is not
 running (a stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git`
 or the other in-sandbox namespaces, throws `SandboxNotRunningError` (409,
 `SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview URLs

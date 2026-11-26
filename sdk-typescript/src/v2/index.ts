@@ -47,7 +47,7 @@ export type {
   RestoreOptions,
 } from './Git.js'
 export { InterpreterContext, InterpreterService } from './Interpreter.js'
-export { ComputerUseService } from './ComputerUse.js'
+export { ComputerUseService, parseComputerUseStatus } from './ComputerUse.js'
 export {
   AddonProcessesService,
   A11yService,

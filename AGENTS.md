@@ -316,7 +316,13 @@ major version; Go uses its module path's `/v2` suffix instead:
   `DaytonaError[Symbol.hasInstance]` matches the same-key class of another
   loaded copy (ESM + CJS in one process) after the native check; user
   subclasses keep the native check only. A jest drift test fails if an exported
-  error class is not keyed. `exports` gives `.` and `./v2` conditional types
+  error class is not keyed. The same string tables (and `src/errors.ts`'s for
+  the root classes) name each class (`nameErrorClass`), so `error.name` stays
+  readable in minified bundles (`tests/error-names-minified.test.ts`, the
+  tarball smoke's `error-names.mjs`); a user subclass keeps its own name.
+  Published declarations name no DOM-only type (Node-only consumers compile
+  them without `lib: ["dom"]`: `tests/node-only-declarations.test.ts`,
+  `tsconfig.strict.node-only.json`). `exports` gives `.` and `./v2` conditional types
   (`require.types` → the CJS declarations in `dist/cjs`), checked by the
   node16 fixture `sdk-typescript/scripts/cjs-types-fixture/` in the tarball smoke.
 - **Dev / non-prod endpoints (test environments only; the published READMEs mention them only as such):** v2 resolves `DAYTONA_V2_API_URL` → `DEFAULT_V2_API_URL` (the CLI's default, `app.DefaultAPIURL`, must stay equal); v0 resolves `DAYTONA_V0_API_URL` → `V0_API_URL` (passed explicitly as `api_url`/`apiUrl`). `DAYTONA_API_URL` belongs to the 0.x SDKs and CLI: 2.x reads it only to warn once per process when it names a non-Cloud URL (the SDKs ignore it). Blank = unset; no config field.

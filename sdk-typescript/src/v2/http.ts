@@ -198,12 +198,17 @@ type HeaderGetter = {
   get(name: string): unknown
 }
 
+// Structural, with no DOM-only names (AddEventListenerOptions, BodyInit,
+// DOMException): these types reach the published declarations, which
+// Node-only consumers compile without the DOM lib.
 type AbortSignalLike = {
   readonly aborted: boolean
-  addEventListener?: (type: 'abort', listener: () => void, options?: boolean | AddEventListenerOptions) => void
-  removeEventListener?: (type: 'abort', listener: () => void, options?: boolean | EventListenerOptions) => void
+  addEventListener?: (type: 'abort', listener: () => void, options?: boolean | { readonly once?: boolean }) => void
+  removeEventListener?: (type: 'abort', listener: () => void) => void
   readonly reason?: unknown
 }
+
+type FetchBody = NonNullable<RequestInit['body']>
 
 export interface HttpAuthProvider {
   authorizationHeader(options?: {
@@ -247,7 +252,7 @@ export interface HttpTransportConfig {
 }
 
 export interface FetchRequestInit extends RequestInit {
-  readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
+  readonly bodyFactory?: () => FetchBody | Promise<FetchBody>
   /**
    * A file transfer: no total deadline (only the caller's `signal` ends it),
    * but it fails with `ClientTimeoutError` once no bytes move for its
@@ -333,11 +338,11 @@ function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error:
  * reject with their own `Error` subclass, and a `DOMException` from another
  * realm fails `instanceof` against this one.
  */
-export function isAbortError(error: unknown): error is DOMException | Error {
+export function isAbortError(error: unknown): error is Error {
   return errorName(error) === 'AbortError'
 }
 
-function abortErrorFromSignal(signal: AbortSignalLike | undefined): DOMException | Error | undefined {
+function abortErrorFromSignal(signal: AbortSignalLike | undefined): Error | undefined {
   return isAbortError(signal?.reason) ? signal.reason : undefined
 }
 

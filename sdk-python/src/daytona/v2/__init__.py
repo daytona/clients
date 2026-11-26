@@ -24,7 +24,7 @@ from .build_logs import (
     BuildLogEventCallback,
     BuildLogsCallback,
 )
-from .computer_use import AsyncComputerUseService
+from .computer_use import AsyncComputerUseService, parse_computer_use_status
 from .computer_use_services import (
     AsyncA11yService,
     AsyncAddonProcessesService,
@@ -625,6 +625,7 @@ __all__ = [
     "SandboxSecretsInfo",
     "NotFoundError",
     "NotSupportedError",
+    "parse_computer_use_status",
     "PayloadTooLargeError",
     "PaymentMethodRequiredError",
     "PlanChangePendingError",

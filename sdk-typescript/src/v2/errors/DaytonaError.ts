@@ -25,6 +25,7 @@ import {
   DaytonaServiceUnavailableError as RootDaytonaServiceUnavailableError,
   DaytonaTimeoutError as RootDaytonaTimeoutError,
   DaytonaUnprocessableEntityError as RootDaytonaUnprocessableEntityError,
+  nameErrorClass,
   registerErrorClasses,
 } from '../../errors.js'
 
@@ -1089,8 +1090,8 @@ registerErrorClasses(RootDaytonaInternalServerError, [InternalServerError])
 registerErrorClasses(RootDaytonaServiceUnavailableError, [ServiceUnavailableError])
 registerErrorClasses(RootDaytonaConnectionError, [ConnectionError])
 
-// Every error class in this module, keyed for cross-copy instanceof (a drift test
-// checks the list against the module's exports).
+// Every error class in this module, keyed for cross-copy instanceof and named
+// by the same key (a drift test checks the list against the module's exports).
 for (const [key, errorClass] of [
   ['DaytonaError', DaytonaError],
   ['BadRequestError', BadRequestError],
@@ -1197,5 +1198,6 @@ for (const [key, errorClass] of [
   ['PlanRequiresSalesError', PlanRequiresSalesError],
   ['AutomaticTopUpNotAvailableError', AutomaticTopUpNotAvailableError],
 ] as const) {
+  nameErrorClass(errorClass, key)
   registerV2ErrorClass(key, errorClass)
 }

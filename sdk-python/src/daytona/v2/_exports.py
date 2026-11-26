@@ -241,6 +241,7 @@ ROOT_EXPORTS = [
     "SandboxSecretsInfo",
     "NotFoundError",
     "NotSupportedError",
+    "parse_computer_use_status",
     "PayloadTooLargeError",
     "PaymentMethodRequiredError",
     "PlanChangePendingError",
