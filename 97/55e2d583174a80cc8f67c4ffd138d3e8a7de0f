@@ -1,0 +1,27 @@
+sdk-go/README.md
+  s_725f6de4e08f07::t_22c7375dadda60 80,90-94
+  s_725f6de4e08f07::t_a6c94b1aec779c 95
+sdk-go/capture.go
+  s_725f6de4e08f07::t_22c7375dadda60 26-28,61
+sdk-go/sandbox_lifecycle_fork.go
+  s_725f6de4e08f07::t_22c7375dadda60 38
+sdk-go/sandbox_lifecycle.go
+  s_725f6de4e08f07::t_0ae44971d0aa7c 22-23
+  s_725f6de4e08f07::t_22c7375dadda60 13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9755e2d583174a80cc8f67c4ffd138d3e8a7de0f",
+  "prompts": {},
+  "sessions": {
+    "s_725f6de4e08f07": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de926f641ffeAXSjDOX6xw8vsp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
