@@ -38,6 +38,9 @@ type expectedRequest struct {
 	status      int
 	response    string
 	check       func(*testing.T, *http.Request, []byte)
+	// skipResponseContract skips only the response fixture check, for the
+	// deliberately off-contract bodies an older API answers.
+	skipResponseContract bool
 }
 
 type runCLIOptions struct {
@@ -96,7 +99,9 @@ func runCLIWithOptions(t *testing.T, opts runCLIOptions, args []string, expected
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			validateAgainstContractRequest(t, r, exp.status, []byte(exp.response), "application/json")
+			if !exp.skipResponseContract {
+				validateAgainstContractRequest(t, r, exp.status, []byte(exp.response), "application/json")
+			}
 		}
 		w.WriteHeader(exp.status)
 		_, _ = io.WriteString(w, exp.response)

@@ -2377,12 +2377,14 @@ def search_params(query: SearchSandboxesOptions) -> Dict[str, JsonValue]:
 
 def parse_search_page(
     payload: JsonValue,
-    check_sandbox: Callable[[JsonValue], object],
+    check_item: Callable[[JsonValue], object],
+    item_field: str = "sandboxes",
 ) -> Tuple[List[JsonObject], Optional[str], int, SearchTotalRelation, str]:
-    """Split a ``GET /sandboxes/search`` body into items, cursor, total, and relation.
+    """Split a search response into items, cursor, total, and relation.
 
-    The search contract is an object with a ``sandboxes`` array of sandbox
-    objects (each checked by ``check_sandbox``, as a detail is), a
+    The search contract is an object with an ``item_field`` array (``sandboxes``
+    by default, or ``secrets`` / ``volumes``) of objects, each checked by
+    ``check_item`` as a detail is, a
     non-negative integer ``total``, a string ``total_relation`` and a string or null
     ``next_cursor``. Anything else is the SDK's own :class:`BadRequestError`
     naming the field, never an empty or truncated page — an ``items`` array is
@@ -2394,12 +2396,12 @@ def parse_search_page(
 
     if not isinstance(payload, dict):
         raise malformed("is not a JSON object")
-    raw_sandboxes = payload.get("sandboxes")
-    if not isinstance(raw_sandboxes, list):
-        raise malformed("is missing the sandboxes array")
-    for item in raw_sandboxes:
-        check_sandbox(item)
-    items = [expect_object(item) for item in raw_sandboxes]
+    raw_items = payload.get(item_field)
+    if not isinstance(raw_items, list):
+        raise malformed(f"is missing the {item_field} array")
+    for item in raw_items:
+        check_item(item)
+    items = [expect_object(item) for item in raw_items]
     total = payload.get("total")
     if total is None:
         raise malformed("is missing its total")

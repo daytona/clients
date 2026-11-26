@@ -41,7 +41,9 @@ type SetSecretOptions struct {
 	IfNotExists bool
 }
 
-// List returns exactly one page of secret metadata, never secret values.
+// List returns exactly one page of secret metadata, never secret values. It
+// prefers eventually consistent search and falls back to the list route only on
+// 404, SEARCH_NOT_CONFIGURED or a non-page answer from an older API.
 func (s *Secrets) List(ctx context.Context, opts *ListSecretsOptions) (*Page[Secret], error) {
 	options := ListSecretsOptions{}
 	if opts != nil {
@@ -51,11 +53,10 @@ func (s *Secrets) List(ctx context.Context, opts *ListSecretsOptions) (*Page[Sec
 	if err != nil {
 		return nil, err
 	}
-	var raw JSONValue
-	if requestErr := s.client.api().do(ctx, apiRequest{
-		Path: "/secrets", Query: query, Result: &raw,
-	}); requestErr != nil {
-		return nil, requestErr
+	reader := resourceListReader{artifactListReader{s.client, "/secrets", &s.client.secretSearchFallback}, "secrets"}
+	raw, err := reader.read(ctx, query)
+	if err != nil {
+		return nil, err
 	}
 	return resourcePage(raw, "secrets", parseSecret)
 }
@@ -77,7 +78,7 @@ func (s *Secrets) ListAll(ctx context.Context, opts *ListSecretsOptions) iter.Se
 // Get fetches secret metadata by name. Values are never returned.
 // ErrNotFound means the secret does not exist.
 func (s *Secrets) Get(ctx context.Context, name string) (*Secret, error) {
-	segment, err := pathSegment(name)
+	segment, err := resourceSegment(name, "secret")
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func (s *Secrets) Get(ctx context.Context, name string) (*Secret, error) {
 // unless IfNotExists is true.
 // Required name and value remain positional to distinguish them from metadata.
 func (s *Secrets) Set(ctx context.Context, name, value string, opts *SetSecretOptions) (*Secret, error) {
-	segment, err := pathSegment(name)
+	segment, err := resourceSegment(name, "secret")
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +165,7 @@ func (s *Secrets) storedDescription(ctx context.Context, name string) (*string, 
 
 // Delete deletes a secret by name. ErrNotFound is preserved.
 func (s *Secrets) Delete(ctx context.Context, name string) error {
-	segment, err := pathSegment(name)
+	segment, err := resourceSegment(name, "secret")
 	if err != nil {
 		return err
 	}
