@@ -77,6 +77,7 @@ persistence. Without a lifecycle policy, persistent Linux sandboxes default to
 pausing after a 300-second lifetime.
 
 - `Stop` / `Start` preserve disk, not memory or running processes.
+  `Stop` requires persistence, including on macOS, and is unavailable on GPU.
 - `Pause` / `Resume` preserve disk, memory and processes.
 - Linux stop, start, restart, pause, resume and fork require persistence; the
   API checks support.
@@ -85,6 +86,12 @@ pausing after a 300-second lifetime.
 - Volumes are accepted on create, but sandboxes with attached volumes currently
   reject pause and fork with `ErrConflict`.
 - Snapshot restores inherit the source's persistence; there is no override.
+
+Submissions retry only `SANDBOX_TRANSITION_IN_PROGRESS` for up to 30 seconds:
+`Fork` while the source is still starting, stopping or pausing;
+`CaptureImage` while it is still starting (Linux, Windows) or stopping (macOS);
+and `CreateSnapshot` (memory and disk) while it is still starting.
+Other conflicts are returned immediately.
 
 `Search` / `SearchAll` accept `SearchSandboxesOptions.Persistent`: a pointer to
 `true` selects persistent sandboxes, a pointer to `false` selects ephemeral

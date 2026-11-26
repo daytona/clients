@@ -35,7 +35,7 @@ type ForkOptions struct {
 // idempotency key: inspect existing forks before retrying to avoid duplicates.
 // The fork never inherits the source's toolbox override or access token.
 // Sources with attached volumes currently return ErrConflict.
-// A sandbox still starting or stopping is retried for up to 30 seconds on a
+// A sandbox still starting, stopping or pausing is retried for up to 30 seconds on a
 // transition-in-progress refusal, separately from Wait. Other conflicts and
 // uncertain transport failures are not retried.
 func (s *Sandbox) Fork(ctx context.Context, opts *ForkOptions) (*Sandbox, error) {

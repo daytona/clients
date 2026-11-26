@@ -23,8 +23,9 @@ type CaptureImageOptions struct {
 // for readiness. Linux sandboxes keep running. macOS requires a stopped,
 // persistent sandbox; ErrDiskNotReady means the disk is not ready yet.
 // Combining Name and IdleExpiry returns ErrBadRequest before any request.
-// A sandbox still starting or stopping is retried for up to 30 seconds on a
-// transition-in-progress refusal; other failures are returned immediately.
+// A sandbox still starting (Linux, Windows) or stopping (macOS) is retried for
+// up to 30 seconds on a transition-in-progress refusal; other failures are
+// returned immediately.
 // Caller context and client closure apply.
 func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (*Image, error) {
 	options := CaptureImageOptions{}
@@ -57,7 +58,7 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 // Name must be non-blank, valid UTF-8; otherwise it returns ErrBadRequest
 // before any request. Both sandbox-write and snapshot-write permissions are
 // required; use Snapshots.Get with Wait to observe completion.
-// A sandbox still starting or stopping is retried for up to 30 seconds on a
+// A sandbox still starting is retried for up to 30 seconds on a
 // transition-in-progress refusal; other conflicts are not retried.
 // Caller context and client closure apply.
 func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) (*Snapshot, error) {
