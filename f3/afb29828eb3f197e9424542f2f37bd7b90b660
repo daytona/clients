@@ -1,0 +1,19 @@
+sdk-go/create_options.go
+  s_10fa96e9a2d7a2::t_4bf3c0ba7d1dbc 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3afb29828eb3f197e9424542f2f37bd7b90b660",
+  "prompts": {},
+  "sessions": {
+    "s_10fa96e9a2d7a2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8583a2cffeyYEmfi9LTedj0j",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
