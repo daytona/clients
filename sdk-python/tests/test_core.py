@@ -261,7 +261,6 @@ _CONTRACT_ROUTE_PREFIXES: Final = (
 )
 
 _API_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
-    ("GET", "/volumes/search"): "Not exposed by the SDK yet.",
 }
 
 

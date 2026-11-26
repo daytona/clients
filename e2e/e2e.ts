@@ -36,6 +36,17 @@ const daytona = new Daytona({
   apiKey,
 }).v2
 
+// Checks a search route, and skips it when the API key lacks the permission.
+async function probeSearch(label: string, run: () => Promise<boolean>): Promise<void> {
+  try {
+    check(label, await run())
+  } catch (error) {
+    if (!(error instanceof DaytonaError && error.statusCode === 403 && error.message.includes('permission'))) throw error
+    skipped++
+    console.log(`SKIP ${label} (not available to this API key: ${error.message})`)
+  }
+}
+
 function check(label: string, condition: boolean, detail = ''): void {
   if (condition) {
     pass++
@@ -117,8 +128,8 @@ async function main(): Promise<number> {
     // consistent, so poll briefly. Match the name too, as a search item can
     // carry the id in another (region-tagged) form.
     check('list includes sandbox', await listIncludes(box))
-    check('secret search', (await daytona.secrets.search({ limit: 1 })).total >= 0)
-    check('volume search', (await daytona.volumes.search({ limit: 1 })).total >= 0)
+    await probeSearch('secret search', async () => (await daytona.secrets.search({ limit: 1 })).total >= 0)
+    await probeSearch('volume search', async () => (await daytona.volumes.search({ limit: 1 })).total >= 0)
 
     if (!skipToolbox && box.state === 'started') {
       const result = await box.process.run('echo daytona-$((6*7))')
