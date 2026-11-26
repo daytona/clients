@@ -7984,7 +7984,7 @@ type SearchSandboxesParams struct {
 	// may be at most 12,288 bytes; a longer one answers 400.
 	Labels *string `form:"labels,omitempty" json:"labels,omitempty"`
 
-	// Persistent Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.
+	// Persistent Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes.
 	Persistent *bool `form:"persistent,omitempty" json:"persistent,omitempty"`
 
 	// Spot Spot-tier sandboxes only (`true`) or on-demand only (`false`).

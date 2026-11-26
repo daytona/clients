@@ -17679,7 +17679,7 @@ export interface operations {
                  *     may be at most 12,288 bytes; a longer one answers 400.
                  */
                 labels?: string;
-                /** @description Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes. */
+                /** @description Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes. */
                 persistent?: boolean;
                 /** @description Spot-tier sandboxes only (`true`) or on-demand only (`false`). */
                 spot?: boolean;

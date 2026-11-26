@@ -27009,7 +27009,7 @@
             }
           },
           {
-            "description": "Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.",
+            "description": "Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes.",
             "in": "query",
             "name": "persistent",
             "required": false,
