@@ -60,9 +60,10 @@ func (s *Sandbox) Fork(ctx context.Context, opts *ForkOptions) (*Sandbox, error)
 		Memory *bool  `json:"memory,omitempty"`
 	}{options.Name, clonePointer(options.Memory)}
 	var raw JSONValue
-	if err = s.client.retrySandboxTransition(ctx, apiRequest{
+	retried, err := s.client.retrySandboxTransition(ctx, apiRequest{
 		Method: http.MethodPost, Path: "/sandboxes/" + segment + "/fork", Body: body, Result: &raw,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 	fork, err := s.parseFork(raw, source)
@@ -74,6 +75,26 @@ func (s *Sandbox) Fork(ctx context.Context, opts *ForkOptions) (*Sandbox, error)
 	}
 	if budget == NoWait {
 		return fork, nil
+	}
+	if retried {
+		// A refusal invalidates the source observation used to choose the wait.
+		started := time.Now()
+		readCtx := ctx
+		if budget != WaitForever {
+			var cancel context.CancelFunc
+			readCtx, cancel = context.WithTimeout(ctx, budget)
+			defer cancel()
+		}
+		if err = s.Refresh(readCtx); err != nil {
+			return fork, acceptedWaitError(ctx, err)
+		}
+		source = s.Info()
+		if budget != WaitForever {
+			budget -= time.Since(started)
+			if budget <= 0 {
+				return fork, acceptedWaitError(ctx, nil)
+			}
+		}
 	}
 	target := SandboxStateStopped
 	switch {

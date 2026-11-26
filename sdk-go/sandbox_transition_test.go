@@ -49,7 +49,7 @@ func TestSandboxTransition_whenRetryHintVaries(t *testing.T) {
 				})
 				started := time.Now()
 				// When retrying the submission.
-				err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Method: http.MethodPost, Path: "/operation"})
+				_, err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Method: http.MethodPost, Path: "/operation"})
 				// Then only the seconds hint controls the bounded delay.
 				require.NoError(t, err)
 				require.Equal(t, tc.want, time.Since(started))
@@ -73,7 +73,7 @@ func TestSandboxTransition_whenCodeIsNotTransition(t *testing.T) {
 				})
 				started := time.Now()
 				// When submitting through the transition helper.
-				err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Path: "/operation"})
+				_, err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Path: "/operation"})
 				// Then no generic conflict retry is introduced.
 				require.ErrorIs(t, err, ErrConflict)
 				require.Zero(t, time.Since(started))
@@ -100,7 +100,7 @@ func TestSandboxTransition_whenRetryBudgetExpires(t *testing.T) {
 		})
 		started := time.Now()
 		// When transition refusals consume the retry window.
-		err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Path: "/operation"})
+		_, err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Path: "/operation"})
 		// Then elapsed request time counts, and the final refusal is not replaced.
 		require.Equal(t, 30*time.Second, time.Since(started))
 		require.Equal(t, 5, calls)
@@ -146,7 +146,8 @@ func TestSandboxTransition_whenCallerOrClientEndsDuringDelay(t *testing.T) {
 				}()
 				// When an operation is interrupted before its next attempt.
 				go func() {
-					done <- sandbox.client.retrySandboxTransition(ctx, apiRequest{Path: "/operation"})
+					_, err := sandbox.client.retrySandboxTransition(ctx, apiRequest{Path: "/operation"})
+					done <- err
 				}()
 				err := <-done
 				// Then cancellation wins without an extra request.

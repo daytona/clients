@@ -41,7 +41,7 @@ func (s *Sandbox) CaptureImage(ctx context.Context, opts *CaptureImageOptions) (
 		return nil, err
 	}
 	var raw JSONValue
-	err = s.client.retrySandboxTransition(ctx, apiRequest{
+	_, err = s.client.retrySandboxTransition(ctx, apiRequest{
 		Method: http.MethodPost, Path: "/sandboxes/" + segment + "/images", Body: body, Result: &raw,
 	})
 	if err != nil {
@@ -70,7 +70,7 @@ func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) (*Snapshot, e
 		return nil, err
 	}
 	var raw JSONValue
-	err = s.client.retrySandboxTransition(ctx, apiRequest{
+	_, err = s.client.retrySandboxTransition(ctx, apiRequest{
 		Method: http.MethodPost, Path: "/sandboxes/" + segment + "/snapshots",
 		Body: struct {
 			Name string `json:"name"`
