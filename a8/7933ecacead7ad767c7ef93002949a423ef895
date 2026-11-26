@@ -1,0 +1,33 @@
+cli/cmd/sandbox_fork.go
+  s_400de7c4619dfa::t_80eef425d0cd9f 1-60
+changelog.d/758-fork-retry-wait.fixed.md
+  s_6766125bb4b0f4::t_1d6dc999984539 1-2
+cli/cmd/sandbox_transition_commands_test.go
+  s_400de7c4619dfa::t_e86f76401dbfa5 12,80-99
+  s_400de7c4619dfa::t_aff368b7301906 66,68-69
+  s_400de7c4619dfa::t_92bc62054d813c 58-65,67,70-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a87933ecacead7ad767c7ef93002949a423ef895",
+  "prompts": {},
+  "sessions": {
+    "s_400de7c4619dfa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de9270e2cffeTgK1MeN6SO0Yzr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6766125bb4b0f4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de92797b3ffeticJ277K2WGlM1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
