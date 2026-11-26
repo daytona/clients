@@ -117,19 +117,29 @@ def test_snapshot_create_has_no_persistence_override(client: type[AsyncClient | 
     assert "persistent" not in parameters
 
 
-@pytest.mark.parametrize("sandbox_class", ["linux", "macos", "gpu", "future"])
-@pytest.mark.parametrize("persistent", [False, True, None])
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("linux", False, ("delete",)),
+        ("linux", True, ("delete", "stop", "pause")),
+        ("linux", None, ("delete", "stop", "pause")),
+        ("macos", False, ("delete",)),
+        ("macos", True, ("delete", "stop")),
+        ("macos", None, ("delete", "stop")),
+        ("gpu", False, ("delete",)),
+        ("gpu", True, ("delete",)),
+        ("gpu", None, ("delete",)),
+        ("future", False, ("delete",)),
+        ("future", True, ("delete", "stop")),
+        ("future", None, ("delete", "stop")),
+    ],
+)
 @pytest.mark.parametrize("action", ["delete", "stop", "pause"])
-def test_lifecycle_support_matrix(sandbox_class: str, persistent: bool | None, action: str) -> None:
+def test_lifecycle_support_matrix(case: tuple[str, bool | None, tuple[str, ...]], action: str) -> None:
     # Given a known class and known or inherited persistence.
-    allowed = action == "delete" or (
-        persistent is not False
-        and (
-            (action == "stop" and sandbox_class != "gpu") or (action == "pause" and sandbox_class == "linux")
-        )
-    )
+    sandbox_class, persistent, allowed_actions = case
     # When checking policy support, then only valid combinations survive.
-    if allowed:
+    if action in allowed_actions:
         assert_lifecycle_class_support(
             {"on_timeout": action}, sandbox_class=sandbox_class, persistent=persistent
         )
