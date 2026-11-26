@@ -516,6 +516,14 @@ class NetworkPolicyInfo:
 
 
 @dataclass(frozen=True, kw_only=True)
+class SandboxSecretBinding:
+    """An attached secret and the environment variable it is injected under."""
+
+    name: str
+    env: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class SandboxSecretsInfo:
     secrets: tuple[str, ...]
     desired_revision: int
@@ -525,6 +533,8 @@ class SandboxSecretsInfo:
     error: Optional[str] = None
     capture_status: Optional[str] = None
     capture_unresolved_count: Optional[int] = None
+    # In the order of ``secrets``; empty when the server does not report them.
+    bindings: tuple[SandboxSecretBinding, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)

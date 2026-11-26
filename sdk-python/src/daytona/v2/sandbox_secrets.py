@@ -9,7 +9,7 @@ import httpx
 
 from ._core import finite_number, parse_json_response
 from .errors import create_error
-from .types import JsonObject, JsonValue, SandboxSecretsInfo
+from .types import JsonObject, JsonValue, SandboxSecretBinding, SandboxSecretsInfo
 
 _INPUT_FIELD: Final[str] = "secrets"
 
@@ -42,7 +42,27 @@ def parse_sandbox_secrets_response(response: httpx.Response) -> SandboxSecretsIn
             payload.get("capture_unresolved_count"),
             field_name="capture_unresolved_count",
         ),
+        bindings=_bindings(payload.get("bindings")),
     )
+
+
+def _bindings(value: JsonValue) -> tuple[SandboxSecretBinding, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise create_error("bindings must be an array of objects", 400, "BAD_REQUEST", "SDK")
+    bindings: list[SandboxSecretBinding] = []
+    for item in value:
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("name"), str)
+            or not isinstance(item.get("env"), str)
+        ):
+            raise create_error(
+                "bindings must be an array of objects with string name and env", 400, "BAD_REQUEST", "SDK"
+            )
+        bindings.append(SandboxSecretBinding(name=item["name"], env=item["env"]))
+    return tuple(bindings)
 
 
 def _expect_response_object(value: JsonValue) -> JsonObject:

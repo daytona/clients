@@ -90,22 +90,29 @@ func isUnion(t reflect.Type) bool {
 
 // unionFields describes a generated oneOf type: each member (the As<Name>N
 // methods) by its own fields, selected by the member's discriminator value,
-// which the contract's schema of the same name declares.
+// which the contract's schema of the same name declares. An untagged union of
+// scalars and a single object (a name, or an object that spells it out) is
+// described by that object's fields: a scalar value is not an object, so
+// CheckKeys passes it and decoding judges it.
 func unionFields(t reflect.Type, depth int) *Fields {
 	schema := contractSchema(t.Name())
 	oneOf, _ := schema["oneOf"].([]any)
 	if len(oneOf) == 0 {
+		if member, ok := soleMember(t); ok {
+			return fieldsOf(member, depth+1)
+		}
 		fieldsFailure("%s: no oneOf schema %q in the contract", t, t.Name())
 		return nil
 	}
+	if f, ok := scalarOrObjectFields(t, oneOf, depth); ok {
+		return f
+	}
 	u := &Union{Members: map[string]*Fields{}}
 	for i, raw := range oneOf {
-		member, ok := t.MethodByName(fmt.Sprintf("As%s%d", t.Name(), i))
-		if !ok || member.Type.NumOut() != 2 {
-			fieldsFailure("%s: no As%s%d member accessor", t, t.Name(), i)
+		fields, ok := unionMember(t, i, raw, depth)
+		if !ok {
 			return nil
 		}
-		fields := fieldsOf(member.Type.Out(0), depth+1)
 		memberSchema := resolveSchema(raw)
 		properties, _ := memberSchema["properties"].(map[string]any)
 		key, value := "", ""
@@ -126,20 +133,100 @@ func unionFields(t reflect.Type, depth int) *Fields {
 			fieldsFailure("%s member %d: no single discriminator property", t, i)
 			return nil
 		}
-		got := make([]string, 0, len(fields.Object))
-		for name := range fields.Object {
-			got = append(got, name)
-		}
-		sort.Strings(names)
-		sort.Strings(got)
-		if strings.Join(names, ",") != strings.Join(got, ",") {
-			fieldsFailure("%s member %d: Go fields %v, contract properties %v", t, i, got, names)
+		if !sameFields(t, i, fields, names) {
 			return nil
 		}
 		u.Key = key
 		u.Members[value] = fields
 	}
 	return &Fields{Union: u}
+}
+
+// soleMember is the one member of an inline oneOf that wraps a single schema
+// (a property's `oneOf: [$ref]`, generated as <Parent>_<Field> with one As<Schema>
+// accessor): the property takes that schema's values as they are.
+func soleMember(t reflect.Type) (reflect.Type, bool) {
+	var member reflect.Type
+	for i := range t.NumMethod() {
+		m := t.Method(i)
+		if !strings.HasPrefix(m.Name, "As") || m.Type.NumIn() != 1 || m.Type.NumOut() != 2 {
+			continue
+		}
+		if member != nil {
+			return nil, false
+		}
+		member = m.Type.Out(0)
+	}
+	return member, member != nil
+}
+
+// unionMember is the fields of member i of a generated oneOf type, read from
+// its accessor: As<Name>i, or As<Schema> for a member that is a $ref.
+func unionMember(t reflect.Type, i int, raw any, depth int) (*Fields, bool) {
+	accessor := fmt.Sprintf("As%s%d", t.Name(), i)
+	if m, _ := raw.(map[string]any); m != nil {
+		if ref, ok := m["$ref"].(string); ok {
+			accessor = "As" + strings.TrimPrefix(ref, "#/components/schemas/")
+		}
+	}
+	member, ok := t.MethodByName(accessor)
+	if !ok || member.Type.NumOut() != 2 {
+		fieldsFailure("%s: no %s member accessor", t, accessor)
+		return nil, false
+	}
+	return fieldsOf(member.Type.Out(0), depth+1), true
+}
+
+// scalarOrObjectFields describes an untagged oneOf whose members are scalars
+// and exactly one object, by the object's fields. ok is false for any other
+// oneOf.
+func scalarOrObjectFields(t reflect.Type, oneOf []any, depth int) (*Fields, bool) {
+	var object *Fields
+	for i, raw := range oneOf {
+		memberSchema := resolveSchema(raw)
+		switch memberSchema["type"] {
+		case "string", "integer", "number", "boolean":
+			continue
+		case "object":
+			if object != nil {
+				return nil, false
+			}
+			properties, _ := memberSchema["properties"].(map[string]any)
+			names := make([]string, 0, len(properties))
+			for name, prop := range properties {
+				if p, _ := prop.(map[string]any); p["x-daytona-exact-enum"] == "discriminator" {
+					return nil, false
+				}
+				names = append(names, name)
+			}
+			fields, ok := unionMember(t, i, raw, depth)
+			if !ok || !sameFields(t, i, fields, names) {
+				return nil, true
+			}
+			object = fields
+		default:
+			return nil, false
+		}
+	}
+	return object, object != nil
+}
+
+// sameFields reports whether a member's Go fields are the contract's
+// properties, failing the table when they are not.
+func sameFields(t reflect.Type, i int, fields *Fields, names []string) bool {
+	got := []string{}
+	if fields != nil {
+		for name := range fields.Object {
+			got = append(got, name)
+		}
+	}
+	sort.Strings(names)
+	sort.Strings(got)
+	if strings.Join(names, ",") != strings.Join(got, ",") {
+		fieldsFailure("%s member %d: Go fields %v, contract properties %v", t, i, got, names)
+		return false
+	}
+	return true
 }
 
 var contractSchemas map[string]any
@@ -307,4 +394,22 @@ func failFieldsWith(t *testing.T) {
 	previous := fieldsFailure
 	fieldsFailure = t.Fatalf
 	t.Cleanup(func() { fieldsFailure = previous })
+}
+
+// A secret attachment is a name or an object that names its variable: names
+// pass as they are, an object's keys are exact.
+func TestDecode_secretAttachmentsTakeNamesAndObjects(t *testing.T) {
+	b := Body{"image": "base", "secrets": []any{"API_KEY", map[string]any{"name": "tenant-key", "env": "OPENAI_API_KEY"}}}
+	req, err := Decode[gen.CreateSandboxRequest](b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(req.Secrets)
+	if err != nil || string(raw) != `["API_KEY",{"env":"OPENAI_API_KEY","name":"tenant-key"}]` {
+		t.Fatalf("secrets %s, %v", raw, err)
+	}
+	b = Body{"image": "base", "secrets": []any{map[string]any{"name": "tenant-key", "Env": "X"}}}
+	if _, err := Decode[gen.CreateSandboxRequest](b); err == nil || !strings.Contains(err.Error(), `unknown field "Env" (in "secrets.0")`) {
+		t.Fatalf("Decode: %v", err)
+	}
 }

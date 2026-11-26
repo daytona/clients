@@ -27,6 +27,7 @@ from daytona.v2 import (
     NotFoundError,
     PreconditionFailedError,
     PreconditionRequiredError,
+    SandboxSecretBinding,
     SandboxSecretsInfo,
 )
 from daytona.v2.daytona import AsyncDaytona
@@ -111,6 +112,31 @@ async def test_get_decodes_absent_optional_fields_as_none() -> None:
     info = await _get({"secrets": [], "desired_revision": 0})
 
     assert info == SandboxSecretsInfo(secrets=(), desired_revision=0, etag='"sv-3"')
+    assert info.bindings == ()
+
+
+async def test_get_decodes_each_binding_with_the_variable_its_secret_is_injected_under() -> None:
+    info = await _get(
+        _secrets_body(
+            secrets=["TOKEN", "tenant-key"],
+            bindings=[{"name": "TOKEN", "env": "TOKEN"}, {"name": "tenant-key", "env": "OPENAI_API_KEY"}],
+        )
+    )
+
+    assert info.bindings == (
+        SandboxSecretBinding(name="TOKEN", env="TOKEN"),
+        SandboxSecretBinding(name="tenant-key", env="OPENAI_API_KEY"),
+    )
+
+
+@pytest.mark.parametrize(
+    "bindings",
+    [{"name": "TOKEN", "env": "TOKEN"}, [{"name": "TOKEN"}], ["TOKEN"]],
+    ids=["not an array", "an item without env", "a string item"],
+)
+async def test_get_refuses_malformed_bindings(bindings: JsonField) -> None:
+    with pytest.raises(BadRequestError):
+        await _get(_secrets_body(bindings=bindings))
 
 
 async def test_every_contract_response_property_is_decoded() -> None:
@@ -122,6 +148,7 @@ async def test_every_contract_response_property_is_decoded() -> None:
         error="x",
         capture_status="partial",
         capture_unresolved_count=1,
+        bindings=[{"name": "TOKEN", "env": "API_TOKEN"}],
     )
     assert set(full_body) == set(schema["properties"])
 

@@ -80,7 +80,13 @@ from daytona.v2._gen.api.models.create_sso_setup_link_request import CreateSsoSe
 from daytona.v2._gen.api.models.create_top_up_session_request import CreateTopUpSessionRequest as CreateTopUpSessionRequest
 from daytona.v2._gen.api.models.create_v0_sandbox_import_request import CreateV0SandboxImportRequest as CreateV0SandboxImportRequest
 from daytona.v2._gen.api.models.create_volume_request import CreateVolumeRequest as CreateVolumeRequest
+from daytona.v2._gen.api.models.data_policy import DataPolicy as DataPolicy
+from daytona.v2._gen.api.models.data_policy_status import DataPolicyStatus as DataPolicyStatus
 from daytona.v2._gen.api.models.decline_invitation_request import DeclineInvitationRequest as DeclineInvitationRequest
+from daytona.v2._gen.api.models.desktop_config import DesktopConfig as DesktopConfig
+from daytona.v2._gen.api.models.desktop_environment import DesktopEnvironment as DesktopEnvironment
+from daytona.v2._gen.api.models.desktop_resolution import DesktopResolution as DesktopResolution
+from daytona.v2._gen.api.models.desktop_settings import DesktopSettings as DesktopSettings
 from daytona.v2._gen.api.models.effective_lifecycle_policies import EffectiveLifecyclePolicies as EffectiveLifecyclePolicies
 from daytona.v2._gen.api.models.effective_lifecycle_policy import EffectiveLifecyclePolicy as EffectiveLifecyclePolicy
 from daytona.v2._gen.api.models.effective_linux_lifecycle_policies import EffectiveLinuxLifecyclePolicies as EffectiveLinuxLifecyclePolicies
@@ -204,6 +210,7 @@ from daytona.v2._gen.api.models.project_api_key_page import ProjectApiKeyPage as
 from daytona.v2._gen.api.models.project_api_key_with_context import ProjectApiKeyWithContext as ProjectApiKeyWithContext
 from daytona.v2._gen.api.models.project_api_key_with_token import ProjectApiKeyWithToken as ProjectApiKeyWithToken
 from daytona.v2._gen.api.models.project_budget import ProjectBudget as ProjectBudget
+from daytona.v2._gen.api.models.project_data_policy import ProjectDataPolicy as ProjectDataPolicy
 from daytona.v2._gen.api.models.project_image_build_limits import ProjectImageBuildLimits as ProjectImageBuildLimits
 from daytona.v2._gen.api.models.project_lifecycle_defaults import ProjectLifecycleDefaults as ProjectLifecycleDefaults
 from daytona.v2._gen.api.models.project_lifecycle_policy import ProjectLifecyclePolicy as ProjectLifecyclePolicy
@@ -256,6 +263,9 @@ from daytona.v2._gen.api.models.sandbox_port_page import SandboxPortPage as Sand
 from daytona.v2._gen.api.models.sandbox_resource_limits import SandboxResourceLimits as SandboxResourceLimits
 from daytona.v2._gen.api.models.sandbox_search_page import SandboxSearchPage as SandboxSearchPage
 from daytona.v2._gen.api.models.sandbox_search_sort import SandboxSearchSort as SandboxSearchSort
+from daytona.v2._gen.api.models.sandbox_secret_attachment import SandboxSecretAttachment as SandboxSecretAttachment
+from daytona.v2._gen.api.models.sandbox_secret_attachment_binding import SandboxSecretAttachmentBinding as SandboxSecretAttachmentBinding
+from daytona.v2._gen.api.models.sandbox_secret_binding import SandboxSecretBinding as SandboxSecretBinding
 from daytona.v2._gen.api.models.sandbox_secrets import SandboxSecrets as SandboxSecrets
 from daytona.v2._gen.api.models.sandbox_status import SandboxStatus as SandboxStatus
 from daytona.v2._gen.api.models.sandbox_timeout_limits import SandboxTimeoutLimits as SandboxTimeoutLimits
@@ -274,6 +284,7 @@ from daytona.v2._gen.api.models.set_billing_contact_request import SetBillingCon
 from daytona.v2._gen.api.models.set_otel_config_request import SetOtelConfigRequest as SetOtelConfigRequest
 from daytona.v2._gen.api.models.set_plan_request import SetPlanRequest as SetPlanRequest
 from daytona.v2._gen.api.models.set_project_budget_request import SetProjectBudgetRequest as SetProjectBudgetRequest
+from daytona.v2._gen.api.models.set_project_data_policy_request import SetProjectDataPolicyRequest as SetProjectDataPolicyRequest
 from daytona.v2._gen.api.models.set_registry_request import SetRegistryRequest as SetRegistryRequest
 from daytona.v2._gen.api.models.set_sandbox_labels_request import SetSandboxLabelsRequest as SetSandboxLabelsRequest
 from daytona.v2._gen.api.models.set_sandbox_network_policy_request import SetSandboxNetworkPolicyRequest as SetSandboxNetworkPolicyRequest
@@ -301,6 +312,8 @@ from daytona.v2._gen.api.models.sso_setup_link import SsoSetupLink as SsoSetupLi
 from daytona.v2._gen.api.models.storage_limits import StorageLimits as StorageLimits
 from daytona.v2._gen.api.models.timeout_source import TimeoutSource as TimeoutSource
 from daytona.v2._gen.api.models.token_exchange import TokenExchange as TokenExchange
+from daytona.v2._gen.api.models.uncovered_resource import UncoveredResource as UncoveredResource
+from daytona.v2._gen.api.models.uncovered_resource_kind import UncoveredResourceKind as UncoveredResourceKind
 from daytona.v2._gen.api.models.update_audit_config_request import UpdateAuditConfigRequest as UpdateAuditConfigRequest
 from daytona.v2._gen.api.models.update_ephemeral_lifecycle_defaults import UpdateEphemeralLifecycleDefaults as UpdateEphemeralLifecycleDefaults
 from daytona.v2._gen.api.models.update_image_request import UpdateImageRequest as UpdateImageRequest
@@ -316,6 +329,7 @@ from daytona.v2._gen.api.models.update_project_limits_request import UpdateProje
 from daytona.v2._gen.api.models.update_project_request import UpdateProjectRequest as UpdateProjectRequest
 from daytona.v2._gen.api.models.update_reservation_request import UpdateReservationRequest as UpdateReservationRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest as UpdateSandboxLifecyclePolicyRequest
+from daytona.v2._gen.api.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest
 from daytona.v2._gen.api.models.update_service_account_request import UpdateServiceAccountRequest as UpdateServiceAccountRequest
 from daytona.v2._gen.api.models.usage_charge import UsageCharge as UsageCharge
 from daytona.v2._gen.api.models.usage_history_resolution import UsageHistoryResolution as UsageHistoryResolution

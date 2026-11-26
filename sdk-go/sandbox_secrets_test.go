@@ -14,6 +14,7 @@ func sandboxSecretsFixture() map[string]any {
 	return map[string]any{
 		"secrets": []string{"SERVICE_KEY"}, "desired_revision": 7, "applied_revision": 0,
 		"status": "future-status", "error": "apply detail", "capture_status": "future-capture", "capture_unresolved_count": 0,
+		"bindings": []map[string]any{{"name": "SERVICE_KEY", "env": "OPENAI_API_KEY"}},
 	}
 }
 
@@ -35,6 +36,20 @@ func TestSandboxSecretsGet(t *testing.T) {
 	require.Equal(t, "future-status", info.Status)
 	require.Equal(t, "future-capture", info.CaptureStatus)
 	require.Equal(t, "apply detail", info.Error)
+	require.Equal(t, []SandboxSecretBinding{{Name: "SERVICE_KEY", Env: "OPENAI_API_KEY"}}, info.Bindings)
+}
+
+func TestSandboxSecretsWithoutBindings(t *testing.T) {
+	// Given
+	body := sandboxSecretsFixture()
+	delete(body, "bindings")
+	fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx/secrets": policyResponse(t, body)})
+	sandbox := newMutatorSandbox(t, fake)
+	// When
+	info, err := sandbox.GetSecrets(t.Context())
+	// Then
+	require.NoError(t, err)
+	require.Nil(t, info.Bindings)
 }
 
 func TestSandboxSecretsReplace(t *testing.T) {
@@ -71,6 +86,7 @@ func TestSandboxSecretsRejectsMalformedFields(t *testing.T) {
 		"desired_revision":         {nil, true, 1.5},
 		"applied_revision":         {"1", 1.5},
 		"capture_unresolved_count": {false, 1.5},
+		"bindings":                 {"name", []any{"SERVICE_KEY"}, []any{map[string]any{"name": "SERVICE_KEY"}}, []any{map[string]any{"name": 1, "env": "E"}}},
 	} {
 		for index, value := range invalid {
 			t.Run(field+"/"+string(rune('a'+index)), func(t *testing.T) {

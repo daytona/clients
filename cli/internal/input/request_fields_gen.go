@@ -55,7 +55,10 @@ var requestFields = map[string]*Fields{
 		}}},
 		"region_id":   nil,
 		"reservation": nil,
-		"secrets":     &Fields{IsList: true, List: nil},
+		"secrets": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
+			"env":  nil,
+			"name": nil,
+		}}},
 		"volumes": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
 			"mount_path": nil,
 			"read_only":  nil,
@@ -105,12 +108,19 @@ var requestFields = map[string]*Fields{
 		"cpu_arch":               nil,
 		"cpu_type":               nil,
 		"create_timeout_seconds": nil,
-		"disk_max_mib":           nil,
-		"disk_mib":               nil,
-		"env":                    &Fields{IsMap: true, Map: nil},
-		"idempotency_key":        nil,
-		"image":                  nil,
-		"labels":                 &Fields{IsMap: true, Map: nil},
+		"desktop": &Fields{Object: map[string]*Fields{
+			"environment": nil,
+			"resolution": &Fields{Object: map[string]*Fields{
+				"height": nil,
+				"width":  nil,
+			}},
+		}},
+		"disk_max_mib":    nil,
+		"disk_mib":        nil,
+		"env":             &Fields{IsMap: true, Map: nil},
+		"idempotency_key": nil,
+		"image":           nil,
+		"labels":          &Fields{IsMap: true, Map: nil},
 		"lifecycle_policy": &Fields{Object: map[string]*Fields{
 			"idle_expiry_seconds": nil,
 			"on_idle_timeout":     nil,
@@ -125,15 +135,17 @@ var requestFields = map[string]*Fields{
 			"allow_domains": &Fields{IsList: true, List: nil},
 			"block_all":     nil,
 		}},
-		"persistent": nil,
 		"ports": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
 			"port":  nil,
 			"proto": nil,
 		}}},
 		"region_id": nil,
-		"secrets":   &Fields{IsList: true, List: nil},
-		"spot":      nil,
-		"user":      nil,
+		"secrets": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
+			"env":  nil,
+			"name": nil,
+		}}},
+		"spot": nil,
+		"user": nil,
 		"volumes": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
 			"mount_path": nil,
 			"read_only":  nil,
@@ -149,6 +161,7 @@ var requestFields = map[string]*Fields{
 		"bucket": &Fields{Object: map[string]*Fields{
 			"credentials": &Fields{Object: map[string]*Fields{
 				"access_key_secret": nil,
+				"role_arn":          nil,
 				"secret_key_secret": nil,
 			}},
 			"endpoint":   nil,

@@ -103,20 +103,34 @@ describe('sandbox secrets parity', () => {
   it('decodes absent optional fields as undefined', async () => {
     const info = await getWith({ secrets: [], desired_revision: 0 })
 
-    expect(info).toEqual({ secrets: [], desiredRevision: 0, etag: '"sv-3"', appliedRevision: undefined, status: undefined, error: undefined, captureStatus: undefined, captureUnresolvedCount: undefined })
+    expect(info).toEqual({ secrets: [], desiredRevision: 0, etag: '"sv-3"', appliedRevision: undefined, status: undefined, error: undefined, captureStatus: undefined, captureUnresolvedCount: undefined , bindings: [] })
   })
 
   it('decodes every contract response property', async () => {
     const contract = JSON.parse(readFileSync(join(__dirname, '..', '..', 'contract', 'api-openapi.json'), 'utf8'))
     const properties = Object.keys(contract.components.schemas.SandboxSecrets.properties).sort()
     const camel = (name: string): string => name.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
-    const fullBody = secretsBody({ applied_revision: 2, status: 'pending', error: 'x', capture_status: 'partial', capture_unresolved_count: 1 })
+    const fullBody = secretsBody({ applied_revision: 2, status: 'pending', error: 'x', capture_status: 'partial', capture_unresolved_count: 1, bindings: [{ name: 'TOKEN', env: 'API_TOKEN' }] })
 
     expect(Object.keys(fullBody).sort()).toEqual(properties)
     const info = await getWith(fullBody)
     const decoded = Object.keys(info).filter((key) => key !== 'etag').sort()
     expect(decoded).toEqual(properties.map(camel).sort())
     for (const key of decoded) expect(info[key as keyof SandboxSecretsInfo]).toBeDefined()
+  })
+
+  it('decodes each binding with the variable its secret is injected under', async () => {
+    const info = await getWith(secretsBody({ secrets: ['TOKEN', 'tenant-key'], bindings: [{ name: 'TOKEN', env: 'TOKEN' }, { name: 'tenant-key', env: 'OPENAI_API_KEY' }] }))
+
+    expect(info.bindings).toEqual([{ name: 'TOKEN', env: 'TOKEN' }, { name: 'tenant-key', env: 'OPENAI_API_KEY' }])
+  })
+
+  it.each([
+    ['not an array', { name: 'TOKEN', env: 'TOKEN' }],
+    ['an item without env', [{ name: 'TOKEN' }]],
+    ['a string item', ['TOKEN']],
+  ])('refuses bindings that are %s', async (_label, bindings) => {
+    await expect(getWith({ ...secretsBody(), bindings } as unknown as SandboxSecretsWire)).rejects.toBeInstanceOf(BadRequestError)
   })
 
   it('get maps a missing sandbox to NotFoundError without retrying', async () => {

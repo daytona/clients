@@ -20,8 +20,10 @@ import json
 from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona.v2._gen.toolbox.models.computer_use_activity_status import ComputerUseActivityStatus
+from daytona.v2._gen.toolbox.models.computer_use_desktop_environment import ComputerUseDesktopEnvironment
 from daytona.v2._gen.toolbox.models.computer_use_desktop_failure import ComputerUseDesktopFailure
 from daytona.v2._gen.toolbox.models.computer_use_desktop_state import ComputerUseDesktopState
+from daytona.v2._gen.toolbox.models.computer_use_resolution import ComputerUseResolution
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -39,9 +41,11 @@ class ComputerUseStatusResponse(BaseModel):
     """ # noqa: E501
     cause: Optional[ComputerUseDesktopFailure] = None
     desktop: ComputerUseDesktopState
+    environment: Optional[ComputerUseDesktopEnvironment] = None
+    resolution: Optional[ComputerUseResolution] = None
     status: ComputerUseActivityStatus
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["cause", "desktop", "status"]
+    __properties: ClassVar[List[str]] = ["cause", "desktop", "environment", "resolution", "status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -89,6 +93,9 @@ class ComputerUseStatusResponse(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of cause
         if self.cause:
             _dict['cause'] = self.cause.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of resolution
+        if self.resolution:
+            _dict['resolution'] = self.resolution.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -98,6 +105,16 @@ class ComputerUseStatusResponse(BaseModel):
         # and model_fields_set contains the field
         if self.cause is None and "cause" in self.model_fields_set:
             _dict['cause'] = None
+
+        # set to None if environment (nullable) is None
+        # and model_fields_set contains the field
+        if self.environment is None and "environment" in self.model_fields_set:
+            _dict['environment'] = None
+
+        # set to None if resolution (nullable) is None
+        # and model_fields_set contains the field
+        if self.resolution is None and "resolution" in self.model_fields_set:
+            _dict['resolution'] = None
 
         return _dict
 
@@ -113,6 +130,8 @@ class ComputerUseStatusResponse(BaseModel):
         _obj = cls.model_validate({
             **({"cause": ComputerUseDesktopFailure.from_dict(obj["cause"]) if obj["cause"] is not None else None} if "cause" in obj else {}),
             "desktop": obj.get("desktop"),
+            **({"environment": obj["environment"]} if "environment" in obj else {}),
+            **({"resolution": ComputerUseResolution.from_dict(obj["resolution"]) if obj["resolution"] is not None else None} if "resolution" in obj else {}),
             "status": obj.get("status")
         })
         # store additional fields in additional_properties

@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.sandbox_secret_binding import SandboxSecretBinding
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -35,6 +36,7 @@ class SandboxSecrets(BaseModel):
     The secrets attached to a sandbox: the requested names and how far the sandbox has applied them.
     """ # noqa: E501
     applied_revision: Optional[StrictInt] = Field(default=None, description="Revision the sandbox has applied, or null before the first one.")
+    bindings: Optional[List[SandboxSecretBinding]] = Field(default=None, description="The requested secrets and the environment variable each is injected under, in the order of `secrets`.")
     capture_status: Optional[StrictStr] = Field(default=None, description="For a restored or forked sandbox, how much of the source's secrets the copy received: `complete`, `partial` or an unknown status.")
     capture_unresolved_count: Optional[StrictInt] = Field(default=None, description="For a `partial` copy, how many of the source's secrets the copy did not receive.")
     desired_revision: StrictInt = Field(description="Revision of the requested secrets.")
@@ -42,7 +44,7 @@ class SandboxSecrets(BaseModel):
     secrets: List[StrictStr] = Field(description="Names of the project secrets requested for the sandbox.")
     status: Optional[StrictStr] = Field(default=None, description="Application status of the requested secrets: `pending`, `applied` or `failed`; null before the first change.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["applied_revision", "capture_status", "capture_unresolved_count", "desired_revision", "error", "secrets", "status"]
+    __properties: ClassVar[List[str]] = ["applied_revision", "bindings", "capture_status", "capture_unresolved_count", "desired_revision", "error", "secrets", "status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -87,6 +89,13 @@ class SandboxSecrets(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in bindings (list)
+        _items = []
+        if self.bindings:
+            for _item_bindings in self.bindings:
+                if _item_bindings:
+                    _items.append(_item_bindings.to_dict())
+            _dict['bindings'] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -130,6 +139,7 @@ class SandboxSecrets(BaseModel):
 
         _obj = cls.model_validate({
             **({"applied_revision": obj["applied_revision"]} if "applied_revision" in obj else {}),
+            **({"bindings": [SandboxSecretBinding.from_dict(_item) for _item in obj["bindings"]] if obj["bindings"] is not None else None} if "bindings" in obj else {}),
             **({"capture_status": obj["capture_status"]} if "capture_status" in obj else {}),
             **({"capture_unresolved_count": obj["capture_unresolved_count"]} if "capture_unresolved_count" in obj else {}),
             "desired_revision": obj.get("desired_revision"),

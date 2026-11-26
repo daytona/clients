@@ -238,6 +238,7 @@ ROOT_EXPORTS = [
     "NetworkPolicy",
     "NetworkPolicyInfo",
     "NetworkPolicyInput",
+    "SandboxSecretBinding",
     "SandboxSecretsInfo",
     "NotFoundError",
     "NotSupportedError",
