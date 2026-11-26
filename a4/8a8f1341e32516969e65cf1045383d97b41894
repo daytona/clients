@@ -1,0 +1,31 @@
+sdk-python/tests/test_transition_retry.py
+  s_36fb739d0bfc3e::t_349d23f68d6d1a 59,244
+sdk-python/src/daytona/v2/_transition_retry.py
+  s_36fb739d0bfc3e::t_349d23f68d6d1a 18,21,24,35
+sdk-python/tests/test_sandbox_transition_operations.py
+  s_36fb739d0bfc3e::t_699701292fb839 160,171
+sdk-python/src/daytona/v2/sandbox.py
+  s_36fb739d0bfc3e::t_a98053d6bcb7eb 1462-1468,1492-1508,1778-1779,1803-1804
+  s_36fb739d0bfc3e::t_702200bc19faf0 32,1487-1488,1491,1510-1511
+  s_36fb739d0bfc3e::t_349d23f68d6d1a 1461,1470,1484-1486,1489-1490,1509,1777,1781,1802,1806
+sdk-python/tests/test_fork_retry_state.py
+  s_36fb739d0bfc3e::t_cc10d37c6c47a6 1-17,19-47,49-53,57-61,68-69
+  s_36fb739d0bfc3e::t_f851b4a5f1a27f 18,48
+  s_36fb739d0bfc3e::t_a98053d6bcb7eb 54-56,62-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a48a8f1341e32516969e65cf1045383d97b41894",
+  "prompts": {},
+  "sessions": {
+    "s_36fb739d0bfc3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8aebfbfffenfIc2YZHjA9fdz",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
