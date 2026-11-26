@@ -20,6 +20,7 @@ export { SIGNED_FILE_MAX_TTL_SECONDS } from './FileSystem.js'
 export type { FilesystemEventType } from './FileSystem.js'
 export type {
   DownloadFileOptions,
+  FileSearchOptions,
   FilesystemEvent,
   ListFilesOptions,
   MkdirOptions,
@@ -27,6 +28,7 @@ export type {
   ReadFileOptions,
   ReadManyOptions,
   RemoveOptions,
+  ReplaceOptions,
   TransferProgressCallback,
   UploadFileOptions,
   WatchDirOptions,
