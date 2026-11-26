@@ -59,6 +59,25 @@ func TestRetrySandboxTransition_returnsLastError_whenBudgetExpires(t *testing.T)
 	})
 }
 
+func TestRetrySandboxTransition_usesDefaultDelay_whenHintIsFractional(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given
+		calls := 0
+		start := time.Now()
+		// When
+		err := retrySandboxTransition(t.Context(), func() error {
+			calls++
+			if calls == 1 {
+				return &api.APIError{Code: "SANDBOX_TRANSITION_IN_PROGRESS", Body: map[string]any{"retry_after_seconds": 2.5}}
+			}
+			return nil
+		})
+		// Then
+		require.NoError(t, err)
+		require.Equal(t, time.Second, time.Since(start))
+	})
+}
+
 func TestRetrySandboxTransition_returnsImmediately_whenOtherConflict(t *testing.T) {
 	// Given
 	refusal := &api.APIError{Status: 409, Code: "CONFLICT"}

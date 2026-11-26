@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/daytona/clients/cli/internal/api"
@@ -28,6 +29,9 @@ func retrySandboxTransition(ctx context.Context, post func() error) error {
 			return err
 		}
 		seconds, _ := refusal.Body["retry_after_seconds"].(float64)
+		if seconds != math.Trunc(seconds) {
+			seconds = 1
+		}
 		delay := time.Duration(min(max(seconds, 1), 5) * float64(time.Second))
 		// A retry the window cannot admit after the full pause is not worth
 		// waiting for: the refusal returns at once.
