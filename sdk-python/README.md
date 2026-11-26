@@ -412,8 +412,10 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
   older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. `d.v2.search(...)` queries
   the eventually consistent, all-region search API (`GET /sandboxes/search`)
-  and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
+  and carries every filter: `states`, `sandbox_class`, `region`, `labels`, `persistent`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...
+  `persistent=True` selects persistent sandboxes; `False` selects ephemeral
+  sandboxes, and omitting it (or `None`) leaves both kinds.
   `states` takes the SDK's sandbox states (`states=["started", "paused"]`);
   `"unknown"` is not searchable. `region` takes region IDs; a region that
   contains other regions (a geo group, or `earth`) matches every region inside
