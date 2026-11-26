@@ -94,15 +94,16 @@ func TestSandboxTransition_whenRetryBudgetExpires(t *testing.T) {
 			w.WriteHeader(http.StatusConflict)
 			writeJSON(t, w, map[string]any{
 				"code": CodeSandboxTransitionInProgress, "source": SourceAPI,
-				"retry_after_seconds": 5, "message": "still transitioning", "trace_id": "last-trace",
+				"retry_after_seconds": 4, "message": "still transitioning", "trace_id": "last-trace",
 				"requestId": "last-request",
 			})
 		})
 		started := time.Now()
 		// When transition refusals consume the retry window.
 		_, err := sandbox.client.retrySandboxTransition(t.Context(), apiRequest{Path: "/operation"})
-		// Then elapsed request time counts, and the final refusal is not replaced.
-		require.Equal(t, 30*time.Second, time.Since(started))
+		// Then elapsed request time counts, the final refusal is not replaced,
+		// and no pause precedes a retry the window could not admit (26 s + 4 s).
+		require.Equal(t, 26*time.Second, time.Since(started))
 		require.Equal(t, 5, calls)
 		require.ErrorIs(t, err, ErrSandboxTransitionInProgress)
 		require.ErrorIs(t, err, ErrConflict)

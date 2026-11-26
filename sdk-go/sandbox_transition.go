@@ -26,15 +26,13 @@ func (c *Client) retrySandboxTransition(ctx context.Context, request apiRequest)
 		if seconds := failure.Details.RetryAfterSeconds; seconds != nil {
 			delay = time.Duration(max(int64(1), min(int64(5), *seconds))) * time.Second
 		}
-		remaining := 30*time.Second - time.Since(started)
-		if remaining <= 0 {
+		// A retry the window cannot admit after the full pause is not worth
+		// waiting for: the refusal returns at once.
+		if 30*time.Second-time.Since(started) <= delay {
 			return retried, err
 		}
-		if pauseErr := artifactPause(ctx, c, min(delay, remaining)); pauseErr != nil {
+		if pauseErr := artifactPause(ctx, c, delay); pauseErr != nil {
 			return retried, pauseErr
-		}
-		if time.Since(started) >= 30*time.Second {
-			return retried, err
 		}
 		retried = true
 	}

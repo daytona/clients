@@ -25,11 +25,10 @@ async def send_with_transition_retry(api: AsyncTransport, spec: RequestSpec) -> 
         except DaytonaError as error:
             if error.code != _codes.SANDBOX_TRANSITION_IN_PROGRESS:
                 raise
-            remaining = deadline - _clock.monotonic()
-            if remaining <= 0:
-                raise
             delay = min(5, max(1, error.retry_after_seconds or 1))
-            await sleep(min(delay, remaining))
-            if _clock.monotonic() >= deadline:
+            # A retry the window cannot admit after the full pause is not worth
+            # waiting for: the refusal raises at once.
+            if deadline - _clock.monotonic() <= delay:
                 raise
+            await sleep(delay)
             retried = True

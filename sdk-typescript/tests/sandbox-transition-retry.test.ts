@@ -67,6 +67,16 @@ describe('sandbox transition retry', () => {
     expect(jest.getTimerCount()).toBe(0)
   })
 
+  it('does not pause for a retry the window cannot admit', async () => {
+    // Given a first request leaving less of the window than the retry delay,
+    const error = transition(5)
+    const attempt = jest.fn(async () => { jest.setSystemTime(Date.now() + 27_000); throw error })
+    // When it fails, then the refusal returns at once with no backoff scheduled.
+    await expect(retrySandboxTransition(attempt)).rejects.toBe(error)
+    expect(attempt).toHaveBeenCalledTimes(1)
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
   it('honors a shorter operation deadline', async () => {
     // Given less budget than a retry delay,
     const error = transition(5)

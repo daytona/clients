@@ -54,7 +54,8 @@ func TestRetrySandboxTransition_returnsLastError_whenBudgetExpires(t *testing.T)
 		// Then
 		require.Same(t, last, err)
 		require.Equal(t, 8, calls)
-		require.Equal(t, 30*time.Second, time.Since(start))
+		// No pause precedes a retry the window could not admit (28 s + 4 s).
+		require.Equal(t, 28*time.Second, time.Since(start))
 	})
 }
 

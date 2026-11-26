@@ -24,11 +24,10 @@ export async function retrySandboxTransition<T>(
       if (!(error instanceof DaytonaError) || error.code !== 'SANDBOX_TRANSITION_IN_PROGRESS') throw error
       options.ensureOpen?.()
       const delay = Math.min(5, Math.max(1, error.retryAfterSeconds ?? 1)) * 1000
-      const remaining = deadline - Date.now()
-      if (remaining <= 0) throw error
-      await new Promise<void>((resolve) => setTimeout(resolve, Math.min(delay, remaining)))
+      // A retry the window cannot admit after the full pause is not worth waiting for.
+      if (deadline - Date.now() <= delay) throw error
+      await new Promise<void>((resolve) => setTimeout(resolve, delay))
       options.ensureOpen?.()
-      if (Date.now() >= deadline) throw error
     }
   }
 }

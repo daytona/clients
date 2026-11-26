@@ -27,21 +27,19 @@ func retrySandboxTransition(ctx context.Context, post func() error) error {
 		if !errors.As(err, &refusal) || refusal.Code != "SANDBOX_TRANSITION_IN_PROGRESS" {
 			return err
 		}
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
-			return err
-		}
 		seconds, _ := refusal.Body["retry_after_seconds"].(float64)
 		delay := time.Duration(min(max(seconds, 1), 5) * float64(time.Second))
-		timer := time.NewTimer(min(delay, remaining))
+		// A retry the window cannot admit after the full pause is not worth
+		// waiting for: the refusal returns at once.
+		if time.Until(deadline) <= delay {
+			return err
+		}
+		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
 			return cerr.FromContext(ctx)
 		case <-timer.C:
-		}
-		if !time.Now().Before(deadline) {
-			return err
 		}
 	}
 }

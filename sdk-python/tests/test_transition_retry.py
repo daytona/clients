@@ -80,7 +80,7 @@ async def test_expiry_raises_the_same_last_error(clock: Clock) -> None:
         await api.close()
     # Then the last server error, not a manufactured timeout, is raised unchanged.
     assert raised.value is errors[-1]
-    assert clock.now == 30
+    assert clock.now == 25
     assert route.call_count == 6
 
 
@@ -102,9 +102,10 @@ async def test_budget_starts_before_the_first_attempt(clock: Clock) -> None:
             await _transition_retry.send_with_transition_retry(api, _SPEC)
     finally:
         await api.close()
-    # Then the first attempt's time counts and the final sleep cannot overshoot.
+    # Then the first attempt's time counts, and no pause precedes a retry the
+    # window could not admit.
     assert raised.value is error
-    assert clock.delays == [1]
+    assert clock.delays == []
     assert route.call_count == 1
 
 
