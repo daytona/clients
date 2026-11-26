@@ -3815,7 +3815,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+          "Linux stop, start, pause, resume and fork require persistent=True at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
           "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with create_from_snapshot(snapshot)",
           "Translate target to region and rebuild creation parameters, resource units (one resources=Resources(...) entry; memory and disk in GiB) and lifecycle settings",
           "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add wait_seconds=0 to it and wait once with that budget (sandbox.wait(until=\"started\", timeout=0 if timeout is None else timeout), where 0 waits without a deadline); wait_seconds is whole seconds; create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
@@ -3826,7 +3826,7 @@
           "A registry image string such as \"python:3.12\" is not a v2 create source (IMAGE_NOT_FOUND); use create_from_build(ImageBuilder.from_registry(...)) or register the image first"
         ],
         "ts": [
-          "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+          "Linux stop, start, pause, resume and fork require persistent: true at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
           "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with createFromSnapshot(snapshot)",
           "Translate target to region and rebuild creation options, resource units (one resources entry; memory and disk in GiB) and lifecycle settings",
           "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add waitSeconds: 0 to it and wait once with that budget (await sandbox.wait({ until: 'started', timeoutSeconds }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
@@ -3852,13 +3852,13 @@
           "py": [
             "Build the image first, then create the sandbox from it: wait with images.get(image.id, wait=\"ready\") and pass image.id to create(image.id, region=region)",
             "v0 Image.from_dockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory (its path, or a tar archive of it: its bytes or the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile; a directory uploads everything .dockerignore does not exclude, so add one for secrets and large files",
-            "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+            "Linux stop, start, pause, resume and fork require persistent=True at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
             "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error)"
           ],
           "ts": [
             "Build the image first, then create the sandbox from it: wait with images.get(image.id, { wait: 'ready' }) and pass image.id to create(image.id, { region })",
             "v0 Image.fromDockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory (in Node.js its path, or a tar archive of it: its bytes, a Blob, or in Node.js the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile; a directory uploads everything .dockerignore does not exclude, so add one for secrets and large files",
-            "create() makes ephemeral Linux sandboxes; stop, start and pause apply to macOS sandboxes; keep existing 0.x lifecycle workflows on .v0",
+            "Linux stop, start, pause, resume and fork require persistent: true at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
             "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error)"
           ]
         }
@@ -4030,11 +4030,11 @@
       "notes": {
         "py": [
           "timeout is keyword-only and must be a number: v0's None (wait without limit) is 0 in v2",
-          "Accepts a v2 macOS sandbox or ID and resumes it if paused"
+          "Accepts a v2 sandbox or ID and resumes it if paused; Linux requires persistent=True at creation"
         ],
         "ts": [
           "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default; 0 waits without a deadline)",
-          "Accepts a v2 macOS sandbox or ID and resumes it if paused"
+          "Accepts a v2 sandbox or ID and resumes it if paused; Linux requires persistent: true at creation"
         ]
       },
       "anchor": "client",
@@ -4055,12 +4055,12 @@
       "notes": {
         "py": [
           "Accepts a v2 sandbox or ID",
-          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "Stop works on any persistent non-GPU sandbox; Linux requires persistent=True at creation",
           "Waits until stopped: timeout is keyword-only seconds (default 60; 0 waits without a deadline); there is no force argument"
         ],
         "ts": [
           "Accepts a v2 sandbox or ID",
-          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "Stop works on any persistent non-GPU sandbox; Linux requires persistent: true at creation",
           "Waits until stopped: timeoutSeconds in an options object (default 60; 0 waits without a deadline); there is no force option"
         ]
       },
@@ -5009,11 +5009,11 @@
       "notes": {
         "py": [
           "timeout is keyword-only",
-          "Requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+          "Pause requires a persistent Linux sandbox (persistent=True at creation)"
         ],
         "ts": [
           "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default)",
-          "Requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+          "Pause requires a persistent Linux sandbox (persistent: true at creation)"
         ]
       },
       "anchor": "sandbox",
@@ -5223,12 +5223,12 @@
         "py": [
           "Convert positive minutes to seconds",
           "For interval 0, use update_lifecycle_policy(idle_expiry_seconds=-1) without an action",
-          "Pause requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+          "Auto-pause maps to lifecycle_policy on_timeout/on_idle_timeout = \"pause\" on a persistent Linux sandbox (persistent=True at creation)"
         ],
         "ts": [
           "Convert positive minutes to seconds",
           "For interval 0, use updateLifecyclePolicy({ idleExpirySeconds: -1 }) without an action",
-          "Pause requires a macOS sandbox; keep existing 0.x pause workflows on .v0"
+          "Auto-pause maps to lifecyclePolicy onTimeout/onIdleTimeout = 'pause' on a persistent Linux sandbox (persistent: true at creation)"
         ]
       },
       "anchor": "sandbox",
@@ -5250,12 +5250,12 @@
         "py": [
           "Convert positive minutes to seconds",
           "For interval 0, use update_lifecycle_policy(idle_expiry_seconds=-1) without an action",
-          "Stop requires a macOS sandbox; keep existing 0.x stop workflows on .v0"
+          "Auto-stop maps to lifecycle_policy on_timeout/on_idle_timeout = \"stop\" on a persistent Linux sandbox (persistent=True at creation); stop works on any persistent non-GPU sandbox"
         ],
         "ts": [
           "Convert positive minutes to seconds",
           "For interval 0, use updateLifecyclePolicy({ idleExpirySeconds: -1 }) without an action",
-          "Stop requires a macOS sandbox; keep existing 0.x stop workflows on .v0"
+          "Auto-stop maps to lifecyclePolicy onTimeout/onIdleTimeout = 'stop' on a persistent Linux sandbox (persistent: true at creation); stop works on any persistent non-GPU sandbox"
         ]
       },
       "anchor": "sandbox",
@@ -5354,11 +5354,11 @@
       "notes": {
         "py": [
           "timeout is keyword-only and must be a number: v0's None (wait without limit) is 0 in v2",
-          "Requires a macOS sandbox; starts it if stopped or resumes it if paused, and waits for started"
+          "Starts a stopped sandbox or resumes a paused one, and waits for started; Linux requires persistent=True at creation"
         ],
         "ts": [
           "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default; 0 waits without a deadline)",
-          "Requires a macOS sandbox; starts it if stopped or resumes it if paused, and waits for started"
+          "Starts a stopped sandbox or resumes a paused one, and waits for started; Linux requires persistent: true at creation"
         ]
       },
       "anchor": "sandbox",
@@ -5378,11 +5378,11 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "Stop works on any persistent non-GPU sandbox; Linux requires persistent=True at creation",
           "Waits until stopped: timeout is keyword-only seconds (default 60; 0 waits without a deadline); there is no force argument"
         ],
         "ts": [
-          "Stop applies to macOS sandboxes; keep existing 0.x stop and start workflows on .v0, or delete an ephemeral Linux sandbox instead",
+          "Stop works on any persistent non-GPU sandbox; Linux requires persistent: true at creation",
           "Waits until stopped: timeoutSeconds in an options object (default 60; 0 waits without a deadline); there is no force option"
         ]
       },
