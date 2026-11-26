@@ -5,7 +5,7 @@
 
 import type { AxiosResponse } from 'axios'
 import { BadRequestError } from './errors/DaytonaError.js'
-import type { SandboxSecretsInfo } from './types.js'
+import type { SandboxSecretBinding, SandboxSecretsInfo } from './types.js'
 import { badRequest } from './options.js'
 import { deepFrozen } from './frozen.js'
 
@@ -31,6 +31,18 @@ export function parseSandboxSecretsResponse(response: AxiosResponse<unknown>): S
     error: optionalString(data.error),
     captureStatus: optionalString(data.capture_status),
     captureUnresolvedCount: optionalInteger(data.capture_unresolved_count, 'capture_unresolved_count'),
+    bindings: bindingsValue(data.bindings),
+  })
+}
+
+function bindingsValue(value: unknown): SandboxSecretBinding[] {
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value)) throw badRequest('bindings must be an array of objects')
+  return value.map((item: unknown) => {
+    if (!isRecord(item) || typeof item.name !== 'string' || typeof item.env !== 'string') {
+      throw badRequest('bindings must be an array of objects with string name and env')
+    }
+    return { name: item.name, env: item.env }
   })
 }
 

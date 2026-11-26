@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"net/http"
 	"unicode/utf8"
@@ -29,6 +30,18 @@ type SandboxSecretsInfo struct {
 	CaptureStatus string
 	// CaptureUnresolvedCount is nil unless an unresolved count was reported.
 	CaptureUnresolvedCount *int32
+	// Bindings pairs each attached secret with the environment variable it is
+	// injected under, in the order of Secrets; nil when none was reported.
+	Bindings []SandboxSecretBinding
+}
+
+// SandboxSecretBinding is an attached secret and the environment variable it
+// is injected under.
+type SandboxSecretBinding struct {
+	// Name is the project secret's name.
+	Name string
+	// Env is the environment variable the secret is injected under.
+	Env string
 }
 
 // GetSecrets reads attached secret names, revision ETag and apply state.
@@ -115,5 +128,33 @@ func (s *Sandbox) secretsRequest(ctx context.Context, request apiRequest) (*Sand
 		value := int32(n)
 		result.CaptureUnresolvedCount = &value
 	}
+	result.Bindings, err = sandboxSecretBindings(object)
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+func sandboxSecretBindings(object jsonObject) ([]SandboxSecretBinding, error) {
+	rows, err := field[[]JSONValue](object, "bindings", false)
+	if err != nil || rows == nil {
+		return nil, err
+	}
+	bindings := make([]SandboxSecretBinding, len(rows))
+	for index, raw := range rows {
+		var row jsonObject
+		if json.Unmarshal(raw, &row) != nil || row == nil {
+			return nil, badRequest("response field bindings must hold objects")
+		}
+		name, nameErr := field[string](row, "name", true)
+		if nameErr != nil {
+			return nil, nameErr
+		}
+		env, envErr := field[string](row, "env", true)
+		if envErr != nil {
+			return nil, envErr
+		}
+		bindings[index] = SandboxSecretBinding{Name: name, Env: env}
+	}
+	return bindings, nil
 }

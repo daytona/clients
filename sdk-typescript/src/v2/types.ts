@@ -321,6 +321,12 @@ export interface NetworkPolicyInfo {
   readonly error?: string
 }
 
+/** An attached secret and the environment variable it is injected under. */
+export interface SandboxSecretBinding {
+  readonly name: string
+  readonly env: string
+}
+
 export interface SandboxSecretsInfo {
   readonly secrets: readonly string[]
   readonly desiredRevision: number
@@ -330,6 +336,8 @@ export interface SandboxSecretsInfo {
   readonly error?: string
   readonly captureStatus?: string
   readonly captureUnresolvedCount?: number
+  /** In the order of `secrets`; empty when the server does not report them. */
+  readonly bindings: readonly SandboxSecretBinding[]
 }
 
 /**

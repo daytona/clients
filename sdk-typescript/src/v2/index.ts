@@ -240,6 +240,7 @@ export type {
   NetworkPolicyInput,
   NetworkPolicy,
   NetworkPolicyInfo,
+  SandboxSecretBinding,
   SandboxSecretsInfo,
   CpuArch,
   AuditActionList,
