@@ -363,8 +363,8 @@ export class Sandbox {
   public get macBootMode(): MacBootMode | undefined {
     return this.observed.macBootMode
   }
-  /** Whether the sandbox keeps writable state across stop/start and, on Linux,
-   * memory across pause/resume; undefined until known. */
+  /** Whether the sandbox keeps writable state across stop/start and memory
+   * across pause/resume; undefined until known. */
   public get persistent(): boolean | undefined { return this.observed.persistent }
   public get spot(): boolean | undefined { return this.observed.spot }
   public get spotEvictedAt(): string | undefined { return this.observed.spotEvictedAt }

@@ -3815,7 +3815,7 @@
       "category": "differs",
       "notes": {
         "py": [
-          "Linux stop, start, pause, resume and fork require persistent=True at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
+          "Linux stop, start, pause, resume and fork require persistent=True at creation; stop works on any persistent non-GPU sandbox, pause() on any persistent sandbox, and the pause lifecycle action requires persistent Linux",
           "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with create_from_snapshot(snapshot)",
           "Translate target to region and rebuild creation parameters, resource units (one resources=Resources(...) entry; memory and disk in GiB) and lifecycle settings",
           "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is wait_seconds (default 60), and wait_seconds=0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add wait_seconds=0 to it and wait once with that budget (sandbox.wait(until=\"started\", timeout=0 if timeout is None else timeout), where 0 waits without a deadline); wait_seconds is whole seconds; create_timeout_seconds is the server budget before it deletes a sandbox that never starts",
@@ -3826,7 +3826,7 @@
           "A registry image string such as \"python:3.12\" is not a v2 create source (IMAGE_NOT_FOUND); use create_from_build(ImageBuilder.from_registry(...)) or register the image first"
         ],
         "ts": [
-          "Linux stop, start, pause, resume and fork require persistent: true at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
+          "Linux stop, start, pause, resume and fork require persistent: true at creation; stop works on any persistent non-GPU sandbox, pause() on any persistent sandbox, and the pause lifecycle action requires persistent Linux",
           "image is optional and otherwise uses the platform default; v0 snapshot names become v2 image references; a v2 snapshot boots with createFromSnapshot(snapshot)",
           "Translate target to region and rebuild creation options, resource units (one resources entry; memory and disk in GiB) and lifecycle settings",
           "v0 timeout was the wait for the sandbox to start (0 = no limit); in v2 that wait is waitSeconds (default 60), and waitSeconds: 0 returns without waiting; the suggested create keeps v2's 60-second wait, so to keep a 0.x budget, add waitSeconds: 0 to it and wait once with that budget (await sandbox.wait({ until: 'started', timeoutSeconds }), where 0 waits without a deadline); createTimeoutSeconds is the server budget before it deletes a sandbox that never starts",
@@ -3852,13 +3852,13 @@
           "py": [
             "Build the image first, then create the sandbox from it: wait with images.get(image.id, wait=\"ready\") and pass image.id to create(image.id, region=region)",
             "v0 Image.from_dockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory (its path, or a tar archive of it: its bytes or the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile; a directory uploads everything .dockerignore does not exclude, so add one for secrets and large files",
-            "Linux stop, start, pause, resume and fork require persistent=True at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
+            "Linux stop, start, pause, resume and fork require persistent=True at creation; stop works on any persistent non-GPU sandbox, pause() on any persistent sandbox, and the pause lifecycle action requires persistent Linux",
             "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error)"
           ],
           "ts": [
             "Build the image first, then create the sandbox from it: wait with images.get(image.id, { wait: 'ready' }) and pass image.id to create(image.id, { region })",
             "v0 Image.fromDockerfile(path) uploaded the files its COPY and ADD lines name from the Dockerfile's directory; in v2, pass that directory (in Node.js its path, or a tar archive of it: its bytes, a Blob, or in Node.js the path of a .tar file, up to 1 GiB) and the Dockerfile's path inside it as dockerfile; a directory uploads everything .dockerignore does not exclude, so add one for secrets and large files",
-            "Linux stop, start, pause, resume and fork require persistent: true at creation; stop works on any persistent non-GPU sandbox, while pause and the pause lifecycle action require persistent Linux",
+            "Linux stop, start, pause, resume and fork require persistent: true at creation; stop works on any persistent non-GPU sandbox, pause() on any persistent sandbox, and the pause lifecycle action requires persistent Linux",
             "v0 create raised when the sandbox failed to start; v2 create returns the sandbox however its wait ends (check sandbox.state and sandbox.error)"
           ]
         }
@@ -5009,11 +5009,11 @@
       "notes": {
         "py": [
           "timeout is keyword-only",
-          "Pause requires a persistent Linux sandbox (persistent=True at creation)"
+          "Pause requires a persistent sandbox (Linux: persistent=True at creation)"
         ],
         "ts": [
           "v0 took seconds; v2 takes timeoutSeconds, also seconds (omit it to keep the 60-second default)",
-          "Pause requires a persistent Linux sandbox (persistent: true at creation)"
+          "Pause requires a persistent sandbox (Linux: persistent: true at creation)"
         ]
       },
       "anchor": "sandbox",

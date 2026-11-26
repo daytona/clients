@@ -45,5 +45,9 @@ func retrySandboxTransition(ctx context.Context, post func() error) error {
 			return cerr.FromContext(ctx)
 		case <-timer.C:
 		}
+		// A late wake-up past the window admits no further POST.
+		if !time.Now().Before(deadline) {
+			return err
+		}
 	}
 }

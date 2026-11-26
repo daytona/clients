@@ -19,7 +19,7 @@ func (s *Sandbox) Stop(ctx context.Context, opts *LifecycleWaitOptions) error {
 
 // Pause saves sandbox memory and waits for paused (default 60 seconds).
 // Returning to started is a *SandboxTerminalStateError. NoWait skips waiting.
-// Pause requires persistent Linux; the server checks support.
+// Pause requires a persistent sandbox; the server checks support.
 // Pause/Resume preserves disk, memory and processes.
 // Attached volumes currently prevent pausing (ErrConflict).
 func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {

@@ -462,8 +462,8 @@ class AsyncSandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """Whether writable state survives stop/start and, on Linux, memory
-        survives pause/resume; ``None`` until known.
+        """Whether writable state survives stop/start and memory survives
+        pause/resume; ``None`` until known.
         """
         return self._info.persistent
 
