@@ -28,6 +28,8 @@ export async function retrySandboxTransition<T>(
       if (deadline - Date.now() <= delay) throw error
       await new Promise<void>((resolve) => setTimeout(resolve, delay))
       options.ensureOpen?.()
+      // A late wake-up past the window admits no further attempt.
+      if (Date.now() >= deadline) throw error
     }
   }
 }

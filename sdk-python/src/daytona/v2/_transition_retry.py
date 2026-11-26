@@ -31,4 +31,7 @@ async def send_with_transition_retry(api: AsyncTransport, spec: RequestSpec) -> 
             if deadline - _clock.monotonic() <= delay:
                 raise
             await sleep(delay)
+            # A late wake-up past the window admits no further attempt.
+            if _clock.monotonic() >= deadline:
+                raise
             retried = True

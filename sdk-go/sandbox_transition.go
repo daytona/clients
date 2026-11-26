@@ -34,6 +34,10 @@ func (c *Client) retrySandboxTransition(ctx context.Context, request apiRequest)
 		if pauseErr := artifactPause(ctx, c, delay); pauseErr != nil {
 			return retried, pauseErr
 		}
+		// A late wake-up past the window admits no further attempt.
+		if time.Since(started) >= 30*time.Second {
+			return retried, err
+		}
 		retried = true
 	}
 }

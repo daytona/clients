@@ -875,7 +875,7 @@ export class Sandbox {
     }
     const sandboxClass = this.sandboxClass
     const rawSandboxClass = this.rawSandboxClass
-    const persistent = this.persistent ?? sourcePersistent
+    let persistent = this.persistent ?? sourcePersistent
     let sourceState = this.state
     let attempts = 0
     const http = this.api
@@ -934,6 +934,7 @@ export class Sandbox {
         // A transition refusal invalidates the source's pre-submission state.
         await this.refreshDataWithin(timeout)
         sourceState = this.state
+        persistent = this.persistent ?? persistent
       }
       const remaining = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (remaining === undefined) return fork
