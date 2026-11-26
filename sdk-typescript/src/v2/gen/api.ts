@@ -18152,7 +18152,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox is still starting, stopping or pausing; retry after `Retry-After` (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`). */
+            /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox is still starting, stopping or pausing; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -18224,7 +18224,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox is still starting (Linux, Windows) or stopping (macOS); retry after `Retry-After` (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`). */
+            /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox is still starting (Linux, Windows) or stopping (macOS); retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -19382,7 +19382,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox is still starting; retry after `Retry-After` (`SANDBOX_TRANSITION_IN_PROGRESS`) */
+            /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox is still starting; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
