@@ -86,6 +86,10 @@ pausing after a 300-second lifetime.
   reject pause and fork with `ErrConflict`.
 - Snapshot restores inherit the source's persistence; there is no override.
 
+`Search` / `SearchAll` accept `SearchSandboxesOptions.Persistent`: a pointer to
+`true` selects persistent sandboxes, a pointer to `false` selects ephemeral
+sandboxes, and `nil` omits the filter.
+
 ## Common tasks
 
 **Run code.** `sandbox.Exec` runs a shell command, `sandbox.ExecArgs` an argv
