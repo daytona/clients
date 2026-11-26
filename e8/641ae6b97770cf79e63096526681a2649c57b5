@@ -1,0 +1,19 @@
+changelog.d/758-sandbox-transition-retries.changed.md
+  s_36fb739d0bfc3e::t_dd3fa2428a59d7 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8641ae6b97770cf79e63096526681a2649c57b5",
+  "prompts": {},
+  "sessions": {
+    "s_36fb739d0bfc3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8aebfbfffenfIc2YZHjA9fdz",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
