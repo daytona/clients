@@ -667,9 +667,10 @@ Sizes read back exactly.
 Pass `persistent=True` to Linux `create()` or `create_from_build()` to keep disk
 across stop/start and memory and processes across pause/resume. Omitted or
 `None` leaves the server default (`False`); an explicit `False` is sent as such.
-Linux stop/start/restart, pause/resume and fork require persistence; forks
+Linux stop/start, pause/resume and fork require persistence; forks
 inherit it. Delete erases the writable state.
-The default lifetime timeout pauses persistent Linux sandboxes after 300 seconds;
+When neither a per-create policy nor a project lifecycle default overrides it,
+the platform lifetime timeout pauses persistent Linux sandboxes after 300 seconds;
 this is not an idle timeout. Sandboxes with volumes cannot pause or fork (409).
 Lifecycle policies support `delete`
 everywhere, `stop` for persistent non-GPU sandboxes, and `pause` for persistent Linux.
@@ -1167,6 +1168,7 @@ a paused or stopped source waits for `stopped`, within the same wait budget.
 
 `fork()`, `capture_image()` and `create_snapshot()` retry only
 `SANDBOX_TRANSITION_IN_PROGRESS`, for up to 30 seconds from their first submission.
+This window limits new retries; an admitted POST keeps its normal request timeout.
 This applies to a fork's source still starting, stopping or pausing; image capture
 still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
 still starting.

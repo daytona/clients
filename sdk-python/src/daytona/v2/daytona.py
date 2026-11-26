@@ -307,11 +307,12 @@ class AsyncDaytona:
 
         ``persistent=True`` keeps disk across stop/start and memory and processes
         across pause/resume. Omitted or ``None`` uses the server default (false).
-        Linux stop/start/restart, pause/resume and fork require persistence;
+        Linux stop/start, pause/resume and fork require persistence;
         forks inherit it. Persistent Linux creation accepts volumes, but attached
-        volumes prevent pause and fork (409). The default lifetime
-        timeout pauses persistent Linux sandboxes after 300 seconds (not an idle
-        timeout); delete erases their writable state.
+        volumes prevent pause and fork (409). When neither a per-create policy nor
+        a project lifecycle default overrides it, the platform lifetime timeout
+        pauses persistent Linux sandboxes after 300 seconds (not an idle timeout);
+        delete erases their writable state.
 
         **Waiting.** The server holds this create briefly, so a sandbox that
         reaches ``started`` within that hold returns in one round trip; the SDK
@@ -643,12 +644,13 @@ class AsyncDaytona:
         own wait, and the create never raises because of how that wait ended.
 
         ``persistent=True`` keeps disk across stop/start and memory and processes
-        across pause/resume. Linux stop/start/restart, pause/resume and fork
+        across pause/resume. Linux stop/start, pause/resume and fork
         require persistence; forks inherit it. Persistent Linux creation accepts
         volumes, but pause and fork with attached volumes are refused (409).
-        Omitted or ``None`` uses the server default (false). The default lifetime
-        timeout pauses persistent Linux sandboxes after 300 seconds, not after
-        300 idle seconds.
+        Omitted or ``None`` uses the server default (false). When neither a
+        per-create policy nor a project lifecycle default overrides it, the platform
+        lifetime timeout pauses persistent Linux sandboxes after 300 seconds, not
+        after 300 idle seconds.
 
         ``idle_expiry_seconds`` is the anonymous image's idle-retention window
         (see ``images.build``). ``region`` and ``cpu_arch`` apply to both the
