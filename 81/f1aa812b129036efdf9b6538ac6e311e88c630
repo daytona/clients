@@ -1,0 +1,21 @@
+sdk-python/tests/test_wait_read_retries.py
+  s_da52886f8bc83e::t_b88e39f1225fc1 175
+sdk-python/src/daytona/v2/_read_retry.py
+  s_da52886f8bc83e::t_b88e39f1225fc1 44-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81f1aa812b129036efdf9b6538ac6e311e88c630",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

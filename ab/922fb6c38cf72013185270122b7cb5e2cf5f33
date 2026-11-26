@@ -1,0 +1,26 @@
+sdk-typescript/tests/iter-pages.test.ts
+  s_d86ecc115dc312::t_df3a6c3955a2d5 18-19,247-260
+  s_d86ecc115dc312::t_5a18e263f3f207 261
+sdk-python/tests/test_iter_pages.py
+  s_d86ecc115dc312::t_30ddb2e9369c3f 12,31,359-396
+sdk-typescript/src/v2/pages.ts
+  s_d86ecc115dc312::t_df3a6c3955a2d5 7,67-70,73-75,77,83-85
+sdk-python/src/daytona/v2/_pages.py
+  s_d86ecc115dc312::t_30ddb2e9369c3f 20,68-71,88-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab922fb6c38cf72013185270122b7cb5e2cf5f33",
+  "prompts": {},
+  "sessions": {
+    "s_d86ecc115dc312": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defae85a6ffeTg1OSIytB17FCk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

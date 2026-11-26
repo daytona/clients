@@ -1,0 +1,39 @@
+sdk-go/build_logs_http_errors_test.go
+  s_8ccdc884dcfa86::t_3388c371072a9c 98-101
+  s_8ccdc884dcfa86::t_d89c0f63693fd7 1-97,102-145,147-149
+  s_8ccdc884dcfa86::t_d585fb6780ac1d 146
+sdk-python/src/daytona/v2/build_logs.py
+  s_8ccdc884dcfa86::t_54acd61cb02872 752-754,917-919
+  s_8ccdc884dcfa86::t_2f638f1a0fdd77 227,230-231,687-707,749-751,755,915-916,920,946-947,951
+sdk-go/build_logs_follow.go
+  s_8ccdc884dcfa86::t_acbcd5c4c007c7 193-206,214
+sdk-python/tests/test_build_logs_http_errors.py
+  s_8ccdc884dcfa86::t_54acd61cb02872 94-97,135-139
+  s_8ccdc884dcfa86::t_d8423b6e02de5e 20,164-165
+  s_8ccdc884dcfa86::t_92d52f95e40dea 1-19,21-93,98-134,140-163,166
+sdk-typescript/src/v2/BuildLogs.ts
+  s_8ccdc884dcfa86::t_2df5ed67689fa9 494
+  s_8ccdc884dcfa86::t_d55dce826a82bc 649
+  s_8ccdc884dcfa86::t_b8c5d02de50619 74-75,477-493,495,506-511,628-630,648
+changelog.d/build-log-http-errors.fixed.md
+  s_8ccdc884dcfa86::t_8809fe75205f6a 1-10
+sdk-typescript/tests/build-logs-http-errors.test.ts
+  s_8ccdc884dcfa86::t_43131516fe7968 1-18,21-51,57-137
+  s_8ccdc884dcfa86::t_3388c371072a9c 19-20,52-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87f37d245cc1c09e5e9f5f4931c15eabe68ab2a0",
+  "prompts": {},
+  "sessions": {
+    "s_8ccdc884dcfa86": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b85d6ffewDZ0J2Dq0Q1525",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

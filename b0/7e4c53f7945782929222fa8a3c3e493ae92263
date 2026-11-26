@@ -1,0 +1,29 @@
+sdk-python/src/daytona/v2/_auth.py
+  s_450c83ea6ec946::t_50a0cf7da692b9 16,124
+changelog.d/737-credential-format.security.md
+  s_450c83ea6ec946::t_439a3fef96428c 1-8
+sdk-python/src/daytona/v2/_transport_errors.py
+  s_450c83ea6ec946::t_50a0cf7da692b9 20,50-59
+sdk-python/src/daytona/v2/_transport.py
+  s_450c83ea6ec946::t_50a0cf7da692b9 51,1315
+sdk-python/tests/test_transport_error_redaction.py
+  s_450c83ea6ec946::t_ebd44443e73be1 22,144-164
+changelog.d/737-ts-credential-enumeration.security.md
+  s_450c83ea6ec946::t_967bd14e83e847 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b07e4c53f7945782929222fa8a3c3e493ae92263",
+  "prompts": {},
+  "sessions": {
+    "s_450c83ea6ec946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3b8c9ffemgoEzkgpQFwDrO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

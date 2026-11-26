@@ -1,0 +1,19 @@
+sdk-go/e2e/events_test.go
+  s_3c61184d4db5f5::t_95f96987d7cec9 14-15,117-124,160-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae3e7c3d3f5a4cac7d1b57c117ecc56c48087124",
+  "prompts": {},
+  "sessions": {
+    "s_3c61184d4db5f5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ded985047ffeQI3Os1RIfjOBCn",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

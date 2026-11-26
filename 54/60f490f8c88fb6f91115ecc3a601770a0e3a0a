@@ -1,0 +1,21 @@
+sdk-python/src/daytona/_client.py
+  s_d224a4b57159e6::t_b79a61cce12e2b 397-399,403-407,573,651
+changelog.d/sdk-config-booleans.fixed.md
+  s_d224a4b57159e6::t_2b52d776d353f6 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5460f490f8c88fb6f91115ecc3a601770a0e3a0a",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

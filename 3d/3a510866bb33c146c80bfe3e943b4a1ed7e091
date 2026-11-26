@@ -1,0 +1,21 @@
+sdk-typescript/tests/create-persistence-response.test.ts
+  s_36fb739d0bfc3e::t_702200bc19faf0 1-47
+sdk-typescript/src/v2/clientCreate.ts
+  s_36fb739d0bfc3e::t_699701292fb839 85-86,89,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d3a510866bb33c146c80bfe3e943b4a1ed7e091",
+  "prompts": {},
+  "sessions": {
+    "s_36fb739d0bfc3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8aebfbfffenfIc2YZHjA9fdz",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

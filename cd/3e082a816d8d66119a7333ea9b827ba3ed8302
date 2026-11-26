@@ -1,0 +1,47 @@
+sdk-go/options_test.go
+  s_450c83ea6ec946::t_14a8d0808b938c 73-76
+sdk-typescript/tests/client-config.test.ts
+  s_450c83ea6ec946::t_ed9c1967f7ce37 273,279,281,283
+  s_450c83ea6ec946::t_14a8d0808b938c 227
+sdk-go/sandbox_get.go
+  s_450c83ea6ec946::t_14a8d0808b938c 89,93
+sdk-python/tests/test_client_config.py
+  s_450c83ea6ec946::t_45762081f46172 110-111
+  s_450c83ea6ec946::t_14a8d0808b938c 128
+  s_450c83ea6ec946::t_ed9c1967f7ce37 122-123
+  s_450c83ea6ec946::t_47a969fa597c74 120
+sdk-python/README.md
+  s_450c83ea6ec946::t_45762081f46172 148-152
+sdk-typescript/src/v2/options.ts
+  s_450c83ea6ec946::t_14a8d0808b938c 89,91
+sdk-python/src/daytona/v2/_core.py
+  s_450c83ea6ec946::t_14a8d0808b938c 2243-2246
+sdk-typescript/tests/connect-options.test.ts
+  s_450c83ea6ec946::t_14a8d0808b938c 43-44
+sdk-python/tests/test_connect_options.py
+  s_450c83ea6ec946::t_d6ef490374074d 80-81
+AGENTS.md
+  s_450c83ea6ec946::t_8e32185531e5f7 339-342
+  s_450c83ea6ec946::t_45762081f46172 333-338
+  s_450c83ea6ec946::t_50a252f3738e61 343
+sdk-go/doc.go
+  s_450c83ea6ec946::t_45762081f46172 100-106
+sdk-typescript/README.md
+  s_450c83ea6ec946::t_45762081f46172 105-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd3e082a816d8d66119a7333ea9b827ba3ed8302",
+  "prompts": {},
+  "sessions": {
+    "s_450c83ea6ec946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3b8c9ffemgoEzkgpQFwDrO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

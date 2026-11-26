@@ -1,0 +1,66 @@
+sdk-go/exec_run.go
+  s_1c8257112609a8::t_addcf00dc63459 29-34,36-37,42
+sdk-python/tests/test_core.py
+  s_1c8257112609a8::t_e68b30694dcbf1 6351,6369,6371,6374,7039-7043,8682,8693,8761-8763
+sdk-go/process_wait.go
+  s_1c8257112609a8::t_addcf00dc63459 15-21,23-27,115-117,119-121,123-124
+sdk-typescript/tests/process-wait-rounds.test.ts
+  s_1c8257112609a8::t_6154a36d29ab78 1-155
+sdk-typescript/src/v2/ProcessWire.ts
+  s_1c8257112609a8::t_bcf2bd4ddd2e8a 66-79
+sdk-python/src/daytona/v2/_sync/process.py
+  s_1c8257112609a8::t_f2cee8e155d0e1 131-134,256-261
+sdk-typescript/tests/sessions.test.ts
+  s_1c8257112609a8::t_3bd80cbc07be84 126,128,169
+sdk-typescript/src/v2/Process.ts
+  s_1c8257112609a8::t_3af8843faee81b 130-135
+sdk-go/process_wait_rounds_test.go
+  s_1c8257112609a8::t_83b3516a711b42 1-7,9-30,32-33,35-36,38-154
+  s_1c8257112609a8::t_c4bce262a6ab56 8,31,34,37
+sdk-python/tests/test_process_wait_rounds.py
+  s_1c8257112609a8::t_37e5f1b5d39afe 1-16,18-37,39-144,148-211,224-227
+  s_1c8257112609a8::t_abe7efe0c7594f 17,212-223
+  s_1c8257112609a8::t_962e25799b1e58 145-147
+  s_1c8257112609a8::t_8d5336390ae230 38
+sdk-python/src/daytona/v2/process.py
+  s_1c8257112609a8::t_a9aca9c034241f 31,285-288,695-700
+  s_1c8257112609a8::t_5e856ea9a90fd9 763
+  s_1c8257112609a8::t_962e25799b1e58 304
+sdk-go/exec_test.go
+  s_1c8257112609a8::t_663c5be365d092 35,84-86
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_1c8257112609a8::t_bcf2bd4ddd2e8a 15,145-148,155-159,162-163
+sdk-python/tests/test_toolbox_surface.py
+  s_1c8257112609a8::t_e68b30694dcbf1 592-594,1050,1053,1058,1060-1065
+changelog.d/process-wait-rounds.fixed.md
+  s_1c8257112609a8::t_e4b794ebf6470f 1-9
+sdk-python/src/daytona/v2/_core.py
+  s_1c8257112609a8::t_64ff0651226916 1133-1147,1536-1542,1546-1547
+  s_1c8257112609a8::t_78671f7f191edc 1255-1259
+sdk-typescript/tests/unit.test.ts
+  s_1c8257112609a8::t_624c6adfcf0fce 5086-5087,5418,5425,5461,5468,5503,5574,5581,5629,5636,5679,6601,9111,9121,9123-9124,9137-9141
+  s_1c8257112609a8::t_d0c26e87ab1229 5853-5855
+  s_1c8257112609a8::t_715426706ff0f3 13495-13496
+sdk-typescript/src/v2/ProcessRun.ts
+  s_1c8257112609a8::t_bcf2bd4ddd2e8a 12-13,62-66,71
+AGENTS.md
+  s_1c8257112609a8::t_1575ff04dee8a1 757-763
+sdk-go/process_wait_test.go
+  s_1c8257112609a8::t_663c5be365d092 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e9a8e7920ff6a705ac31358401786abf5ca14ab",
+  "prompts": {},
+  "sessions": {
+    "s_1c8257112609a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1bf4bd9ffeVE6HXMU1d1usNI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

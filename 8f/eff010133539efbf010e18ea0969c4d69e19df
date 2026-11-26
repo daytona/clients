@@ -1,0 +1,19 @@
+sdk-python/src/daytona/v2/_core.py
+  s_11caeff751953a::t_7a4689b83c393a 1366-1387
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8feff010133539efbf010e18ea0969c4d69e19df",
+  "prompts": {},
+  "sessions": {
+    "s_11caeff751953a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0668b50ffeOv73s7qSp5mgQQ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

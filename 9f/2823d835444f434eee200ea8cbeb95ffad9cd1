@@ -1,0 +1,37 @@
+sdk-typescript/scripts/cjs-types-fixture/tsconfig.strict.node-only.json
+  s_cb9030153545d8::t_4cdb62fac614d8 11
+sdk-typescript/scripts/cjs-types-fixture/node-only.mts
+  s_cb9030153545d8::t_4cdb62fac614d8 6
+  s_cb9030153545d8::t_e604264d668832 7-9
+changelog.d/ts-node-only-declarations.fixed.md
+  s_cb9030153545d8::t_459dbb3031e687 2-6
+sdk-typescript/tests/node-only-declarations.test.ts
+  s_cb9030153545d8::t_10ecdc90ceb0c5 73-75
+  s_cb9030153545d8::t_2839856cf4c348 62-72,76-82
+sdk-typescript/scripts/cjs-types-fixture/node-only.cts
+  s_cb9030153545d8::t_4cdb62fac614d8 1-15
+sdk-typescript/src/v2/http.ts
+  s_cb9030153545d8::t_a7cc7b2e41da30 201-203,341,345
+.github/workflows/sdk-ci.yaml
+  s_cb9030153545d8::t_ed88fd2586eac9 227-228
+  s_cb9030153545d8::t_6f8bb46f719bf6 226,231-234
+  s_cb9030153545d8::t_d3840ef5dc8bc7 229-230
+sdk-typescript/README.md
+  s_cb9030153545d8::t_ed88fd2586eac9 33-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f2823d835444f434eee200ea8cbeb95ffad9cd1",
+  "prompts": {},
+  "sessions": {
+    "s_cb9030153545d8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a2f4b2ffeYECIX54SMR5Ryr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

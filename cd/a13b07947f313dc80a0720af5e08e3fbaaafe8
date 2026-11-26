@@ -1,0 +1,39 @@
+sdk-typescript/runtime-tests/nextjs/run.sh
+  s_10413bdfe4b841::t_c98155fd7bc858 5-8,13,19,26,31-51,56,58-63
+sdk-typescript/runtime-tests/nextjs/app/api/sandboxes/route.ts
+  s_10413bdfe4b841::t_c98155fd7bc858 5-7,11-33,39,42-43
+sdk-typescript/runtime-tests/nextjs/next.config.js
+  s_10413bdfe4b841::t_c98155fd7bc858 4
+sdk-typescript/src/__tests__/Import.test.ts
+  s_10413bdfe4b841::t_afe306096b6e83 1-54
+sdk-typescript/src/utils/NodeLoaders.ts
+  s_10413bdfe4b841::t_69cdb0c5001fea 1-6,13-26
+  s_10413bdfe4b841::t_0b698c85c329d2 7-12
+sdk-typescript/src/utils/Import.ts
+  s_10413bdfe4b841::t_18d5ed0afd1ea1 10,64-84,96,129
+sdk-typescript/runtime-tests/README.md
+  s_10413bdfe4b841::t_6ba53d53ca2641 40
+sdk-typescript/src/__tests__/post-build.test.ts
+  s_10413bdfe4b841::t_a6f394623dbcca 200-203
+  s_10413bdfe4b841::t_afe306096b6e83 159-199,204-218
+sdk-typescript/scripts/post-build.js
+  s_10413bdfe4b841::t_e02e553334d0af 74,78-80
+  s_10413bdfe4b841::t_fa4dc21806279d 46-52
+  s_10413bdfe4b841::t_f7595bd2295289 53-73,75-77,81-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cda13b07947f313dc80a0720af5e08e3fbaaafe8",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

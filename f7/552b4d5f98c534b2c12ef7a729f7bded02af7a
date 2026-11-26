@@ -1,0 +1,97 @@
+sdk-go/errors_details.go
+  s_b5788db0bcfac8::t_97f98135b199b0 60-88
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_b5788db0bcfac8::t_d835209fcab5c0 245-249
+sdk-typescript/DEVELOPMENT.md
+  s_b5788db0bcfac8::t_1a58bca1b49ade 195
+  s_b5788db0bcfac8::t_83b82ed20e0f2e 49-50
+sdk-typescript/src/v2/clientCreate.ts
+  s_b5788db0bcfac8::t_53c1a618dc565b 6,153,156-157,164
+  s_b5788db0bcfac8::t_de79aab00e01f2 154-155,177
+sdk-typescript/tests/errors-contract.test.ts
+  s_b5788db0bcfac8::t_ed934608d7ecfa 85-91,175
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_b5788db0bcfac8::t_deffeed8e491a9 546-566,1180
+sdk-typescript/src/v2/index.ts
+  s_b5788db0bcfac8::t_deffeed8e491a9 180,192
+sdk-python/src/daytona/v2/_exports.py
+  s_b5788db0bcfac8::t_35179ce6980d9a 145
+sdk-python/src/daytona/v2/services.py
+  s_b5788db0bcfac8::t_dcece992b1d371 392-394
+  s_b5788db0bcfac8::t_f7b53b91c1fd56 383-387,395-398
+sdk-python/src/daytona/v2/__init__.py
+  s_b5788db0bcfac8::t_35179ce6980d9a 231,527
+sdk-python/src/daytona/v2/_sync/services.py
+  s_b5788db0bcfac8::t_d835209fcab5c0 232-236
+sdk-typescript/src/v2/Images.ts
+  s_b5788db0bcfac8::t_c1d94f65e351f1 330-334,338-344
+sdk-python/README.md
+  s_b5788db0bcfac8::t_83b82ed20e0f2e 362-366,603-606
+sdk-typescript/tests/artifact-deadlines.test.ts
+  s_b5788db0bcfac8::t_a09a18d78ed1d0 61-63
+  s_b5788db0bcfac8::t_7c090ae2f46e77 9,64
+sdk-python/tests/test_error_contract.py
+  s_b5788db0bcfac8::t_8691d880f6182c 100-117
+sdk-python/src/daytona/v2/daytona.py
+  s_b5788db0bcfac8::t_88e85fec5644e2 86,628-629,673-682,697,711
+  s_b5788db0bcfac8::t_ae399c825d606e 630-632
+sdk-go/create_from_build_test.go
+  s_b5788db0bcfac8::t_f4cb6467986fcf 128-151
+changelog.d/image-promote-readback.fixed.md
+  s_b5788db0bcfac8::t_f2e1aaf9950191 1-6
+sdk-python/tests/test_wait_deadlines.py
+  s_b5788db0bcfac8::t_62ec044d940b45 282,290-291
+  s_b5788db0bcfac8::t_23213b85033682 292
+sdk-python/tests/test_core.py
+  s_b5788db0bcfac8::t_62ec044d940b45 42,7598-7600
+  s_b5788db0bcfac8::t_0aec1290af9f61 7432-7435,7447-7479
+sdk-typescript/tests/unit.test.ts
+  s_b5788db0bcfac8::t_ed934608d7ecfa 3918-3926
+  s_b5788db0bcfac8::t_7c090ae2f46e77 3893-3894,3909-3910,3915
+  s_b5788db0bcfac8::t_4f84ed36837d9f 118,3704-3706
+  s_b5788db0bcfac8::t_ed22054f6a1588 3916-3917
+sdk-python/src/daytona/v2/errors.py
+  s_b5788db0bcfac8::t_0e0b87f35f57b4 713-735
+sdk-go/create_from_build.go
+  s_b5788db0bcfac8::t_13484efed9aadd 34-35
+sdk-go/README.md
+  s_b5788db0bcfac8::t_83b82ed20e0f2e 157-158
+sdk-typescript/README.md
+  s_b5788db0bcfac8::t_83b82ed20e0f2e 305-309,546-548
+sdk-python/DEVELOPMENT.md
+  s_b5788db0bcfac8::t_83b82ed20e0f2e 172-173
+sdk-go/image_resource_operations_test.go
+  s_b5788db0bcfac8::t_f4cb6467986fcf 19-25,29,34,36,38-39
+sdk-go/images.go
+  s_b5788db0bcfac8::t_0da461c49e5cf7 134-137
+  s_b5788db0bcfac8::t_d7c2f6c95c64bc 156-164
+  s_b5788db0bcfac8::t_e0cac7b13e493f 165-169
+sdk-go/errors_wrappers_test.go
+  s_b5788db0bcfac8::t_97f98135b199b0 80-82
+changelog.d/image-build-timeout-id.added.md
+  s_b5788db0bcfac8::t_f2e1aaf9950191 1-8
+sdk-go/images_ready.go
+  s_b5788db0bcfac8::t_5384ac7cd40e2f 68-80
+  s_b5788db0bcfac8::t_13484efed9aadd 8,43-44
+sdk-python/tests/test_unbounded_waits.py
+  s_b5788db0bcfac8::t_f3fcb9f91896fb 25-31,182
+sdk-typescript/tests/unbounded-waits.test.ts
+  s_b5788db0bcfac8::t_9be360c891ef80 69
+  s_b5788db0bcfac8::t_f3fcb9f91896fb 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7552b4d5f98c534b2c12ef7a729f7bded02af7a",
+  "prompts": {},
+  "sessions": {
+    "s_b5788db0bcfac8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defaefaf0ffed9xI1aKFESdygL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+changelog.d/758-lifecycle-policies.added.md
+  h_e7759ddd73fa65 2-4
+changelog.d/758-policy-update-validation.fixed.md
+  h_e7759ddd73fa65 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab99f15c8b7589f269350b44ae17fcae4e62a07b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

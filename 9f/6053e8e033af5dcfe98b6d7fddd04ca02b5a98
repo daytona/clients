@@ -1,0 +1,551 @@
+.github/workflows/sdk-ci.yaml
+  s_d025fb5f19f06b::t_e4dd50d03f0622 209,211-213,224-234,294-301,315-316
+AGENTS.md
+  s_d025fb5f19f06b::t_fa79f0bd2f45dc 319-325,336-358
+changelog.d/736-cli-login-only-commands.fixed.md
+  s_d025fb5f19f06b::t_c5dfdcfa207592 1-12
+changelog.d/736-cli-v0-config-hint.added.md
+  s_d025fb5f19f06b::t_fa2a9ecd06ab9f 1-5
+changelog.d/737-credential-format.security.md
+  s_d025fb5f19f06b::t_99ce8504beb762 1-11
+changelog.d/737-ts-credential-enumeration.security.md
+  s_d025fb5f19f06b::t_aa563faff4c2dd 1-7
+changelog.d/758-lifecycle-policies.added.md
+  s_d025fb5f19f06b::t_268c4d939b7ad9 1-4
+changelog.d/758-linux-persistent-sandboxes.added.md
+  s_d025fb5f19f06b::t_1a4d74c0445c6d 1-4
+changelog.d/758-persistence-search.added.md
+  s_d025fb5f19f06b::t_b0d42d514b1db7 1-2
+changelog.d/758-policy-update-reads.fixed.md
+  s_d025fb5f19f06b::t_2826ba85ecf519 1-2
+changelog.d/758-policy-update-validation.fixed.md
+  s_d025fb5f19f06b::t_59b17f8fe8d319 1-7
+changelog.d/758-sandbox-transition-code.added.md
+  s_d025fb5f19f06b::t_ca9bf2b1f6f70a 1-2
+changelog.d/758-sandbox-transition-retries.changed.md
+  s_d025fb5f19f06b::t_6c1dedfbfbfdd6 1-5
+changelog.d/build-log-permanent-errors.changed.md
+  s_d025fb5f19f06b::t_4d40a086296a5e 1-7
+changelog.d/build-log-typed-cause.fixed.md
+  s_d025fb5f19f06b::t_181759ce5ff1c9 1-9
+changelog.d/computer-use-status-parser.added.md
+  s_d025fb5f19f06b::t_4c162655b907f2 1-10
+changelog.d/find-by-name-region-filter.fixed.md
+  s_d025fb5f19f06b::t_5900785322c031 1-7
+changelog.d/fs-call-timeouts-go-signatures.breaking.md
+  s_d025fb5f19f06b::t_2b282954d1d883 1-7
+changelog.d/fs-call-timeouts.added.md
+  s_d025fb5f19f06b::t_b2301acd3181c3 1-12
+changelog.d/go-exec-stream-idle.fixed.md
+  s_d025fb5f19f06b::t_147179d90e1e06 1-7
+changelog.d/label-unicode-checks.fixed.md
+  s_d025fb5f19f06b::t_c8a18feccfb5ad 1-9
+changelog.d/python-current-api-key-sync-flag.fixed.md
+  s_d025fb5f19f06b::t_54fb0747eab373 1-6
+changelog.d/secret-volume-search-first.changed.md
+  s_d025fb5f19f06b::t_b724d685226e84 1-8
+changelog.d/secret-volume-search-name.changed.md
+  s_d025fb5f19f06b::t_18246492c9fc80 1-5
+changelog.d/secret-volume-search.added.md
+  s_d025fb5f19f06b::t_e30b7402fd7eb9 1-7
+changelog.d/ts-error-names-minified.fixed.md
+  s_d025fb5f19f06b::t_eec1b29c172e2d 1-8
+changelog.d/ts-node-only-declarations.fixed.md
+  s_d025fb5f19f06b::t_45012beda8f0d2 1-6
+changelog.d/volume-get-or-create-race.fixed.md
+  s_d025fb5f19f06b::t_96934bf27681af 1-6
+changelog.d/volume-pull-rounds.changed.md
+  s_d025fb5f19f06b::t_1f1826248c6243 1-8
+cli/README.md
+  s_d025fb5f19f06b::t_e488603971f06d 75-80,102,129-148,316-318,397-400,405-408,432-434,544-549,655,690,706-715
+cli/cmd/auth.go
+  s_d025fb5f19f06b::t_46801f20e186a3 113-114
+cli/cmd/auth_login_command.go
+  s_d025fb5f19f06b::t_43e5527f7522eb 38-41
+cli/cmd/auth_test.go
+  s_d025fb5f19f06b::t_8b7bd7a19d7cba 472,479
+cli/cmd/billing_test.go
+  s_d025fb5f19f06b::t_a5ab2d2bbd2606 25,34,44,53,65,76,88,102,113,125,137,156,179,183,209,211,213,315,369,375
+cli/cmd/catalog_test.go
+  s_d025fb5f19f06b::t_72a7130fcb8672 41-43,64,74,103-105,123
+cli/cmd/cli_contract_test.go
+  s_d025fb5f19f06b::t_36f956d8ebf234 583,596
+cli/cmd/command_more_test.go
+  s_d025fb5f19f06b::t_0a9291138ec357 32,40,48,157
+cli/cmd/image.go
+  s_d025fb5f19f06b::t_a1604a3d9f3071 100,124-126
+cli/cmd/invite_test.go
+  s_d025fb5f19f06b::t_e22e0e50a9c1ae 204,224,238,274
+cli/cmd/legacy_config_test.go
+  s_d025fb5f19f06b::t_52d4679254f4cf 1-81
+cli/cmd/login_only.go
+  s_d025fb5f19f06b::t_40d1016c54e293 1-153
+cli/cmd/login_only_test.go
+  s_d025fb5f19f06b::t_6e673364877231 1-427
+cli/cmd/main_test.go
+  s_d025fb5f19f06b::t_51358d4a7d250d 1-31
+cli/cmd/member_test.go
+  s_d025fb5f19f06b::t_86f56e795549a1 16,143
+cli/cmd/org.go
+  s_d025fb5f19f06b::t_0c96ef6e514a3b 466-469
+cli/cmd/org_uuid_more_test.go
+  s_d025fb5f19f06b::t_99bdc785b8174a 17
+cli/cmd/region.go
+  s_d025fb5f19f06b::t_85aff1d764333d 79-81
+cli/cmd/root.go
+  s_d025fb5f19f06b::t_0feed578f6d1b8 69-70,105,154
+cli/cmd/sandbox_actions.go
+  s_d025fb5f19f06b::t_58baadc44418af 201,205
+cli/cmd/sandbox_actions_more_test.go
+  s_d025fb5f19f06b::t_a3f00b6d15cc51 263-264,275-276,280-285
+cli/cmd/sandbox_create.go
+  s_d025fb5f19f06b::t_94c6d8944d265a 78,148,174-175,185-186
+cli/cmd/sandbox_fork.go
+  s_d025fb5f19f06b::t_8c3eed526c8d5d 1-60
+cli/cmd/sandbox_lifecycle.go
+  s_d025fb5f19f06b::t_787b2e37f862b4 16-17,21-23,30-31,53-54,59,61,72-82,100
+cli/cmd/sandbox_lifecycle_validation_test.go
+  s_d025fb5f19f06b::t_c3dbb8e742ca33 1-49
+cli/cmd/sandbox_persistent_test.go
+  s_d025fb5f19f06b::t_8ae2f377868024 1-85
+cli/cmd/sandbox_search.go
+  s_d025fb5f19f06b::t_770a930b9f2a2b 31-32,109,162
+cli/cmd/sandbox_search_filters_test.go
+  s_d025fb5f19f06b::t_09d665b0ed5f37 16-40
+cli/cmd/sandbox_search_helpers.go
+  s_d025fb5f19f06b::t_e724fc3f754ec5 40-42
+cli/cmd/sandbox_search_query.go
+  s_d025fb5f19f06b::t_a37a0471477a9d 38-40
+cli/cmd/sandbox_transition.go
+  s_d025fb5f19f06b::t_bf86efbcab5484 1-57
+cli/cmd/sandbox_transition_commands_test.go
+  s_d025fb5f19f06b::t_3e819732d816d7 1-99
+cli/cmd/sandbox_transition_test.go
+  s_d025fb5f19f06b::t_245fd0b8155a9b 1-207
+cli/cmd/search_first.go
+  s_d025fb5f19f06b::t_9389a05aaf415d 8,10,44-51,55-56,63-108,121-127
+cli/cmd/search_first_test.go
+  s_d025fb5f19f06b::t_e60cd7b36be7d8 113-245
+cli/cmd/secret.go
+  s_d025fb5f19f06b::t_56b30311a66c16 40-42,111,120,145-147,165-167
+cli/cmd/snapshot.go
+  s_d025fb5f19f06b::t_43a45b9f8c44af 45,70-72
+cli/cmd/volume.go
+  s_d025fb5f19f06b::t_69e12285cb8d30 50-52,109,120,154-156,175-177
+cli/cmd/volume_more_test.go
+  s_d025fb5f19f06b::t_8b46c80e21cfec 85
+cli/cmd/volume_test.go
+  s_d025fb5f19f06b::t_f7026bdbc377e0 8,18-21,50,76
+cli/gen/api/types.gen.go
+  s_d025fb5f19f06b::t_2b8c6fb1f78d40 114,345-346,3158-3160,7987
+cli/internal/app/clients.go
+  s_d025fb5f19f06b::t_21611dcdaa2906 8,10,15,61-96,103,153
+cli/internal/config/legacy.go
+  s_d025fb5f19f06b::t_474f990eb1af28 1-38
+cli/internal/config/legacy_test.go
+  s_d025fb5f19f06b::t_e7338b98e99347 1-71
+cli/internal/input/request_fields_gen.go
+  s_d025fb5f19f06b::t_e6a7b722d8cb44 128
+contract/api-openapi.json
+  s_d025fb5f19f06b::t_ed7a6c794d187a 432,3036-3039,27012,27949,28075,30083,32945-32951
+docs/adr/0003-cli.md
+  s_d025fb5f19f06b::t_6eda0be1b3ff3f 79-81
+e2e/e2e.py
+  s_d025fb5f19f06b::t_2af09eb0fa56a7 30,99-109,181-182
+e2e/e2e.ts
+  s_d025fb5f19f06b::t_f50af4d9de6371 39-49,131-132
+sdk-go/README.md
+  s_d025fb5f19f06b::t_dc553ea736f897 72-100,221,241-246,258-274
+sdk-go/build_logs_501_test.go
+  s_d025fb5f19f06b::t_4dc280e7c2bfe4 8,17,20,56-69
+sdk-go/build_logs_follow.go
+  s_d025fb5f19f06b::t_832c1c017eaabb 193-202,210
+sdk-go/build_logs_http_errors_test.go
+  s_d025fb5f19f06b::t_bdba107db39e7a 1-156
+sdk-go/capture.go
+  s_d025fb5f19f06b::t_7ea1f56b786fd3 26-29,44,61-63,73
+sdk-go/client.go
+  s_d025fb5f19f06b::t_a25e0b94684415 33-34
+sdk-go/codes_catalog_4.go
+  s_d025fb5f19f06b::t_2117af75f8f7aa 55-60,161-164
+sdk-go/codes_catalog_5.go
+  s_d025fb5f19f06b::t_bc9126ad32d8ef 7-12,129-132
+sdk-go/codes_catalog_6.go
+  s_d025fb5f19f06b::t_296f05502bee03 7-12,129-132
+sdk-go/codes_catalog_7.go
+  s_d025fb5f19f06b::t_e7fa246f76a2b1 7-12,99-102
+sdk-go/codes_catalog_8.go
+  s_d025fb5f19f06b::t_7fe6335976dbb4 1-18
+sdk-go/codes_dispatch.go
+  s_d025fb5f19f06b::t_054e014471ab61 32-34
+sdk-go/computer_use.go
+  s_d025fb5f19f06b::t_a85144680e6218 104-115
+sdk-go/computer_use_example_test.go
+  s_d025fb5f19f06b::t_1c8c10160f35cf 83-94
+sdk-go/computer_use_status_parse_test.go
+  s_d025fb5f19f06b::t_31bb439a053e84 1-64
+sdk-go/create_from_build_test.go
+  s_d025fb5f19f06b::t_badedc4ca2047f 39,44,79
+sdk-go/create_option_errors_test.go
+  s_d025fb5f19f06b::t_0f29e345942eed 59-83
+sdk-go/create_options.go
+  s_d025fb5f19f06b::t_0b8f74056b683d 44-49,59-60
+sdk-go/create_persistence_test.go
+  s_d025fb5f19f06b::t_0daf1ccd780dbe 1-99
+sdk-go/create_prepare_fields.go
+  s_d025fb5f19f06b::t_32bab433205c0b 18-19
+sdk-go/create_submit.go
+  s_d025fb5f19f06b::t_cf591ea9c30cc6 129,136-138
+sdk-go/create_validation_test.go
+  s_d025fb5f19f06b::t_c78d4e16b2febe 125
+sdk-go/doc.go
+  s_d025fb5f19f06b::t_0b5b828f4b2415 100-106
+sdk-go/e2e/account_test.go
+  s_d025fb5f19f06b::t_da2ecb6e97130c 55-63,65-73,114-122,124-132
+sdk-go/e2e/events_test.go
+  s_d025fb5f19f06b::t_034d0d645b409b 14-15,117-124,160-175
+sdk-go/errors.go
+  s_d025fb5f19f06b::t_c0e147ef525f3c 85-88
+sdk-go/errors_response.go
+  s_d025fb5f19f06b::t_1e319177d82c51 81
+sdk-go/exec_follow_idle_test.go
+  s_d025fb5f19f06b::t_94df531f9b5a5f 1-304
+sdk-go/exec_r3_timeout_test.go
+  s_d025fb5f19f06b::t_bc49c2d8754d8a 36-37,41
+sdk-go/exec_stream.go
+  s_d025fb5f19f06b::t_57a49560a518b0 13-22,97-107,111-112,115-146,148-149
+sdk-go/fs.go
+  s_d025fb5f19f06b::t_b8c8eb8a86aba6 13,40-46,57-63,141,144,146-151,171,178-181,184
+sdk-go/fs_call_timeout_test.go
+  s_d025fb5f19f06b::t_ab81947ee4c16c 1-125
+sdk-go/fs_search.go
+  s_d025fb5f19f06b::t_acaf4b8f2c7362 11,14-51,54-57,62-65,68,93-96,101-104,107,135-138,143-152,160
+sdk-go/internal/gen/api/models.gen.go
+  s_d025fb5f19f06b::t_cd808abc0afe7b 114,345-346,3158-3160,7987
+sdk-go/lifecycle_persistence_test.go
+  s_d025fb5f19f06b::t_759ecdad490562 1-106
+sdk-go/macos_create.go
+  s_d025fb5f19f06b::t_2681c387b4284d 42,44
+sdk-go/options.go
+  s_d025fb5f19f06b::t_589917ae997bc7 39-40
+sdk-go/options_env.go
+  s_d025fb5f19f06b::t_0805c94295264d 38-40,59-92
+sdk-go/options_test.go
+  s_d025fb5f19f06b::t_87b466b7fd8fc9 7,9,35-38,69-132
+sdk-go/persistence_observation_test.go
+  s_d025fb5f19f06b::t_735241fccd236f 1-73
+sdk-go/process_stream.go
+  s_d025fb5f19f06b::t_c03283cdc2e1c9 13-14,17-21,27-34,60,74-186,192-196,198-200,204,208-210,223-227
+sdk-go/resource_search.go
+  s_d025fb5f19f06b::t_95f59c35e7df19 1-361
+sdk-go/resource_search_test.go
+  s_d025fb5f19f06b::t_46e466889a058a 1-327
+sdk-go/sandbox.go
+  s_d025fb5f19f06b::t_ee12a08eac0649 132,141-149
+sdk-go/sandbox_create.go
+  s_d025fb5f19f06b::t_dae2590a6f24ed 58-61,79
+sdk-go/sandbox_fork_retry_test.go
+  s_d025fb5f19f06b::t_2b0ed68d90eb91 1-63
+sdk-go/sandbox_get.go
+  s_d025fb5f19f06b::t_fe1bef6aac003f 89,93
+sdk-go/sandbox_labels.go
+  s_d025fb5f19f06b::t_67715988997aea 10-11,17-18,20-21,67-83
+sdk-go/sandbox_lifecycle.go
+  s_d025fb5f19f06b::t_5c1f9d4268eb34 13-14,22-24
+sdk-go/sandbox_lifecycle_fork.go
+  s_d025fb5f19f06b::t_753df130ff5feb 37-40,63,65-66,79-86,92,95,156,162-169,171,187-194
+sdk-go/sandbox_policy.go
+  s_d025fb5f19f06b::t_36215d6dc756b8 12-13,25-27
+sdk-go/sandbox_policy_options.go
+  s_d025fb5f19f06b::t_16339cc5fc97c7 16-17,85-86,89-91
+sdk-go/sandbox_policy_test.go
+  s_d025fb5f19f06b::t_def2c33d7a57ff 17,19,99-100,118
+sdk-go/sandbox_search.go
+  s_d025fb5f19f06b::t_8b1b06a82fee80 14,92,100-101,103-104,110-111,119-121,123-125,127-128,130,132-134,174-192
+sdk-go/sandbox_search_options.go
+  s_d025fb5f19f06b::t_4b72405b5d3832 31-32
+sdk-go/sandbox_search_persistent_test.go
+  s_d025fb5f19f06b::t_b1ad3555f184f6 1-63
+sdk-go/sandbox_search_query.go
+  s_d025fb5f19f06b::t_069b7d1115f5e9 53-54,65-67
+sdk-go/sandbox_transition.go
+  s_d025fb5f19f06b::t_173f1a96379151 1-43
+sdk-go/sandbox_transition_methods_test.go
+  s_d025fb5f19f06b::t_29709cd982a102 1-146
+sdk-go/sandbox_transition_test.go
+  s_d025fb5f19f06b::t_5cb2691b13cff2 1-168
+sdk-go/sandbox_volumes.go
+  s_d025fb5f19f06b::t_87a33d2fae7751 24-30,34-42,70-71,74-77,91-137,139-143,145
+sdk-go/sandbox_volumes_rounds_test.go
+  s_d025fb5f19f06b::t_f89b7f30786a9a 1-157
+sdk-go/sandbox_volumes_test.go
+  s_d025fb5f19f06b::t_44d3d44ca6a6d8 104
+sdk-go/sandbox_wait_read.go
+  s_d025fb5f19f06b::t_d5ac56fa4bc9f0 95
+sdk-go/secret.go
+  s_d025fb5f19f06b::t_42da02a5ccc9c4 44-46,56-59,81,103,168
+sdk-go/service_correctness_test.go
+  s_d025fb5f19f06b::t_5a12e792b8404b 1-310
+sdk-go/toolbox_routes_dynamic_test.go
+  s_d025fb5f19f06b::t_a67ae01143a63a 18-26,75-76
+sdk-go/volume.go
+  s_d025fb5f19f06b::t_0b8d7f59910732 13,53-55,65-68,87-92,94-97,99,107-128,130-138,154-156,195
+sdk-go/volume_pagination_test.go
+  s_d025fb5f19f06b::t_80afe1b086b497 20,61
+sdk-python/DEVELOPMENT.md
+  s_d025fb5f19f06b::t_cabac0da604425 44-46
+sdk-python/README.md
+  s_d025fb5f19f06b::t_8552be73048825 147-153,316-319,422,424-425,524-537,548-561,597,611-615,617,704-717,719,1009-1016,1152-1156,1221-1230
+sdk-python/src/daytona/v2/__init__.py
+  s_d025fb5f19f06b::t_4c39d21c6bf23b 27,357,366-367,628,704,708-709
+sdk-python/src/daytona/v2/_api_core.py
+  s_d025fb5f19f06b::t_008b2f6cf54637 11-12,80-92,96,98
+sdk-python/src/daytona/v2/_auth.py
+  s_d025fb5f19f06b::t_6ae26fc26b27c8 16-17,124,146,149
+sdk-python/src/daytona/v2/_codes.py
+  s_d025fb5f19f06b::t_6b002c08a4a0fa 116,268,446,539
+sdk-python/src/daytona/v2/_core.py
+  s_d025fb5f19f06b::t_e137b949513bb1 875,893,899,901,1888-1891,1894-1898,2123,2234-2239,2266-2269,2366,2400-2401,2403,2405-2407,2419-2424
+sdk-python/src/daytona/v2/_exports.py
+  s_d025fb5f19f06b::t_80bc6a3fe2e667 244,320,324-325
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_d025fb5f19f06b::t_8a2a5cde3aebc0 50
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  s_d025fb5f19f06b::t_cd4b6cf526c256 57,65,241
+sdk-python/src/daytona/v2/_otel.py
+  s_d025fb5f19f06b::t_6a692e8a95d6bb 12,74-75
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_d025fb5f19f06b::t_a7f96bb31cdcb3 114,136-144,203,231,262-270,290,479-484,599,629-631,679
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_d025fb5f19f06b::t_6517afed0726ab 50,52-63,87,94-101,103,105-107,115-122,124,197-198,200-223
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_d025fb5f19f06b::t_aabc9a7d9991c5 77-79,139-142,270-273,318-319,465,670-672
+sdk-python/src/daytona/v2/_sync/sandbox_volumes.py
+  s_d025fb5f19f06b::t_a6739eb423912f 42,46-54
+sdk-python/src/daytona/v2/_sync/services.py
+  s_d025fb5f19f06b::t_509c46d7a2df4d 366-373,380,383-424,464,467-500
+sdk-python/src/daytona/v2/_transition_retry.py
+  s_d025fb5f19f06b::t_72bc62a32c1a61 1-37
+sdk-python/src/daytona/v2/_transport.py
+  s_d025fb5f19f06b::t_170b7c18666dd2 51,168,296,328,337,368,440,465,764,881,884,900,902-903,994,1109,1112,1327
+sdk-python/src/daytona/v2/_transport_errors.py
+  s_d025fb5f19f06b::t_bc5e02612842fb 1-59
+sdk-python/src/daytona/v2/build_logs.py
+  s_d025fb5f19f06b::t_ef2df88e75255c 227,230-231,250-254,692-708,718,750-756,916-921,947-948,952
+sdk-python/src/daytona/v2/computer_use.py
+  s_d025fb5f19f06b::t_c0ec9f1b9b19ae 13,32-45,64
+sdk-python/src/daytona/v2/daytona.py
+  s_d025fb5f19f06b::t_2c19ab13fa0a8f 56,68-69,289,311-319,375,405,428,618,649-657,679,755,845-846,863-865,877,968-973,977,983-984,1112,1142-1144,1188,1477-1478,1487-1491,1523-1544,1763,1807-1811,1817-1819,1832
+sdk-python/src/daytona/v2/errors.py
+  s_d025fb5f19f06b::t_01b610742e7a04 859
+sdk-python/src/daytona/v2/filesystem.py
+  s_d025fb5f19f06b::t_e038583f71d8c3 54,610-620,622-627,643-645,653-660,664-669,673-675,682-689,693-698,703,705-714,724,739,741-749,757-759
+sdk-python/src/daytona/v2/sandbox.py
+  s_d025fb5f19f06b::t_1d8c19febe7fb8 32,47,53,58,81,359,466-468,962-964,1360,1373-1374,1407-1410,1432,1437-1438,1449,1452,1465-1472,1474,1488-1515,1525-1526,1531-1532,1542,1627-1632,1634,1638,1762-1764,1781-1783,1785,1796-1799,1806-1808,1810,2336
+sdk-python/src/daytona/v2/sandbox_volumes.py
+  s_d025fb5f19f06b::t_eef094b0c99ed4 12-14,20-21,53-66,85-87,125,129-137,139-156
+sdk-python/src/daytona/v2/services.py
+  s_d025fb5f19f06b::t_f7808231860075 19,45,54,58,71,88-90,92,96-97,108-110,464-468,487-492,534-583,770,778,788-794,798-866,883-891,903,905-915,931,964,1295,1298,1300-1306,1318-1362,1365,1391,1426
+sdk-python/src/daytona/v2/types.py
+  s_d025fb5f19f06b::t_7940046de27e68 302-304,349,1583-1585,1610-1611
+sdk-python/tests/test_argument_checks.py
+  s_d025fb5f19f06b::t_237ae7fa86a50d 900-902,905-907
+sdk-python/tests/test_build_logs_http_errors.py
+  s_d025fb5f19f06b::t_87b044df223569 1-228
+sdk-python/tests/test_client_config.py
+  s_d025fb5f19f06b::t_3358605b02d3c9 16,26,101-102,106-192
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_d025fb5f19f06b::t_a889fd1947252b 432-433,438
+sdk-python/tests/test_computer_use_status_parse.py
+  s_d025fb5f19f06b::t_6c5c3ae213e144 1-108
+sdk-python/tests/test_connect_options.py
+  s_d025fb5f19f06b::t_3093f15a503d60 80-81
+sdk-python/tests/test_core.py
+  s_d025fb5f19f06b::t_f1d0e66a9ad57e 4121-4122,4129-4133,12734
+sdk-python/tests/test_create_persistence_response.py
+  s_d025fb5f19f06b::t_738625c94c50be 1-70
+sdk-python/tests/test_filesystem_call_timeouts.py
+  s_d025fb5f19f06b::t_41fc77b7a5fc77 1-142
+sdk-python/tests/test_fork_retry_state.py
+  s_d025fb5f19f06b::t_5bd04df98658fd 1-69
+sdk-python/tests/test_lifecycle_policy_reads.py
+  s_d025fb5f19f06b::t_e67c020a658dc7 4-5,43
+sdk-python/tests/test_linux_persistence.py
+  s_d025fb5f19f06b::t_4299567c6418d2 1-237
+sdk-python/tests/test_null_options.py
+  s_d025fb5f19f06b::t_05790c7538511c 34
+sdk-python/tests/test_persistence_metadata.py
+  s_d025fb5f19f06b::t_cd3efee668a5f7 1-131
+sdk-python/tests/test_sandbox_transition_operations.py
+  s_d025fb5f19f06b::t_b56f4e648203db 1-171
+sdk-python/tests/test_search_first_lists.py
+  s_d025fb5f19f06b::t_e4af3407d4680e 14,16,69-85,98,109,118,127-145,150-153,178,192,227,260-457,487-505
+sdk-python/tests/test_search_persistent.py
+  s_d025fb5f19f06b::t_6a8d574239856a 1-60
+sdk-python/tests/test_service_correctness.py
+  s_d025fb5f19f06b::t_84152a9f0dea53 1-392
+sdk-python/tests/test_transition_retry.py
+  s_d025fb5f19f06b::t_0ffd384607bbf5 1-254
+sdk-python/tests/test_transport_error_redaction.py
+  s_d025fb5f19f06b::t_62e2014c6300a8 1-164
+sdk-python/tests/test_volume_pull.py
+  s_d025fb5f19f06b::t_aeca10d942f4f0 243-383
+sdk-typescript/DEVELOPMENT.md
+  s_d025fb5f19f06b::t_473d41fe8fceec 97-101
+sdk-typescript/README.md
+  s_d025fb5f19f06b::t_c4ef432500f0af 32-34,42,44,105-111,158,260-262,364,367-368,477-490,501,522-534,541-549,915-922,1063-1067,1104-1130,1161-1170,1199-1202
+sdk-typescript/package-lock.json
+  s_d025fb5f19f06b::t_ff68e7bb8dcb03 21,538-979,3595-3636
+sdk-typescript/package.json
+  s_d025fb5f19f06b::t_85a85adc09eb34 136
+sdk-typescript/runtime-tests/README.md
+  s_d025fb5f19f06b::t_15408798f7fe36 21
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_d025fb5f19f06b::t_904814b357cb3c 74-75
+sdk-typescript/scripts/cjs-types-fixture/node-only.cts
+  s_d025fb5f19f06b::t_8f0350b0259724 1-15
+sdk-typescript/scripts/cjs-types-fixture/node-only.mts
+  s_d025fb5f19f06b::t_7f0e3894788ed2 1-17
+sdk-typescript/scripts/cjs-types-fixture/tsconfig.strict.node-only.json
+  s_d025fb5f19f06b::t_82d9c40e8882d6 1-12
+sdk-typescript/scripts/node-bundle-fixture/error-names.mjs
+  s_d025fb5f19f06b::t_830a254340ef4a 1-26
+sdk-typescript/src/Daytona.ts
+  s_d025fb5f19f06b::t_a04985c0abfadf 7,25,87-88,185,187-188
+sdk-typescript/src/diagnostics.ts
+  s_d025fb5f19f06b::t_80db107c4f152d 18-36
+sdk-typescript/src/errors.ts
+  s_d025fb5f19f06b::t_3c1fb80e22277a 54-63,96-97,113
+sdk-typescript/src/v2/BuildLogs.ts
+  s_d025fb5f19f06b::t_7e3ed2486983a7 8,75-76,88-93,475,481-482,486-498,509-514,631-633,651-652,707
+sdk-typescript/src/v2/ComputerUse.ts
+  s_d025fb5f19f06b::t_5c2ac07c216284 23,27-40
+sdk-typescript/src/v2/Daytona.ts
+  s_d025fb5f19f06b::t_982a487d6d038e 11,87-88,297-301
+sdk-typescript/src/v2/FileSystem.ts
+  s_d025fb5f19f06b::t_59bd4082d59b36 31,126-160,190-192,194,198-203,485,501,503-504,506,742,744-746,751,753-754,756,766
+sdk-typescript/src/v2/Images.ts
+  s_d025fb5f19f06b::t_d9a0f7c76a371d 13,112
+sdk-typescript/src/v2/Sandbox.ts
+  s_d025fb5f19f06b::t_b9394246122f9c 10,12,33,366-367,433,590-592,774-775,840-843,856,864,880-890,916,935-943,947-951,957,1071-1082,1169-1171,1177-1181,1192-1194,1203-1206
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_d025fb5f19f06b::t_3907ff1ed4abd4 15,23-29,56-60,78-80,89-99,101-104,107,110
+sdk-typescript/src/v2/Secret.ts
+  s_d025fb5f19f06b::t_1ca6110e6ac132 18,28,33-35,67-76,79,83,96,109-115,120-129,137,144,183
+sdk-typescript/src/v2/Volume.ts
+  s_d025fb5f19f06b::t_be4c49fc16cf81 8-9,18,26-29,71-80,85,96,120,132-137,142-157,168-176,178,195-209,211,221,240,248-251
+sdk-typescript/src/v2/builderText.ts
+  s_d025fb5f19f06b::t_0bfe477f212c3e 6
+sdk-typescript/src/v2/clientConfig.ts
+  s_d025fb5f19f06b::t_a76f841c531dc4 9,48-65,124-125,133-137
+sdk-typescript/src/v2/clientCreate.ts
+  s_d025fb5f19f06b::t_4b4f1ea96de111 84-86,89,103
+sdk-typescript/src/v2/clientCreateNames.ts
+  s_d025fb5f19f06b::t_03ced6c171ac08 9,74-75
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_d025fb5f19f06b::t_d8688f0f4ac4da 39-40,64,81,91,102,156
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_d025fb5f19f06b::t_b1a8d9d8b3cc65 21,36
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_d025fb5f19f06b::t_0e6a4ac512200d 7,21,137,139-140,146
+sdk-typescript/src/v2/clientSearch.ts
+  s_d025fb5f19f06b::t_039896cb6cf5d2 66-74,141
+sdk-typescript/src/v2/codes.ts
+  s_d025fb5f19f06b::t_f8d7db9a74999c 109,292,388
+sdk-typescript/src/v2/contextPath.ts
+  s_d025fb5f19f06b::t_ead26bb0e72403 6
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_d025fb5f19f06b::t_965b34fcc034e9 29,695,1109-1110,1217
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_d025fb5f19f06b::t_822aa82f398eb6 3
+sdk-typescript/src/v2/gen/api.ts
+  s_d025fb5f19f06b::t_18fd473afa311e 2961,4107-4108,17682,18155,18227,19385
+sdk-typescript/src/v2/http.ts
+  s_d025fb5f19f06b::t_eb4cac6964beed 16,18,201-203,206-207,211-212,255,341,345,416-423,944,1075,1080,1287-1289,1312-1314,1568,2316-2318,2322,2332,2337,2342,2344
+sdk-typescript/src/v2/index.ts
+  s_d025fb5f19f06b::t_2bbbe759d7e537 23,31,52,81-82
+sdk-typescript/src/v2/options.ts
+  s_d025fb5f19f06b::t_6a76600f8ad6c7 7,90,92,152-156,159-162
+sdk-typescript/src/v2/pageParams.ts
+  s_d025fb5f19f06b::t_d8e7eab3f5dbf1 7
+sdk-typescript/src/v2/pathSegment.ts
+  s_d025fb5f19f06b::t_e5aed947db6ca4 8
+sdk-typescript/src/v2/pyText.ts
+  s_d025fb5f19f06b::t_ea3e194e0ff249 39-55
+sdk-typescript/src/v2/resourceSearch.ts
+  s_d025fb5f19f06b::t_15439361c0eb00 1-93
+sdk-typescript/src/v2/sandboxAuth.ts
+  s_d025fb5f19f06b::t_a190784b825276 7,99
+sdk-typescript/src/v2/sandboxTransitionRetry.ts
+  s_d025fb5f19f06b::t_2be2e39f81a6b2 1-35
+sdk-typescript/src/v2/searchFirst.ts
+  s_d025fb5f19f06b::t_a7bc9b0d71a4fe 44,48-50,68-75,97-100
+sdk-typescript/src/v2/types.ts
+  s_d025fb5f19f06b::t_19e71e32bdb09a 196,338-339,501-510,670-671,783-784,1236-1244
+sdk-typescript/tests/argument-checks.test.ts
+  s_d025fb5f19f06b::t_ac297d0fa46687 514-516,519-520
+sdk-typescript/tests/build-logs-http-errors.test.ts
+  s_d025fb5f19f06b::t_34ab6417c41189 1-200
+sdk-typescript/tests/client-config.test.ts
+  s_d025fb5f19f06b::t_16289cc2e4c4e8 13,224-311
+sdk-typescript/tests/computer-use-status-parse.test.ts
+  s_d025fb5f19f06b::t_af116e35fd9855 1-79
+sdk-typescript/tests/connect-options.test.ts
+  s_d025fb5f19f06b::t_4b0505bfe84e38 43-44
+sdk-typescript/tests/create-persistence-response.test.ts
+  s_d025fb5f19f06b::t_7976b04c43d4c3 1-47
+sdk-typescript/tests/credential-inspection.test.ts
+  s_d025fb5f19f06b::t_7b5402ff99a6f2 40-86,109-111,133-135,237-311
+sdk-typescript/tests/error-names-minified.test.ts
+  s_d025fb5f19f06b::t_fe9dca4e4cc7d0 1-95
+sdk-typescript/tests/filesystem-call-timeouts.test.ts
+  s_d025fb5f19f06b::t_1b0d31ba126119 1-100
+sdk-typescript/tests/fork-retry-state.test.ts
+  s_d025fb5f19f06b::t_72ab27fce1259e 1-47
+sdk-typescript/tests/lifecycle-policy-reads.test.ts
+  s_d025fb5f19f06b::t_605c902467a254 10-13,20
+sdk-typescript/tests/linux-persistent.test.ts
+  s_d025fb5f19f06b::t_891cfb7033d01d 1-216
+sdk-typescript/tests/list-pages.test.ts
+  s_d025fb5f19f06b::t_183651be257d1f 30-32,43,54
+sdk-typescript/tests/node-only-declarations.test.ts
+  s_d025fb5f19f06b::t_8841e1d31bc1a9 1-82
+sdk-typescript/tests/null-options.test.ts
+  s_d025fb5f19f06b::t_a592df67936077 18
+sdk-typescript/tests/sandbox-transition-retry.test.ts
+  s_d025fb5f19f06b::t_928b9aa538c06a 1-189
+sdk-typescript/tests/search-first-lists.test.ts
+  s_d025fb5f19f06b::t_46e66957144e8f 19-20,28,30,34-38,62,69,124-211,239-256
+sdk-typescript/tests/search-persistent.test.ts
+  s_d025fb5f19f06b::t_c36161a25b246b 1-46
+sdk-typescript/tests/service-correctness.test.ts
+  s_d025fb5f19f06b::t_fa6563f7b188cb 1-228
+sdk-typescript/tests/unit.test.ts
+  s_d025fb5f19f06b::t_0b93608f13edd5 1650,8724,8733,8766,8774,10646
+sdk-typescript/tests/volume-pull.test.ts
+  s_d025fb5f19f06b::t_085cba916f6a52 7,106,133-232
+upgrade/MIGRATION.md
+  s_d025fb5f19f06b::t_0d13431b588a7f 87-88,92-93,99-100,107-108,238,247-248,252-253,285,294-295,299-300
+upgrade/mapping/mapping.json
+  s_d025fb5f19f06b::t_740dc696502505 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_d025fb5f19f06b::t_e384bb2ba7dab5 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+upgrade/typescript/src/mapping.json
+  s_d025fb5f19f06b::t_133b3cd7f9095e 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f6053e8e033af5dcfe98b6d7fddd04ca02b5a98",
+  "prompts": {},
+  "sessions": {
+    "s_d025fb5f19f06b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de790faf1ffex6Uc4yGLc6VLVH",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

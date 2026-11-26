@@ -1,0 +1,45 @@
+sdk-typescript/tests/error-names-minified.test.ts
+  s_cb9030153545d8::t_ff78a09bfeb984 1-95
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_cb9030153545d8::t_ef2e3a0e4727cc 28,1092-1093,1200
+sdk-typescript/src/Daytona.ts
+  s_cb9030153545d8::t_d95d26e9cb3fd2 25
+  s_cb9030153545d8::t_21f0da43ec18b6 87-88
+sdk-typescript/runtime-tests/README.md
+  s_cb9030153545d8::t_fa60af4d52cf5e 21
+sdk-typescript/scripts/node-bundle-fixture/error-names.mjs
+  s_cb9030153545d8::t_a695b6ff2591d4 1-22
+changelog.d/ts-error-names-minified.fixed.md
+  s_cb9030153545d8::t_c5dfdff35c6f63 1-6
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_cb9030153545d8::t_fa60af4d52cf5e 74-75
+sdk-typescript/src/errors.ts
+  s_cb9030153545d8::t_061a73c4ca2584 96-97
+  s_cb9030153545d8::t_12a66fb9d068f3 113
+  s_cb9030153545d8::t_8cc31916248207 54-63
+sdk-typescript/package.json
+  s_cb9030153545d8::t_0a454d89741d0f 136
+.github/workflows/sdk-ci.yaml
+  s_cb9030153545d8::t_66d4832ee9cf62 284-286
+  s_cb9030153545d8::t_2f48f4f98ea196 287-291,305-306
+sdk-typescript/src/v2/BuildLogs.ts
+  s_cb9030153545d8::t_d95d26e9cb3fd2 8,679
+sdk-typescript/package-lock.json
+  s_cb9030153545d8::t_f8bb978c73ba3c 21,538-979,3595-3636
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9010a5160757ab9e45ef4c6d99f2d933ba8f1450",
+  "prompts": {},
+  "sessions": {
+    "s_cb9030153545d8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a2f4b2ffeYECIX54SMR5Ryr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

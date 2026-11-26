@@ -1,0 +1,36 @@
+changelog.d/python-transfer-cancel-wakeups.fixed.md
+  s_24803b7d9359b3::t_e5f4aae0fc25dc 1-6
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_24803b7d9359b3::t_72ea35c23aef15 69-73,193-197
+sdk-python/README.md
+  s_24803b7d9359b3::t_5de2c442a3b3c2 1013-1016
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  s_24803b7d9359b3::t_822eb0bd817e3e 1-18,20-37,54-97,99-113,115-122,124-127,129-145,147-154,156-173,175,178-190
+  s_24803b7d9359b3::t_6178ef44fbae63 19,38-53,174,176-177
+  s_24803b7d9359b3::t_c5655f5c87eb1c 98,114,123,128,146,155
+sdk-python/src/daytona/v2/filesystem.py
+  s_24803b7d9359b3::t_72ea35c23aef15 424-428,452-467,469-470,487-491
+  s_24803b7d9359b3::t_0dbe494b59e0bb 65-66,499-520,522-543
+sdk-python/tests/test_fs_transfer.py
+  s_24803b7d9359b3::t_06343a5657aebf 18,20,761,767-768,772,780-781
+sdk-python/tests/test_transfer_cancel.py
+  s_24803b7d9359b3::t_7174c49c44e5cf 278-280
+  s_24803b7d9359b3::t_06343a5657aebf 294-297,299-308,311
+  s_24803b7d9359b3::t_848bb00aaae114 1-277,281-293,298,309-310,312-314
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b3bd1bb627ccb23bbb25a1a6653b2d78023d985",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

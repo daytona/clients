@@ -1,0 +1,45 @@
+sdk-python/src/daytona/v2/daytona.py
+  s_f363f00f945b37::t_e543d1f55a1f38 1778-1782
+sdk-python/tests/test_persistence_metadata.py
+  s_f363f00f945b37::t_151d5ae2fda073 8-9,69
+  s_f363f00f945b37::t_e37bd29b879952 16,21-42
+  s_400de7c4619dfa::t_6c028d856769a3 43-44
+changelog.d/758-create-validation.fixed.md
+  s_6766125bb4b0f4::t_1672bf64d804b6 1-2
+sdk-python/tests/test_linux_persistence.py
+  s_f363f00f945b37::t_151d5ae2fda073 120,174-176,203-204,217,219-223,225
+sdk-python/tests/test_null_options.py
+  s_f363f00f945b37::t_151d5ae2fda073 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "239baea785aed3cd3b3fb21114cc4eda49c681c1",
+  "prompts": {},
+  "sessions": {
+    "s_400de7c4619dfa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de9270e2cffeTgK1MeN6SO0Yzr",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_6766125bb4b0f4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de92797b3ffeticJ277K2WGlM1",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_f363f00f945b37": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de92725b2ffeYUoM3yUQ64slUx",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

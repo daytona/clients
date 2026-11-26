@@ -1,0 +1,34 @@
+cli/README.md
+  s_e26152c3e6ca81::t_8639afa55d8bef 23-25,44-45
+  s_e26152c3e6ca81::t_31b0bbb3bddbe5 403-404,407-409,436-437
+sdk-python/README.md
+  s_e26152c3e6ca81::t_e54452fc857124 900-902
+  s_e26152c3e6ca81::t_0d4865ce7c09e2 728-730
+  s_e26152c3e6ca81::t_e41de1ab379d13 434,456-457,499,1108-1111,1152-1153
+  s_e26152c3e6ca81::t_c3bf9e18fc3a52 1342
+  s_e26152c3e6ca81::t_8639afa55d8bef 14-19
+  s_e26152c3e6ca81::t_5f0f1a9a122a64 1337-1341,1343-1346
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_e41de1ab379d13 376,392-393,480-481,1030-1034,1077-1078
+  s_e26152c3e6ca81::t_5f0f1a9a122a64 1229-1233,1235-1239
+  s_e26152c3e6ca81::t_0d4865ce7c09e2 649-651
+  s_e26152c3e6ca81::t_8639afa55d8bef 13-18
+  s_e26152c3e6ca81::t_c3bf9e18fc3a52 1234
+  s_e26152c3e6ca81::t_e54452fc857124 817-818
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87e9e157530267e79a15956541d667aa9a1750dc",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

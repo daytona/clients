@@ -1,0 +1,26 @@
+sdk-go/codes_catalog_2.go
+  h_e7759ddd73fa65 85-90,181-184
+sdk-go/codes_catalog_3.go
+  h_e7759ddd73fa65 7-12,129-132
+sdk-go/codes_catalog_4.go
+  h_e7759ddd73fa65 7-12,129-132
+sdk-go/codes_catalog_5.go
+  h_e7759ddd73fa65 7-12,129-132
+sdk-go/codes_catalog_6.go
+  h_e7759ddd73fa65 7-12,129-132
+sdk-go/codes_catalog_7.go
+  h_e7759ddd73fa65 7-12,99-100
+sdk-go/internal/gen/api/models.gen.go
+  h_e7759ddd73fa65 141,398-399,5898-5905,7191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eea1859cbeca13c33059fc64c8f7ba761c759d48",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

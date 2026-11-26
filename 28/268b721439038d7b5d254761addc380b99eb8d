@@ -1,0 +1,19 @@
+cli/cmd/org.go
+  s_b970ccea92d9b1::t_ce9794a94ec85c 466-469
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28268b721439038d7b5d254761addc380b99eb8d",
+  "prompts": {},
+  "sessions": {
+    "s_b970ccea92d9b1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3568bffevm7h9dNr3a3xBu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+sdk-go/options_test.go
+  s_450c83ea6ec946::t_95cedd9d8468fa 109-111
+sdk-go/create_option_errors_test.go
+  s_450c83ea6ec946::t_95cedd9d8468fa 59-83
+AGENTS.md
+  s_450c83ea6ec946::t_ed83f4a5251cda 332-338,340
+  s_450c83ea6ec946::t_f5cf87d0b861c7 341-342
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed3b8f7b8e18661f5eb3645a13fe35afaeb79b9a",
+  "prompts": {},
+  "sessions": {
+    "s_450c83ea6ec946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3b8c9ffemgoEzkgpQFwDrO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

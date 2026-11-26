@@ -1,0 +1,30 @@
+cli/cmd/platform_token_test.go
+  s_680d0d36c83fce::t_4d2d6d466849fa 386-418,420-429
+  s_680d0d36c83fce::t_6f8c80e1217c07 419
+cli/internal/auth/platform_token.go
+  s_680d0d36c83fce::t_cd4148973ebe0e 106-108
+cli/internal/auth/oidc.go
+  s_680d0d36c83fce::t_cd4148973ebe0e 173-177,187-195
+  s_680d0d36c83fce::t_819ced213b48d0 25
+  s_680d0d36c83fce::t_0362b26648b3fe 196-197
+cli/internal/auth/workload_mint.go
+  s_680d0d36c83fce::t_cd4148973ebe0e 78-80
+cli/internal/auth/oidc_test.go
+  s_680d0d36c83fce::t_4d2d6d466849fa 354-370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "512a8e358e2b810e8e2b53a19d14de4be22c4bdf",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

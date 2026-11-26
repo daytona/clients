@@ -1,0 +1,43 @@
+sdk-go/resource_search.go
+  s_f2df134ea4b350::t_56bf9c2428cc11 1-338
+  s_5890c3fcaf315b::t_f382ef50673cad 339-361
+sdk-go/resource_search_test.go
+  s_f2df134ea4b350::t_b89c80df1e9f4f 1-298
+  s_5890c3fcaf315b::t_a4fe24c9513078 299-327
+sdk-go/client.go
+  s_5890c3fcaf315b::t_65784004a14c98 33-34
+sdk-go/e2e/account_test.go
+  s_5890c3fcaf315b::t_3a61061174b741 55-63,65-73,114-122,124-132
+sdk-go/secret.go
+  s_5890c3fcaf315b::t_66e39c5c394dfa 44-46,56-59,81,103,168
+sdk-go/toolbox_routes_dynamic_test.go
+  s_5890c3fcaf315b::t_bb2ac8a3175acf 18-26,75-76
+sdk-go/volume.go
+  s_5890c3fcaf315b::t_6732279b234bd6 52-54,64-67,89,120-122,161
+sdk-go/volume_pagination_test.go
+  s_5890c3fcaf315b::t_7938cd4ac90442 20,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "907505173620a94d39180a5f9515eca5adc76f59",
+  "prompts": {},
+  "sessions": {
+    "s_5890c3fcaf315b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7aca8cbffeVSjS728694YrB3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    },
+    "s_f2df134ea4b350": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_df7aca8cbffeVSjS728694YrB3",
+        "model": "unknown"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+changelog.d/create-handle-lifecycle.fixed.md
+  h_e7759ddd73fa65 3-6
+sdk-go/create_response_test.go
+  h_e7759ddd73fa65 8,158-232
+sdk-go/create_submit.go
+  h_e7759ddd73fa65 129-131,169-176
+sdk-go/internal/gen/api/models.gen.go
+  h_e7759ddd73fa65 5881-5888
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8656c1dcfc0aaf4e40a44497ff797ebf95c8d2c",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

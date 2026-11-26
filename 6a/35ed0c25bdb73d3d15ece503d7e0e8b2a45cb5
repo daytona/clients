@@ -1,0 +1,24 @@
+sdk-typescript/src/v2/readRetry.ts
+  s_da52886f8bc83e::t_69f4033401959f 89-90,92,96-98,103-113
+  s_da52886f8bc83e::t_73b5794ebf03d0 114-115
+sdk-typescript/src/v2/sandboxWait.ts
+  s_da52886f8bc83e::t_69f4033401959f 168-170,178-180,206
+sdk-typescript/tests/wait-read-retries.test.ts
+  s_da52886f8bc83e::t_612d39864cd1f2 34-35,482-542
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a35ed0c25bdb73d3d15ece503d7e0e8b2a45cb5",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+sdk-typescript/src/v2/http.ts
+  s_450c83ea6ec946::t_1642e8898ba53e 411-418,1307
+sdk-typescript/src/v2/Images.ts
+  s_450c83ea6ec946::t_1642e8898ba53e 111
+sdk-typescript/tests/credential-inspection.test.ts
+  s_450c83ea6ec946::t_7c1f9df7673435 133-135,306-309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae6b9c963948f95aacf9058a91452347be609ac3",
+  "prompts": {},
+  "sessions": {
+    "s_450c83ea6ec946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3b8c9ffemgoEzkgpQFwDrO",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

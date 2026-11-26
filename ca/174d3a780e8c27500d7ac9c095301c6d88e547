@@ -1,0 +1,23 @@
+cli/internal/app/clients.go
+  s_b970ccea92d9b1::t_761e96cc72a6f0 8,61-64,68-72,74,76
+cli/cmd/login_only_test.go
+  s_b970ccea92d9b1::t_761e96cc72a6f0 403-427
+cli/cmd/login_only.go
+  s_b970ccea92d9b1::t_761e96cc72a6f0 49-50,70,134-140,142-144,146-147,149-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca174d3a780e8c27500d7ac9c095301c6d88e547",
+  "prompts": {},
+  "sessions": {
+    "s_b970ccea92d9b1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a3568bffevm7h9dNr3a3xBu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

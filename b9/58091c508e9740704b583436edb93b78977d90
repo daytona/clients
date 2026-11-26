@@ -1,0 +1,22 @@
+cli/cmd/usage_errors.go
+  s_680d0d36c83fce::t_5aad70bd3ea0bd 43-46
+cli/cmd/blank_args_test.go
+  s_680d0d36c83fce::t_7ed2a9c6927531 38-40,52-67,137,160-162
+  s_680d0d36c83fce::t_d26dfa911a7a5f 163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b958091c508e9740704b583436edb93b78977d90",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

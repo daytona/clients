@@ -1,0 +1,30 @@
+cli/cmd/sandbox_transition_commands_test.go
+  s_d999daaefd2648::t_4e0e752dd49de1 1-56
+cli/cmd/snapshot.go
+  s_d999daaefd2648::t_da05cc1cfac126 45,70-72
+cli/cmd/image.go
+  s_d999daaefd2648::t_da05cc1cfac126 100,124-126
+cli/cmd/sandbox_actions.go
+  s_d999daaefd2648::t_da05cc1cfac126 109-111,128,236,240
+cli/cmd/sandbox_transition.go
+  s_d999daaefd2648::t_61e28bf25ba974 1-45
+cli/cmd/sandbox_transition_test.go
+  s_d999daaefd2648::t_da05cc1cfac126 8,20
+  s_d999daaefd2648::t_61e28bf25ba974 1-7,9-19,21-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "760feaf9bf9744f32dc1e885efdfdb34d4c67072",
+  "prompts": {},
+  "sessions": {
+    "s_d999daaefd2648": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb9a07e2ffevnirtQoEG2Ylur",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

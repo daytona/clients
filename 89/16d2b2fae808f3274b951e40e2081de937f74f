@@ -1,0 +1,1434 @@
+.github/dependabot.yml
+  h_e7759ddd73fa65 184-197
+.github/workflows/ci-passed-rerun.yaml
+  h_e7759ddd73fa65 20
+.github/workflows/contracts.yaml
+  h_e7759ddd73fa65 20-21
+.github/workflows/e2e.yaml
+  h_e7759ddd73fa65 3,59,71-75
+.github/workflows/go-vanity-pages.yaml
+  h_e7759ddd73fa65 1-78
+.github/workflows/sdk-go-ci.yaml
+  h_e7759ddd73fa65 1-88
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 6-7,16,26,36-42,89-90,93-94,98-99,131-137,179-183,237-239,261,264-265,309,320-327,438-440,561,584,599-601,645,663,672,689-692,759-803,1014-1045,1176-1177,1180,1188,1198,1288-1289,1307-1308,1528-1579,1873,1900-1904,1974-1976,1990,1995
+.github/workflows/tooling.yaml
+  h_e7759ddd73fa65 14,16-19,21,48,50-54
+.gitignore
+  h_e7759ddd73fa65 31-33
+.licenserc.yaml
+  h_e7759ddd73fa65 40-41,57
+AGENTS.md
+  h_e7759ddd73fa65 4-5,73,85-87,108-115,161-164,223-224,1051,1073-1074
+README.md
+  h_e7759ddd73fa65 1,4-6,19-20,23-24,32-37,119,126-128
+changelog.d/623-cli-config-path.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/623-cli-json-escaping.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/623-cli-org-limits.fixed.md
+  h_e7759ddd73fa65 1
+changelog.d/691.changed.md
+  h_e7759ddd73fa65 1
+changelog.d/708.changed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/708.fixed.md
+  h_e7759ddd73fa65 1-8
+changelog.d/cli-email-access-denied-hint.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/go-sdk.added.md
+  h_e7759ddd73fa65 1-8
+changelog.d/ts-ports-list-message.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/watch-error-event.fixed.md
+  h_e7759ddd73fa65 1-4
+cli/README.md
+  h_e7759ddd73fa65 208-215,435-436,689
+cli/cmd/auth_login.go
+  h_e7759ddd73fa65 55-57
+cli/cmd/auth_login_output_test.go
+  h_e7759ddd73fa65 24,31-32
+cli/cmd/cli_contract_test.go
+  h_e7759ddd73fa65 304-314
+cli/cmd/org.go
+  h_e7759ddd73fa65 186-188,588
+cli/cmd/org_limits_test.go
+  h_e7759ddd73fa65 10,20,36,80-88,261
+cli/cmd/root.go
+  h_e7759ddd73fa65 211-213
+cli/cmd/sandbox_ssh.go
+  h_e7759ddd73fa65 20,38-41,43-52,62,64,67,74-77
+cli/cmd/sandbox_ssh_flags_test.go
+  h_e7759ddd73fa65 39-43
+cli/cmd/sandbox_ssh_test.go
+  h_e7759ddd73fa65 23-24,27,29-43,47,61-62,68-69,74-75,79,87-92,96,109-111,119
+cli/cmd/sandbox_ssh_token_test.go
+  h_e7759ddd73fa65 1-161
+cli/internal/api/codes.go
+  h_e7759ddd73fa65 20,61
+cli/internal/api/codes_test.go
+  h_e7759ddd73fa65 11,31-40
+cli/internal/api/error_hints.go
+  h_e7759ddd73fa65 43-47,56-57
+cli/internal/api/error_hints_test.go
+  h_e7759ddd73fa65 62-68
+cli/internal/config/config.go
+  h_e7759ddd73fa65 81-86
+cli/internal/config/config_test.go
+  h_e7759ddd73fa65 35-48
+cli/internal/output/output.go
+  h_e7759ddd73fa65 129
+cli/internal/output/output_test.go
+  h_e7759ddd73fa65 32-42
+cli/internal/toolbox/ssh.go
+  h_e7759ddd73fa65 21-22,47-48
+cli/internal/toolbox/target.go
+  h_e7759ddd73fa65 126-147
+cli/internal/toolbox/target_test.go
+  h_e7759ddd73fa65 188-226
+docs/RELEASING.md
+  h_e7759ddd73fa65 3,7-9,16-17,86-91,105,167-178,181,183-184,189-190,208,214,221-223,226-227,231-252,280,285,335,482-484,491,521,523,544-545
+docs/VERSIONING.md
+  h_e7759ddd73fa65 4-5,170,172,175,185,193,203-215
+e2e/run.sh
+  h_e7759ddd73fa65 5,8,11-12,45-49,54,56-57
+scripts/ax-evals/ax-evals.test.js
+  h_e7759ddd73fa65 115,117-118,124,188
+scripts/ax-evals/evals.json
+  h_e7759ddd73fa65 48-56,130-135
+scripts/ax-evals/setup/_common.sh
+  h_e7759ddd73fa65 52-54,56-60
+scripts/ax-evals/setup/go.sh
+  h_e7759ddd73fa65 1-38
+scripts/ax-evals/setup/go_test.sh
+  h_e7759ddd73fa65 1-48
+scripts/e2e-run_test.sh
+  h_e7759ddd73fa65 1-37
+scripts/gen-contract-types.sh
+  h_e7759ddd73fa65 7-8,26,30
+scripts/go-vanity-site.sh
+  h_e7759ddd73fa65 1-63
+scripts/go-vanity-site_test.sh
+  h_e7759ddd73fa65 1-37
+scripts/patch_coverage.py
+  h_e7759ddd73fa65 21,41,51
+scripts/patch_coverage_test.sh
+  h_e7759ddd73fa65 1-53
+scripts/sdk-go-publish_test.sh
+  h_e7759ddd73fa65 1-262
+scripts/sdk-version.sh
+  h_e7759ddd73fa65 19-24,41,78,82-84,98-115
+scripts/sdk-version_test.sh
+  h_e7759ddd73fa65 38,70-114,137
+sdk-go/.golangci.yml
+  h_e7759ddd73fa65 1-140
+sdk-go/DEVELOPMENT.md
+  h_e7759ddd73fa65 1-250
+sdk-go/README.md
+  h_e7759ddd73fa65 1-234
+sdk-go/account_error_message_test.go
+  h_e7759ddd73fa65 1-71
+sdk-go/account_example_test.go
+  h_e7759ddd73fa65 1-87
+sdk-go/account_fixtures_test.go
+  h_e7759ddd73fa65 1-95
+sdk-go/account_malformed_test.go
+  h_e7759ddd73fa65 1-165
+sdk-go/account_model_order_test.go
+  h_e7759ddd73fa65 1-74
+sdk-go/account_option_names_test.go
+  h_e7759ddd73fa65 1-53
+sdk-go/account_parse.go
+  h_e7759ddd73fa65 1-113
+sdk-go/account_test.go
+  h_e7759ddd73fa65 1-182
+sdk-go/account_values_test.go
+  h_e7759ddd73fa65 1-141
+sdk-go/api_key.go
+  h_e7759ddd73fa65 1-80
+sdk-go/audit.go
+  h_e7759ddd73fa65 1-48
+sdk-go/auth.go
+  h_e7759ddd73fa65 1-151
+sdk-go/auth_isolation_test.go
+  h_e7759ddd73fa65 1-67
+sdk-go/auth_sandbox.go
+  h_e7759ddd73fa65 1-140
+sdk-go/auth_test.go
+  h_e7759ddd73fa65 1-151
+sdk-go/budget.go
+  h_e7759ddd73fa65 1-67
+sdk-go/build_logs.go
+  h_e7759ddd73fa65 1-104
+sdk-go/build_logs_501_test.go
+  h_e7759ddd73fa65 1-62
+sdk-go/build_logs_cancel_test.go
+  h_e7759ddd73fa65 1-167
+sdk-go/build_logs_errors_test.go
+  h_e7759ddd73fa65 1-133
+sdk-go/build_logs_example_test.go
+  h_e7759ddd73fa65 1-67
+sdk-go/build_logs_follow.go
+  h_e7759ddd73fa65 1-219
+sdk-go/build_logs_identity.go
+  h_e7759ddd73fa65 1-123
+sdk-go/build_logs_identity_test.go
+  h_e7759ddd73fa65 1-126
+sdk-go/build_logs_interrupted_test.go
+  h_e7759ddd73fa65 1-57
+sdk-go/build_logs_models.go
+  h_e7759ddd73fa65 1-156
+sdk-go/build_logs_observer.go
+  h_e7759ddd73fa65 1-71
+sdk-go/build_logs_parse.go
+  h_e7759ddd73fa65 1-174
+sdk-go/build_logs_protocol_test.go
+  h_e7759ddd73fa65 1-139
+sdk-go/build_logs_r3_parse_test.go
+  h_e7759ddd73fa65 1-29
+sdk-go/build_logs_request.go
+  h_e7759ddd73fa65 1-157
+sdk-go/build_logs_retry_test.go
+  h_e7759ddd73fa65 1-149
+sdk-go/build_logs_snapshot_test.go
+  h_e7759ddd73fa65 1-110
+sdk-go/build_logs_sse.go
+  h_e7759ddd73fa65 1-107
+sdk-go/build_logs_test.go
+  h_e7759ddd73fa65 1-138
+sdk-go/build_logs_timeout_test.go
+  h_e7759ddd73fa65 1-134
+sdk-go/builder.go
+  h_e7759ddd73fa65 1-105
+sdk-go/builder_archive_test.go
+  h_e7759ddd73fa65 1-77
+sdk-go/builder_commands.go
+  h_e7759ddd73fa65 1-79
+sdk-go/builder_context.go
+  h_e7759ddd73fa65 1-105
+sdk-go/builder_context_safety_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/builder_contract_test.go
+  h_e7759ddd73fa65 1-85
+sdk-go/builder_directive.go
+  h_e7759ddd73fa65 1-87
+sdk-go/builder_env.go
+  h_e7759ddd73fa65 1-69
+sdk-go/builder_example_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/builder_fixtures_test.go
+  h_e7759ddd73fa65 1-182
+sdk-go/builder_parity_test.go
+  h_e7759ddd73fa65 1-136
+sdk-go/builder_text.go
+  h_e7759ddd73fa65 1-107
+sdk-go/capture.go
+  h_e7759ddd73fa65 1-80
+sdk-go/capture_acknowledgement_test.go
+  h_e7759ddd73fa65 1-79
+sdk-go/capture_test.go
+  h_e7759ddd73fa65 1-199
+sdk-go/capture_validation_test.go
+  h_e7759ddd73fa65 1-96
+sdk-go/client.go
+  h_e7759ddd73fa65 1-123
+sdk-go/codes_catalog_0.go
+  h_e7759ddd73fa65 1-211
+sdk-go/codes_catalog_1.go
+  h_e7759ddd73fa65 1-211
+sdk-go/codes_catalog_2.go
+  h_e7759ddd73fa65 1-211
+sdk-go/codes_catalog_3.go
+  h_e7759ddd73fa65 1-211
+sdk-go/codes_catalog_4.go
+  h_e7759ddd73fa65 1-211
+sdk-go/codes_catalog_5.go
+  h_e7759ddd73fa65 1-211
+sdk-go/codes_catalog_6.go
+  h_e7759ddd73fa65 1-209
+sdk-go/codes_catalog_7.go
+  h_e7759ddd73fa65 1-134
+sdk-go/codes_catalog_test.go
+  h_e7759ddd73fa65 1-44
+sdk-go/codes_dispatch.go
+  h_e7759ddd73fa65 1-33
+sdk-go/codes_generate.go
+  h_e7759ddd73fa65 1-153
+sdk-go/computer_use.go
+  h_e7759ddd73fa65 1-111
+sdk-go/computer_use_a11y.go
+  h_e7759ddd73fa65 1-137
+sdk-go/computer_use_a11y_depth_test.go
+  h_e7759ddd73fa65 1-108
+sdk-go/computer_use_a11y_example_test.go
+  h_e7759ddd73fa65 1-36
+sdk-go/computer_use_a11y_parse.go
+  h_e7759ddd73fa65 1-126
+sdk-go/computer_use_a11y_parse_test.go
+  h_e7759ddd73fa65 1-142
+sdk-go/computer_use_a11y_test.go
+  h_e7759ddd73fa65 1-190
+sdk-go/computer_use_a11y_types.go
+  h_e7759ddd73fa65 1-116
+sdk-go/computer_use_decode.go
+  h_e7759ddd73fa65 1-101
+sdk-go/computer_use_display.go
+  h_e7759ddd73fa65 1-92
+sdk-go/computer_use_errors_test.go
+  h_e7759ddd73fa65 1-142
+sdk-go/computer_use_example_test.go
+  h_e7759ddd73fa65 1-82
+sdk-go/computer_use_input_test.go
+  h_e7759ddd73fa65 1-112
+sdk-go/computer_use_keyboard.go
+  h_e7759ddd73fa65 1-84
+sdk-go/computer_use_mouse.go
+  h_e7759ddd73fa65 1-174
+sdk-go/computer_use_optional_test.go
+  h_e7759ddd73fa65 1-102
+sdk-go/computer_use_process.go
+  h_e7759ddd73fa65 1-226
+sdk-go/computer_use_process_test.go
+  h_e7759ddd73fa65 1-87
+sdk-go/computer_use_r3_test.go
+  h_e7759ddd73fa65 1-75
+sdk-go/computer_use_r5_test.go
+  h_e7759ddd73fa65 1-166
+sdk-go/computer_use_recording.go
+  h_e7759ddd73fa65 1-179
+sdk-go/computer_use_recording_r6_test.go
+  h_e7759ddd73fa65 1-36
+sdk-go/computer_use_recording_test.go
+  h_e7759ddd73fa65 1-115
+sdk-go/computer_use_response_test.go
+  h_e7759ddd73fa65 1-168
+sdk-go/computer_use_screen.go
+  h_e7759ddd73fa65 1-116
+sdk-go/computer_use_screen_test.go
+  h_e7759ddd73fa65 1-91
+sdk-go/computer_use_status.go
+  h_e7759ddd73fa65 1-165
+sdk-go/computer_use_test.go
+  h_e7759ddd73fa65 1-173
+sdk-go/context_upload.go
+  h_e7759ddd73fa65 1-166
+sdk-go/context_upload_body.go
+  h_e7759ddd73fa65 1-82
+sdk-go/context_upload_cleanup_test.go
+  h_e7759ddd73fa65 1-135
+sdk-go/context_upload_concurrency_test.go
+  h_e7759ddd73fa65 1-172
+sdk-go/context_upload_deadline_test.go
+  h_e7759ddd73fa65 1-44
+sdk-go/context_upload_helpers_test.go
+  h_e7759ddd73fa65 1-69
+sdk-go/context_upload_open_other.go
+  h_e7759ddd73fa65 1-20
+sdk-go/context_upload_open_unix.go
+  h_e7759ddd73fa65 1-17
+sdk-go/context_upload_parts.go
+  h_e7759ddd73fa65 1-142
+sdk-go/context_upload_port_test.go
+  h_e7759ddd73fa65 1-63
+sdk-go/context_upload_r3_errors_test.go
+  h_e7759ddd73fa65 1-46
+sdk-go/context_upload_reopen_unix_test.go
+  h_e7759ddd73fa65 1-152
+sdk-go/context_upload_response.go
+  h_e7759ddd73fa65 1-140
+sdk-go/context_upload_response_test.go
+  h_e7759ddd73fa65 1-124
+sdk-go/context_upload_retry_test.go
+  h_e7759ddd73fa65 1-169
+sdk-go/context_upload_test.go
+  h_e7759ddd73fa65 1-157
+sdk-go/context_upload_timeout_test.go
+  h_e7759ddd73fa65 1-191
+sdk-go/cpu_arch_example_test.go
+  h_e7759ddd73fa65 1-18
+sdk-go/create_closed_test.go
+  h_e7759ddd73fa65 1-93
+sdk-go/create_context_test.go
+  h_e7759ddd73fa65 1-178
+sdk-go/create_errors_test.go
+  h_e7759ddd73fa65 1-164
+sdk-go/create_from_build.go
+  h_e7759ddd73fa65 1-73
+sdk-go/create_from_build_example_test.go
+  h_e7759ddd73fa65 1-50
+sdk-go/create_from_build_test.go
+  h_e7759ddd73fa65 1-176
+sdk-go/create_from_build_validation_test.go
+  h_e7759ddd73fa65 1-94
+sdk-go/create_from_build_wait_test.go
+  h_e7759ddd73fa65 1-94
+sdk-go/create_hold_test.go
+  h_e7759ddd73fa65 1-73
+sdk-go/create_idempotency_test.go
+  h_e7759ddd73fa65 1-101
+sdk-go/create_option_errors_test.go
+  h_e7759ddd73fa65 1-82
+sdk-go/create_options.go
+  h_e7759ddd73fa65 1-94
+sdk-go/create_prepare.go
+  h_e7759ddd73fa65 1-116
+sdk-go/create_prepare_fields.go
+  h_e7759ddd73fa65 1-86
+sdk-go/create_resources.go
+  h_e7759ddd73fa65 1-118
+sdk-go/create_response_context_test.go
+  h_e7759ddd73fa65 1-68
+sdk-go/create_response_test.go
+  h_e7759ddd73fa65 1-156
+sdk-go/create_submit.go
+  h_e7759ddd73fa65 1-183
+sdk-go/create_validation_test.go
+  h_e7759ddd73fa65 1-139
+sdk-go/create_wait_test.go
+  h_e7759ddd73fa65 1-131
+sdk-go/create_wait_validation_test.go
+  h_e7759ddd73fa65 1-26
+sdk-go/create_wire.go
+  h_e7759ddd73fa65 1-58
+sdk-go/create_wire_test.go
+  h_e7759ddd73fa65 1-164
+sdk-go/credentials_print_test.go
+  h_e7759ddd73fa65 1-46
+sdk-go/doc.go
+  h_e7759ddd73fa65 1-103
+sdk-go/docker.go
+  h_e7759ddd73fa65 1-87
+sdk-go/docker_boundary_test.go
+  h_e7759ddd73fa65 1-170
+sdk-go/docker_cubic_r3_test.go
+  h_e7759ddd73fa65 1-23
+sdk-go/docker_diagnostics_r5_test.go
+  h_e7759ddd73fa65 1-38
+sdk-go/docker_example_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/docker_r3_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/docker_test.go
+  h_e7759ddd73fa65 1-160
+sdk-go/docker_timing_test.go
+  h_e7759ddd73fa65 1-131
+sdk-go/docker_wait.go
+  h_e7759ddd73fa65 1-126
+sdk-go/docker_wait_test.go
+  h_e7759ddd73fa65 1-112
+sdk-go/durations.go
+  h_e7759ddd73fa65 1-95
+sdk-go/durations_test.go
+  h_e7759ddd73fa65 1-102
+sdk-go/e2e/account_test.go
+  h_e7759ddd73fa65 1-208
+sdk-go/e2e/computer_use_test.go
+  h_e7759ddd73fa65 1-93
+sdk-go/e2e/core_test.go
+  h_e7759ddd73fa65 1-75
+sdk-go/e2e/create_from_build_test.go
+  h_e7759ddd73fa65 1-62
+sdk-go/e2e/environment_helpers_test.go
+  h_e7759ddd73fa65 1-44
+sdk-go/e2e/environment_test.go
+  h_e7759ddd73fa65 1-88
+sdk-go/e2e/events_test.go
+  h_e7759ddd73fa65 1-150
+sdk-go/e2e/fs_test.go
+  h_e7759ddd73fa65 1-162
+sdk-go/e2e/git_test.go
+  h_e7759ddd73fa65 1-162
+sdk-go/e2e/helpers_test.go
+  h_e7759ddd73fa65 1-238
+sdk-go/e2e/images_reader_test.go
+  h_e7759ddd73fa65 1-53
+sdk-go/e2e/images_test.go
+  h_e7759ddd73fa65 1-169
+sdk-go/e2e/lifecycle_test.go
+  h_e7759ddd73fa65 1-216
+sdk-go/e2e/ports_test.go
+  h_e7759ddd73fa65 1-204
+sdk-go/e2e/process_output_failure_test.go
+  h_e7759ddd73fa65 1-68
+sdk-go/e2e/process_test.go
+  h_e7759ddd73fa65 1-139
+sdk-go/errors.go
+  h_e7759ddd73fa65 1-232
+sdk-go/errors_build_log.go
+  h_e7759ddd73fa65 1-45
+sdk-go/errors_cancellation_multiline_test.go
+  h_e7759ddd73fa65 1-33
+sdk-go/errors_categories.go
+  h_e7759ddd73fa65 1-59
+sdk-go/errors_details.go
+  h_e7759ddd73fa65 1-112
+sdk-go/errors_docker.go
+  h_e7759ddd73fa65 1-107
+sdk-go/errors_message_test.go
+  h_e7759ddd73fa65 1-48
+sdk-go/errors_response.go
+  h_e7759ddd73fa65 1-107
+sdk-go/errors_response_trim_test.go
+  h_e7759ddd73fa65 1-33
+sdk-go/errors_retry_after_test.go
+  h_e7759ddd73fa65 1-38
+sdk-go/errors_test.go
+  h_e7759ddd73fa65 1-185
+sdk-go/errors_trace_test.go
+  h_e7759ddd73fa65 1-50
+sdk-go/errors_wrapped_cause_test.go
+  h_e7759ddd73fa65 1-65
+sdk-go/errors_wrappers_test.go
+  h_e7759ddd73fa65 1-93
+sdk-go/events.go
+  h_e7759ddd73fa65 1-70
+sdk-go/events_connect.go
+  h_e7759ddd73fa65 1-79
+sdk-go/events_connect_test.go
+  h_e7759ddd73fa65 1-138
+sdk-go/events_destination.go
+  h_e7759ddd73fa65 1-49
+sdk-go/events_example_test.go
+  h_e7759ddd73fa65 1-29
+sdk-go/events_iface.go
+  h_e7759ddd73fa65 1-33
+sdk-go/events_states_test.go
+  h_e7759ddd73fa65 1-102
+sdk-go/events_test.go
+  h_e7759ddd73fa65 1-190
+sdk-go/example_tasks_test.go
+  h_e7759ddd73fa65 1-163
+sdk-go/example_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/exec.go
+  h_e7759ddd73fa65 1-109
+sdk-go/exec_cubic_args_test.go
+  h_e7759ddd73fa65 1-37
+sdk-go/exec_cubic_r3_test.go
+  h_e7759ddd73fa65 1-73
+sdk-go/exec_cubic_replay_test.go
+  h_e7759ddd73fa65 1-144
+sdk-go/exec_cubic_stream_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/exec_delivery.go
+  h_e7759ddd73fa65 1-22
+sdk-go/exec_delivery_test.go
+  h_e7759ddd73fa65 1-118
+sdk-go/exec_r3_timeout_test.go
+  h_e7759ddd73fa65 1-69
+sdk-go/exec_r5_test.go
+  h_e7759ddd73fa65 1-152
+sdk-go/exec_recovery_r7_test.go
+  h_e7759ddd73fa65 1-150
+sdk-go/exec_run.go
+  h_e7759ddd73fa65 1-120
+sdk-go/exec_stream.go
+  h_e7759ddd73fa65 1-128
+sdk-go/exec_stream_failure_test.go
+  h_e7759ddd73fa65 1-122
+sdk-go/exec_test.go
+  h_e7759ddd73fa65 1-147
+sdk-go/exec_timeout_test.go
+  h_e7759ddd73fa65 1-129
+sdk-go/fs.go
+  h_e7759ddd73fa65 1-159
+sdk-go/fs_bulk_test.go
+  h_e7759ddd73fa65 1-112
+sdk-go/fs_cubic_multipart_test.go
+  h_e7759ddd73fa65 1-41
+sdk-go/fs_cubic_r3_test.go
+  h_e7759ddd73fa65 1-59
+sdk-go/fs_cubic_read_test.go
+  h_e7759ddd73fa65 1-66
+sdk-go/fs_cubic_write_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/fs_example_test.go
+  h_e7759ddd73fa65 1-103
+sdk-go/fs_inputs_test.go
+  h_e7759ddd73fa65 1-82
+sdk-go/fs_models.go
+  h_e7759ddd73fa65 1-95
+sdk-go/fs_multipart.go
+  h_e7759ddd73fa65 1-140
+sdk-go/fs_parse.go
+  h_e7759ddd73fa65 1-146
+sdk-go/fs_parse_r3_test.go
+  h_e7759ddd73fa65 1-29
+sdk-go/fs_r3_multipart_test.go
+  h_e7759ddd73fa65 1-48
+sdk-go/fs_r3_read_test.go
+  h_e7759ddd73fa65 1-34
+sdk-go/fs_r5_test.go
+  h_e7759ddd73fa65 1-78
+sdk-go/fs_read.go
+  h_e7759ddd73fa65 1-112
+sdk-go/fs_read_test.go
+  h_e7759ddd73fa65 1-121
+sdk-go/fs_search.go
+  h_e7759ddd73fa65 1-101
+sdk-go/fs_search_test.go
+  h_e7759ddd73fa65 1-87
+sdk-go/fs_signed.go
+  h_e7759ddd73fa65 1-118
+sdk-go/fs_signed_test.go
+  h_e7759ddd73fa65 1-115
+sdk-go/fs_test.go
+  h_e7759ddd73fa65 1-169
+sdk-go/fs_write_many.go
+  h_e7759ddd73fa65 1-70
+sdk-go/gen-contract.sh
+  h_e7759ddd73fa65 1-50
+sdk-go/get_sandbox_options_string.go
+  h_e7759ddd73fa65 1-19
+sdk-go/git.go
+  h_e7759ddd73fa65 1-131
+sdk-go/git_branches.go
+  h_e7759ddd73fa65 1-95
+sdk-go/git_config.go
+  h_e7759ddd73fa65 1-77
+sdk-go/git_diagnostics_r5_test.go
+  h_e7759ddd73fa65 1-51
+sdk-go/git_example_test.go
+  h_e7759ddd73fa65 1-65
+sdk-go/git_history_items_test.go
+  h_e7759ddd73fa65 1-24
+sdk-go/git_models.go
+  h_e7759ddd73fa65 1-60
+sdk-go/git_options_r6_test.go
+  h_e7759ddd73fa65 1-61
+sdk-go/git_options_string.go
+  h_e7759ddd73fa65 1-43
+sdk-go/git_parse_test.go
+  h_e7759ddd73fa65 1-81
+sdk-go/git_read.go
+  h_e7759ddd73fa65 1-120
+sdk-go/git_read_test.go
+  h_e7759ddd73fa65 1-130
+sdk-go/git_remote.go
+  h_e7759ddd73fa65 1-145
+sdk-go/git_remote_test.go
+  h_e7759ddd73fa65 1-146
+sdk-go/git_reset.go
+  h_e7759ddd73fa65 1-22
+sdk-go/git_reset_r5_test.go
+  h_e7759ddd73fa65 1-40
+sdk-go/git_test.go
+  h_e7759ddd73fa65 1-145
+sdk-go/git_validation_test.go
+  h_e7759ddd73fa65 1-152
+sdk-go/go.mod
+  h_e7759ddd73fa65 1-18
+sdk-go/go.sum
+  h_e7759ddd73fa65 1-24
+sdk-go/helpers_test.go
+  h_e7759ddd73fa65 1-134
+sdk-go/image.go
+  h_e7759ddd73fa65 1-124
+sdk-go/image_list.go
+  h_e7759ddd73fa65 1-90
+sdk-go/image_options.go
+  h_e7759ddd73fa65 1-114
+sdk-go/image_origin_validation_test.go
+  h_e7759ddd73fa65 1-42
+sdk-go/image_parse.go
+  h_e7759ddd73fa65 1-205
+sdk-go/image_parse_order_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/image_parse_test.go
+  h_e7759ddd73fa65 1-188
+sdk-go/image_pull_failure_message_test.go
+  h_e7759ddd73fa65 1-26
+sdk-go/image_r3_class_test.go
+  h_e7759ddd73fa65 1-27
+sdk-go/image_r3_options_test.go
+  h_e7759ddd73fa65 1-63
+sdk-go/image_resource_clock_test.go
+  h_e7759ddd73fa65 1-90
+sdk-go/image_resource_deadline_test.go
+  h_e7759ddd73fa65 1-130
+sdk-go/image_resource_lists_test.go
+  h_e7759ddd73fa65 1-154
+sdk-go/image_resource_operations_test.go
+  h_e7759ddd73fa65 1-183
+sdk-go/image_resource_pull_deadline_test.go
+  h_e7759ddd73fa65 1-153
+sdk-go/image_resource_pull_test.go
+  h_e7759ddd73fa65 1-196
+sdk-go/image_source.go
+  h_e7759ddd73fa65 1-115
+sdk-go/image_wait.go
+  h_e7759ddd73fa65 1-138
+sdk-go/image_wait_test.go
+  h_e7759ddd73fa65 1-157
+sdk-go/images.go
+  h_e7759ddd73fa65 1-153
+sdk-go/images_build.go
+  h_e7759ddd73fa65 1-155
+sdk-go/images_build_test.go
+  h_e7759ddd73fa65 1-142
+sdk-go/images_context_example_test.go
+  h_e7759ddd73fa65 1-41
+sdk-go/images_context_polish_test.go
+  h_e7759ddd73fa65 1-77
+sdk-go/images_context_reader_test.go
+  h_e7759ddd73fa65 1-151
+sdk-go/images_context_size_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/images_context_test.go
+  h_e7759ddd73fa65 1-103
+sdk-go/images_example_test.go
+  h_e7759ddd73fa65 1-76
+sdk-go/images_filter_order_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/images_option_names_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/images_platform_test.go
+  h_e7759ddd73fa65 1-58
+sdk-go/images_r3_ready_test.go
+  h_e7759ddd73fa65 1-58
+sdk-go/images_ready.go
+  h_e7759ddd73fa65 1-118
+sdk-go/images_test.go
+  h_e7759ddd73fa65 1-187
+sdk-go/internal/buildcontext/archive.go
+  h_e7759ddd73fa65 1-174
+sdk-go/internal/buildcontext/archive_allocation_test.go
+  h_e7759ddd73fa65 1-50
+sdk-go/internal/buildcontext/buildkit_test.go
+  h_e7759ddd73fa65 1-69
+sdk-go/internal/buildcontext/directory.go
+  h_e7759ddd73fa65 1-178
+sdk-go/internal/buildcontext/directory_root.go
+  h_e7759ddd73fa65 1-30
+sdk-go/internal/buildcontext/directory_root_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/internal/buildcontext/entry.go
+  h_e7759ddd73fa65 1-108
+sdk-go/internal/buildcontext/file.go
+  h_e7759ddd73fa65 1-106
+sdk-go/internal/buildcontext/file_snapshot_test.go
+  h_e7759ddd73fa65 1-67
+sdk-go/internal/buildcontext/file_test.go
+  h_e7759ddd73fa65 1-70
+sdk-go/internal/buildcontext/fixtures_other_test.go
+  h_e7759ddd73fa65 1-13
+sdk-go/internal/buildcontext/fixtures_test.go
+  h_e7759ddd73fa65 1-133
+sdk-go/internal/buildcontext/fixtures_unix_test.go
+  h_e7759ddd73fa65 1-18
+sdk-go/internal/buildcontext/metadata_races_test.go
+  h_e7759ddd73fa65 1-100
+sdk-go/internal/buildcontext/open_other.go
+  h_e7759ddd73fa65 1-24
+sdk-go/internal/buildcontext/open_unix.go
+  h_e7759ddd73fa65 1-20
+sdk-go/internal/buildcontext/path.go
+  h_e7759ddd73fa65 1-101
+sdk-go/internal/buildcontext/races_test.go
+  h_e7759ddd73fa65 1-192
+sdk-go/internal/buildcontext/reader.go
+  h_e7759ddd73fa65 1-71
+sdk-go/internal/buildcontext/reader_test.go
+  h_e7759ddd73fa65 1-59
+sdk-go/internal/buildcontext/root_test.go
+  h_e7759ddd73fa65 1-130
+sdk-go/internal/buildcontext/source.go
+  h_e7759ddd73fa65 1-178
+sdk-go/internal/buildcontext/source_test.go
+  h_e7759ddd73fa65 1-115
+sdk-go/internal/buildcontext/symlink_compatibility_test.go
+  h_e7759ddd73fa65 1-64
+sdk-go/internal/buildcontext/tar.go
+  h_e7759ddd73fa65 1-150
+sdk-go/internal/buildcontext/tar_header.go
+  h_e7759ddd73fa65 1-83
+sdk-go/internal/buildcontext/walk.go
+  h_e7759ddd73fa65 1-97
+sdk-go/internal/buildcontext/walk_metadata_test.go
+  h_e7759ddd73fa65 1-97
+sdk-go/internal/dockerignore/matcher.go
+  h_e7759ddd73fa65 1-169
+sdk-go/internal/dockerignore/matcher_lazy_syntax_test.go
+  h_e7759ddd73fa65 1-32
+sdk-go/internal/dockerignore/matcher_test.go
+  h_e7759ddd73fa65 1-117
+sdk-go/internal/dockerignore/pattern.go
+  h_e7759ddd73fa65 1-214
+sdk-go/internal/dockerignore/utf8_test.go
+  h_e7759ddd73fa65 1-73
+sdk-go/internal/dockerignore/validate.go
+  h_e7759ddd73fa65 1-67
+sdk-go/internal/events/clock.go
+  h_e7759ddd73fa65 1-47
+sdk-go/internal/events/dispatch.go
+  h_e7759ddd73fa65 1-139
+sdk-go/internal/events/dispatch_test.go
+  h_e7759ddd73fa65 1-59
+sdk-go/internal/events/helpers_test.go
+  h_e7759ddd73fa65 1-201
+sdk-go/internal/events/hub.go
+  h_e7759ddd73fa65 1-240
+sdk-go/internal/events/hub_test.go
+  h_e7759ddd73fa65 1-166
+sdk-go/internal/events/liveness_test.go
+  h_e7759ddd73fa65 1-128
+sdk-go/internal/events/not_found_test.go
+  h_e7759ddd73fa65 1-70
+sdk-go/internal/events/protocol.go
+  h_e7759ddd73fa65 1-133
+sdk-go/internal/events/protocol_test.go
+  h_e7759ddd73fa65 1-84
+sdk-go/internal/events/reconnect.go
+  h_e7759ddd73fa65 1-125
+sdk-go/internal/events/routing.go
+  h_e7759ddd73fa65 1-119
+sdk-go/internal/events/routing_test.go
+  h_e7759ddd73fa65 1-122
+sdk-go/internal/events/shutdown_test.go
+  h_e7759ddd73fa65 1-116
+sdk-go/internal/events/socket.go
+  h_e7759ddd73fa65 1-175
+sdk-go/internal/events/subscriptions.go
+  h_e7759ddd73fa65 1-85
+sdk-go/internal/events/subscriptions_cooldown_test.go
+  h_e7759ddd73fa65 1-90
+sdk-go/internal/events/timers_test.go
+  h_e7759ddd73fa65 1-185
+sdk-go/internal/events/watch.go
+  h_e7759ddd73fa65 1-36
+sdk-go/internal/events/watch_test.go
+  h_e7759ddd73fa65 1-99
+sdk-go/internal/gen/api/models.gen.go
+  h_e7759ddd73fa65 1-8380
+sdk-go/internal/gen/toolbox/models.gen.go
+  h_e7759ddd73fa65 1-1991
+sdk-go/interpreter.go
+  h_e7759ddd73fa65 1-73
+sdk-go/interpreter_contexts.go
+  h_e7759ddd73fa65 1-150
+sdk-go/interpreter_contexts_r5_test.go
+  h_e7759ddd73fa65 1-49
+sdk-go/interpreter_cubic_r3_test.go
+  h_e7759ddd73fa65 1-36
+sdk-go/interpreter_example_test.go
+  h_e7759ddd73fa65 1-84
+sdk-go/interpreter_models.go
+  h_e7759ddd73fa65 1-121
+sdk-go/interpreter_output.go
+  h_e7759ddd73fa65 1-137
+sdk-go/interpreter_queue.go
+  h_e7759ddd73fa65 1-95
+sdk-go/interpreter_queue_lifecycle_test.go
+  h_e7759ddd73fa65 1-110
+sdk-go/interpreter_queue_test.go
+  h_e7759ddd73fa65 1-191
+sdk-go/interpreter_r3_contexts_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/interpreter_r3_marshal_test.go
+  h_e7759ddd73fa65 1-23
+sdk-go/interpreter_test.go
+  h_e7759ddd73fa65 1-166
+sdk-go/json.go
+  h_e7759ddd73fa65 1-135
+sdk-go/json_integer_exact_test.go
+  h_e7759ddd73fa65 1-71
+sdk-go/limits.go
+  h_e7759ddd73fa65 1-110
+sdk-go/limits_cache.go
+  h_e7759ddd73fa65 1-72
+sdk-go/limits_cache_regression_test.go
+  h_e7759ddd73fa65 1-41
+sdk-go/limits_cache_test.go
+  h_e7759ddd73fa65 1-130
+sdk-go/limits_lookup_test.go
+  h_e7759ddd73fa65 1-123
+sdk-go/limits_test.go
+  h_e7759ddd73fa65 1-193
+sdk-go/limits_timeout_test.go
+  h_e7759ddd73fa65 1-68
+sdk-go/limits_types.go
+  h_e7759ddd73fa65 1-94
+sdk-go/mac_model.go
+  h_e7759ddd73fa65 1-63
+sdk-go/mac_model_example_test.go
+  h_e7759ddd73fa65 1-59
+sdk-go/mac_model_parse.go
+  h_e7759ddd73fa65 1-173
+sdk-go/mac_model_parse_test.go
+  h_e7759ddd73fa65 1-151
+sdk-go/mac_model_r3_parse_test.go
+  h_e7759ddd73fa65 1-50
+sdk-go/mac_model_test.go
+  h_e7759ddd73fa65 1-175
+sdk-go/mac_model_types.go
+  h_e7759ddd73fa65 1-80
+sdk-go/macos_create.go
+  h_e7759ddd73fa65 1-62
+sdk-go/macos_options.go
+  h_e7759ddd73fa65 1-61
+sdk-go/main_test.go
+  h_e7759ddd73fa65 1-12
+sdk-go/network_policy.go
+  h_e7759ddd73fa65 1-95
+sdk-go/network_policy_parse.go
+  h_e7759ddd73fa65 1-114
+sdk-go/network_policy_review_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/network_policy_strings_test.go
+  h_e7759ddd73fa65 1-67
+sdk-go/network_policy_version_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/options.go
+  h_e7759ddd73fa65 1-134
+sdk-go/options_env.go
+  h_e7759ddd73fa65 1-81
+sdk-go/options_review_test.go
+  h_e7759ddd73fa65 1-51
+sdk-go/options_test.go
+  h_e7759ddd73fa65 1-110
+sdk-go/page.go
+  h_e7759ddd73fa65 1-100
+sdk-go/page_query_limit_test.go
+  h_e7759ddd73fa65 1-28
+sdk-go/platform_option_names_test.go
+  h_e7759ddd73fa65 1-111
+sdk-go/ports.go
+  h_e7759ddd73fa65 1-124
+sdk-go/ports_cubic_test.go
+  h_e7759ddd73fa65 1-32
+sdk-go/ports_edges_test.go
+  h_e7759ddd73fa65 1-104
+sdk-go/ports_example_test.go
+  h_e7759ddd73fa65 1-90
+sdk-go/ports_no_toolbox_test.go
+  h_e7759ddd73fa65 1-37
+sdk-go/ports_test.go
+  h_e7759ddd73fa65 1-139
+sdk-go/preview_boundary_test.go
+  h_e7759ddd73fa65 1-163
+sdk-go/preview_cubic_r3_test.go
+  h_e7759ddd73fa65 1-42
+sdk-go/preview_endpoints.go
+  h_e7759ddd73fa65 1-138
+sdk-go/preview_endpoints_test.go
+  h_e7759ddd73fa65 1-169
+sdk-go/preview_links.go
+  h_e7759ddd73fa65 1-139
+sdk-go/preview_links_test.go
+  h_e7759ddd73fa65 1-190
+sdk-go/preview_malformed_test.go
+  h_e7759ddd73fa65 1-147
+sdk-go/preview_models.go
+  h_e7759ddd73fa65 1-106
+sdk-go/preview_token.go
+  h_e7759ddd73fa65 1-106
+sdk-go/process.go
+  h_e7759ddd73fa65 1-207
+sdk-go/process_bounds_r7_test.go
+  h_e7759ddd73fa65 1-102
+sdk-go/process_control_test.go
+  h_e7759ddd73fa65 1-127
+sdk-go/process_create.go
+  h_e7759ddd73fa65 1-36
+sdk-go/process_create_r6_test.go
+  h_e7759ddd73fa65 1-80
+sdk-go/process_create_r7_test.go
+  h_e7759ddd73fa65 1-77
+sdk-go/process_cubic_wait_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/process_diagnostics_r5_test.go
+  h_e7759ddd73fa65 1-89
+sdk-go/process_enums.go
+  h_e7759ddd73fa65 1-196
+sdk-go/process_env_r6_test.go
+  h_e7759ddd73fa65 1-78
+sdk-go/process_example_test.go
+  h_e7759ddd73fa65 1-120
+sdk-go/process_handle.go
+  h_e7759ddd73fa65 1-152
+sdk-go/process_helpers_test.go
+  h_e7759ddd73fa65 1-42
+sdk-go/process_log_models.go
+  h_e7759ddd73fa65 1-147
+sdk-go/process_logs.go
+  h_e7759ddd73fa65 1-173
+sdk-go/process_models.go
+  h_e7759ddd73fa65 1-113
+sdk-go/process_options.go
+  h_e7759ddd73fa65 1-90
+sdk-go/process_options_r5_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/process_parse.go
+  h_e7759ddd73fa65 1-184
+sdk-go/process_parse_r3_test.go
+  h_e7759ddd73fa65 1-28
+sdk-go/process_request.go
+  h_e7759ddd73fa65 1-100
+sdk-go/process_signal.go
+  h_e7759ddd73fa65 1-57
+sdk-go/process_sse.go
+  h_e7759ddd73fa65 1-136
+sdk-go/process_sse_bounds_test.go
+  h_e7759ddd73fa65 1-51
+sdk-go/process_sse_framing.go
+  h_e7759ddd73fa65 1-23
+sdk-go/process_sse_live_test.go
+  h_e7759ddd73fa65 1-39
+sdk-go/process_sse_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/process_stream.go
+  h_e7759ddd73fa65 1-175
+sdk-go/process_stream_r5_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/process_stream_test.go
+  h_e7759ddd73fa65 1-192
+sdk-go/process_validation_test.go
+  h_e7759ddd73fa65 1-166
+sdk-go/process_wait.go
+  h_e7759ddd73fa65 1-111
+sdk-go/process_wait_r3_test.go
+  h_e7759ddd73fa65 1-41
+sdk-go/process_wait_test.go
+  h_e7759ddd73fa65 1-109
+sdk-go/pty.go
+  h_e7759ddd73fa65 1-116
+sdk-go/pty_attach_test.go
+  h_e7759ddd73fa65 1-160
+sdk-go/pty_connection.go
+  h_e7759ddd73fa65 1-168
+sdk-go/pty_connection_test.go
+  h_e7759ddd73fa65 1-210
+sdk-go/pty_delete_test.go
+  h_e7759ddd73fa65 1-110
+sdk-go/pty_example_test.go
+  h_e7759ddd73fa65 1-88
+sdk-go/pty_lifetime_test.go
+  h_e7759ddd73fa65 1-126
+sdk-go/pty_live_test.go
+  h_e7759ddd73fa65 1-98
+sdk-go/pty_options.go
+  h_e7759ddd73fa65 1-38
+sdk-go/pty_test.go
+  h_e7759ddd73fa65 1-145
+sdk-go/r4_create_sources_test.go
+  h_e7759ddd73fa65 1-46
+sdk-go/r4_create_toolbox_test.go
+  h_e7759ddd73fa65 1-81
+sdk-go/r4_identifiers_test.go
+  h_e7759ddd73fa65 1-58
+sdk-go/r4_lifecycle_start_test.go
+  h_e7759ddd73fa65 1-50
+sdk-go/r4_parser_info_test.go
+  h_e7759ddd73fa65 1-51
+sdk-go/r4_parser_search_test.go
+  h_e7759ddd73fa65 1-52
+sdk-go/r4_parser_services_test.go
+  h_e7759ddd73fa65 1-79
+sdk-go/r4_ports_test.go
+  h_e7759ddd73fa65 1-69
+sdk-go/r4_transport_cause_test.go
+  h_e7759ddd73fa65 1-52
+sdk-go/reservation.go
+  h_e7759ddd73fa65 1-123
+sdk-go/reservation_batch_bounds_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/reservation_create.go
+  h_e7759ddd73fa65 1-131
+sdk-go/reservation_enums.go
+  h_e7759ddd73fa65 1-87
+sdk-go/reservation_example_test.go
+  h_e7759ddd73fa65 1-76
+sdk-go/reservation_list_test.go
+  h_e7759ddd73fa65 1-124
+sdk-go/reservation_parse.go
+  h_e7759ddd73fa65 1-132
+sdk-go/reservation_parse_test.go
+  h_e7759ddd73fa65 1-191
+sdk-go/reservation_period_bounds_test.go
+  h_e7759ddd73fa65 1-37
+sdk-go/reservation_purchase_example_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/reservation_test.go
+  h_e7759ddd73fa65 1-215
+sdk-go/reservation_transport_test.go
+  h_e7759ddd73fa65 1-126
+sdk-go/reservation_types.go
+  h_e7759ddd73fa65 1-112
+sdk-go/reservation_validation_test.go
+  h_e7759ddd73fa65 1-175
+sdk-go/run_code.go
+  h_e7759ddd73fa65 1-169
+sdk-go/run_code_collect.go
+  h_e7759ddd73fa65 1-130
+sdk-go/run_code_delivery_test.go
+  h_e7759ddd73fa65 1-181
+sdk-go/run_code_execution.go
+  h_e7759ddd73fa65 1-128
+sdk-go/run_code_output.go
+  h_e7759ddd73fa65 1-114
+sdk-go/run_code_r3_cancel_test.go
+  h_e7759ddd73fa65 1-53
+sdk-go/run_code_r5_test.go
+  h_e7759ddd73fa65 1-182
+sdk-go/run_code_results_test.go
+  h_e7759ddd73fa65 1-154
+sdk-go/run_code_stream_test.go
+  h_e7759ddd73fa65 1-143
+sdk-go/run_code_stream_timeout_test.go
+  h_e7759ddd73fa65 1-94
+sdk-go/run_code_test.go
+  h_e7759ddd73fa65 1-144
+sdk-go/run_code_timeout_test.go
+  h_e7759ddd73fa65 1-125
+sdk-go/sandbox.go
+  h_e7759ddd73fa65 1-192
+sdk-go/sandbox_access.go
+  h_e7759ddd73fa65 1-165
+sdk-go/sandbox_access_reserved_ports_test.go
+  h_e7759ddd73fa65 1-29
+sdk-go/sandbox_access_review_test.go
+  h_e7759ddd73fa65 1-61
+sdk-go/sandbox_access_signing.go
+  h_e7759ddd73fa65 1-33
+sdk-go/sandbox_access_signing_closed_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/sandbox_access_test.go
+  h_e7759ddd73fa65 1-146
+sdk-go/sandbox_create.go
+  h_e7759ddd73fa65 1-111
+sdk-go/sandbox_create_example_test.go
+  h_e7759ddd73fa65 1-65
+sdk-go/sandbox_env.go
+  h_e7759ddd73fa65 1-57
+sdk-go/sandbox_env_test.go
+  h_e7759ddd73fa65 1-70
+sdk-go/sandbox_get.go
+  h_e7759ddd73fa65 1-110
+sdk-go/sandbox_get_option_errors_test.go
+  h_e7759ddd73fa65 1-46
+sdk-go/sandbox_info.go
+  h_e7759ddd73fa65 1-172
+sdk-go/sandbox_info_lifecycle_test.go
+  h_e7759ddd73fa65 1-54
+sdk-go/sandbox_info_nested.go
+  h_e7759ddd73fa65 1-186
+sdk-go/sandbox_info_parse.go
+  h_e7759ddd73fa65 1-194
+sdk-go/sandbox_info_ports_bounds_test.go
+  h_e7759ddd73fa65 1-46
+sdk-go/sandbox_info_state.go
+  h_e7759ddd73fa65 1-94
+sdk-go/sandbox_info_test.go
+  h_e7759ddd73fa65 1-156
+sdk-go/sandbox_input_review_test.go
+  h_e7759ddd73fa65 1-36
+sdk-go/sandbox_json.go
+  h_e7759ddd73fa65 1-86
+sdk-go/sandbox_json_example_test.go
+  h_e7759ddd73fa65 1-39
+sdk-go/sandbox_json_presence_test.go
+  h_e7759ddd73fa65 1-82
+sdk-go/sandbox_json_test.go
+  h_e7759ddd73fa65 1-108
+sdk-go/sandbox_json_types.go
+  h_e7759ddd73fa65 1-90
+sdk-go/sandbox_labels.go
+  h_e7759ddd73fa65 1-63
+sdk-go/sandbox_labels_test.go
+  h_e7759ddd73fa65 1-97
+sdk-go/sandbox_lifecycle.go
+  h_e7759ddd73fa65 1-132
+sdk-go/sandbox_lifecycle_fork.go
+  h_e7759ddd73fa65 1-187
+sdk-go/sandbox_lifecycle_fork_errors_test.go
+  h_e7759ddd73fa65 1-150
+sdk-go/sandbox_lifecycle_fork_example_test.go
+  h_e7759ddd73fa65 1-42
+sdk-go/sandbox_lifecycle_fork_test.go
+  h_e7759ddd73fa65 1-165
+sdk-go/sandbox_lifecycle_review_test.go
+  h_e7759ddd73fa65 1-59
+sdk-go/sandbox_lifecycle_start.go
+  h_e7759ddd73fa65 1-86
+sdk-go/sandbox_lifecycle_test.go
+  h_e7759ddd73fa65 1-189
+sdk-go/sandbox_list.go
+  h_e7759ddd73fa65 1-85
+sdk-go/sandbox_list_parse.go
+  h_e7759ddd73fa65 1-106
+sdk-go/sandbox_list_reprobe_test.go
+  h_e7759ddd73fa65 1-52
+sdk-go/sandbox_metrics.go
+  h_e7759ddd73fa65 1-79
+sdk-go/sandbox_metrics_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/sandbox_network.go
+  h_e7759ddd73fa65 1-59
+sdk-go/sandbox_network_parse_test.go
+  h_e7759ddd73fa65 1-91
+sdk-go/sandbox_network_test.go
+  h_e7759ddd73fa65 1-138
+sdk-go/sandbox_page_timeout_test.go
+  h_e7759ddd73fa65 1-102
+sdk-go/sandbox_policy.go
+  h_e7759ddd73fa65 1-115
+sdk-go/sandbox_policy_errors_test.go
+  h_e7759ddd73fa65 1-133
+sdk-go/sandbox_policy_example_test.go
+  h_e7759ddd73fa65 1-63
+sdk-go/sandbox_policy_options.go
+  h_e7759ddd73fa65 1-94
+sdk-go/sandbox_policy_reset_test.go
+  h_e7759ddd73fa65 1-130
+sdk-go/sandbox_policy_test.go
+  h_e7759ddd73fa65 1-156
+sdk-go/sandbox_search.go
+  h_e7759ddd73fa65 1-166
+sdk-go/sandbox_search_options.go
+  h_e7759ddd73fa65 1-97
+sdk-go/sandbox_search_query.go
+  h_e7759ddd73fa65 1-198
+sdk-go/sandbox_search_test.go
+  h_e7759ddd73fa65 1-162
+sdk-go/sandbox_secrets.go
+  h_e7759ddd73fa65 1-119
+sdk-go/sandbox_secrets_count_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/sandbox_secrets_strings_test.go
+  h_e7759ddd73fa65 1-63
+sdk-go/sandbox_secrets_test.go
+  h_e7759ddd73fa65 1-110
+sdk-go/sandbox_volumes.go
+  h_e7759ddd73fa65 1-147
+sdk-go/sandbox_volumes_example_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/sandbox_volumes_test.go
+  h_e7759ddd73fa65 1-132
+sdk-go/sandbox_wait.go
+  h_e7759ddd73fa65 1-161
+sdk-go/sandbox_wait_budget_test.go
+  h_e7759ddd73fa65 1-201
+sdk-go/sandbox_wait_events.go
+  h_e7759ddd73fa65 1-175
+sdk-go/sandbox_wait_events_test.go
+  h_e7759ddd73fa65 1-187
+sdk-go/sandbox_wait_example_test.go
+  h_e7759ddd73fa65 1-44
+sdk-go/sandbox_wait_helpers_test.go
+  h_e7759ddd73fa65 1-68
+sdk-go/sandbox_wait_not_found_test.go
+  h_e7759ddd73fa65 1-159
+sdk-go/sandbox_wait_probe.go
+  h_e7759ddd73fa65 1-93
+sdk-go/sandbox_wait_probe_contract_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/sandbox_wait_probe_overlap_test.go
+  h_e7759ddd73fa65 1-69
+sdk-go/sandbox_wait_probe_schedule_test.go
+  h_e7759ddd73fa65 1-94
+sdk-go/sandbox_wait_probe_test.go
+  h_e7759ddd73fa65 1-174
+sdk-go/sandbox_wait_read.go
+  h_e7759ddd73fa65 1-135
+sdk-go/sandbox_wait_reason_provenance_test.go
+  h_e7759ddd73fa65 1-76
+sdk-go/sandbox_wait_reason_test.go
+  h_e7759ddd73fa65 1-58
+sdk-go/sandbox_wait_retry.go
+  h_e7759ddd73fa65 1-99
+sdk-go/sandbox_wait_retry_after_test.go
+  h_e7759ddd73fa65 1-121
+sdk-go/sandbox_wait_retry_budget_test.go
+  h_e7759ddd73fa65 1-195
+sdk-go/sandbox_wait_retry_decisive_test.go
+  h_e7759ddd73fa65 1-151
+sdk-go/sandbox_wait_retry_policy_test.go
+  h_e7759ddd73fa65 1-149
+sdk-go/sandbox_wait_retry_test.go
+  h_e7759ddd73fa65 1-145
+sdk-go/sandbox_wait_review_test.go
+  h_e7759ddd73fa65 1-105
+sdk-go/sandbox_wait_terminal_test.go
+  h_e7759ddd73fa65 1-103
+sdk-go/sandbox_wait_test.go
+  h_e7759ddd73fa65 1-124
+sdk-go/secret.go
+  h_e7759ddd73fa65 1-178
+sdk-go/secret_example_test.go
+  h_e7759ddd73fa65 1-37
+sdk-go/secret_model.go
+  h_e7759ddd73fa65 1-69
+sdk-go/secret_parse_test.go
+  h_e7759ddd73fa65 1-79
+sdk-go/secret_test.go
+  h_e7759ddd73fa65 1-221
+sdk-go/session.go
+  h_e7759ddd73fa65 1-96
+sdk-go/session_run.go
+  h_e7759ddd73fa65 1-80
+sdk-go/session_test.go
+  h_e7759ddd73fa65 1-101
+sdk-go/snapshot.go
+  h_e7759ddd73fa65 1-80
+sdk-go/snapshot_parse.go
+  h_e7759ddd73fa65 1-68
+sdk-go/snapshots.go
+  h_e7759ddd73fa65 1-91
+sdk-go/snapshots_test.go
+  h_e7759ddd73fa65 1-170
+sdk-go/toolbox_routes_dynamic_test.go
+  h_e7759ddd73fa65 1-120
+sdk-go/toolbox_routes_helpers_test.go
+  h_e7759ddd73fa65 1-104
+sdk-go/toolbox_routes_scan_test.go
+  h_e7759ddd73fa65 1-201
+sdk-go/toolbox_routes_scanner_test.go
+  h_e7759ddd73fa65 1-137
+sdk-go/toolbox_routes_test.go
+  h_e7759ddd73fa65 1-175
+sdk-go/toolbox_transport.go
+  h_e7759ddd73fa65 1-99
+sdk-go/toolbox_transport_test.go
+  h_e7759ddd73fa65 1-184
+sdk-go/toolbox_url_validation_test.go
+  h_e7759ddd73fa65 1-49
+sdk-go/transfer_body.go
+  h_e7759ddd73fa65 1-100
+sdk-go/transfer_cancel.go
+  h_e7759ddd73fa65 1-36
+sdk-go/transfer_cause_r7_test.go
+  h_e7759ddd73fa65 1-90
+sdk-go/transfer_cubic_test.go
+  h_e7759ddd73fa65 1-84
+sdk-go/transfer_download.go
+  h_e7759ddd73fa65 1-170
+sdk-go/transfer_download_error_test.go
+  h_e7759ddd73fa65 1-65
+sdk-go/transfer_edges_test.go
+  h_e7759ddd73fa65 1-147
+sdk-go/transfer_local_test.go
+  h_e7759ddd73fa65 1-47
+sdk-go/transfer_options.go
+  h_e7759ddd73fa65 1-113
+sdk-go/transfer_r3_timeout_test.go
+  h_e7759ddd73fa65 1-50
+sdk-go/transfer_test.go
+  h_e7759ddd73fa65 1-149
+sdk-go/transfer_time_test.go
+  h_e7759ddd73fa65 1-76
+sdk-go/transfer_upload.go
+  h_e7759ddd73fa65 1-180
+sdk-go/transport.go
+  h_e7759ddd73fa65 1-172
+sdk-go/transport_base_url_test.go
+  h_e7759ddd73fa65 1-46
+sdk-go/transport_cancellation_message_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/transport_close_error_test.go
+  h_e7759ddd73fa65 1-52
+sdk-go/transport_request.go
+  h_e7759ddd73fa65 1-165
+sdk-go/transport_scope.go
+  h_e7759ddd73fa65 1-159
+sdk-go/transport_test.go
+  h_e7759ddd73fa65 1-207
+sdk-go/transport_utf8.go
+  h_e7759ddd73fa65 1-142
+sdk-go/transport_utf8_embedded_test.go
+  h_e7759ddd73fa65 1-68
+sdk-go/transport_utf8_keys_test.go
+  h_e7759ddd73fa65 1-111
+sdk-go/transport_utf8_requests_test.go
+  h_e7759ddd73fa65 1-99
+sdk-go/transport_utf8_test.go
+  h_e7759ddd73fa65 1-66
+sdk-go/transport_zero_progress_test.go
+  h_e7759ddd73fa65 1-44
+sdk-go/version.go
+  h_e7759ddd73fa65 1-38
+sdk-go/version_test.go
+  h_e7759ddd73fa65 1-43
+sdk-go/volume.go
+  h_e7759ddd73fa65 1-178
+sdk-go/volume_example_test.go
+  h_e7759ddd73fa65 1-52
+sdk-go/volume_model.go
+  h_e7759ddd73fa65 1-184
+sdk-go/volume_pagination_test.go
+  h_e7759ddd73fa65 1-161
+sdk-go/volume_parse_order_test.go
+  h_e7759ddd73fa65 1-26
+sdk-go/volume_parse_test.go
+  h_e7759ddd73fa65 1-104
+sdk-go/volume_test.go
+  h_e7759ddd73fa65 1-195
+sdk-go/volume_whitespace_test.go
+  h_e7759ddd73fa65 1-44
+sdk-go/wait_options.go
+  h_e7759ddd73fa65 1-157
+sdk-go/watch.go
+  h_e7759ddd73fa65 1-246
+sdk-go/watch_cubic_test.go
+  h_e7759ddd73fa65 1-60
+sdk-go/watch_edges_test.go
+  h_e7759ddd73fa65 1-114
+sdk-go/watch_error_test.go
+  h_e7759ddd73fa65 1-86
+sdk-go/watch_event.go
+  h_e7759ddd73fa65 1-70
+sdk-go/watch_r5_test.go
+  h_e7759ddd73fa65 1-35
+sdk-go/watch_sse.go
+  h_e7759ddd73fa65 1-163
+sdk-go/watch_sse_bounds_test.go
+  h_e7759ddd73fa65 1-95
+sdk-go/watch_sse_live_test.go
+  h_e7759ddd73fa65 1-31
+sdk-go/watch_test.go
+  h_e7759ddd73fa65 1-160
+sdk-python/README.md
+  h_e7759ddd73fa65 175-183
+sdk-python/pyproject.toml
+  h_e7759ddd73fa65 61-62
+sdk-python/src/daytona/v2/_filesystem_watch_events.py
+  h_e7759ddd73fa65 1-63
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 215-218,254-255
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 54-60,243,246,491,493-494,659,662,1160-1169
+sdk-python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 56-64,155-156,703-706,779-780
+sdk-python/tests/test_bridge.py
+  h_e7759ddd73fa65 545,548-549
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 11,12277-12300
+sdk-python/tests/test_watch_transport.py
+  h_e7759ddd73fa65 24,74-84,205-267
+sdk-python/uv.lock
+  h_e7759ddd73fa65 264,280,326-347,376-384
+sdk-typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 29,31,54-55,471-472,597
+sdk-typescript/src/v2/Ports.ts
+  h_e7759ddd73fa65 351
+sdk-typescript/src/v2/filesystemWatchEvents.ts
+  h_e7759ddd73fa65 1-52
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 2239-2251
+sdk-typescript/tests/watch-transport.test.ts
+  h_e7759ddd73fa65 14,52-59,161-202
+upgrade/scripts/publish-channels.test.mjs
+  h_e7759ddd73fa65 51-57,61
+upgrade/scripts/publish-gates.test.mjs
+  h_e7759ddd73fa65 13-19,72,98,120,145,175,194,225,244,275,298,318,337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8916d2b2fae808f3274b951e40e2081de937f74f",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

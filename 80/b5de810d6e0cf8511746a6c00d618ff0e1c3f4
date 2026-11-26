@@ -1,0 +1,16 @@
+contract/api-openapi.json
+  h_e7759ddd73fa65 27949,28075,30083
+sdk-typescript/src/v2/gen/api.ts
+  h_e7759ddd73fa65 18155,18227,19385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "80b5de810d6e0cf8511746a6c00d618ff0e1c3f4",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
