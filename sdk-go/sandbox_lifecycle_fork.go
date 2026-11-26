@@ -76,35 +76,23 @@ func (s *Sandbox) Fork(ctx context.Context, opts *ForkOptions) (*Sandbox, error)
 	if budget == NoWait {
 		return fork, nil
 	}
+	wait := forkWait{target: forkWaitTarget(source, options.Memory), budget: budget, memory: options.Memory}
 	if retried {
-		// A refusal invalidates the source observation used to choose the wait.
-		started := time.Now()
-		readCtx := ctx
-		if budget != WaitForever {
-			var cancel context.CancelFunc
-			readCtx, cancel = context.WithTimeout(ctx, budget)
-			defer cancel()
-		}
-		if err = s.Refresh(readCtx); err != nil {
-			return fork, acceptedWaitError(ctx, err)
-		}
-		source = s.Info()
-		if budget != WaitForever {
-			budget -= time.Since(started)
-			if budget <= 0 {
-				return fork, acceptedWaitError(ctx, nil)
-			}
-		}
+		wait.refreshSource = s
 	}
+	return fork.observeFork(ctx, wait)
+}
+
+func forkWaitTarget(source SandboxInfo, memory *bool) SandboxState {
 	target := SandboxStateStopped
 	switch {
 	case source.State == SandboxStateStarted:
 		target = SandboxStateStarted
 	case source.Class == SandboxClassLinux && source.State == SandboxStatePaused &&
-		(options.Memory == nil || *options.Memory):
+		(memory == nil || *memory):
 		target = SandboxStatePaused
 	}
-	return fork.observeFork(ctx, target, budget)
+	return target
 }
 
 func prepareForkOptions(opts *ForkOptions) (ForkOptions, error) {
@@ -171,8 +159,16 @@ func (s *Sandbox) parseFork(raw JSONValue, source SandboxInfo) (*Sandbox, error)
 	})
 }
 
-func (s *Sandbox) observeFork(ctx context.Context, target SandboxState, budget time.Duration) (*Sandbox, error) {
+type forkWait struct {
+	target        SandboxState
+	budget        time.Duration
+	memory        *bool
+	refreshSource *Sandbox
+}
+
+func (s *Sandbox) observeFork(ctx context.Context, wait forkWait) (*Sandbox, error) {
 	started := time.Now()
+	target, budget := wait.target, wait.budget
 	from := s.Info().ForkedFrom
 	// Refreshes need not repeat forked_from; keep the already known provenance.
 	defer func() {
@@ -187,6 +183,14 @@ func (s *Sandbox) observeFork(ctx context.Context, target SandboxState, budget t
 		var cancel context.CancelFunc
 		readCtx, cancel = context.WithTimeout(ctx, budget)
 		defer cancel()
+	}
+	if wait.refreshSource != nil {
+		// A refusal invalidates the source observation used to choose the wait.
+		// Refresh it within the same budget as the fork's remaining observations.
+		if err := wait.refreshSource.Refresh(readCtx); err != nil {
+			return s, acceptedWaitError(ctx, err)
+		}
+		target = forkWaitTarget(wait.refreshSource.Info(), wait.memory)
 	}
 	s.mu.RLock()
 	toolbox := s.toolboxURL
