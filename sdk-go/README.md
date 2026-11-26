@@ -73,13 +73,13 @@ cleanup needs a context that has not been cancelled.
 
 Linux sandboxes are non-persistent by default. Set `CreateOptions.Persistent`
 to a pointer to `true` (also through `CreateFromBuildOptions.CreateOptions`) for
-persistence. Without a lifecycle policy, persistent Linux sandboxes default to
-pausing after a 300-second lifetime.
+persistence. When neither a per-create policy nor a project lifecycle default
+overrides it, persistent Linux sandboxes pause after a 300-second lifetime.
 
 - `Stop` / `Start` preserve disk, not memory or running processes.
   `Stop` requires persistence, including on macOS, and is unavailable on GPU.
 - `Pause` / `Resume` preserve disk, memory and processes.
-- Linux stop, start, restart, pause, resume and fork require persistence; the
+- Linux stop, start, pause, resume and fork require persistence; the
   API checks support.
 - Lifecycle policies allow `delete` everywhere, `stop` on persistent non-GPU
   sandboxes, and `pause` on persistent Linux.
@@ -92,6 +92,7 @@ Submissions retry only `SANDBOX_TRANSITION_IN_PROGRESS` for up to 30 seconds:
 `CaptureImage` while it is still starting (Linux, Windows) or stopping (macOS);
 and `CreateSnapshot` (memory and disk) while it is still starting.
 Other conflicts are returned immediately.
+The window limits new retries; an admitted POST keeps its normal request timeout.
 
 `Search` / `SearchAll` accept `SearchSandboxesOptions.Persistent`: a pointer to
 `true` selects persistent sandboxes, a pointer to `false` selects ephemeral
