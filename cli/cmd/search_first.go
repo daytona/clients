@@ -41,6 +41,14 @@ type searchProbe struct{ notServed bool }
 // search (searchNotServed, remembered in probe when it is not nil): the caller
 // then reads its list route. Search results are eventually consistent.
 func getRawSearchPage[T any](ctx context.Context, probe *searchProbe, c *api.Client, searchPath string, query url.Values, field string) (list output.List[api.Raw[T]], served bool, err error) {
+	return searchPage[T](ctx, probe, c, searchPath, query, field, false)
+}
+
+// searchPage is getRawSearchPage. With itemFallback, a 200 that is not a page
+// also means search is not served: an API that predates the secret and volume
+// search routes answers GET /secrets/search and GET /volumes/search with the
+// resource named "search". Other kinds keep reporting such a body.
+func searchPage[T any](ctx context.Context, probe *searchProbe, c *api.Client, searchPath string, query url.Values, field string, itemFallback bool) (list output.List[api.Raw[T]], served bool, err error) {
 	if probe != nil && probe.notServed {
 		return output.List[api.Raw[T]]{}, false, nil
 	}
@@ -59,7 +67,7 @@ func getRawSearchPage[T any](ctx context.Context, probe *searchProbe, c *api.Cli
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return output.List[api.Raw[T]]{}, true, fmt.Errorf("decode GET %s response: %w", searchPath, err)
 	}
-	if _, ok := envelope[field]; !ok {
+	if _, ok := envelope[field]; !ok && itemFallback {
 		if probe != nil {
 			probe.notServed = true
 		}
@@ -74,15 +82,19 @@ func getRawSearchPage[T any](ctx context.Context, probe *searchProbe, c *api.Cli
 
 func getRawSearchOrListPage[T any](ctx context.Context, probe *searchProbe, c *api.Client, searchPath, listPath string, query url.Values, field string) (output.List[api.Raw[T]], error) {
 	remembered := probe.notServed
-	if page, served, err := getRawSearchPage[T](ctx, probe, c, searchPath, query, field); served {
+	if page, served, err := searchPage[T](ctx, probe, c, searchPath, query, field, true); served {
 		return page, err
 	}
-	page, err := getRawList[T](ctx, c, listPath, query, field)
-	if !remembered || !listRetired(err) {
-		return page, err
+	page, listErr := getRawList[T](ctx, c, listPath, query, field)
+	if !remembered || !listRetired(listErr) {
+		return page, listErr
 	}
 	probe.notServed = false
-	page, _, err = getRawSearchPage[T](ctx, probe, c, searchPath, query, field)
+	page, served, err := searchPage[T](ctx, probe, c, searchPath, query, field, true)
+	if !served {
+		// Neither route serves the list: report the list route's 410, not an empty page.
+		return page, listErr
+	}
 	return page, err
 }
 

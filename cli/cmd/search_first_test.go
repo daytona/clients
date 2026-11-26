@@ -176,7 +176,28 @@ func TestSecretAndVolumeLists_searchFirstFallbacks(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, requireJSONStdout(t, stdout)["items"], 2)
 		})
+		t.Run(tc.name+" remembered list 410 keeps the error when search is not served", func(t *testing.T) {
+			_, _, err := runCLI(t, []string{tc.name, "list", "--all", "--limit", "1"}, []expectedRequest{
+				searchNotConfiguredRequest("/" + tc.field + "/search"),
+				{method: http.MethodGet, path: "/" + tc.field, query: "limit=1", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `],"next_cursor":"p2"}`},
+				{method: http.MethodGet, path: "/" + tc.field, query: "cursor=p2&limit=1", status: http.StatusGone, response: `{"code":"GONE","message":"list retired","source":"DAYTONA_API","replacement":"/` + tc.field + `/search"}`},
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "cursor=p2&limit=1", status: http.StatusNotImplemented, response: `{"code":"SEARCH_NOT_CONFIGURED","message":"search is not configured","source":"DAYTONA_API"}`},
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "list retired")
+		})
 	}
+}
+
+func TestSandboxList_aSearchAnswerThatIsNotAPageDoesNotFallBack(t *testing.T) {
+	// Given a search route that answers a 200 without the sandboxes field.
+	// When
+	_, _, err := runCLI(t, []string{"sandbox", "list"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/search", query: "limit=100", status: http.StatusOK, response: `{"id":"x"}`, skipContract: true},
+	})
+	// Then: only secret and volume lists treat such a body as "search not
+	// served"; the sandbox list reads no list route.
+	require.NoError(t, err)
 }
 
 func TestSecretAndVolume_searchNameIsRefusedBeforeARequest(t *testing.T) {
