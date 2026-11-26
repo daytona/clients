@@ -82,10 +82,11 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   }
   // The handle holds only what the response carries, plus an `img_` / `snap_`
   // id the caller passed (a name is never an id), the class the create route
-  // fixes, and persistence known from that request (not a snapshot's inherited
-  // persistence). A partial DTO would mark absent fields known.
+  // fixes, and requested persistence when the response omits it.
+  // A partial DTO would mark absent fields known.
   const booted: unknown = Reflect.get(created, 'image')
   const bootedId = text(booted, 'id')
+  const persistent: unknown = Reflect.get(created, 'persistent')
   const sandbox = context.buildSandbox({
     sandboxId: created.id,
     toolboxProxyUrl: scopedProxyToolboxUrl(text(created, 'toolbox_proxy_url'), created.id),
@@ -99,7 +100,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
     snapshot: metadata.snapshot?.startsWith('snap_') ? { id: metadata.snapshot } : undefined,
     sandboxClass: metadata.sandboxClass,
     rawSandboxClass: metadata.sandboxClass,
-    persistent: metadata.persistent,
+    persistent: typeof persistent === 'boolean' ? persistent : metadata.persistent,
     reservationId: text(created, 'reservation_id'),
     // The lifecycle policy as of the create response.
     lifecyclePolicy: createdLifecyclePolicy(created.id, created.lifecycle_policy),
