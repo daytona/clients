@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,4 +54,46 @@ func TestSandboxArtifactCommands_retryOnlyTransitionRefusals(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSandboxFork_waitsForRunning_whenSourceFinishesStartingDuringRetry(t *testing.T) {
+	for _, class := range []string{"linux", "macos"} {
+		t.Run(class, func(t *testing.T) {
+			// Given: booting is the API's starting state.
+			id := "11111111-1111-1111-1111-111111111111"
+			fork := "22222222-2222-2222-2222-222222222222"
+			// When
+			stdout, _, err := runCLIWithOptions(t, runCLIOptions{contextTimeout: 5 * time.Second}, []string{"sandbox", "fork", id, "--name", "copy"}, []expectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, class, "booting")},
+				{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 409, bodyJSON: `{"name":"copy"}`, response: `{"code":"SANDBOX_TRANSITION_IN_PROGRESS","message":"settling","source":"DAYTONA_API","retry_after_seconds":1}`},
+				{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `{"name":"copy"}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","id":"` + fork + `","status":"pending"}`},
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, class, "running")},
+				{method: http.MethodGet, path: "/sandboxes/" + fork, query: "wait=running&timeout_ms=55000", status: 200, response: sandboxDetailFixture(fork, class, "running")},
+			})
+			// Then
+			require.NoError(t, err)
+			result := requireJSONStdout(t, stdout)
+			require.Equal(t, fork, result["id"])
+			require.Equal(t, "running", result["status"])
+		})
+	}
+}
+
+func TestSandboxFork_reportsAcceptedID_whenSourceRefreshFailsAfterRetry(t *testing.T) {
+	// Given
+	id := "11111111-1111-1111-1111-111111111111"
+	fork := "22222222-2222-2222-2222-222222222222"
+	// When
+	_, _, err := runCLIWithOptions(t, runCLIOptions{contextTimeout: 5 * time.Second}, []string{"sandbox", "fork", id, "--name", "copy"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "booting")},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 409, bodyJSON: `{"name":"copy"}`, response: `{"code":"SANDBOX_TRANSITION_IN_PROGRESS","message":"settling","source":"DAYTONA_API","retry_after_seconds":1}`},
+		{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `{"name":"copy"}`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","id":"` + fork + `","status":"pending"}`},
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 403, response: `{"code":"FORBIDDEN","message":"cannot read source","source":"DAYTONA_API"}`},
+	})
+	// Then
+	require.Equal(t, cerr.ExitForbidden, cerr.ExitCode(err))
+	require.ErrorContains(t, err, "sandbox "+fork+" was created, but")
+	var refusal *api.APIError
+	require.ErrorAs(t, err, &refusal)
+	require.Equal(t, "FORBIDDEN", refusal.Code)
 }

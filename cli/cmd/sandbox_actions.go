@@ -94,41 +94,6 @@ func newSandboxResumeCommand() *cobra.Command {
 	})
 }
 
-func newSandboxForkCommand() *cobra.Command {
-	name := ""
-	cmd := newSandboxActionCommand("fork", func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error) {
-		macos := resolved.Detail.Class == workload.ClassMacOS
-		if resolved.Detail.Class != workload.ClassLinux && !macos {
-			return nil, "", "", cerr.New(cerr.ExitConflict, "cannot fork sandbox %s with unknown class %s", resolved.Detail.Id, resolved.Detail.Class)
-		}
-		body := (*gen.ForkSandboxRequest)(nil)
-		if cmd.Flags().Changed("name") {
-			body = &gen.ForkSandboxRequest{Name: &name}
-		}
-		var resp api.Raw[gen.ForkSandboxOperation]
-		if err := retrySandboxTransition(cmd.Context(), func() error {
-			return resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp)
-		}); err != nil {
-			return nil, "", "", err
-		}
-		// A macOS fork of a running source starts after its disk is ready;
-		// paused and stopped sources produce a stopped fork. The target comes
-		// from the status resolved before the POST: if the source stops in
-		// between, a macOS fork stays stopped while the wait looks for running,
-		// and the wait ends at --timeout with a timeout error, not at once.
-		waitFor := "paused"
-		if resolved.Detail.Status == "running" {
-			waitFor = "running"
-		} else if macos {
-			waitFor = "stopped"
-		}
-		return resp, resp.V.Id, waitFor, nil
-	})
-	cmd.Flags().StringVar(&name, "name", "", "fork name")
-	cmd.Long += "\nA sandbox still starting or stopping is retried for up to 30 seconds before the fork is accepted."
-	return cmd
-}
-
 func newSandboxDeleteCommand() *cobra.Command {
 	return newSandboxActionCommand("delete", func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error) {
 		a := FromContext(cmd.Context())
