@@ -216,14 +216,30 @@ func TestSecretAndVolume_searchNameIsRefusedBeforeARequest(t *testing.T) {
 
 func TestSecretAndVolume_anUppercaseSearchNameIsSent(t *testing.T) {
 	// Given secrets and volumes named SEARCH: only the exact lowercase name is reserved.
-	secret := `{"name":"SEARCH","allowed_domains":["example.com"],"created_at":"2026-09-01T00:00:00Z","updated_at":"2026-09-01T00:00:00Z"}`
-	// When / Then: each command reaches its item route.
-	_, _, err := runCLI(t, []string{"secret", "get", "SEARCH"}, []expectedRequest{
-		{method: http.MethodGet, path: "/secrets/SEARCH", status: http.StatusOK, response: secret},
-	})
-	require.NoError(t, err)
-	_, _, err = runCLI(t, []string{"volume", "get", "SEARCH"}, []expectedRequest{
-		{method: http.MethodGet, path: "/volumes/SEARCH", status: http.StatusOK, response: diskVolumeSearchFixture("vol_1")},
-	})
-	require.NoError(t, err)
+	secret := map[string]any{"name": "SEARCH", "allowed_domains": []any{"*"}, "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z"}
+	volume := map[string]any{"id": "vol_1", "name": "SEARCH", "type": "disk", "status": "ready", "size_gib": 10, "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z"}
+	for _, tc := range []struct {
+		args   []string
+		method string
+		path   string
+		status int
+		body   any
+	}{
+		{[]string{"secret", "get", "SEARCH"}, "GET", "/secrets/SEARCH", 200, secret},
+		{[]string{"secret", "set", "SEARCH", "--value", "v", "--allowed-domain", "*"}, "PUT", "/secrets/SEARCH", 200, secret},
+		{[]string{"secret", "delete", "SEARCH", "--yes"}, "DELETE", "/secrets/SEARCH", 204, nil},
+		{[]string{"volume", "get", "SEARCH"}, "GET", "/volumes/SEARCH", 200, volume},
+		{[]string{"volume", "create", "SEARCH"}, "POST", "/volumes", 201, volume},
+		{[]string{"volume", "delete", "SEARCH", "--yes"}, "DELETE", "/volumes/SEARCH", 202, map[string]any{"id": "op_1", "status": "pending"}},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			api := newFakeAPI(t)
+			api.on(tc.method, tc.path, tc.status, tc.body)
+			// When
+			_, stderr, code := runMgmt(t, api, cfgDir(t), append([]string{"--project", "proj-1"}, tc.args...)...)
+			// Then: the command reaches its route instead of being refused.
+			require.Equal(t, 0, code, stderr)
+			findRequest(t, api, tc.method, tc.path)
+		})
+	}
 }

@@ -539,8 +539,10 @@ not when deletion finishes.
 `d.v2.volumes.search(...)` filters with `q`, `name`, and `name_prefix`;
 `types` accepts `"disk"`, `"bucket"`, or a sequence of them (any match),
 and `statuses` accepts `"ready"`, `"deleting"`, `"error"`, or a sequence.
-`imported` filters imported volumes. Created, updated, and last-used bounds use
-`*_start_at` (inclusive) and `*_end_at` (exclusive). Use `sort`
+`imported` filters imported volumes. Bound creation, update and last-use times
+with `created_start_at` / `updated_start_at` / `last_used_start_at` (inclusive)
+and `created_end_at` / `updated_end_at` / `last_used_end_at` (exclusive). Use
+`sort`
 (`created_at`, `updated_at`, `name`, `used_bytes`, `last_used_at`, or `size_gib`), `order`,
 `limit`, and `cursor` for ordering and paging. The `SearchResult` carries
 `total` and `total_relation` (`"eq"` for an exact count, `"gte"` for a lower
