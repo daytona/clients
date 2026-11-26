@@ -1,0 +1,22 @@
+cli/cmd/sandbox_transition.go
+  h_e7759ddd73fa65 48-49,51-53
+sdk-go/sandbox_transition.go
+  h_e7759ddd73fa65 37-40
+sdk-python/src/daytona/v2/_transition_retry.py
+  h_e7759ddd73fa65 34-36
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 878,937
+sdk-typescript/src/v2/sandboxTransitionRetry.ts
+  h_e7759ddd73fa65 31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "de7b03e9f9d380b6b4939f593fbc031c9cd51874",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
