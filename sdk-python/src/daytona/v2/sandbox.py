@@ -1441,11 +1441,10 @@ class AsyncSandbox:
             await self._require_sandbox_class() if waits else (self.raw_sandbox_class or self.sandbox_class)
         )
         targets: list[SandboxWaitState] = ["started"]
-        if waits:
+        if waits and class_known:
             # Refresh once before the POST; loading the class may already have
             # read the source. A running macOS fork's stopped state is interim.
-            if class_known:
-                await self.refresh_data()
+            await self.refresh_data()
         body: JsonObject = {}
         if name is not None:
             body["name"] = name
