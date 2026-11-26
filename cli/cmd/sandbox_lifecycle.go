@@ -69,8 +69,17 @@ func validateLifecycleActions(class string, persistent bool, policy gen.UpdateSa
 }
 
 // validateLifecycleBody checks the merged create body's lifecycle policy
-// against the class the create surface makes (persistence from the body).
-func validateLifecycleBody(macos bool, body input.Body) error {
+// against the create surface. Snapshot persistence is inherited, so only its
+// action vocabulary is checked locally.
+func validateLifecycleBody(sf createSurface, body input.Body) error {
+	persistent := sf.snapshot
+	if v, ok := lookupField(body, "persistent"); ok && v != nil {
+		var isBool bool
+		persistent, isBool = v.(bool)
+		if !isBool {
+			return cerr.Usage("\"persistent\" must be a boolean")
+		}
+	}
 	raw, ok := lookupField(body, "lifecycle_policy")
 	if !ok || raw == nil {
 		return nil
@@ -88,11 +97,7 @@ func validateLifecycleBody(macos bool, body input.Body) error {
 		return err
 	}
 	class := workload.ClassLinux
-	persistent := false
-	if v, ok := lookupField(body, "persistent"); ok {
-		persistent, _ = v.(bool)
-	}
-	if macos {
+	if sf.macos {
 		class = workload.ClassMacOS
 	}
 	return validateLifecycleActions(class, persistent, policy)

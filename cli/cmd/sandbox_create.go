@@ -145,11 +145,8 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 			if err := sf.keys(body); err != nil {
 				return err
 			}
-			// A snapshot inherits persistence from its source; the API knows it.
-			if !sf.snapshot {
-				if err := validateLifecycleBody(sf.macos, body); err != nil {
-					return err
-				}
+			if err := validateLifecycleBody(sf, body); err != nil {
+				return err
 			}
 			headers, err := sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body)
 			if err != nil {

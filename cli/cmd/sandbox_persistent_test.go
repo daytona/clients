@@ -70,15 +70,19 @@ func TestSandboxCreateFromSnapshot_refusesPersistenceOverride(t *testing.T) {
 }
 
 func TestSandboxCreateFromSnapshot_defersLifecycleSupport_whenPersistenceInherited(t *testing.T) {
-	// Given
-	id := "11111111-1111-1111-1111-111111111111"
-	// When
-	_, _, err := runCLI(t, []string{"sandbox", "create-from-snapshot", "snap_example", "--on-lifecycle-timeout", "pause", "--no-wait"}, []expectedRequest{
-		{method: http.MethodPost, path: "/sandboxes/from-snapshot", status: 202, bodyJSON: `{"snapshot":"snap_example","lifecycle_policy":{"on_timeout":"pause"}}`, response: `{"name":"box","toolbox_proxy_url":"https://proxy.example/test-tools","id":"` + id + `","status":"pending","wait_cap_seconds":3}`},
-		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "pending")},
-	})
-	// Then
-	require.NoError(t, err)
+	for _, action := range []string{"pause", "stop", "delete"} {
+		t.Run(action, func(t *testing.T) {
+			// Given
+			id := "11111111-1111-1111-1111-111111111111"
+			// When
+			_, _, err := runCLI(t, []string{"sandbox", "create-from-snapshot", "snap_example", "--on-lifecycle-timeout", action, "--no-wait"}, []expectedRequest{
+				{method: http.MethodPost, path: "/sandboxes/from-snapshot", status: 202, bodyJSON: `{"snapshot":"snap_example","lifecycle_policy":{"on_timeout":"` + action + `"}}`, response: `{"name":"box","toolbox_proxy_url":"https://proxy.example/test-tools","id":"` + id + `","status":"pending","wait_cap_seconds":3}`},
+				{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "pending")},
+			})
+			// Then
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestLifecycleActions_followPersistenceAndClass(t *testing.T) {
