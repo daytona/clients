@@ -1,2 +1,2 @@
-**TypeScript lifecycle policy updates** — Interval-only updates on known macOS
-sandboxes no longer fetch unused persistence metadata, matching Python.
+**TypeScript `updateLifecyclePolicy()`** — Updates that only set `timeoutSeconds`
+or `idleExpirySeconds` on known macOS sandboxes no longer make an extra GET request.
