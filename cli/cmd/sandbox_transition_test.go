@@ -106,6 +106,34 @@ func TestRetrySandboxTransition_stopsDelay_whenCallerDeadlineExpires(t *testing.
 		})
 		// Then
 		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.Equal(t, cerr.ExitTimeout, cerr.ExitCode(err))
 		require.Equal(t, 250*time.Millisecond, time.Since(start))
 	})
+}
+
+func TestRetrySandboxTransition_returnsContextExit_whenAlreadyEnded(t *testing.T) {
+	for _, deadline := range []bool{false, true} {
+		t.Run(fmt.Sprint(deadline), func(t *testing.T) {
+			// Given
+			timeout := time.Hour
+			wantErr, wantExit := context.Canceled, cerr.ExitInterrupted
+			if deadline {
+				timeout = -time.Second
+				wantErr, wantExit = context.DeadlineExceeded, cerr.ExitTimeout
+			}
+			ctx, cancel := context.WithTimeout(t.Context(), timeout)
+			defer cancel()
+			cancel()
+			calls := 0
+			// When
+			err := retrySandboxTransition(ctx, func() error {
+				calls++
+				return nil
+			})
+			// Then
+			require.ErrorIs(t, err, wantErr)
+			require.Equal(t, wantExit, cerr.ExitCode(err))
+			require.Zero(t, calls)
+		})
+	}
 }

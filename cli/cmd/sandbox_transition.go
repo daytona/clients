@@ -17,8 +17,8 @@ import (
 func retrySandboxTransition(ctx context.Context, post func() error) error {
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		if err := ctx.Err(); err != nil {
-			return cerr.Wrap(cerr.ExitInterrupted, err, "interrupted")
+		if err := cerr.FromContext(ctx); err != nil {
+			return err
 		}
 		err := post()
 		var refusal *api.APIError
@@ -35,7 +35,7 @@ func retrySandboxTransition(ctx context.Context, post func() error) error {
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return cerr.Wrap(cerr.ExitInterrupted, ctx.Err(), "interrupted")
+			return cerr.FromContext(ctx)
 		case <-timer.C:
 		}
 		if !time.Now().Before(deadline) {
