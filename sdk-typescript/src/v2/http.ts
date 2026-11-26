@@ -2293,12 +2293,13 @@ export function lifecycleBody(
 /**
  * Reject lifecycle actions the sandbox class and persistence forbid.
  *
- * `delete` is legal everywhere; `stop` requires persistence, except on GPU.
+ * `delete` is legal everywhere; `stop` requires persistence and is unavailable on GPU.
  * `pause` requires a persistent Linux sandbox.
+ * Unknown persistence defers only the persistence requirement to the API.
  */
 export function assertLifecycleClassSupport(
   lifecyclePolicy: LifecyclePolicyOptions | undefined,
-  options: { sandboxClass: string; persistent: boolean; action?: string },
+  options: { sandboxClass: string; persistent: boolean | undefined; action?: string },
 ): void {
   if (!lifecyclePolicy) return
   const { sandboxClass, persistent, action = 'create' } = options
@@ -2308,19 +2309,19 @@ export function assertLifecycleClassSupport(
     if (typeof value === 'string' && !lifecycleActionAllowed(value, sandboxClass, persistent)) offending.push(`lifecyclePolicy.${field}=${value}`)
   }
   if (offending.length === 0) return
-  const label = sandboxClass === 'macos' && !persistent ? 'macos ephemeral' : sandboxClass
+  const label = sandboxClass === 'macos' && persistent === false ? 'macos ephemeral' : sandboxClass
   throw createDaytonaError(`${label} ${action} does not accept: ${offending.join(', ')}`, 400, 'BAD_REQUEST', 'SDK')
 }
 
 /** Whether a lifecycle policy can use this action. */
-function lifecycleActionAllowed(action: string, sandboxClass: string, persistent: boolean): boolean {
+function lifecycleActionAllowed(action: string, sandboxClass: string, persistent: boolean | undefined): boolean {
   switch (action) {
     case 'delete':
       return true
     case 'stop':
-      return persistent && sandboxClass !== 'gpu'
+      return persistent !== false && sandboxClass !== 'gpu'
     case 'pause':
-      return persistent && sandboxClass === 'linux'
+      return persistent !== false && sandboxClass === 'linux'
     default:
       // Unknown values never reach here — lifecycleBody rejects them.
       return true

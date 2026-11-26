@@ -770,6 +770,8 @@ export class Sandbox {
    * Stop the sandbox and wait until it is stopped. While it is stopped, toolbox
    * calls (process, files, git, …) and its preview URLs answer
    * `SandboxNotRunningError` (409, `SANDBOX_NOT_RUNNING`); `start()` it first.
+   * Stop requires persistence and is unavailable on GPU. Disk survives
+   * stop/start; memory and running processes do not. The API decides support.
    */
   public async stop(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -834,6 +836,10 @@ export class Sandbox {
    * Like `create()`, the wait returns the handle when its budget expires or
    * the fork fails: even the default 60 seconds may return a not-yet-started
    * handle. Check the returned handle's `state`.
+   *
+   * While the source is still starting, stopping or pausing, submission retries
+   * `SANDBOX_TRANSITION_IN_PROGRESS` (409) for up to 30 seconds. Other conflicts
+   * are raised immediately; the readiness budget starts after acceptance.
    */
   public async fork(options: ForkOptions = {}): Promise<Sandbox> {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
@@ -1054,9 +1060,9 @@ export class Sandbox {
     const needsPersistence = options.onTimeout === 'stop' || options.onTimeout === 'pause' ||
       options.onIdleTimeout === 'stop' || options.onIdleTimeout === 'pause'
     if (this.sandboxClass === undefined ||
-      ((this.sandboxClass === 'macos' || needsPersistence) && this.persistent === undefined)) await this.refreshData()
+      (needsPersistence && this.persistent === undefined)) await this.refreshData()
     const sandboxClass = this.rawSandboxClass ?? this.sandboxClass
-    if (this.persistent !== undefined && sandboxClass !== undefined) {
+    if (sandboxClass !== undefined) {
       assertLifecycleClassSupport(options, {
         sandboxClass,
         persistent: this.persistent,
@@ -1149,6 +1155,9 @@ export class Sandbox {
    * stopped; the capture answers `DISK_NOT_READY` while its disk is not ready
    * yet (retry later). The credential needs `write:sandboxes` in addition to
    * `write:images`; without it the capture throws `ForbiddenError` (403).
+   * While the sandbox is still starting (Linux, Windows) or stopping (macOS),
+   * submission retries `SANDBOX_TRANSITION_IN_PROGRESS` (409) for up to
+   * 30 seconds; other conflicts are raised immediately.
    */
   public async captureImage(options: CaptureImageOptions = {}): Promise<Image> {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)
@@ -1169,6 +1178,9 @@ export class Sandbox {
    * (`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).
+   * While the sandbox is still starting, submission retries
+   * `SANDBOX_TRANSITION_IN_PROGRESS` (409) for up to 30 seconds;
+   * other conflicts are raised immediately.
    */
   public async createSnapshot(name: string): Promise<Snapshot> {
     const snapshotName: unknown = name

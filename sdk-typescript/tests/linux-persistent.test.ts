@@ -89,13 +89,13 @@ it.each(['create', 'createFromBuild'] as const)('%s rejects a non-boolean persis
   // Given an invalid JavaScript value,
   const api = await startFakeApi([])
   const client = clientAt(api.url)
-  const options: CreateSandboxOptions = { waitSeconds: 0 }
+  const options: CreateSandboxOptions = { waitSeconds: 0, lifecyclePolicy: { onTimeout: 'pause' } }
   Reflect.set(options, 'persistent', 'yes')
   try {
     // When invoking the create route, then it fails before a billed request.
     const result = method === 'create' ? client.v2.create(options)
       : client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), options)
-    await expect(result).rejects.toBeInstanceOf(BadRequestError)
+    await expect(result).rejects.toThrow('persistent must be a boolean')
     expect(api.requests).toEqual([])
   } finally {
     await client.close()
@@ -135,13 +135,13 @@ it.each(['stop', 'pause'] as const)('lets the API validate inherited snapshot pe
 
 const CLASSES = ['linux', 'macos', 'gpu', 'future'] as const
 const ACTIONS: readonly LifecycleAction[] = ['delete', 'stop', 'pause']
-it.each(CLASSES.flatMap((sandboxClass) => [true, false].flatMap((persistent) =>
+it.each(CLASSES.flatMap((sandboxClass) => [true, false, undefined].flatMap((persistent) =>
   ACTIONS.map((action) => ({ sandboxClass, persistent, action })),
 )))('validates $action on $sandboxClass persistent=$persistent', ({ sandboxClass, persistent, action }) => {
   // Given each class/persistence combination, when validating an action,
   const validate = () => assertLifecycleClassSupport({ onTimeout: action }, { sandboxClass, persistent })
   // Then only the policy matrix is accepted.
-  const allowed = action === 'delete' || (persistent && (action === 'stop' ? sandboxClass !== 'gpu' : sandboxClass === 'linux'))
+  const allowed = action === 'delete' || (persistent !== false && (action === 'stop' ? sandboxClass !== 'gpu' : sandboxClass === 'linux'))
   if (allowed) expect(validate).not.toThrow()
   else expect(validate).toThrow(BadRequestError)
 })
@@ -153,7 +153,7 @@ it('sends a delete policy for an unknown sandbox class without guessing Linux', 
   try {
     // When setting a class-independent action, then it reaches the API.
     await expect(sandbox.updateLifecyclePolicy({ onTimeout: 'delete' })).resolves.toMatchObject({ onTimeout: 'delete' })
-    expect(api.requests.map((request) => request.method)).toEqual(['PATCH'])
+    expect(jsonBody(sentRequest(api, 1))).toEqual({ on_timeout: 'delete' })
   } finally {
     await api.close()
   }
@@ -175,6 +175,7 @@ it.each([
     // When updating, then a true or still unknown persistence never becomes false.
     await expect(sandbox.updateLifecyclePolicy({ onTimeout: 'pause' })).resolves.toMatchObject({ onTimeout: 'pause' })
     expect(api.requests.map((request) => request.method)).toEqual(['GET', 'PATCH'])
+    expect(jsonBody(sentRequest(api, 2, 1))).toEqual({ on_timeout: 'pause' })
   } finally {
     await api.close()
   }
@@ -188,6 +189,26 @@ it('rejects automatic pause when a metadata read proves Linux persistence is fal
   try {
     // When updating, then authoritative false is refused before PATCH.
     await expect(sandbox.updateLifecyclePolicy({ onTimeout: 'pause' })).rejects.toBeInstanceOf(BadRequestError)
+    expect(api.requests.map((request) => request.method)).toEqual(['GET'])
+  } finally {
+    await api.close()
+  }
+})
+
+it.each([
+  ['gpu', 'stop'],
+  ['gpu', 'pause'],
+  ['macos', 'pause'],
+  ['future', 'pause'],
+] as const)('rejects %s %s even when a metadata read omits persistence', async (sandboxClass, onTimeout) => {
+  // Given a known class whose detail still omits persistence,
+  const detail = { id: 'src', class: sandboxClass, status: 'running', name: 'src', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }
+  const api = await startFakeApi([{ status: 200, body: detail }])
+  const sandbox = createSandbox(detail, createHttpClient(api.url, 'key'))
+  try {
+    // When requesting an action forbidden by class alone,
+    await expect(sandbox.updateLifecyclePolicy({ onTimeout })).rejects.toBeInstanceOf(BadRequestError)
+    // Then the metadata read is not followed by a PATCH.
     expect(api.requests.map((request) => request.method)).toEqual(['GET'])
   } finally {
     await api.close()
