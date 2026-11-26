@@ -415,6 +415,9 @@ never prompts:
   `--created-end-at`, `--updated-start-at` / `--updated-end-at`, and
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
   inclusive; end bounds are exclusive. Values are RFC3339 timestamps.
+- Sandbox search accepts `--persistent` to select persistent sandboxes and
+  `--persistent=false` to select ephemeral sandboxes; omitting the flag leaves
+  both kinds.
 - Sandbox search accepts repeatable `--label KEY=VALUE`, merged with
   `--labels '{"key":"value"}'`; conflicting values across the two flags,
   or an empty label key, are a usage error (exit 2). `--region` is checked against the region
