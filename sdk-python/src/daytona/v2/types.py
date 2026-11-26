@@ -299,8 +299,9 @@ class LifecyclePolicyOptions(TypedDict, total=False):
     only; :meth:`daytona.v2.Sandbox.update_lifecycle_policy` never consults them.
 
     Settings unavailable for the sandbox's class and persistence are rejected before
-    sending the request. Linux supports ``delete``; persistent macOS sandboxes
-    also support ``stop``. Pause macOS explicitly with :meth:`daytona.v2.Sandbox.pause`.
+    sending the request. ``delete`` is available everywhere; ``stop`` requires
+    persistence and is unavailable on GPU sandboxes. ``pause`` requires a
+    persistent Linux sandbox. Pause macOS explicitly with :meth:`daytona.v2.Sandbox.pause`.
     """
 
     timeout_seconds: int

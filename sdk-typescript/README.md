@@ -1106,6 +1106,9 @@ a paused or stopped source waits for `stopped`, within the same wait budget.
 `SANDBOX_TRANSITION_IN_PROGRESS` conflicts for up to 30 seconds from their
 first submission attempt. Delays use `retryAfterSeconds`, clamped to 1–5
 seconds. Other conflicts are not retried, and expiry throws the last conflict.
+This applies to a fork's source still starting, stopping or pausing; image capture
+still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
+still starting.
 Fork's readiness wait budget starts after acceptance, independently of retries.
 
 `await sandbox.delete()` and `await daytona.v2.delete(sandbox)` wait until the

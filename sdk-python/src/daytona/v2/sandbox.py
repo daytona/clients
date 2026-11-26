@@ -1354,7 +1354,7 @@ class AsyncSandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
-        sandboxes can stop (persistent Linux and macOS sandboxes) is the API's
+        sandboxes can stop (persistent non-GPU sandboxes, including macOS) is the API's
         decision; a refusal surfaces as its typed error. While it is stopped,
         toolbox calls (process, files, git, …) and its preview URLs answer
         :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
@@ -1402,7 +1402,7 @@ class AsyncSandbox:
         """Fork this sandbox and return the fork's handle.
 
         Sandboxes with attached volumes cannot fork.
-        While the source is starting, stopping or pausing, the API may report
+        While the source is still starting, stopping or pausing, the API may report
         ``SANDBOX_TRANSITION_IN_PROGRESS``. This submission retries that code
         for up to 30 seconds; other conflicts are raised immediately.
         By default the fork continues from the source's memory (running
@@ -1738,7 +1738,7 @@ class AsyncSandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
-        While a sandbox is starting or stopping, this submission
+        While a sandbox is still starting (Linux, Windows) or stopping (macOS), this submission
         retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
         other conflicts are raised immediately.
         The credential needs ``write:sandboxes`` in addition to ``write:images``;
@@ -1773,7 +1773,7 @@ class AsyncSandbox:
         """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
         (``POST /sandboxes/{id}/snapshots``).
 
-        While the sandbox is transitioning (starting/stopping), this submission
+        While the sandbox is still starting, this submission
         retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
         other conflicts are raised immediately.
 

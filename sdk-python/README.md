@@ -1167,6 +1167,9 @@ a paused or stopped source waits for `stopped`, within the same wait budget.
 
 `fork()`, `capture_image()` and `create_snapshot()` retry only
 `SANDBOX_TRANSITION_IN_PROGRESS`, for up to 30 seconds from their first submission.
+This applies to a fork's source still starting, stopping or pausing; image capture
+still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
+still starting.
 The server's `retry_after_seconds` hint is clamped to 1–5 seconds (1 when absent).
 On expiry the last error is raised unchanged. Other conflicts are not retried;
 fork's readiness budget starts after submission succeeds.
