@@ -1,0 +1,27 @@
+cli/gen/api/types.gen.go
+  s_9f5179767e23c5::t_b66d585485d334 5991-5998,8113,8269
+contract/api-openapi.json
+  s_9f5179767e23c5::t_7c37339762b008 8648-8658,30590,31946
+contract/sandbox-events-protocol.json
+  s_9f5179767e23c5::t_2c6d6c644a7d1b 54,61-62,64
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_9f5179767e23c5::t_f6f97f119f6ca3 25,82,89,148-150,176-180,203
+sdk-typescript/src/v2/gen/api.ts
+  s_9f5179767e23c5::t_92e786e80f7684 6842-6850,19659,20348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92683968fe4fa2db2397ae1974713b90a1b0e14e",
+  "prompts": {},
+  "sessions": {
+    "s_9f5179767e23c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0c0c34b2ffeZhmepWHNxNSdfx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+sdk-typescript/tests/search-first-lists.test.ts
+  s_57322031358fb0::t_0e784f161c20e7 191-199
+  s_57322031358fb0::t_19d1c53f0e3f0f 247-250
+  s_57322031358fb0::t_98e7c5022a3a10 151-190
+  s_57322031358fb0::t_81b77e79d2a889 242,245
+sdk-typescript/src/v2/resourceSearch.ts
+  s_57322031358fb0::t_81373830f884d6 32-34
+  s_57322031358fb0::t_1fbae512e114d3 15-25
+  s_57322031358fb0::t_c359be306a84af 26,28-31,49
+  s_57322031358fb0::t_1f1f87574cea17 27
+sdk-typescript/src/v2/Secret.ts
+  s_57322031358fb0::t_c359be306a84af 122-123
+  s_57322031358fb0::t_1fbae512e114d3 67-73
+  s_57322031358fb0::t_81373830f884d6 32,121
+  s_57322031358fb0::t_19d1c53f0e3f0f 191
+sdk-typescript/src/v2/Volume.ts
+  s_57322031358fb0::t_c359be306a84af 142-147,149-150
+  s_57322031358fb0::t_1fbae512e114d3 69-75
+  s_57322031358fb0::t_19d1c53f0e3f0f 225
+  s_57322031358fb0::t_81373830f884d6 24,141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "161dae8f05ba292ae27b50bb6469172192063c92",
+  "prompts": {},
+  "sessions": {
+    "s_57322031358fb0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0ad0d113ffet9qo3KTg2BjFMb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
