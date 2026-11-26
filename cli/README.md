@@ -131,8 +131,10 @@ attached volumes prevent pause and fork (409). A fork inherits persistence;
 `create-from-snapshot` inherits it from the snapshot's source and has no
 `--persistent` override.
 
-`sandbox fork`, `image capture` and `snapshot create` retry a sandbox still
-starting or stopping for up to 30 seconds before the POST is accepted.
+`sandbox fork` retries a sandbox still starting, stopping or pausing.
+`image capture` retries a Linux or Windows sandbox still starting, or a macOS
+sandbox still stopping. `snapshot create` retries a sandbox still starting.
+These submissions retry for up to 30 seconds before the POST is accepted.
 Only `SANDBOX_TRANSITION_IN_PROGRESS` is retried, not other conflicts.
 The normal readiness wait starts after acceptance.
 
@@ -529,8 +531,9 @@ whole seconds where the API stores seconds:
 
 Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` on a
 persistent non-GPU sandbox, and `pause` on a persistent Linux sandbox.
-A known unsupported action is a usage error before any write; a snapshot
-create leaves its inherited persistence for the server to check.
+A known unsupported action is a usage error before any write;
+`sandbox create-from-snapshot` checks action names locally but leaves its
+inherited persistence for the server to check.
 While a sandbox is stopped, commands that work inside it
 (`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409
 `SANDBOX_NOT_RUNNING` (exit code `6`, with a hint to start it), not 404.

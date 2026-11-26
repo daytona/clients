@@ -42,7 +42,7 @@ func newSnapshotCreateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <sandbox>",
 		Short: "Create a snapshot",
-		Long:  "Create a Linux memory snapshot with memory and disk. For disk-only capture, use `daytona image capture`.\nA sandbox still starting or stopping is retried for up to 30 seconds before the snapshot is accepted.\nRequires write:snapshots and write:sandboxes.\nExamples:\n  daytona snapshot create <sandbox> --name before-upgrade",
+		Long:  "Create a Linux memory snapshot with memory and disk. For disk-only capture, use `daytona image capture`.\nA sandbox still starting is retried for up to 30 seconds before the snapshot is accepted.\nRequires write:snapshots and write:sandboxes.\nExamples:\n  daytona snapshot create <sandbox> --name before-upgrade",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
