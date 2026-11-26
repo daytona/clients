@@ -277,6 +277,12 @@ func TestSandboxUpdate_lifecycleActionMatrix(t *testing.T) {
 		{"ephemeral macos stop", "macos", "stop", false, false},
 		{"persistent macos stop", "macos", "stop", true, true},
 		{"persistent macos pause", "macos", "pause", true, false},
+		{"ephemeral gpu delete", "gpu", "delete", false, true},
+		{"persistent gpu delete", "gpu", "delete", true, true},
+		{"ephemeral gpu stop", "gpu", "stop", false, false},
+		{"persistent gpu stop", "gpu", "stop", true, false},
+		{"ephemeral gpu pause", "gpu", "pause", false, false},
+		{"persistent gpu pause", "gpu", "pause", true, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

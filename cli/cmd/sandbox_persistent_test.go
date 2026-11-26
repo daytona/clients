@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/stretchr/testify/require"
 )
@@ -82,24 +81,5 @@ func TestSandboxCreateFromSnapshot_defersLifecycleSupport_whenPersistenceInherit
 			// Then
 			require.NoError(t, err)
 		})
-	}
-}
-
-func TestLifecycleActions_followPersistenceAndClass(t *testing.T) {
-	for _, class := range []string{"linux", "macos", "gpu"} {
-		for _, persistent := range []bool{true, false} {
-			for _, action := range []gen.LifecycleAction{"delete", "stop", "pause"} {
-				// Given
-				allowed := action == "delete" || persistent && (action == "stop" && class != "gpu" || action == "pause" && class == "linux")
-				// When
-				err := validateLifecycleActions(class, persistent, gen.UpdateSandboxLifecyclePolicyRequest{OnTimeout: &action})
-				// Then
-				if allowed {
-					require.NoError(t, err, "%s persistent=%t %s", class, persistent, action)
-				} else {
-					require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%s persistent=%t %s", class, persistent, action)
-				}
-			}
-		}
 	}
 }
