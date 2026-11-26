@@ -417,6 +417,34 @@ async def test_volume_search_invalid_type_uses_the_shared_sdk_wording() -> None:
     assert str(error) == "types entries must be one of disk, bucket"
 
 
+@pytest.mark.parametrize(
+    ("field", "call"),
+    [
+        ("secrets", lambda v2: v2.secrets.search()),
+        ("volumes", lambda v2: v2.volumes.search()),
+    ],
+)
+async def test_a_malformed_search_item_is_a_bad_request_naming_the_field(field: str, call: Call) -> None:
+    body = {field: [{"name": 7}], "total": 1, "total_relation": "eq"}
+    error, _ = await _run([PlannedResponse(200, body)], call)
+    assert isinstance(error, BadRequestError)
+
+
+async def test_search_items_need_no_cursor() -> None:
+    secret = {key: value for key, value in _SECRET.items() if key != "cursor"}
+    volume = {key: value for key, value in _VOLUME.items() if key != "cursor"}
+    secrets, _ = await _run(
+        [PlannedResponse(200, {"secrets": [secret], "total": 1, "total_relation": "eq"})],
+        lambda v2: v2.secrets.search(),
+    )
+    volumes, _ = await _run(
+        [PlannedResponse(200, {"volumes": [volume], "total": 1, "total_relation": "eq"})],
+        lambda v2: v2.volumes.search(),
+    )
+    assert secrets.items[0].name == secret["name"]
+    assert volumes.items[0].id == volume["id"]
+
+
 @pytest.mark.parametrize("name", ["secrets", "volumes"])
 async def test_a_200_non_page_from_an_older_item_route_falls_back(name: str) -> None:
     case = _CASES[name]

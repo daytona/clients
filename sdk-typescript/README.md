@@ -508,8 +508,8 @@ chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
 accepts an ID only and turns off the name lookup.
 
 `daytona.v2.volumes.search(options)` filters with `q`, `name`, and
-`namePrefix`; `types` accepts `'disk'`, `'bucket'`, or an array (sent as a
-comma list), and `statuses` accepts `'ready'`, `'deleting'`, `'error'`, or an
+`namePrefix`; `types` accepts `'disk'`, `'bucket'`, or an array of them (any
+match), and `statuses` accepts `'ready'`, `'deleting'`, `'error'`, or an
 array. `imported` filters imported volumes. Created, updated, and last-used
 bounds use `*StartAt` (inclusive) and `*EndAt` (exclusive). Use `sort`
 (`created_at`, `updated_at`, `name`, `used_bytes`, `last_used_at`, or `size_gib`), `order`,

@@ -536,7 +536,7 @@ disables name fallback. Deletion returns when the API accepts the request,
 not when deletion finishes.
 
 `d.v2.volumes.search(...)` filters with `q`, `name`, and `name_prefix`;
-`types` accepts `"disk"`, `"bucket"`, or a sequence (sent as a comma list),
+`types` accepts `"disk"`, `"bucket"`, or a sequence of them (any match),
 and `statuses` accepts `"ready"`, `"deleting"`, `"error"`, or a sequence.
 `imported` filters imported volumes. Created, updated, and last-used bounds use
 `*_start_at` (inclusive) and `*_end_at` (exclusive). Use `sort`

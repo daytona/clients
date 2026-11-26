@@ -61,8 +61,7 @@ from ._core import (
 )
 from ._gen.api import MacReservation as MacReservationWire
 from ._gen.api import MacReservationBatch as MacReservationBatchWire
-from ._gen.api import ReservationPage, SecretSearchListItem, VolumeSearchListItem
-from ._gen.api import Secret as SecretWire
+from ._gen.api import ReservationPage
 from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
 from ._image_context import prepared_context
@@ -874,10 +873,10 @@ class AsyncVolumesService:
                 params[wire_name] = search_timestamp(value)
         response = await self._transport.send(RequestSpec("GET", "/volumes/search", params=params))
         items, next_cursor, total, relation, raw_relation = parse_search_page(
-            response, VolumeSearchListItem.model_validate, "volumes"
+            response, expect_volume, "volumes"
         )
         return SearchResult(
-            items=[_volume(VolumeWire.model_validate(item)) for item in items],
+            items=[_volume(expect_volume(item)) for item in items],
             next_cursor=next_cursor,
             total=total,
             total_relation=relation,
@@ -1351,10 +1350,10 @@ class AsyncSecretsService:
             params["allowed_domain"] = optional_query_text(allowed_domain, "allowed_domain")
         response = await self._transport.send(RequestSpec("GET", "/secrets/search", params=params))
         items, next_cursor, total, relation, raw_relation = parse_search_page(
-            response, SecretSearchListItem.model_validate, "secrets"
+            response, expect_secret, "secrets"
         )
         return SearchResult(
-            items=[secret_from_wire(SecretWire.model_validate(item)) for item in items],
+            items=[expect_secret(item) for item in items],
             next_cursor=next_cursor,
             total=total,
             total_relation=relation,
