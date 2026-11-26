@@ -43,7 +43,7 @@ type CreateOptions struct {
 	Spot *bool
 	// Persistent preserves disk across Stop/Start and enables Pause/Resume,
 	// which also preserve memory and processes. Nil uses the default false.
-	// Linux Stop, Start, Restart, Pause, Resume and Fork require persistence.
+	// Linux Stop, Start, Pause, Resume and Fork require persistence.
 	// Volumes are accepted, but attached volumes prevent Pause and Fork.
 	// Persistent Linux defaults to pausing after a 300-second lifetime.
 	Persistent *bool
