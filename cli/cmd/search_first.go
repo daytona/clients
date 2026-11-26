@@ -67,7 +67,7 @@ func searchPage[T any](ctx context.Context, probe *searchProbe, c *api.Client, s
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return output.List[api.Raw[T]]{}, true, fmt.Errorf("decode GET %s response: %w", searchPath, err)
 	}
-	if _, ok := envelope[field]; !ok && itemFallback {
+	if items, ok := envelope[field]; itemFallback && (!ok || !isJSONArray(items)) {
 		if probe != nil {
 			probe.notServed = true
 		}
@@ -96,6 +96,11 @@ func getRawSearchOrListPage[T any](ctx context.Context, probe *searchProbe, c *a
 		return page, listErr
 	}
 	return page, err
+}
+
+func isJSONArray(raw json.RawMessage) bool {
+	var items []json.RawMessage
+	return json.Unmarshal(raw, &items) == nil && items != nil
 }
 
 func listRetired(err error) bool {

@@ -101,7 +101,7 @@ def probe_search(label: str, run: Callable[[], bool]) -> None:
     try:
         check(label, run())
     except DaytonaError as error:
-        if error.status_code == 403 and "permission" in str(error):
+        if error.status_code == 403 and (error.code == "FORBIDDEN" or "permission" in str(error)):
             skip(label, f"not available to this API key: {error}")
         else:
             raise

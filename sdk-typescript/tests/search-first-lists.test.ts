@@ -195,7 +195,8 @@ describe('secret and volume search', () => {
       return { items: [] }
     })
     expect(result.paths).toEqual([])
-    expect(result.error).toMatchObject({ message: 'types entries must be one of disk, bucket' })
+    expect(result.error).toBeInstanceOf(BadRequestError)
+    expect(result.error).toMatchObject({ message: 'types entries must be one of disk, bucket', statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   })
 })
 

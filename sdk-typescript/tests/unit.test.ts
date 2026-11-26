@@ -8698,7 +8698,7 @@ describe('toolbox service request shaping', () => {
     const api = clientInstance(client)
     const volumes = client.volumes
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { volumes: [{ id: 'vol 1', name: 'listed', type: 'disk', size_gib: 4, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true }] } })
+      .mockResolvedValueOnce({ data: { volumes: [{ id: 'vol 1', name: 'listed', type: 'disk', size_gib: 4, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true, cursor: 'c1' }], total: 1, total_relation: 'eq' } })
       .mockResolvedValueOnce({ data: { id: 'vol 1', name: 'fetched', type: 'disk', size_gib: 8, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true } })
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'vol 2', name: 'created', type: 'disk', size_gib: 16, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true } })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
@@ -8740,7 +8740,7 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }] } })
+      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', cursor: 'c1' }], total: 1, total_relation: 'eq' } })
       .mockResolvedValueOnce({ data: { name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { name: 'API/TOKEN', allowed_domains: ['*.example.com'], description: 'desc', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })

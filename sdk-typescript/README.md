@@ -466,8 +466,9 @@ through `updateEnv()`, not image-defined environment variables.
 ### Secret search
 
 `daytona.v2.secrets.search(options)` searches secret metadata (never values).
-Filter with `q`, `name`, `namePrefix`, or `allowedDomain`; bound `createdAt`
-and `updatedAt` with `*StartAt` (inclusive) and `*EndAt` (exclusive). Use
+Filter with `q`, `name`, `namePrefix`, or `allowedDomain`; bound creation and
+update times with `createdStartAt` / `updatedStartAt` (inclusive) and
+`createdEndAt` / `updatedEndAt` (exclusive). Use
 `sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
 for ordering and paging. The returned `SearchResult` includes `total` and
 `totalRelation` (`'eq'` for an exact count, `'gte'` for a lower bound).

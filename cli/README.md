@@ -374,7 +374,9 @@ never prompts:
   eventually consistent, so an item just created may
   be missing (`get` reads it at once). Where search is not served (`501
   SEARCH_NOT_CONFIGURED`, or `404` from an older API) all five fall back to
-  their list endpoints: `snapshot list` reads `GET /snapshots`, and
+  their list endpoints; `secret list` and `volume list` also fall back when an
+  older API answers their search path with the secret or volume named
+  `search` instead of a page: `snapshot list` reads `GET /snapshots`, and
   `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
   unless `--region` narrows them. With `--region R` they ask every API that

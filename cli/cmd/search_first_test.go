@@ -149,14 +149,14 @@ func TestSecretAndVolumeLists_searchFirstFallbacks(t *testing.T) {
 		})
 		t.Run(tc.name+" 404 fallback", func(t *testing.T) {
 			_, _, err := runCLI(t, []string{tc.name, "list"}, []expectedRequest{
-				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusNotFound, response: `{"code":"NOT_FOUND","message":"not found","source":"DAYTONA_API"}`, skipContract: true},
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusNotFound, response: `{"code":"NOT_FOUND","message":"not found","source":"DAYTONA_API"}`, skipResponseContract: true},
 				{method: http.MethodGet, path: "/" + tc.field, query: "limit=100", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `]}`},
 			})
 			require.NoError(t, err)
 		})
 		t.Run(tc.name+" old item fallback", func(t *testing.T) {
 			_, _, err := runCLI(t, []string{tc.name, "list"}, []expectedRequest{
-				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusOK, response: tc.item, skipContract: true},
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusOK, response: tc.item, skipResponseContract: true},
 				{method: http.MethodGet, path: "/" + tc.field, query: "limit=100", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `]}`},
 			})
 			require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestSandboxList_aSearchAnswerThatIsNotAPageDoesNotFallBack(t *testing.T) {
 	// Given a search route that answers a 200 without the sandboxes field.
 	// When
 	_, _, err := runCLI(t, []string{"sandbox", "list"}, []expectedRequest{
-		{method: http.MethodGet, path: "/sandboxes/search", query: "limit=100", status: http.StatusOK, response: `{"id":"x"}`, skipContract: true},
+		{method: http.MethodGet, path: "/sandboxes/search", query: "limit=100", status: http.StatusOK, response: `{"id":"x"}`, skipResponseContract: true},
 	})
 	// Then: only secret and volume lists treat such a body as "search not
 	// served"; the sandbox list reads no list route.
@@ -212,4 +212,18 @@ func TestSecretAndVolume_searchNameIsRefusedBeforeARequest(t *testing.T) {
 		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 		require.Contains(t, err.Error(), "reserved for the search route")
 	}
+}
+
+func TestSecretAndVolume_anUppercaseSearchNameIsSent(t *testing.T) {
+	// Given secrets and volumes named SEARCH: only the exact lowercase name is reserved.
+	secret := `{"name":"SEARCH","allowed_domains":["example.com"],"created_at":"2026-09-01T00:00:00Z","updated_at":"2026-09-01T00:00:00Z"}`
+	// When / Then: each command reaches its item route.
+	_, _, err := runCLI(t, []string{"secret", "get", "SEARCH"}, []expectedRequest{
+		{method: http.MethodGet, path: "/secrets/SEARCH", status: http.StatusOK, response: secret},
+	})
+	require.NoError(t, err)
+	_, _, err = runCLI(t, []string{"volume", "get", "SEARCH"}, []expectedRequest{
+		{method: http.MethodGet, path: "/volumes/SEARCH", status: http.StatusOK, response: diskVolumeSearchFixture("vol_1")},
+	})
+	require.NoError(t, err)
 }

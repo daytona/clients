@@ -515,8 +515,9 @@ through `update_env()`, not image-level environment entries.
 ### Secret search
 
 `d.v2.secrets.search(...)` searches secret metadata (never values). Filter with
-`q`, `name`, `name_prefix`, or `allowed_domain`; bound `created_at` and
-`updated_at` with `*_start_at` (inclusive) and `*_end_at` (exclusive). Use
+`q`, `name`, `name_prefix`, or `allowed_domain`; bound creation and update
+times with `created_start_at` / `updated_start_at` (inclusive) and
+`created_end_at` / `updated_end_at` (exclusive). Use
 `sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
 for ordering and paging. The returned `SearchResult` includes `total` and
 `total_relation` (`"eq"` for an exact count, `"gte"` for a lower bound).

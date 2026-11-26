@@ -2382,8 +2382,9 @@ def parse_search_page(
 ) -> Tuple[List[JsonObject], Optional[str], int, SearchTotalRelation, str]:
     """Split a search response into items, cursor, total, and relation.
 
-    The search contract is an object with a ``sandboxes`` array of sandbox
-    objects (each checked by ``check_item``, as a detail is), a
+    The search contract is an object with an ``item_field`` array (``sandboxes``
+    by default, or ``secrets`` / ``volumes``) of objects, each checked by
+    ``check_item`` as a detail is, a
     non-negative integer ``total``, a string ``total_relation`` and a string or null
     ``next_cursor``. Anything else is the SDK's own :class:`BadRequestError`
     naming the field, never an empty or truncated page — an ``items`` array is

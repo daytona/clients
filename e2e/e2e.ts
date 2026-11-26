@@ -41,7 +41,7 @@ async function probeSearch(label: string, run: () => Promise<boolean>): Promise<
   try {
     check(label, await run())
   } catch (error) {
-    if (!(error instanceof DaytonaError && error.statusCode === 403 && error.message.includes('permission'))) throw error
+    if (!(error instanceof DaytonaError && error.statusCode === 403 && (error.code === 'FORBIDDEN' || error.message.includes('permission')))) throw error
     skipped++
     console.log(`SKIP ${label} (not available to this API key: ${error.message})`)
   }
