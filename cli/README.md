@@ -123,9 +123,10 @@ daytona sandbox delete <id>
 ### Persistent Linux sandboxes
 
 `sandbox create --persistent` keeps disk across stop/start and memory plus
-running processes across pause/resume. Linux stop, start, restart, pause,
+running processes across pause/resume. Linux stop, start, pause,
 resume and fork require persistence; an ephemeral sandbox can only be deleted.
-Without a lifecycle policy, persistent Linux sandboxes pause after 300 seconds
+When neither a per-create policy nor a project lifecycle default overrides it,
+persistent Linux sandboxes pause after 300 seconds
 instead of being deleted. Persistent Linux creation accepts volumes, but
 attached volumes prevent pause and fork (409). A fork inherits persistence;
 `create-from-snapshot` inherits it from the snapshot's source and has no
@@ -135,6 +136,7 @@ attached volumes prevent pause and fork (409). A fork inherits persistence;
 `image capture` retries a Linux or Windows sandbox still starting, or a macOS
 sandbox still stopping. `snapshot create` retries a sandbox still starting.
 These submissions retry for up to 30 seconds before the POST is accepted.
+This window limits new retries; an admitted POST keeps its normal request timeout.
 Only `SANDBOX_TRANSITION_IN_PROGRESS` is retried, not other conflicts.
 The normal readiness wait starts after acceptance.
 
