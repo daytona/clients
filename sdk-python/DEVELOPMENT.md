@@ -158,9 +158,12 @@ sandbox. A raised create or fork means the request itself failed, except for
 carry the idempotency key because a sandbox may exist), caller cancellation,
 and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
-response (id, status, `forked_from`, class) and no wait follows. Once a
-lifecycle wait has observed its target, a failed metadata refresh is
-suppressed; a successful one decides too (a target returns, `destroyed` or
+response (id, status, `forked_from`, class) and no wait follows. A target
+state the events hub reports ends the wait with no read (`_observe_outcome`
+takes the frame's state and error message); only a macOS `start()` /
+`resume()` passes `read_after_target=True` to `_wait_for_state` for the boot
+mode and the reservation. Once that wait has observed its target, a failed
+read is suppressed; a successful one decides too (a target returns, `destroyed` or
 `error` raises, and `destroying` too unless the wait targets `destroyed`; any
 other state polls on under the same deadline). An operation's own failure
 state (`started` for a pause, `stopped` / `paused` for a joined start) is also

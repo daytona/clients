@@ -428,8 +428,8 @@ make asynchronous callback work cancellation-aware when needed.
   A handle from `create*()` holds only what the create response carries (id,
   name, state, image, reservation and, when reported, the lifecycle policy)
   plus what the request fixed (`sandboxClass`, `region`, an `img_` / `snap_`
-  id you passed) until something reads the sandbox, and a sandbox that is already started when the create
-  answers (the usual case) is not read: call `refreshData()` before reading
+  id you passed) until something reads the sandbox, and the create's wait does
+  not read it (it follows the sandbox's state only): call `refreshData()` before reading
   `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
   response does not report. Until then they are `undefined` (unknown). A
   `fork()` handle whose wait did not read the sandbox (`waitSeconds: 0`, or a
@@ -1197,12 +1197,16 @@ that state, the explanation is `error.reason` and ends the error message.
 completion: `stop()` returns at `stopped`, and `delete()` returns at
 `destroyed` (a sandbox disappearing during deletion also means completion).
 Client methods accept a sandbox or its ID and the same options, for example
-`daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. Once the target state
-has been observed, a failed metadata refresh afterwards does not turn that
-success into an error; a refresh that shows another state decides instead
-(a state terminal for that wait throws, any other state keeps the wait going
-under the same budget), so a lifecycle wait that returns leaves the handle in
-a requested state. `start()` on a sandbox that is already `starting`, because
+`daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. A wait that the
+sandbox events stream decides makes no further request: the handle takes the
+reported state and the sandbox's error message (cleared when there is none),
+and its other fields, `lifecyclePolicy` deadlines included, are as of the last
+read (`refreshData()` reloads them). The exception is `start()` / `resume()`
+of a macOS sandbox, which reads the sandbox once more to report the boot mode
+and the reservation; a failed read there does not turn the observed success
+into an error, and a read that shows another state decides instead (a state
+terminal for that wait throws, any other state keeps the wait going under the
+same budget). `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and throws
 `SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
 once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,

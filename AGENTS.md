@@ -1018,18 +1018,24 @@ skipping exist only in the TypeScript tool).
   deadline (long polls when the wait has one target state), which return at
   once if the state was reached. A failed read there keeps the timeout, with
   the read's error as its cause (a server's 408 included), except a 401 /
-  403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
-  target was observed, a failed
-  metadata refresh afterwards does not turn that success into an error; a
-  refresh that succeeds decides too: a target returns, a state terminal for
-  that wait that no lag can show (`destroyed`, `error`, and `destroying`
-  unless the wait targets `destroyed`) raises with the read's reason, and
-  any other state polls on under the same deadline, so a lifecycle wait
-  never returns a handle outside its targets (create and fork still return
-  theirs however the wait ends). An operation's own failure state (`started`
-  for a pause, `stopped` / `paused` for a joined start) is also the state
-  before it, which a lagging plain read shows; on this read and on the read
-  that confirms a terminal state the events hub reports, it is left to the
+  403 and a 404, which are raised (a 404 in a delete is `destroyed`). A
+  target state the events hub reports ends the wait with no read: an events
+  frame carries the state and the error message (the handle takes both; a
+  frame without a message clears it), and nothing else a handle exposes
+  changes on a transition (lifecycle-policy deadlines and the activity clock
+  are as of the last read). The one exception is a macOS `start()` /
+  `resume()` (Python `read_after_target`, TypeScript `readAfterTarget`, Go
+  `sandboxWait.readAfterTarget`), whose boot mode and reservation change and
+  are in no response: one plain read follows the report, within the same
+  budget. Once the target was observed, a failed read there does not turn
+  that success into an error; a read that succeeds decides: a target
+  returns, a state terminal for that wait that no lag can show
+  (`destroyed`, `error`, and `destroying` unless the wait targets
+  `destroyed`) raises with the read's reason, and any other state polls on
+  under the same deadline. An operation's own failure state (`started` for
+  a pause, `stopped` / `paused` for a joined start) is also the state before
+  it, which a lagging plain read shows; on this read and on the read that
+  confirms a terminal state the events hub reports, it is left to the
   long-poll reads that follow. The server holds a loose `wait=paused` on
   `started` and `wait=running` on `paused` for the whole slice, so such a
   failure is reported up to one 30-second slice later; a loose
@@ -1064,8 +1070,9 @@ skipping exist only in the TypeScript tool).
   one way in, in both SDKs. An absent value is `None` in Python and an
   optional `undefined` in TypeScript, never `null` (and never `''`): a
   handle's `state` is always set (`unknown` before a read), and the `labels`
-  of a create or fork handle whose wait read nothing are `None` / `undefined`
-  (unknown, not empty) until a detail read reports them; `to_json()` / `toJSON()` write `labels` whenever
+  of a create handle, or a fork handle whose detail read failed or was
+  skipped (`wait_seconds=0`), are `None` / `undefined` (unknown, not empty)
+  until a detail read reports them (no create wait reads the sandbox); `to_json()` / `toJSON()` write `labels` whenever
   they are known. The handle exposes the
   sandbox-scoped `access_token` / `accessToken` it authenticates with, but
   not its toolbox URL. `to_json()` / `toJSON()` return one
