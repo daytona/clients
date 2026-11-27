@@ -58,7 +58,7 @@ class Image(BaseModel):
     region_id: StrictStr = Field(description="The home region.")
     region_ids: List[StrictStr] = Field(description="Every region where the image is available.")
     retention: ImageRetention
-    source: Optional[ImageSourceValue] = None
+    source: Optional[ImageSourceValue] = Field(default=None, description="The image source.")
     status: StrictStr = Field(description="The build status.")
     updated_at: datetime = Field(description="When the image was last updated.")
     additional_properties: Dict[str, Any] = {}

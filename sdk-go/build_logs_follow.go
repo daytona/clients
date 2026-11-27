@@ -190,6 +190,16 @@ func (f *buildLogFollower) consume(ctx context.Context, decoder *buildLogDecoder
 	}
 }
 
+// buildLogPermanentCodes are catalog codes a 429 / 503 response can carry
+// that name a state a retry cannot change (a limit, or something the
+// deployment does not configure). A response with one of them, or any 501
+// (not implemented), is the caller's answer; every other 429 / 5xx,
+// SERVICE_UNAVAILABLE included, is retried within the reconnect budget.
+var buildLogPermanentCodes = map[string]bool{
+	"LIMIT_EXCEEDED":                  true,
+	"V0_BACKUP_REGISTRY_UNCONFIGURED": true,
+}
+
 func buildLogRetryable(err error) bool {
 	var retry *buildLogRetry
 	if errors.As(err, &retry) {
@@ -197,7 +207,7 @@ func buildLogRetryable(err error) bool {
 	}
 	var sdkError *Error
 	if errors.As(err, &sdkError) && (sdkError.StatusCode == 429 || sdkError.StatusCode >= 500) {
-		return true
+		return sdkError.StatusCode != http.StatusNotImplemented && !buildLogPermanentCodes[sdkError.Code]
 	}
 	return errors.Is(err, ErrConnection) || errors.Is(err, ErrClientTimeout)
 }

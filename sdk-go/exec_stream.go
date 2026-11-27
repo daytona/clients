@@ -10,6 +10,16 @@ import (
 	"time"
 )
 
+// execFollowIdle bounds how long a run's output stream may deliver nothing
+// before it is treated as dropped and resumed from the last event's cursor.
+// A healthy quiet stream costs one reconnect; a silently dropped one no
+// longer holds the run until its timeout.
+var execFollowIdle = 45 * time.Second
+
+// execDeadlineReadBound bounds the process read after a run's timeout, like
+// the read slack of a wait round, so a stalled read cannot stretch the run.
+var execDeadlineReadBound = 5 * time.Second
+
 func (s *Processes) runStreaming(
 	ctx context.Context, body processCreateRequest, options ExecOptions,
 ) (*ProcessResult, error) {
@@ -84,24 +94,61 @@ func (h *ProcessHandle) recoverExec(
 	if readErr != nil {
 		return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), readErr
 	}
+	// A process that ended by the deadline reports how it ended, not timed_out.
+	readCtx, cancel := context.WithTimeout(ctx, execDeadlineReadBound)
+	defer cancel()
+	info, err := h.Get(readCtx)
+	if ctx.Err() != nil {
+		// The caller cancelled during the read: that, not timed_out, is the answer.
+		return processResult(h.id, WaitResult{Reason: ProcessReasonUnknown}, logs), transportError(ctx, ctx.Err())
+	}
+	if err == nil && info.State == ProcessStateTerminal {
+		return processResult(h.id, info.WaitResult, logs), nil
+	}
 	return processResult(h.id, WaitResult{Reason: ProcessReasonTimedOut}, logs), nil
 }
 
+// consume follows the output until EOF, resuming from the last event's cursor
+// whenever the stream goes idle for execFollowIdle.
 func (o ExecOptions) consume(ctx context.Context, handle *ProcessHandle) ([]LogFrame, error) {
 	logs := make([]LogFrame, 0)
-	for frame, err := range handle.Logs(ctx, nil) {
-		if err != nil {
-			return logs, err
+	cursor := ""
+	for {
+		idle := false
+		for event, err := range handle.streamLogs(ctx, &ProcessLogsOptions{Cursor: cursor}, execFollowIdle) {
+			if errors.Is(err, errProcessLogIdle) {
+				idle = true
+				break
+			}
+			if err != nil {
+				return logs, err
+			}
+			if ctx.Err() != nil {
+				return logs, transportError(ctx, ctx.Err())
+			}
+			var frame *LogFrame
+			switch value := event.(type) {
+			case ProcessLogFrameEvent:
+				cursor, frame = value.Cursor, &value.Frame
+			case ProcessLogStateEvent:
+				cursor = value.Cursor
+			case ProcessLogWarningEvent:
+				cursor = value.Cursor
+			case ProcessLogEOFEvent:
+				cursor = value.Cursor
+			}
+			if frame == nil {
+				continue
+			}
+			logs = append(logs, *frame)
+			if err = o.deliver(*frame); err != nil {
+				return logs, err
+			}
 		}
-		if ctx.Err() != nil {
-			return logs, transportError(ctx, ctx.Err())
-		}
-		logs = append(logs, frame)
-		if err = o.deliver(frame); err != nil {
-			return logs, err
+		if !idle {
+			return logs, nil
 		}
 	}
-	return logs, nil
 }
 
 func (o ExecOptions) deliver(frame LogFrame) error {

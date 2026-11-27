@@ -36,7 +36,7 @@ class ComputerUseScreenshotResponse(BaseModel):
     """
     Screenshot response.
     """ # noqa: E501
-    cursor_position: Optional[ComputerUsePoint] = Field(default=None, alias="cursorPosition")
+    cursor_position: Optional[ComputerUsePoint] = Field(default=None, description="Present when the caller asked for the cursor location.", alias="cursorPosition")
     screenshot: StrictStr = Field(description="Base64-encoded PNG or JPEG bytes.")
     size_bytes: Annotated[int, Field(strict=True, ge=0)] = Field(description="Size of the encoded image in bytes.", alias="sizeBytes")
     additional_properties: Dict[str, Any] = {}

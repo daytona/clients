@@ -50,8 +50,8 @@ func searchQuery(options SearchSandboxesOptions) (url.Values, error) {
 		if len(options.Labels) == 0 {
 			return nil, badRequest("labels must name at least one pair")
 		}
-		if _, empty := options.Labels[""]; empty {
-			return nil, badRequest("label keys must not be empty")
+		if labelErr := checkLabels(options.Labels); labelErr != nil {
+			return nil, labelErr
 		}
 		encoded, encodeErr := json.Marshal(options.Labels)
 		if encodeErr != nil {
@@ -61,6 +61,9 @@ func searchQuery(options SearchSandboxesOptions) (url.Values, error) {
 	}
 	if options.Spot != nil {
 		query.Set("spot", strconv.FormatBool(*options.Spot))
+	}
+	if options.Persistent != nil {
+		query.Set("persistent", strconv.FormatBool(*options.Persistent))
 	}
 	return query, nil
 }

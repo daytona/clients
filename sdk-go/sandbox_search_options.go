@@ -28,6 +28,8 @@ type SearchSandboxesOptions struct {
 	ImageRefPrefix string
 	// Labels matches containment of all supplied pairs.
 	Labels map[string]string
+	// Persistent filters by persistence; nil omits the filter.
+	Persistent *bool
 	// Spot selects interruptible capacity; nil omits the filter.
 	Spot *bool
 	// ForkedFrom selects forks of a sandbox.

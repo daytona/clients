@@ -15,6 +15,25 @@ export function credentialSafeInspection<T extends object, V extends object>(tar
   return target
 }
 
+/**
+ * Turn `target`'s `fields` into non-enumerable own properties (a missing one
+ * is defined as `undefined`), so object spread, `Object.keys` / `entries`,
+ * `JSON.stringify` and deep-clone or error-reporting walkers skip them. A later
+ * assignment keeps the property non-enumerable; the SDK still reads and writes
+ * the field by name. Used for credentials and for fields that hold them.
+ */
+export function concealFields<T extends object>(target: T, fields: readonly string[]): T {
+  for (const field of fields) {
+    Object.defineProperty(target, field, {
+      value: Reflect.get(target, field),
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    })
+  }
+  return target
+}
+
 export function credentialSafeDiagnostics<T extends object, V extends object>(target: T, view: () => V): T {
   credentialSafeInspection(target, view)
   // Sandbox and other serializable handles keep their documented wire format.

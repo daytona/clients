@@ -24,7 +24,7 @@ from .build_logs import (
     BuildLogEventCallback,
     BuildLogsCallback,
 )
-from .computer_use import AsyncComputerUseService
+from .computer_use import AsyncComputerUseService, parse_computer_use_status
 from .computer_use_services import (
     AsyncA11yService,
     AsyncAddonProcessesService,
@@ -355,6 +355,7 @@ from .types import (
     SearchOrder,
     SearchResult,
     SearchSandboxesOptions,
+    SecretSearchSort,
     SearchSort,
     SearchTimestamp,
     SearchTotalRelation,
@@ -363,6 +364,8 @@ from .types import (
     SandboxClass,
     WaitResult,
     Volume,
+    VolumeSearchSort,
+    VolumeSearchStatus,
     VolumeState,
     VolumeType,
     VolumeMount,
@@ -624,6 +627,7 @@ __all__ = [
     "SandboxSecretsInfo",
     "NotFoundError",
     "NotSupportedError",
+    "parse_computer_use_status",
     "PayloadTooLargeError",
     "PaymentMethodRequiredError",
     "PlanChangePendingError",
@@ -699,9 +703,12 @@ __all__ = [
     "SearchOrder",
     "SearchResult",
     "SearchSandboxesOptions",
+    "SecretSearchSort",
     "SearchSort",
     "SearchTimestamp",
     "SearchTotalRelation",
+    "VolumeSearchSort",
+    "VolumeSearchStatus",
     "SandboxAccessToken",
     "SandboxWaitState",
     "AsyncScreenService",

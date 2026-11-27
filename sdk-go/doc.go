@@ -97,7 +97,13 @@
 // # Configuration
 //
 // [New] reads DAYTONA_API_KEY, or DAYTONA_JWT_TOKEN with DAYTONA_PROJECT_ID;
-// options such as [WithAPIKey] take precedence. DAYTONA_V2_API_URL selects a
+// options such as [WithAPIKey] take precedence. Environment values are trimmed,
+// and a blank one is unset ([New] returns [ErrAuthentication] when no
+// credential remains). An explicit credential is trimmed of surrounding
+// spaces, tabs, CR and LF. [New] returns [ErrBadRequest], without the value in
+// the message, for an explicit credential that is empty or blank, and for a
+// credential from either source that contains a character other than
+// printable ASCII. DAYTONA_V2_API_URL selects a
 // different API endpoint. A [Client] is safe for concurrent use; close it when
 // done.
 package daytona

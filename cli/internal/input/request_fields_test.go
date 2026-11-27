@@ -59,6 +59,9 @@ func fieldsOf(t reflect.Type, depth int) *Fields {
 		if t.PkgPath() != reflect.TypeFor[gen.CreateImageRequest]().PkgPath() {
 			return nil // a scalar such as a time, a date or a UUID
 		}
+		if member, ok := singleMember(t); ok {
+			return fieldsOf(member, depth+1)
+		}
 		if isUnion(t) {
 			return unionFields(t, depth)
 		}
@@ -86,6 +89,27 @@ func fieldsOf(t reflect.Type, depth int) *Fields {
 func isUnion(t reflect.Type) bool {
 	return t.Kind() == reflect.Struct && t.NumField() == 1 && t.Field(0).Name == "union" &&
 		t.Field(0).Type == reflect.TypeFor[json.RawMessage]()
+}
+
+// singleMember reports the one member type of a generated oneOf that wraps a
+// single $ref (the contract's way to attach a default or a description to a
+// referenced schema): it decodes exactly as that member does.
+func singleMember(t reflect.Type) (reflect.Type, bool) {
+	if !isUnion(t) {
+		return nil, false
+	}
+	var member reflect.Type
+	for i := range t.NumMethod() {
+		m := t.Method(i)
+		if !strings.HasPrefix(m.Name, "As") || m.Type.NumOut() != 2 {
+			continue
+		}
+		if member != nil {
+			return nil, false
+		}
+		member = m.Type.Out(0)
+	}
+	return member, member != nil
 }
 
 // unionFields describes a generated oneOf type: each member (the As<Name>N

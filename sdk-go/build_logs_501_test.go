@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -13,10 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildLogsRetries501LikeSiblingSDKs(t *testing.T) {
+func TestBuildLogsNeverRetries501LikeSiblingSDKs(t *testing.T) {
 	for _, phase := range []string{"discovery", "stream"} {
 		t.Run(phase, func(t *testing.T) {
-			// Given a 501 followed by recovery at either build-log HTTP boundary.
+			// Given a 501 (followed by recovery) at either build-log HTTP boundary.
 			var discoveries, streams atomic.Int32
 			api := newFakeServer(t, map[string]http.HandlerFunc{
 				"GET /images/image/build-logs-url": func(w http.ResponseWriter, r *http.Request) {
@@ -52,11 +53,20 @@ func TestBuildLogsRetries501LikeSiblingSDKs(t *testing.T) {
 				return true
 			})
 
-			// Then 501 is retried like every 5xx, matching TypeScript and Python.
-			require.NoError(t, err)
-			require.Equal(t, 1, pauses)
-			require.Len(t, delivered, 1)
-			require.Len(t, api.requests(), 3)
+			// Then a 501 is not implemented, so it is never retried, matching
+			// TypeScript and Python: discovery returns it, the stream interrupts.
+			var sdkError *Error
+			require.ErrorAs(t, err, &sdkError)
+			require.Equal(t, http.StatusNotImplemented, sdkError.StatusCode)
+			var interrupted *BuildLogInterruptedError
+			require.Equal(t, phase == "stream", errors.As(err, &interrupted))
+			require.Zero(t, pauses)
+			require.Empty(t, delivered)
+			wantRequests := 1
+			if phase == "stream" {
+				wantRequests = 2
+			}
+			require.Len(t, api.requests(), wantRequests)
 		})
 	}
 }

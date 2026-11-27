@@ -78,8 +78,8 @@ class SandboxCreateOperation(BaseModel):
     access_token_expires_at: Optional[datetime] = Field(default=None, description="When the access value expires, or null when it has no expiry or this is a replay.")
     create_timeout_at: Optional[datetime] = Field(default=None, description="Create deadline, or null after the sandbox reaches its target status.")
     id: StrictStr = Field(description="The sandbox ID.")
-    image: Optional[ImageReference] = None
-    lifecycle_policy: Optional[LifecyclePolicy] = None
+    image: Optional[ImageReference] = Field(default=None, description="The image the sandbox boots. For a create without `image`, this is the platform default image; omitted for a sandbox restored from a snapshot.")
+    lifecycle_policy: Optional[LifecyclePolicy] = Field(default=None, description="Automatic timeout and idle-expiry behavior: the object `GET /sandboxes/{id}` returns, as the create set it (on an idempotent replay, as the sandbox has it now). Starting the sandbox restarts `timeout_at` and `idle_timeout_at`, so after a start, even one `status` already reports as `running`, `GET /sandboxes/{id}` returns the new deadlines. Null when the policy could not be read.")
     name: StrictStr = Field(description="Sandbox name (caller-provided or the generated `sandbox-<short-id>`).")
     reservation_id: Optional[StrictStr] = Field(default=None, description="The Mac reservation that the sandbox runs on; null until the sandbox reaches a Mac.")
     status: StrictStr = Field(description="Initial lifecycle status — `pending`, or the sandbox's current status on an idempotent replay.")
