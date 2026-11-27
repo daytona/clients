@@ -1,0 +1,19 @@
+sdk-typescript/src/v2/types.ts
+  s_16e29cc1b88e81::t_924b987c3a076f 635-640
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6960d7c7f1d675e65d29ed4177c133de95256705",
+  "prompts": {},
+  "sessions": {
+    "s_16e29cc1b88e81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2d8e083ffeuCqMabC6O4aIw6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

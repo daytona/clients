@@ -1,0 +1,33 @@
+cli/cmd/image_create.go
+  s_3768b20845d0e6::t_2824fbb1627ec2 23,25,31-34,48-53,77
+cli/cmd/image_test.go
+  s_3768b20845d0e6::t_3d612186c5316c 19-20
+  s_3768b20845d0e6::t_cccb4bfe14bab7 12-13
+  s_3768b20845d0e6::t_a693beffe00ae3 58,72-73,95-107,206-220
+  s_3768b20845d0e6::t_a0c33104e3f65d 62,71
+  s_3768b20845d0e6::t_a0cdf5dcaad3f3 59-61,63-70
+  s_3768b20845d0e6::t_5188aff9badc4f 221
+cli/cmd/image.go
+  s_3768b20845d0e6::t_24013c43bbf430 144-146,148
+  s_3768b20845d0e6::t_8395589f5d9432 14
+  s_3768b20845d0e6::t_d17ad029454b1f 94-117,120,133-137,172-173
+  s_3768b20845d0e6::t_71200e3d3d2a4e 140
+changelog.d/cli-anonymous-images.added.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77a1caed09658db1fea0e2b958cf67b18fb35795",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

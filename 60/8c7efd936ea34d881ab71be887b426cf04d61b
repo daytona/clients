@@ -1,0 +1,29 @@
+sdk-go/README.md
+  s_16e29cc1b88e81::t_5a4cd93a2115e1 253-260
+sdk-python/README.md
+  s_16e29cc1b88e81::t_77d85eb72602a9 504-505,1284-1291,1293
+sdk-typescript/README.md
+  s_16e29cc1b88e81::t_b2cf770efa3ac7 431-432,1200-1209
+sdk-python/DEVELOPMENT.md
+  s_16e29cc1b88e81::t_559cf20a6cf64a 161-166
+changelog.d/sandbox-wait-no-read-after-event.changed.md
+  s_16e29cc1b88e81::t_f999c46dc3756c 1-10
+AGENTS.md
+  s_16e29cc1b88e81::t_6638762772a970 1021-1038,1073-1075
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "608c7efd936ea34d881ab71be887b426cf04d61b",
+  "prompts": {},
+  "sessions": {
+    "s_16e29cc1b88e81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2d8e083ffeuCqMabC6O4aIw6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

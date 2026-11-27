@@ -1,0 +1,32 @@
+changelog.d/cli-sandbox-secrets-network-policy.added.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-7
+changelog.d/cli-port-in-use.added.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-2
+cli/cmd/sandbox_port.go
+  s_3768b20845d0e6::t_957e2afa3be713 37,68-90
+  s_3768b20845d0e6::t_c49af212660670 91-92
+cli/cmd/sandbox_settings.go
+  s_3768b20845d0e6::t_85e22a0b4e3246 1-435
+changelog.d/cli-sandbox-access-token.added.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-4
+cli/internal/api/client.go
+  s_3768b20845d0e6::t_4cb801cef36be7 171-177,182,188,193,196,199,201
+cli/cmd/sandbox_settings_test.go
+  s_3768b20845d0e6::t_ece6310bebd30b 1-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a82c5b64a7d84741565faea7702b960f739a3b1",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

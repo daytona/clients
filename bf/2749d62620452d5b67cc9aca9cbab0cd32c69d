@@ -1,0 +1,114 @@
+changelog.d/python-shutdown-refusal.fixed.md
+  h_e7759ddd73fa65 1-9
+changelog.d/python-transfer-cancel-wakeups.fixed.md
+  h_e7759ddd73fa65 1-7
+sdk-python/README.md
+  h_e7759ddd73fa65 78-98,1096-1100
+sdk-python/gen-contract.sh
+  h_e7759ddd73fa65 89-91
+sdk-python/gen/nullable_refs.py
+  h_e7759ddd73fa65 1-77
+sdk-python/pyproject.toml
+  h_e7759ddd73fa65 78-80,83
+sdk-python/src/daytona/v2/_bridge.py
+  h_e7759ddd73fa65 30,120,163-169
+sdk-python/src/daytona/v2/_context_upload.py
+  h_e7759ddd73fa65 28,369-384
+sdk-python/src/daytona/v2/_gen/api/models/balance.py
+  h_e7759ddd73fa65 40
+sdk-python/src/daytona/v2/_gen/api/models/billing_plan.py
+  h_e7759ddd73fa65 42,47
+sdk-python/src/daytona/v2/_gen/api/models/bucket_options.py
+  h_e7759ddd73fa65 39,42
+sdk-python/src/daytona/v2/_gen/api/models/config.py
+  h_e7759ddd73fa65 41,48-49
+sdk-python/src/daytona/v2/_gen/api/models/create_image_request.py
+  h_e7759ddd73fa65 44
+sdk-python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  h_e7759ddd73fa65 50,53
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_from_snapshot_request.py
+  h_e7759ddd73fa65 42
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  h_e7759ddd73fa65 52,56-57,65,241
+sdk-python/src/daytona/v2/_gen/api/models/create_volume_request.py
+  h_e7759ddd73fa65 39,42
+sdk-python/src/daytona/v2/_gen/api/models/effective_lifecycle_policy.py
+  h_e7759ddd73fa65 40-41
+sdk-python/src/daytona/v2/_gen/api/models/image.py
+  h_e7759ddd73fa65 61
+sdk-python/src/daytona/v2/_gen/api/models/image_list_item.py
+  h_e7759ddd73fa65 62
+sdk-python/src/daytona/v2/_gen/api/models/lifecycle_policy.py
+  h_e7759ddd73fa65 43-44
+sdk-python/src/daytona/v2/_gen/api/models/mac_catalog_model.py
+  h_e7759ddd73fa65 41
+sdk-python/src/daytona/v2/_gen/api/models/mac_model.py
+  h_e7759ddd73fa65 39
+sdk-python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  h_e7759ddd73fa65 44,46
+sdk-python/src/daytona/v2/_gen/api/models/network_policy.py
+  h_e7759ddd73fa65 38,41
+sdk-python/src/daytona/v2/_gen/api/models/sandbox.py
+  h_e7759ddd73fa65 59,65,74
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  h_e7759ddd73fa65 81-82
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  h_e7759ddd73fa65 59,65,74,184-188,209-213,234-238
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_usage_history.py
+  h_e7759ddd73fa65 41
+sdk-python/src/daytona/v2/_gen/api/models/update_project_lifecycle_policy_request.py
+  h_e7759ddd73fa65 20,38
+sdk-python/src/daytona/v2/_gen/api/models/update_sandbox_lifecycle_policy_request.py
+  h_e7759ddd73fa65 40-41
+sdk-python/src/daytona/v2/_gen/api/models/usage_report.py
+  h_e7759ddd73fa65 43
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_response.py
+  h_e7759ddd73fa65 39
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_start_request.py
+  h_e7759ddd73fa65 20,38
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  h_e7759ddd73fa65 20,40
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  h_e7759ddd73fa65 46-47,54,56
+sdk-python/src/daytona/v2/_gen/toolbox/models/exit_result.py
+  h_e7759ddd73fa65 39
+sdk-python/src/daytona/v2/_gen/toolbox/models/list_query.py
+  h_e7759ddd73fa65 38
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_dto.py
+  h_e7759ddd73fa65 58,69,74,168-172,208-212
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_record.py
+  h_e7759ddd73fa65 57,68
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_state_event_dto.py
+  h_e7759ddd73fa65 58,69,74,169-173,209-213,234-238
+sdk-python/src/daytona/v2/_shutdown.py
+  h_e7759ddd73fa65 1-92
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 80-85,243-247
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  h_e7759ddd73fa65 1-259
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 51,721,783,845-848,937-940,1065
+sdk-python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 66-67,425-429,453-468,470-471,488-493,501-522,524-545
+sdk-python/tests/test_events.py
+  h_e7759ddd73fa65 187-218,700-702,704-705,722,729-745,747-749
+sdk-python/tests/test_fs_transfer.py
+  h_e7759ddd73fa65 18,20,761,767-768,772,780-781
+sdk-python/tests/test_generated_nullable_fields.py
+  h_e7759ddd73fa65 1-143
+sdk-python/tests/test_interpreter_shutdown.py
+  h_e7759ddd73fa65 1-527
+sdk-python/tests/test_transfer_cancel.py
+  h_e7759ddd73fa65 1-667
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bf2749d62620452d5b67cc9aca9cbab0cd32c69d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

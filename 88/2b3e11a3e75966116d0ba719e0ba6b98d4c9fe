@@ -1,0 +1,723 @@
+sdk-python/tests/test_volume_pull.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 243-383
+cli/cmd/search_first.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 8,10,44-51,55-56,63-108,121-127
+sdk-typescript/tests/linux-persistent.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-216
+sdk-python/src/daytona/v2/_exports.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 244,320,324-325
+cli/internal/config/legacy.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-38
+sdk-go/create_prepare_fields.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 18-19
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_state_event_dto.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 58,69,74,169-173,209-213,234-237
+  s_e26152c3e6ca81::t_40e223889eb1b2 238
+sdk-python/src/daytona/v2/_sync/sandbox_volumes.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 42,46-54
+sdk-typescript/src/diagnostics.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 18-36
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 114,136-144,203,231,262-270,290,479-484,590,620-622,670
+cli/cmd/billing_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 25,34,44,53,65,76,88,102,113,125,137,156,179,183,209,211,213,315,369,375
+sdk-go/errors_response.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 81
+sdk-python/tests/test_null_options.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 34
+upgrade/typescript/src/mapping.json
+  s_e26152c3e6ca81::t_17a638ca0da04d 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+changelog.d/python-shutdown-refusal.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-9
+cli/gen/api/types.gen.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 32-33,45,117,184-187,210-211,354-355,857-910,1928-1951,2539-2540,2543-2548,2551,2556-2557,3213-3217,3257-3259,3343-3348,3355-3395,4537-4540,4714-4717,5268-5271,5519-5549,6045-6056,6293-6304,6699-6705,7054-7068,8222,8709-8711,8784-8854
+  s_e26152c3e6ca81::t_845c17c6c37869 8855
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_record.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 57,68
+sdk-typescript/tests/list-pages.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 30-32,43,54
+sdk-typescript/src/v2/sandboxTransitionRetry.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-35
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 432-433,438
+cli/internal/input/request_fields_gen.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 108-120,135,159
+sdk-typescript/scripts/node-bundle-fixture/error-names.mjs
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-26
+sdk-go/resource_search_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-327
+docs/adr/0003-cli.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 79-81
+sdk-go/volume_pagination_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 20,61
+cli/cmd/sandbox_create.go
+  s_e26152c3e6ca81::t_15a0bae58fcf7a 78
+  s_e26152c3e6ca81::t_17a638ca0da04d 148,174-175,185-186
+sdk-go/sandbox_transition_methods_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-146
+sdk-go/create_persistence_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-99
+sdk-python/src/daytona/v2/__init__.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 27,357,366-367,628,704,708-709
+sdk-python/src/daytona/v2/_api_core.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 11-12,80-92,96,98
+sdk-python/tests/test_events.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 187-218,700-702,704-705,722,729-745,747-749
+sdk-go/codes_catalog_8.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-38
+sdk-typescript/src/v2/BuildLogs.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 8,75-76,88-93,475,481-482,486-498,509-514,631-633,651-652,707
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_list_item.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 24-25,52-53,59,65,74,87,132-134,184-188,209-213,234-238,301-302
+sdk-go/sandbox_volumes.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 24-30,34-42,70-71,74-77,91-137,139-143,145
+cli/cmd/auth.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 113-114
+changelog.d/build-log-typed-cause.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-9
+sdk-python/tests/test_sandbox_transition_operations.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-171
+sdk-go/sandbox_policy_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 17,19,99-100,118
+sdk-typescript/src/v2/FileSystem.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 31,126-160,190-192,194,198-203,490,506,508-509,511,751,753-755,760,762-763,765,775
+sdk-python/src/daytona/v2/_gen/toolbox/models/create_process_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 46-47,54,56
+sdk-typescript/src/v2/types.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 196,339-340,502-511,671-672,784-785,1237-1245
+sdk-python/src/daytona/v2/_bridge.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 30,120,163-169
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 39-40,64,81,91,102,156
+cli/cmd/snapshot.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 45,70-72
+e2e/e2e.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 30,99-109,181-182
+cli/cmd/sandbox_transition_commands_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-99
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 22,47,54,58-59,67,110-112,235,247
+sdk-python/src/daytona/v2/_context_upload.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 28,369-384
+sdk-go/options.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 39-40
+sdk-python/src/daytona/v2/_gen/api/models/data_policy.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-55
+sdk-go/resource_search.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-361
+sdk-go/exec_stream.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 13-22,97-107,111-112,115-146,148-149
+cli/cmd/sandbox_fork.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-60
+changelog.d/fs-call-timeouts.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-12
+sdk-go/codes_catalog_6.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 7-30,129-144
+sdk-go/sandbox_transition.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-43
+sdk-python/src/daytona/v2/_gen/api/models/mac_catalog_model.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 41
+sdk-python/src/daytona/v2/_gen/api/models/effective_lifecycle_policy.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 40-41
+sdk-typescript/tests/unit.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1650,8701,8710,8743,8751,10623
+sdk-go/options_env.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 38-40,59-90
+  s_e26152c3e6ca81::t_4b5b7d70072f10 91-92
+sdk-python/tests/test_fs_transfer.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 18,20,761,767-768,772,780-781
+sdk-python/README.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 80-100,173-179,347-350,453,455-456,586-599,613-626,662,676-680,682,776-789,791,1097-1104,1170-1173,1276-1280,1351-1359
+  s_e26152c3e6ca81::t_88e2781e02f0c9 1169,1339-1340
+  s_e26152c3e6ca81::t_8637de975df50f 1360
+sdk-python/src/daytona/v2/services.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 20,46,55,59,71,88-90,92,96-97,111-113,489-493,512-517,559-608,795,803,813-819,823-891,908-916,928,930-940,956,989,1325,1328,1330-1336,1348-1392,1395,1423,1458
+sdk-python/src/daytona/v2/_core.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 865,883,889,891,1878-1881,1884-1888,2113,2224-2229,2256-2259,2356,2390-2391,2393,2395-2397,2409-2414
+sdk-python/src/daytona/v2/_gen/api/__init__.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 83-84,86-89,213,284,312-313
+sdk-python/src/daytona/v2/_gen/api/models/organization_list_item.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 23,42,57,139
+sdk-go/sandbox_search.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 14,92,100-101,103-104,110-111,119-121,123-125,127-128,130,132-134,174-191
+  s_e26152c3e6ca81::t_7cc474bc8705ca 192
+cli/cmd/legacy_config_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-81
+sdk-python/tests/test_create_persistence_response.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-70
+changelog.d/fs-call-timeouts-go-signatures.breaking.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+cli/cmd/cli_contract_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 583,596
+sdk-python/src/daytona/v2/_gen/api/models/uncovered_resource.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-120
+sdk-python/src/daytona/v2/_gen/toolbox/models/exit_result.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 39
+sdk-python/src/daytona/v2/_otel.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 12,74-75
+sdk-python/src/daytona/v2/_gen/api/models/usage_report.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 43
+sdk-go/sandbox_labels.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 10-11,17-18,20-21,67-82
+  s_e26152c3e6ca81::t_81f81256868cac 83
+sdk-python/tests/test_connect_options.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 80-81
+upgrade/mapping/mapping.json
+  s_e26152c3e6ca81::t_17a638ca0da04d 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+sdk-go/sandbox_create.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 60-63,81
+sdk-python/src/daytona/v2/_gen/api/models/set_project_data_policy_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-98
+changelog.d/build-log-permanent-errors.changed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+sdk-python/pyproject.toml
+  s_e26152c3e6ca81::t_17a638ca0da04d 78-80,83
+sdk-go/fs_search.go
+  s_e26152c3e6ca81::t_6c278dc7cb6113 94
+  s_e26152c3e6ca81::t_17a638ca0da04d 11,14-51,54-57,62-65,68,95-97,102-105,108,136-139,144-153,161
+sdk-go/sandbox_search_query.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 53-54,65-66
+  s_e26152c3e6ca81::t_cf87512d3926f3 67
+sdk-python/src/daytona/v2/_codes.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 99-100,118,125,254-255,273,280,435-436,454,461,547,549
+sdk-typescript/DEVELOPMENT.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 97-101
+sdk-go/sandbox.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 132,141-147
+  s_e26152c3e6ca81::t_aee3acf3cd6115 148-149
+cli/cmd/volume.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 44,52-54,78-80,108,115,126,145,148,160-162,181-183
+  s_e26152c3e6ca81::t_15a0bae58fcf7a 49
+sdk-python/tests/test_computer_use_status_parse.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-108
+sdk-python/src/daytona/v2/_gen/api/models/create_volume_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 39,42
+sdk-typescript/src/v2/contextPath.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 6
+sdk-typescript/tests/client-config.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 13,224-310
+  s_e26152c3e6ca81::t_f74b594d39667e 311
+sdk-python/tests/test_filesystem_call_timeouts.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-142
+sdk-typescript/src/v2/options.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 7,90,92,152-156,159-162
+cli/cmd/sandbox_actions_more_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 263-264,275-276,280-285
+cli/cmd/command_more_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 32,40,48,157
+sdk-python/gen-contract.sh
+  s_e26152c3e6ca81::t_17a638ca0da04d 89-91
+cli/cmd/sandbox_search_query.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 38-40
+sdk-go/sandbox_fork_retry_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-63
+sdk-go/secret.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 44-46,56-59,81,103,168
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 28,74,372-373,670-671,689,714,1096-1097,1204
+sdk-go/sandbox_wait_read.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 95
+sdk-python/src/daytona/v2/_gen/api/models/desktop_settings.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-117
+cli/cmd/main_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-31
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_usage_history.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 41
+cli/cmd/auth_login_command.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 38-41
+sdk-python/src/daytona/v2/_gen/api/models/project_data_policy.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-137
+sdk-python/src/daytona/v2/_gen/api/models/update_sandbox_lifecycle_policy_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 40-41
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_screenshot_response.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 39
+sdk-python/src/daytona/v2/_shutdown.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-92
+contract/api-openapi.json
+  s_e26152c3e6ca81::t_17a638ca0da04d 304,421,433,492-493,1366,1371-1382,1387-1390,1399,2954-2957,3053-3056,3246-3263,3276-3353,5729-5732,7164-7167,7480-7530,8488-8495,9643-9656,10288-10324,24410-24580,27414,27743-27745,28354,28480,30236,30488,32976-32985,33038-33044,33367-33373
+sdk-python/src/daytona/v2/sandbox.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 32,47,53,58,81,359,466-467,962-964,1359-1361,1373-1374,1409-1412,1434,1439-1440,1451,1454,1467-1474,1476,1490-1517,1527-1528,1533-1534,1544,1629-1634,1636,1640,1764-1766,1783-1785,1787,1807-1810,1817-1819,1821,2347
+  s_e26152c3e6ca81::t_00bcaa7b7a66ad 1380,1407-1408,1806
+sdk-go/sandbox_get.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 89,93
+changelog.d/758-policy-update-reads.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-2
+sdk-python/src/daytona/v2/_gen/api/models/sandbox.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 24-25,52-53,59,65,74,86,131-133,300-301
+cli/cmd/secret.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 41-43,112,121,146-148,166-168
+sdk-typescript/tests/computer-use-status-parse.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-79
+sdk-typescript/tests/filesystem-call-timeouts.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-100
+upgrade/MIGRATION.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 86-87,91-92,98-99,106-107,237,246-247,251-252,284,293-294,298-299
+cli/cmd/sandbox_transition_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-207
+sdk-python/src/daytona/v2/_gen/api/models/mac_reservation.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 44,46
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_e26152c3e6ca81::t_eb88332f030466 147,279-280,336
+  s_e26152c3e6ca81::t_17a638ca0da04d 77-79,148-151,281-284,329-330,475-477,681-682
+cli/cmd/sandbox_search.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 31-32,112
+  s_e26152c3e6ca81::t_15a0bae58fcf7a 165
+changelog.d/ts-node-only-declarations.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-6
+sdk-go/exec_follow_idle_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-304
+sdk-python/tests/test_search_persistent.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-60
+sdk-python/src/daytona/v2/_gen/api/models/billing_plan.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 42,47
+cli/cmd/invite_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 204,224,238,274
+sdk-python/src/daytona/v2/_transport_errors.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-59
+changelog.d/758-linux-persistent-sandboxes.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-4
+cli/README.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 72-77,99,126-145,313-315,396-399,404-407,451-453,570-574,683,718,734-743
+  s_e26152c3e6ca81::t_af0cbb50712d23 575-577
+sdk-go/volume.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 13,53-55,65-68,87-92,94-97,99,107-128,130-138,154-156,195
+changelog.d/find-by-name-region-filter.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+sdk-python/src/daytona/v2/_gen/api/models/desktop_environment.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-55
+sdk-python/src/daytona/v2/_transition_retry.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-37
+sdk-python/tests/test_build_logs_http_errors.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-228
+sdk-python/tests/test_transfer_cancel.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-667
+changelog.d/go-exec-stream-idle.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+sdk-python/tests/test_persistence_metadata.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-131
+sdk-typescript/src/errors.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 54-63,96-97,113
+sdk-python/tests/test_service_correctness.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-392
+sdk-typescript/tests/fork-retry-state.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-47
+sdk-typescript/src/v2/index.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 23,31,52,81-82
+AGENTS.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 319-325,336-358
+sdk-go/client.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 33-34
+sdk-typescript/src/v2/clientCreate.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 84-86,89,103
+changelog.d/delete-lock-timeout-code.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1
+sdk-python/tests/test_search_first_lists.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 14,16,69-85,98,109,118,127-145,150-153,178,192,227,260-457,487-503
+  s_e26152c3e6ca81::t_1de5bcde629cae 504-505
+changelog.d/volume-get-or-create-race.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-6
+sdk-typescript/scripts/cjs-types-fixture/node-only.cts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-15
+sdk-python/src/daytona/v2/_gen/api/models/desktop_config.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-104
+changelog.d/docs-persistence-lifecycle.changed.md
+  s_e26152c3e6ca81::t_55da4d458508ed 1-4
+sdk-python/src/daytona/v2/_gen/toolbox/models/list_query.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 38
+sdk-go/build_logs_501_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 8,17,20,56-69
+sdk-go/create_options.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 44-49,59-60
+sdk-python/tests/test_argument_checks.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 900-902,905-907
+sdk-python/gen/nullable_refs.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-77
+sdk-python/src/daytona/v2/_gen/api/models/bucket_credentials.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 21,35,37-39,41,91-105,118-120
+cli/cmd/sandbox_lifecycle_validation_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-49
+sdk-typescript/src/Daytona.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 7,25,87-88,185,187-188
+sdk-typescript/tests/build-logs-http-errors.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-200
+sdk-typescript/tests/connect-options.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 43-44
+sdk-typescript/tests/create-persistence-response.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-47
+sdk-python/tests/test_fork_retry_state.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-69
+cli/cmd/region.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 79-81
+sdk-python/src/daytona/v2/_gen/api/models/config.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 41,48-49
+cli/cmd/member_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 16,143
+sdk-typescript/tests/sandbox-transition-retry.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-189
+changelog.d/volume-bucket-role-arn.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1
+sdk-python/src/daytona/v2/_gen/api/models/sandbox_create_operation.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 81-82
+cli/cmd/org_uuid_more_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 17
+sdk-python/src/daytona/v2/filesystem.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 53,66-67,425-429,453-468,470-471,488-493,501-522,524-545,613-623,625-630,646-648,656-663,667-672,676-678,689-696,700-705,710,712-721,731,746,748-756,764-766
+cli/cmd/sandbox_transition.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-57
+sdk-python/src/daytona/v2/types.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 302-304,349,1584-1586,1611-1612
+cli/cmd/login_only.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-153
+sdk-python/tests/test_lifecycle_policy_reads.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 4-5,43
+sdk-python/tests/test_transition_retry.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-254
+sdk-go/sandbox_search_options.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 31-32
+sdk-typescript/runtime-tests/README.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 21
+changelog.d/758-persistence-search.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-2
+sdk-typescript/src/v2/codes.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 92-93,111,135,278-279,297,321,393,395
+e2e/e2e.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 39-49,131-132
+sdk-go/exec_r3_timeout_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 36-37,41
+sdk-python/tests/test_linux_persistence.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-237
+sdk-typescript/package.json
+  s_e26152c3e6ca81::t_17a638ca0da04d 136
+sdk-python/src/daytona/v2/computer_use.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 13,32-45,64
+changelog.d/737-ts-credential-enumeration.security.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+cli/cmd/sandbox_lifecycle.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 16-17,21-23,30-31,53-54,59,61,72-82,100
+sdk-typescript/src/v2/resourceSearch.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-93
+sdk-python/src/daytona/v2/_gen/api/models/project.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 23,41,48,117
+sdk-python/src/daytona/v2/_gen/api/models/uncovered_resource_kind.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-57
+sdk-go/sandbox_volumes_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 104
+sdk-python/tests/test_client_config.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 16,26,101-102,106-190
+  s_e26152c3e6ca81::t_64bf65c6a51021 191-192
+sdk-typescript/src/v2/clientSearch.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 66-74,141
+sdk-go/e2e/account_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 55-63,65-73,114-122,124-132
+sdk-typescript/scripts/cjs-types-fixture/tsconfig.strict.node-only.json
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-12
+sdk-typescript/tests/service-correctness.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-228
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_start_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 20,38
+sdk-typescript/tests/search-first-lists.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 19-20,28,30,34-38,62,69,124-211,239-256
+.github/workflows/sdk-ci.yaml
+  s_e26152c3e6ca81::t_17a638ca0da04d 209,211-213,224-234,294-301,315-316
+changelog.d/python-current-api-key-sync-flag.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-6
+sdk-go/create_validation_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 125
+sdk-go/build_logs_http_errors_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-156
+sdk-go/sandbox_transition_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-168
+sdk-go/process_stream.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 13-14,17-21,27-34,60,74-186,192-196,198-200,204,208-210,223-227
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 50,52-63,80-85,91,102-109,111,113-115,123-130,132,211-212,214-237,253-257
+sdk-python/src/daytona/v2/_gen/api/models/balance.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 40
+cli/internal/app/clients.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 8,10,15,61-96,103,153
+sdk-go/computer_use.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 104-115
+sdk-typescript/src/v2/Images.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 13,118
+sdk-python/src/daytona/v2/_gen/api/models/mac_model.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 39
+sdk-go/options_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 7,9,35-38,69-131
+  s_e26152c3e6ca81::t_5255fb58d9c265 132
+cli/cmd/root.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 69-70,105,154
+sdk-typescript/tests/argument-checks.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 514-516,519-520
+sdk-python/src/daytona/v2/sandbox_volumes.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 12-14,20-21,53-66,85-87,125,129-137,139-156
+sdk-python/src/daytona/v2/_gen/api/models/desktop_resolution.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-100
+sdk-python/src/daytona/v2/_gen/api/models/organization.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 23,41,55,134
+sdk-typescript/tests/null-options.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 18
+sdk-python/src/daytona/v2/_gen/api/models/lifecycle_policy.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 43-44
+sdk-go/service_correctness_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-310
+cli/cmd/auth_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 472,479
+cli/cmd/sandbox_search_helpers.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 40-42
+changelog.d/secret-volume-search-first.changed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-8
+cli/cmd/image.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 100,124-126
+sdk-python/tests/test_generated_nullable_fields.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-143
+cli/cmd/volume_helpers.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 19,56,83,85-99,101,178-183
+  s_e26152c3e6ca81::t_dfd85ec0eb494d 184
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_e26152c3e6ca81::t_17a638ca0da04d 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+sdk-go/computer_use_status_parse_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-64
+sdk-go/README.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 73-101,222,230-235,247-263
+changelog.d/758-lifecycle-policies.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-4
+sdk-typescript/src/v2/pyText.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 39-55
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 21,36
+sdk-go/sandbox_policy.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 12-13,25-27
+changelog.d/758-sandbox-transition-retries.changed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-5
+sdk-go/sandbox_volumes_rounds_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-157
+sdk-typescript/src/v2/clientSandboxes.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 7,21,137,139-140,146
+sdk-typescript/src/v2/sandboxAuth.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 7,99
+sdk-go/fs_call_timeout_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-125
+sdk-python/tests/test_interpreter_shutdown.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-527
+cli/cmd/sandbox_actions.go
+  s_e26152c3e6ca81::t_9f3b95575da1e0 215-216
+  s_e26152c3e6ca81::t_17a638ca0da04d 201,205
+changelog.d/737-credential-format.security.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-11
+cli/cmd/volume_more_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 38-41,67-76,99
+sdk-python/src/daytona/v2/_gen/api/models/network_policy.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 38,41
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 3,12-14,55
+sdk-typescript/tests/error-names-minified.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-95
+sdk-go/lifecycle_persistence_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-106
+sdk-go/fs.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 13,40-46,57-63,141,144,146-151,171,178-181,184
+sdk-typescript/src/v2/SandboxVolumes.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 15,23-29,56-60,78-80,89-99,101-104,107,110
+sdk-python/DEVELOPMENT.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 44-46
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-259
+sdk-typescript/runtime-tests/runtime-checks.mjs
+  s_e26152c3e6ca81::t_17a638ca0da04d 74-75
+sdk-go/macos_create.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 42,44
+sdk-python/src/daytona/v2/_sync/services.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 369-376,383,386-427,467,470-502
+  s_e26152c3e6ca81::t_af1a31511c3998 503
+sdk-typescript/src/v2/builderText.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 6
+sdk-go/persistence_observation_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-73
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 39,51,110-111
+sdk-python/src/daytona/v2/_gen/toolbox/models/process_dto.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 58,69,74,168-172,208-211
+  s_e26152c3e6ca81::t_99270455a0040b 212
+cli/cmd/sandbox_persistent_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-85
+sdk-python/src/daytona/v2/_gen/api/models/image.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 61
+sdk-go/create_submit.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 129,136-137
+  s_e26152c3e6ca81::t_6d97230187719e 138
+cli/internal/input/request_fields_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 62-64,94-112
+  s_e26152c3e6ca81::t_4a707db36a450e 113-114
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_88e2781e02f0c9 1252-1253
+  s_e26152c3e6ca81::t_17a638ca0da04d 36-38,46,48,109-115,165,272-274,376,379-380,518-531,542,566-578,585-593,983-990,1164-1168,1207-1233,1267-1276,1305-1308
+sdk-typescript/tests/lifecycle-policy-reads.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 10-13,20
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_from_snapshot_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 42
+sdk-go/e2e/events_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 14-15,117-124,160-174
+  s_e26152c3e6ca81::t_9125dc68007d63 175
+sdk-python/tests/test_transport_error_redaction.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-164
+sdk-typescript/src/v2/Volume.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 8-9,18,25-28,70-79,84,95,119,131-136,141-156,176-184,186,203-217,219,229,248,256-259
+changelog.d/secret-volume-search-name.changed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-5
+cli/internal/config/legacy_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-71
+sdk-python/src/daytona/v2/_transport.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 51-52,169,297,329,338,366,435,460,721,759,783,845-848,880,883,899,901-902,937-940,993,1065,1108,1111,1323
+sdk-typescript/src/v2/Sandbox.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 10,12,33,366-367,433,590-592,774-775,844-847,860,868,884-894,920,939-947,951-955,961,1075-1086,1173-1175,1181-1185,1204-1206,1215-1218
+  s_e26152c3e6ca81::t_88e2781e02f0c9 771,791-792,819-820
+cli/cmd/sandbox_search_filters_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 16-40
+changelog.d/computer-use-status-parser.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-10
+sdk-go/codes_dispatch.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 32-34
+sdk-go/sandbox_policy_options.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 16-17,85-86,89-91
+sdk-typescript/scripts/cjs-types-fixture/node-only.mts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-17
+changelog.d/758-policy-update-validation.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+changelog.d/736-cli-login-only-commands.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-12
+sdk-go/doc.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 100-106
+sdk-typescript/src/v2/gen/api.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1826-1849,2985,3298-3301,3307-3314,3319,3323-3326,4098-4103,4150-4151,4231-4234,4239-4279,5508-5512,6157-6161,6331-6366,6815-6828,7381-7388,7690-7700,8391,16176-16280,17954,18143,18428,18500,19510,19658
+sdk-typescript/src/v2/clientCreateNames.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 9,74-75
+sdk-go/codes_catalog_3.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 73-84,173-178,180
+  s_e26152c3e6ca81::t_f3a144d89bd12e 179
+sdk-typescript/tests/search-persistent.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-46
+sdk-go/sandbox_search_persistent_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-63
+sdk-typescript/src/v2/Daytona.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 11,86-87,296-300
+cli/cmd/org.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 466-469
+sdk-go/build_logs_follow.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 193-202,210
+changelog.d/secret-volume-search.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+sdk-go/computer_use_example_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 83-94
+changelog.d/volume-pull-rounds.changed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-8
+sdk-python/tests/test_core.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 4121-4122,4129-4133,12734
+sdk-go/codes_catalog_5.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 7-24,91-96,129-140,185-186,188
+  s_e26152c3e6ca81::t_f3ed092e262e46 187
+sdk-go/codes_catalog_4.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 7-18,67-72,129-136,169-172
+sdk-go/internal/gen/api/models.gen.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 32-33,45,117,184-187,210-211,354-355,857-910,1928-1951,2539-2540,2543-2548,2551,2556-2557,3213-3217,3257-3259,3343-3348,3355-3395,4537-4540,4714-4717,5268-5271,5519-5549,6045-6056,6293-6304,6699-6705,7054-7068,8222,8709-8711,8784-8854
+  s_e26152c3e6ca81::t_a8474e6299b7db 8855
+sdk-typescript/src/v2/Secret.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 18,28,32-34,69-78,81,85,98,111-117,122-131,148,155,194
+changelog.d/ts-error-names-minified.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-8
+sdk-go/codes_catalog_7.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 7-30,105-120
+sdk-go/capture.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 26-29,44,61-63,73
+cli/cmd/volume_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 8,18-21,50,76
+sdk-go/create_from_build_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 39,44,79
+sdk-typescript/tests/credential-inspection.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 40-86,109-111,133-135,237-311
+sdk-typescript/tests/node-only-declarations.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-82
+changelog.d/python-transfer-cancel-wakeups.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-7
+cli/cmd/login_only_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-427
+sdk-go/toolbox_routes_dynamic_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 18-26,75-76
+sdk-python/src/daytona/v2/_auth.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 16-17,124,146,149
+cli/cmd/search_first_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 113-245
+sdk-go/sandbox_lifecycle.go
+  s_e26152c3e6ca81::t_eb88332f030466 33
+  s_e26152c3e6ca81::t_17a638ca0da04d 13-14,22-24
+sdk-python/src/daytona/v2/_gen/api/models/bucket_options.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 39,42
+sdk-python/src/daytona/v2/_gen/api/models/create_macos_sandbox_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 50,53
+sdk-typescript/src/v2/searchFirst.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 44,48-50,68-75,97-100
+changelog.d/bucket-role-codes.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1
+sdk-python/src/daytona/v2/_gen/api/models/data_policy_status.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-55
+sdk-python/src/daytona/v2/_gen/api/models/image_list_item.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 62
+sdk-typescript/src/v2/pageParams.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 7
+sdk-python/src/daytona/v2/build_logs.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 227,230-231,250-254,692-708,718,750-756,916-921,947-948,952
+changelog.d/label-unicode-checks.fixed.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-9
+sdk-python/src/daytona/v2/_gen/api/models/update_project_lifecycle_policy_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 20,38
+sdk-python/src/daytona/v2/_gen/toolbox/models/computer_use_status_response.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 20,40
+sdk-python/src/daytona/v2/_gen/api/models/create_image_request.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 44
+sdk-typescript/src/v2/ComputerUse.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 23,27-39
+  s_e26152c3e6ca81::t_6cd0bc8debe70a 40
+sdk-go/errors.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 78-81
+sdk-typescript/src/v2/http.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 16,18,201-203,206-207,211-212,255,341,345,416-423,944,1075,1080,1287-1289,1312-1314,1568,2316-2318,2322,2332,2337,2342,2344
+sdk-typescript/tests/volume-pull.test.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 7,106,133-231
+  s_e26152c3e6ca81::t_074aae241b8fbd 232
+sdk-python/src/daytona/v2/daytona.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 56,68-69,288,310-318,374,404,427,617,648-656,678,754,844-845,862-864,876,967-972,976,982-983,1111,1141-1143,1187,1477-1478,1487-1491,1523-1544,1763,1807-1811,1817-1819,1832
+changelog.d/736-cli-v0-config-hint.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-5
+changelog.d/758-sandbox-transition-code.added.md
+  s_e26152c3e6ca81::t_17a638ca0da04d 1-2
+sdk-typescript/src/v2/clientConfig.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 9,48-65,124-125,133-137
+sdk-typescript/src/v2/pathSegment.ts
+  s_e26152c3e6ca81::t_17a638ca0da04d 8
+sdk-python/src/daytona/v2/errors.py
+  s_e26152c3e6ca81::t_17a638ca0da04d 251-252,835-836,854,880
+cli/cmd/catalog_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 41-43,64,74,103-105,123
+sdk-go/create_option_errors_test.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 59-83
+sdk-go/sandbox_lifecycle_fork.go
+  s_e26152c3e6ca81::t_17a638ca0da04d 38-41,64,66-67,80-87,93,96,157,163-170,172,188-194
+  s_e26152c3e6ca81::t_64f18e0a33176e 26-28,195
+sdk-typescript/package-lock.json
+  s_e26152c3e6ca81::t_bb23f4712d7aae 21,538-979,3595-3636
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "882b3e11a3e75966116d0ba719e0ba6b98d4c9fe",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+sdk-go/computer_use_recording.go
+  s_2e6e2943dda8a6::t_c2af774b82989b 92-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3afd710bc5aa9a4a2737ef76151a9c011c46bc7",
+  "prompts": {},
+  "sessions": {
+    "s_2e6e2943dda8a6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2317133ffesN7OkQuJ2ux67k",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

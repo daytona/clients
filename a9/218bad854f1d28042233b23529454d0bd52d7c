@@ -1,0 +1,46 @@
+sdk-typescript/runtime-tests/esbuild-cjs/isolated.ts
+  s_10413bdfe4b841::t_a3dd09a41318e4 5-7,32
+sdk-typescript/runtime-tests/webpack-cjs/check.js
+  s_10413bdfe4b841::t_a3dd09a41318e4 11-12,44-52
+  s_10413bdfe4b841::t_6678c8a8af56d1 53
+sdk-typescript/README.md
+  s_10413bdfe4b841::t_7f580b9849ed5f 245,247-249,267-269
+sdk-typescript/src/__tests__/NodeLoaders.test.ts
+  s_10413bdfe4b841::t_66516a998b0ba4 20-35
+  s_10413bdfe4b841::t_262b3440aba196 36
+sdk-typescript/src/__tests__/Import.test.ts
+  s_10413bdfe4b841::t_b85949be825e26 8
+sdk-typescript/src/utils/UntracedRequire.ts
+  s_10413bdfe4b841::t_df6f3d984804f7 63-64,70-85,94,96-99,107-114,116,118-119
+sdk-typescript/src/__tests__/UntracedRequire.test.ts
+  s_10413bdfe4b841::t_b4fe3593316342 51-86,89,95-118
+  s_10413bdfe4b841::t_be3270cf6f81c2 119
+sdk-typescript/runtime-tests/README.md
+  s_10413bdfe4b841::t_a3dd09a41318e4 45-46
+sdk-typescript/scripts/post-build.js
+  s_10413bdfe4b841::t_fe7d4c754abd33 122-128,131,133
+  s_10413bdfe4b841::t_b4fe3593316342 92-95
+sdk-typescript/src/utils/Import.ts
+  s_10413bdfe4b841::t_71e351d642e734 10,104-107,109
+sdk-typescript/src/utils/NodeLoaders.ts
+  s_10413bdfe4b841::t_fc6ceeebb74755 26-27
+  s_10413bdfe4b841::t_71e351d642e734 7-12,20,24-25,28,37,42-52,58,62-65
+sdk-typescript/src/__tests__/post-build.test.ts
+  s_10413bdfe4b841::t_063eefbd03ab75 209,212,215,221,232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a9218bad854f1d28042233b23529454d0bd52d7c",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

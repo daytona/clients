@@ -1,0 +1,39 @@
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_16e29cc1b88e81::t_3be4bfd694c00c 192-195
+AGENTS.md
+  s_16e29cc1b88e81::t_0d197444524dc9 1030-1047
+sdk-python/README.md
+  s_16e29cc1b88e81::t_d2e226561a0354 549-551,1415-1428
+sdk-go/sandbox_wait.go
+  s_16e29cc1b88e81::t_9fd16b3b028f60 24-28
+sdk-go/sandbox_create.go
+  s_16e29cc1b88e81::t_7d85a0aa84373e 34-36
+changelog.d/sandbox-wait-no-read-after-event.changed.md
+  s_16e29cc1b88e81::t_1488e02498bc75 3-15
+sdk-go/README.md
+  s_16e29cc1b88e81::t_d2e226561a0354 268-282
+sdk-typescript/README.md
+  s_16e29cc1b88e81::t_d2e226561a0354 456-458,1334-1347
+sdk-typescript/src/v2/Daytona.ts
+  s_16e29cc1b88e81::t_7d85a0aa84373e 210-212
+sdk-python/DEVELOPMENT.md
+  s_16e29cc1b88e81::t_7d85a0aa84373e 163-167
+sdk-python/src/daytona/v2/daytona.py
+  s_16e29cc1b88e81::t_7d85a0aa84373e 368-371
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3fb544335a44a8726936bc2e1d8afef3c5d5bc0f",
+  "prompts": {},
+  "sessions": {
+    "s_16e29cc1b88e81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2d8e083ffeuCqMabC6O4aIw6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

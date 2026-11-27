@@ -1,0 +1,26 @@
+changelog.d/cli-cp-stdio.changed.md
+  s_3768b20845d0e6::t_06309e4af82bb8 3-8
+cli/cmd/sandbox_cp.go
+  s_3768b20845d0e6::t_f79f1449dcc271 75-77,81
+  s_3768b20845d0e6::t_e643bc38e69ea2 41,72-74,106-107,148
+cli/cmd/sandbox_cp_more_test.go
+  s_3768b20845d0e6::t_627e82d2055867 95,106-107,157,165-167
+cli/cmd/sandbox_cp_stdio_test.go
+  s_3768b20845d0e6::t_627e82d2055867 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e5dec0c4662b0c239bf1212949821b0da71ca06",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

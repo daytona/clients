@@ -1,0 +1,65 @@
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_16e29cc1b88e81::t_78c6dfe91a8227 35
+  s_16e29cc1b88e81::t_1fbbc0ad173c9d 635-686
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  s_16e29cc1b88e81::t_bfddff8dbb448f 106
+  s_16e29cc1b88e81::t_caddd49a0fc200 8,64-105,107-116
+  s_16e29cc1b88e81::t_12f667f0e0fe0b 117
+sdk-python/tests/test_wait_target_revalidation.py
+  s_16e29cc1b88e81::t_17826fadfb72c1 440-478
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_16e29cc1b88e81::t_3be4bfd694c00c 385-388,480-483,577-585
+sdk-python/src/daytona/v2/_events.py
+  s_16e29cc1b88e81::t_7dafc29a59d65d 649-650,654-655,805-808,1043-1045,1067,1376-1378,1823-1825
+sdk-typescript/src/v2/events.ts
+  s_16e29cc1b88e81::t_46424c872fd0aa 588,837-838,841,998,1195,1206,1730
+sdk-go/sandbox_wait_retry_policy_test.go
+  s_16e29cc1b88e81::t_e495d6a455cedf 51-52
+sdk-typescript/tests/events.test.ts
+  s_16e29cc1b88e81::t_827149a669766e 357-401
+sdk-typescript/src/v2/sandboxWait.ts
+  s_16e29cc1b88e81::t_46424c872fd0aa 87,92-96,98-100,276
+  s_16e29cc1b88e81::t_9cea355358d886 277-278
+  s_16e29cc1b88e81::t_ba34083bb17256 53-59,61,306-310,314
+sdk-python/src/daytona/v2/sandbox.py
+  s_16e29cc1b88e81::t_9fd16b3b028f60 1048-1049,1416-1424,1457-1460,1545-1548
+  s_16e29cc1b88e81::t_7dafc29a59d65d 374-390,1023,1042-1047,1050-1051,1201-1204,1228,1246-1251,1255,1503,1571-1573,1773
+sdk-typescript/tests/unit.test.ts
+  s_16e29cc1b88e81::t_d469dd3d233291 2933-2945
+sdk-go/sandbox_wait_events.go
+  s_16e29cc1b88e81::t_e495d6a455cedf 136-137,158
+sdk-go/sandbox_lifecycle.go
+  s_16e29cc1b88e81::t_9fd16b3b028f60 37-39
+  s_16e29cc1b88e81::t_e495d6a455cedf 35-36,87-89
+sdk-go/sandbox_wait_revalidation_test.go
+  s_16e29cc1b88e81::t_3e9b926e0ff465 532-579
+sdk-python/tests/test_events.py
+  s_16e29cc1b88e81::t_42ab14319ec626 430-487
+  s_16e29cc1b88e81::t_6355e73f1f26b5 34
+sdk-go/sandbox_lifecycle_start.go
+  s_16e29cc1b88e81::t_e495d6a455cedf 18,94
+  s_16e29cc1b88e81::t_9fd16b3b028f60 19-21
+sdk-go/wait_options.go
+  s_16e29cc1b88e81::t_e495d6a455cedf 120-127
+sdk-typescript/src/v2/Sandbox.ts
+  s_16e29cc1b88e81::t_9fd16b3b028f60 730-733,825-828,1187-1193
+  s_16e29cc1b88e81::t_ba34083bb17256 783,849-851
+sdk-python/tests/test_core.py
+  s_16e29cc1b88e81::t_3813307d723fa9 7973,7980
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "807d5aa45009d4291ea16be9b1674cb8cd2a6a6c",
+  "prompts": {},
+  "sessions": {
+    "s_16e29cc1b88e81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2d8e083ffeuCqMabC6O4aIw6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

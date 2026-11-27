@@ -1,0 +1,39 @@
+changelog.d/cli-exec-tag.added.md
+  s_3768b20845d0e6::t_19f1d1d55d0e38 1-5
+changelog.d/cli-exec-name.added.md
+  s_3768b20845d0e6::t_19f1d1d55d0e38 1-4
+cli/cmd/image_list.go
+  s_3768b20845d0e6::t_19f1d1d55d0e38 47-48
+changelog.d/cli-cp-stdio.breaking.md
+  s_3768b20845d0e6::t_19f1d1d55d0e38 7-9
+cli/cmd/snapshot.go
+  s_3768b20845d0e6::t_19f1d1d55d0e38 109-110
+cli/cmd/sandbox_cp.go
+  s_3768b20845d0e6::t_19f1d1d55d0e38 41
+changelog.d/cli-process-kill-all.added.md
+  s_3768b20845d0e6::t_19f1d1d55d0e38 1-8
+cli/README.md
+  s_3768b20845d0e6::t_19f1d1d55d0e38 396-398,689-690
+cli/cmd/image_test.go
+  s_3768b20845d0e6::t_b0c747f37c3282 66-71
+  s_3768b20845d0e6::t_55be6695c08b31 65
+cli/cmd/snapshot_test.go
+  s_3768b20845d0e6::t_b0c747f37c3282 54-57
+  s_3768b20845d0e6::t_d26c54f0dad9be 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ec7f66bd21e8c297a19c2320f5b1b0257882d96",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

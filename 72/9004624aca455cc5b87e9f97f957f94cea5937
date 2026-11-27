@@ -1,0 +1,27 @@
+cli/cmd/completion.go
+  s_3768b20845d0e6::t_f99b5bc0d21d43 53
+  s_3768b20845d0e6::t_1eb3f0ff912323 1-52,54-177
+cli/cmd/completion_test.go
+  s_3768b20845d0e6::t_f99b5bc0d21d43 51
+  s_3768b20845d0e6::t_50d43e9ed7b212 1-50,52-144
+changelog.d/cli-completion-values.added.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-8
+cli/cmd/root.go
+  s_3768b20845d0e6::t_442afdf9413c49 155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "729004624aca455cc5b87e9f97f957f94cea5937",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

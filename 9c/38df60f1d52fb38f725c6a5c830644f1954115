@@ -1,0 +1,25 @@
+cli/cmd/sandbox_search.go
+  s_e26152c3e6ca81::t_987815dfeae662 64,158
+changelog.d/cli-help-search.fixed.md
+  s_e26152c3e6ca81::t_97cb1b1b8b4086 2-4
+cli/README.md
+  s_e26152c3e6ca81::t_96a590b9e23e8a 438-439
+cli/cmd/sandbox_actions.go
+  s_e26152c3e6ca81::t_987815dfeae662 215-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c38df60f1d52fb38f725c6a5c830644f1954115",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

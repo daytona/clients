@@ -1,0 +1,64 @@
+sdk-go/sandbox_info_state.go
+  s_cdd0f68a8f776a::t_bd52b938bd9f84 6-9,97-106,110
+  s_cdd0f68a8f776a::t_e76a3242c194a7 107-108
+sdk-typescript/src/v2/Sandbox.ts
+  s_cdd0f68a8f776a::t_81a306608df319 240-241,245
+sdk-python/tests/test_core.py
+  s_cdd0f68a8f776a::t_39c4e5718db4b9 10398
+sdk-typescript/tests/unit.test.ts
+  s_cdd0f68a8f776a::t_9a6576c3064172 2066-2067
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_cdd0f68a8f776a::t_81a306608df319 260-262,268-269
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_cdd0f68a8f776a::t_81a306608df319 170-171,184-191
+  s_cdd0f68a8f776a::t_7cd38a5580b041 192
+changelog.d/sdk-payload-too-large-hint.fixed.md
+  s_cdd0f68a8f776a::t_141bb02076950a 5-6,8
+sdk-python/README.md
+  s_cdd0f68a8f776a::t_141bb02076950a 306-307,1377-1379
+sdk-go/inputs_messages_test.go
+  s_cdd0f68a8f776a::t_bd52b938bd9f84 86,122
+sdk-go/computer_use_screen.go
+  s_cdd0f68a8f776a::t_bd52b938bd9f84 121-122,124-131
+sdk-typescript/README.md
+  s_cdd0f68a8f776a::t_81a306608df319 235-236,1101-1102,1270-1272
+sdk-typescript/src/v2/clientSearch.ts
+  s_cdd0f68a8f776a::t_81a306608df319 180-182
+sdk-typescript/src/v2/bodyLimit.ts
+  s_cdd0f68a8f776a::t_81a306608df319 44-49
+sdk-typescript/src/v2/options.ts
+  s_cdd0f68a8f776a::t_81a306608df319 138,145
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_cdd0f68a8f776a::t_81a306608df319 10,69,138
+sdk-python/src/daytona/v2/computer_use_core.py
+  s_cdd0f68a8f776a::t_924d4fc3adc340 91,100-106
+changelog.d/sdk-registry-ref-whitespace.fixed.md
+  s_cdd0f68a8f776a::t_141bb02076950a 2-6
+sdk-python/tests/test_inputs_and_messages.py
+  s_cdd0f68a8f776a::t_141bb02076950a 155-158,182-183,295-298
+sdk-typescript/tests/inputs-and-messages.test.ts
+  s_cdd0f68a8f776a::t_81a306608df319 66,114,248-252
+  s_cdd0f68a8f776a::t_141bb02076950a 130-131,300
+  s_cdd0f68a8f776a::t_bd52b938bd9f84 167-182
+sdk-python/src/daytona/v2/_core.py
+  s_cdd0f68a8f776a::t_a05a421f26d619 501-503
+  s_cdd0f68a8f776a::t_924d4fc3adc340 499-500,504,1450-1451,1461-1462,2359-2361
+changelog.d/sdk-error-messages.fixed.md
+  s_cdd0f68a8f776a::t_ddcbb03a146aa0 11-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43fba150d7ceb04ac3dbc696d62724ec0d199c7e",
+  "prompts": {},
+  "sessions": {
+    "s_cdd0f68a8f776a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de231bf37ffehrrSh4v7IOEgN3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,430 @@
+AGENTS.md
+  h_e7759ddd73fa65 964-971
+README.md
+  h_e7759ddd73fa65 73-76
+SECURITY.md
+  h_e7759ddd73fa65 17,21-22
+changelog.d/build-logs-fallback-text.changed.md
+  h_e7759ddd73fa65 1-7
+changelog.d/build-logs-follow-by-name.fixed.md
+  h_e7759ddd73fa65 1-7
+changelog.d/cli-help-auto-renew.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-help-cp.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-get-id-or-name.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-required-roles.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-search.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/cli-help-secret-set.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-help-volume-create-name.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-volume-flag.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-readme-ci-output.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-readme-cursors.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-readme-lifecycle-deadlines.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-readme-units.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-account.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-build-context-region.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-capture-image-examples.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-computer-use-availability.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-create-snapshot.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-create-timeout-range.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-default-image.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-docker-off.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-fs-glob.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-fs-list-depth.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-fs-upload-atomic.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-git-clone-timeout.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-git-history-unpaged.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-git-init-remote-reset.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-git-pull-remotes.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/docs-if-match.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-image-regions.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-kill-all-sessions.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/docs-kill-interactive-shell.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-persistence-lifecycle.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-pty-close-stdin.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-python-asyncio.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-reservations-get.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-retries-timeouts.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/docs-search-ordering.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-session-examples.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-volume-ids.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/examples-image-cleanup.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/examples-images-rename.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/examples-volume-notes.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/image-build-timeout-id.added.md
+  h_e7759ddd73fa65 1-8
+changelog.d/image-promote-readback.fixed.md
+  h_e7759ddd73fa65 1-8
+changelog.d/iter-page-cursor.added.md
+  h_e7759ddd73fa65 1-5
+changelog.d/iter-page-retries.added.md
+  h_e7759ddd73fa65 1-7
+changelog.d/python-async-watch-yield.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/python-sync-watch-stop.fixed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/stable-install-docs.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/ts-interpreter-context-dispose.added.md
+  h_e7759ddd73fa65 1-4
+changelog.d/upgrade-guide-stable.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/wait-read-retries.fixed.md
+  h_e7759ddd73fa65 1-12
+cli/README.md
+  h_e7759ddd73fa65 21-25,43-45,49,98,112,387-389,416-419,434-450,473-474,509-515,575-577
+cli/cmd/image.go
+  h_e7759ddd73fa65 44,46
+cli/cmd/key.go
+  h_e7759ddd73fa65 30
+cli/cmd/member.go
+  h_e7759ddd73fa65 102
+cli/cmd/orgkey.go
+  h_e7759ddd73fa65 25
+cli/cmd/reservation.go
+  h_e7759ddd73fa65 25
+cli/cmd/sandbox_actions.go
+  h_e7759ddd73fa65 212-224,229
+cli/cmd/sandbox_cp.go
+  h_e7759ddd73fa65 37
+cli/cmd/sandbox_create.go
+  h_e7759ddd73fa65 78,159,209
+cli/cmd/sandbox_create_macos.go
+  h_e7759ddd73fa65 98
+cli/cmd/sandbox_create_macos_test.go
+  h_e7759ddd73fa65 74,92-93
+cli/cmd/sandbox_display_actions_test.go
+  h_e7759ddd73fa65 7,107-119
+cli/cmd/sandbox_fork.go
+  h_e7759ddd73fa65 58-59
+cli/cmd/sandbox_search.go
+  h_e7759ddd73fa65 61-65,158,160-161,164-165
+cli/cmd/secret.go
+  h_e7759ddd73fa65 39-40,105-106
+cli/cmd/service_account.go
+  h_e7759ddd73fa65 50
+cli/cmd/snapshot.go
+  h_e7759ddd73fa65 131,133
+cli/cmd/volume.go
+  h_e7759ddd73fa65 48-49,158
+docs/adr/0001-sdk-parity.md
+  h_e7759ddd73fa65 36-39
+examples/README.md
+  h_e7759ddd73fa65 11-14,16-22,34,52,74,76,133
+examples/package.json
+  h_e7759ddd73fa65 12
+examples/python/git_ops.py
+  h_e7759ddd73fa65 4-8
+examples/python/images.py
+  h_e7759ddd73fa65 2,11-16,20,25,28,30,33-65,67-71,77,82-93,102-104,109-115
+examples/python/test_examples.py
+  h_e7759ddd73fa65 108-114,161,188-191,250-257,259-261,538-607
+examples/python/volumes.py
+  h_e7759ddd73fa65 10-15,53
+examples/run-examples.sh
+  h_e7759ddd73fa65 12-14,26-27
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 45,324-368
+examples/typescript/git/index.ts
+  h_e7759ddd73fa65 4-8
+examples/typescript/images/index.ts
+  h_e7759ddd73fa65 1-15,17-19,21-30,34-41,43,45-62,65-87,89-92,95-101,105-110
+examples/typescript/test-support/fake-sdk.ts
+  h_e7759ddd73fa65 54-59,102,309-312,318-325,337-340
+examples/typescript/volumes/index.ts
+  h_e7759ddd73fa65 9-14,46
+sdk-go/README.md
+  h_e7759ddd73fa65 46-47,197-198,242-253,321-338
+sdk-go/build_logs.go
+  h_e7759ddd73fa65 65-67,81-84
+sdk-go/build_logs_identity.go
+  h_e7759ddd73fa65 8,22-29,44,47-54
+sdk-go/build_logs_identity_test.go
+  h_e7759ddd73fa65 9,12,54-56,63-67,106-107,116-121,143-289
+sdk-go/build_logs_request.go
+  h_e7759ddd73fa65 11-12,21-22,49-84
+sdk-go/create_from_build.go
+  h_e7759ddd73fa65 34-35
+sdk-go/create_from_build_test.go
+  h_e7759ddd73fa65 129-171,221-249
+sdk-go/create_wait_test.go
+  h_e7759ddd73fa65 17
+sdk-go/doc.go
+  h_e7759ddd73fa65 14
+sdk-go/docker_boundary_test.go
+  h_e7759ddd73fa65 73-75
+sdk-go/docker_wait.go
+  h_e7759ddd73fa65 25-28,50,59,61-70,72,87-88,93-114,117
+sdk-go/errors.go
+  h_e7759ddd73fa65 39-47
+sdk-go/errors_details.go
+  h_e7759ddd73fa65 60-88
+sdk-go/errors_response.go
+  h_e7759ddd73fa65 101
+sdk-go/errors_wrappers_test.go
+  h_e7759ddd73fa65 80-82
+sdk-go/fs_search.go
+  h_e7759ddd73fa65 93-94
+sdk-go/image_resource_operations_test.go
+  h_e7759ddd73fa65 8,10,14,22-28,32,37,39,41-42,196-220
+sdk-go/image_resource_pull_deadline_test.go
+  h_e7759ddd73fa65 33-36
+sdk-go/image_wait.go
+  h_e7759ddd73fa65 20-23,72,75,84-93,95,101,128-135,141-153
+sdk-go/images.go
+  h_e7759ddd73fa65 134-137,156-173
+sdk-go/images_build.go
+  h_e7759ddd73fa65 19-27,54,61,135,138-140,150-152
+sdk-go/images_r3_ready_test.go
+  h_e7759ddd73fa65 29-30,36-37,50-53,55,57
+sdk-go/images_ready.go
+  h_e7759ddd73fa65 8,28-33,48-49,71,73-90,97,100,119-128,130,136,142-159
+sdk-go/page.go
+  h_e7759ddd73fa65 8,10-11,14,51-136,139-148,159-160
+sdk-go/page_retry_test.go
+  h_e7759ddd73fa65 1-301
+sdk-go/preview_malformed_test.go
+  h_e7759ddd73fa65 134,147-149
+sdk-go/process_handle.go
+  h_e7759ddd73fa65 111-115
+sdk-go/read_retry.go
+  h_e7759ddd73fa65 1-77
+sdk-go/read_retry_test.go
+  h_e7759ddd73fa65 1-493
+sdk-go/sandbox_create.go
+  h_e7759ddd73fa65 12-14
+sdk-go/sandbox_lifecycle_fork.go
+  h_e7759ddd73fa65 26-28
+sdk-go/sandbox_lifecycle_fork_errors_test.go
+  h_e7759ddd73fa65 52-54,62-67
+sdk-go/sandbox_search.go
+  h_e7759ddd73fa65 166
+sdk-go/sandbox_wait.go
+  h_e7759ddd73fa65 27-34,97
+sdk-go/sandbox_wait_budget_test.go
+  h_e7759ddd73fa65 44-46,48-53,64-69,72
+sdk-go/sandbox_wait_retry.go
+  h_e7759ddd73fa65 25,28-30,34-35
+sdk-go/sandbox_wait_retry_decisive_test.go
+  h_e7759ddd73fa65 112
+sdk-go/sandbox_wait_retry_test.go
+  h_e7759ddd73fa65 8,106,108,112-113,121-128,134-138,144-198
+sdk-go/sandbox_wait_review_test.go
+  h_e7759ddd73fa65 7,79,81,95,97-98,100,104-105
+sdk-python/DEVELOPMENT.md
+  h_e7759ddd73fa65 186-187
+sdk-python/README.md
+  h_e7759ddd73fa65 9-11,14-20,104-107,239,275-277,279-281,294-295,299-303,400-405,467-471,479-480,488-493,513-514,518-537,616-619,715-718,758-763,780-782,815-822,1000-1005,1021-1023,1035,1051,1053-1054,1067-1068,1081-1082,1096-1098,1132,1145-1148,1172-1173,1202-1205,1234-1238,1292-1312,1330-1332,1364-1366,1388-1408,1428-1431,1437,1533-1573
+sdk-python/gen/gen_sync.py
+  h_e7759ddd73fa65 490,497,577-583
+sdk-python/src/daytona/v2/__init__.py
+  h_e7759ddd73fa65 231,530
+sdk-python/src/daytona/v2/_bridge.py
+  h_e7759ddd73fa65 112-114,118-121,166-169,301-306,309-312,359-361,376-378
+sdk-python/src/daytona/v2/_core.py
+  h_e7759ddd73fa65 79,353-355,360-361,366-371
+sdk-python/src/daytona/v2/_events.py
+  h_e7759ddd73fa65 45,50,732,740-742,752-754,1004-1005,1788,1798-1806
+sdk-python/src/daytona/v2/_exports.py
+  h_e7759ddd73fa65 145
+sdk-python/src/daytona/v2/_image_pull.py
+  h_e7759ddd73fa65 15,17,32-34,39,60-71,73-79,84,87-89,102-118
+sdk-python/src/daytona/v2/_pages.py
+  h_e7759ddd73fa65 1-116
+sdk-python/src/daytona/v2/_read_retry.py
+  h_e7759ddd73fa65 1-145
+sdk-python/src/daytona/v2/_sync/_runtime.py
+  h_e7759ddd73fa65 100,118
+sdk-python/src/daytona/v2/_sync/daytona.py
+  h_e7759ddd73fa65 99,276-280,565-574
+sdk-python/src/daytona/v2/_sync/docker.py
+  h_e7759ddd73fa65 63-68
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 92,94-98,135-141,378
+sdk-python/src/daytona/v2/_sync/process.py
+  h_e7759ddd73fa65 60-70
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 139-147,279-280,298-299,337,582-588
+sdk-python/src/daytona/v2/_sync/services.py
+  h_e7759ddd73fa65 141-147,211-217,239-243,527-530,628-632
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 342-345,372-375,582-585,591-611,621,943-946,1044-1054,1166-1169,1380-1383
+sdk-python/src/daytona/v2/build_logs.py
+  h_e7759ddd73fa65 46,434-449,463-465,468,474-475,503-506,547-553,558-559,562,567,569-570,643-652,674-675,678-679,683-723,972-974
+sdk-python/src/daytona/v2/daytona.py
+  h_e7759ddd73fa65 80,89,664-668,719-728,743,746-751,762,1298-1309,1376-1384,1391,1692-1693
+sdk-python/src/daytona/v2/docker.py
+  h_e7759ddd73fa65 21,23,72-77,84,88,104-109,111-116
+sdk-python/src/daytona/v2/errors.py
+  h_e7759ddd73fa65 55-59,62-63,720-742
+sdk-python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 181-184,312-317,594-600,707,709-713,877-880
+sdk-python/src/daytona/v2/ports.py
+  h_e7759ddd73fa65 34,174-177
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 407-417
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 80,96,1055-1057,1084-1086,1089,1100-1114,1138,1156,1158-1164,1166-1167,1260,1265-1271,1283,1289-1291,1293-1294,1310-1312,1315,1325-1339,1401-1407,1505,1553-1554,1572-1573,1944-1952,2804-2808
+sdk-python/src/daytona/v2/services.py
+  h_e7759ddd73fa65 68-69,149-157,381-385,390-398,419-425,458,635-636,656,660,683,686-687,692-697,701,756,904,1111,1118-1122,1351,1420-1423
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 478,664-665,842
+sdk-python/tests/test_bridge.py
+  h_e7759ddd73fa65 1149-1192
+sdk-python/tests/test_build_logs.py
+  h_e7759ddd73fa65 441-627,1234-1239,1246-1250,1323-1327,1335
+sdk-python/tests/test_client_lifecycle_contract.py
+  h_e7759ddd73fa65 445,449,453-474,493-529
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 42,7416-7417,7419,7421,7434-7437,7449-7493,7612-7614,8058,8492-8493,8504,11106,11118-11121
+sdk-python/tests/test_error_contract.py
+  h_e7759ddd73fa65 100-117
+sdk-python/tests/test_image_pull_deadline_http.py
+  h_e7759ddd73fa65 172-181,183-184
+sdk-python/tests/test_iter_pages.py
+  h_e7759ddd73fa65 1-396
+sdk-python/tests/test_unbounded_waits.py
+  h_e7759ddd73fa65 25-31,182
+sdk-python/tests/test_wait_deadlines.py
+  h_e7759ddd73fa65 282,290-292
+sdk-python/tests/test_wait_final_read.py
+  h_e7759ddd73fa65 233-256
+sdk-python/tests/test_wait_read_retries.py
+  h_e7759ddd73fa65 1-722
+sdk-python/tests/test_watch_sync.py
+  h_e7759ddd73fa65 11,157-250
+sdk-typescript/DEVELOPMENT.md
+  h_e7759ddd73fa65 49-50,196
+sdk-typescript/README.md
+  h_e7759ddd73fa65 9,12-19,150-155,172,174-177,228-232,326-331,389-393,404-409,430-431,485-503,569-572,637-639,669-674,680-682,703-710,885-889,908-911,915-916,931,934,948-950,967-968,977-978,1018,1035-1038,1102-1105,1116-1118,1121-1126,1184-1204,1222-1224,1257-1259,1307-1327,1346-1350,1359,1424-1435,1455-1484
+sdk-typescript/src/v2/BuildLogs.ts
+  h_e7759ddd73fa65 23,287-297,311-312,319,337,360-366,372,376,380-381,411-419,423,433,436,438,441-470,674-677
+sdk-typescript/src/v2/Daytona.ts
+  h_e7759ddd73fa65 36,61-62,71,121,344
+sdk-typescript/src/v2/Docker.ts
+  h_e7759ddd73fa65 7,16,112-116,124,127,135-139,141
+sdk-typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 469-474,772-777
+sdk-typescript/src/v2/Images.ts
+  h_e7759ddd73fa65 22,30,34,44-50,130-134,136,237,260-263,288-301,320-333,349,363-367,371-379
+sdk-typescript/src/v2/Interpreter.ts
+  h_e7759ddd73fa65 455-459
+sdk-typescript/src/v2/Ports.ts
+  h_e7759ddd73fa65 24,195
+sdk-typescript/src/v2/ProcessHandle.ts
+  h_e7759ddd73fa65 136-145
+sdk-typescript/src/v2/Reservations.ts
+  h_e7759ddd73fa65 23,144,147-151
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 715,807-808,848-850,1228-1236
+sdk-typescript/src/v2/Secret.ts
+  h_e7759ddd73fa65 32,40,50-53,135
+sdk-typescript/src/v2/Snapshots.ts
+  h_e7759ddd73fa65 21,66
+sdk-typescript/src/v2/Volume.ts
+  h_e7759ddd73fa65 25,165
+sdk-typescript/src/v2/accountTypes.ts
+  h_e7759ddd73fa65 85
+sdk-typescript/src/v2/artifactOptions.ts
+  h_e7759ddd73fa65 8,10,19-23,48-49,61-62,65,81-85,87,89
+sdk-typescript/src/v2/clientCreate.ts
+  h_e7759ddd73fa65 6,15,155-162,168-172,185
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  h_e7759ddd73fa65 10,212-218,555-575,993-994,1002-1009,1070,1073,1077-1078,1201
+sdk-typescript/src/v2/events.ts
+  h_e7759ddd73fa65 19,31-32,566,568,574,577-585,947-948,951,956,1162-1163
+sdk-typescript/src/v2/http.ts
+  h_e7759ddd73fa65 234-235,1900-1904
+sdk-typescript/src/v2/index.ts
+  h_e7759ddd73fa65 183,195
+sdk-typescript/src/v2/pages.ts
+  h_e7759ddd73fa65 1-124
+sdk-typescript/src/v2/readRetry.ts
+  h_e7759ddd73fa65 1-129
+sdk-typescript/src/v2/retryAfterHint.ts
+  h_e7759ddd73fa65 1-32
+sdk-typescript/src/v2/sandboxWait.ts
+  h_e7759ddd73fa65 7,12,44-45,62-63,148-151,154-156,165-167,169,171-179,194-196,202-206,208,211-220,232-233,257
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 293
+sdk-typescript/tests/acquisition-reads.test.ts
+  h_e7759ddd73fa65 22,24-25,28
+sdk-typescript/tests/artifact-deadlines.test.ts
+  h_e7759ddd73fa65 9,61-64
+sdk-typescript/tests/build-logs.test.ts
+  h_e7759ddd73fa65 7,309-348,738-849
+sdk-typescript/tests/errors-contract.test.ts
+  h_e7759ddd73fa65 85-91,175
+sdk-typescript/tests/image-pull-deadline.test.ts
+  h_e7759ddd73fa65 162-164,170-181
+sdk-typescript/tests/iter-pages.test.ts
+  h_e7759ddd73fa65 1-261
+sdk-typescript/tests/sandbox-waits.test.ts
+  h_e7759ddd73fa65 124-125,130-131,136-143
+sdk-typescript/tests/unbounded-waits.test.ts
+  h_e7759ddd73fa65 9,69
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 118,3009-3010,3716-3718,3905-3906,3921-3922,3927-3946,5606-5628,12660,12663-12674
+sdk-typescript/tests/wait-read-retries.test.ts
+  h_e7759ddd73fa65 1-624
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 30-31,47-49
+upgrade/python/README.md
+  h_e7759ddd73fa65 16-18
+upgrade/scripts/gen-guide.mjs
+  h_e7759ddd73fa65 62-63,79-81
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d085904de2e1153c64ccf323ae5dd493f6b2db02",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

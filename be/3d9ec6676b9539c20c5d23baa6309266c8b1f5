@@ -1,0 +1,27 @@
+cli/internal/toolbox/transfer.go
+  s_3768b20845d0e6::t_eb412de75945c1 28-64,67,72,75-76,78-89,93-99,102,105-115
+cli/cmd/sandbox_cp_stdio_test.go
+  s_3768b20845d0e6::t_fae151cd18651f 92
+  s_3768b20845d0e6::t_533d949779ffda 1-91,93-95
+cli/cmd/sandbox_cp.go
+  s_3768b20845d0e6::t_65651ffb7feeb2 25,27,39-43,54-61,72-75,81-90,97-104,111-113,122-131,138-154
+  s_3768b20845d0e6::t_fd9145b997a1f7 155-156
+changelog.d/cli-cp-stdio.changed.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be3d9ec6676b9539c20c5d23baa6309266c8b1f5",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

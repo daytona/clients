@@ -1,0 +1,42 @@
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  s_16e29cc1b88e81::t_17fbc06a72f147 65,77,90,95-106
+  s_16e29cc1b88e81::t_870c7022cc5e1a 107-108
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_16e29cc1b88e81::t_17fbc06a72f147 622-635,686,693,707-708
+  s_16e29cc1b88e81::t_66269f14b1552f 621
+sdk-go/sandbox_wait_events_test.go
+  s_16e29cc1b88e81::t_17fbc06a72f147 86-90,93,100,104,106,112-141
+  s_16e29cc1b88e81::t_2debb43384a958 142-145
+sdk-go/sandbox_wait_events.go
+  s_16e29cc1b88e81::t_2c540cf574d9e7 164
+sdk-python/src/daytona/v2/sandbox.py
+  s_16e29cc1b88e81::t_2c540cf574d9e7 380-381,1142-1144,1203-1204
+  s_16e29cc1b88e81::t_07e10d7aa62400 1420
+sdk-typescript/src/v2/sandboxWait.ts
+  s_16e29cc1b88e81::t_2c540cf574d9e7 88-97,131,240,271
+  s_16e29cc1b88e81::t_ea066f15534d55 87
+sdk-typescript/src/v2/Sandbox.ts
+  s_16e29cc1b88e81::t_07e10d7aa62400 1191-1192
+  s_16e29cc1b88e81::t_2c540cf574d9e7 711-714
+sdk-go/sandbox_wait_read.go
+  s_16e29cc1b88e81::t_2c540cf574d9e7 82,116-118,127-141
+  s_16e29cc1b88e81::t_2d550dcbf7614f 142-143
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_16e29cc1b88e81::t_746d800240555c 581
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5d9cb89ecadf36d0af299a6401db96911eeb255",
+  "prompts": {},
+  "sessions": {
+    "s_16e29cc1b88e81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2d8e083ffeuCqMabC6O4aIw6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

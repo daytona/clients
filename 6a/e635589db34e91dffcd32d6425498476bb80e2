@@ -1,0 +1,39 @@
+changelog.d/cli-list-empty-name.fixed.md
+  s_3768b20845d0e6::t_834839b456e0ac 1-4
+cli/README.md
+  s_3768b20845d0e6::t_cd480f1e70ecc2 222
+  s_3768b20845d0e6::t_834839b456e0ac 689-691
+changelog.d/cli-sandbox-network-policy.added.md
+  s_3768b20845d0e6::t_834839b456e0ac 1-6
+cli/cmd/snapshot.go
+  s_3768b20845d0e6::t_cd480f1e70ecc2 105,141
+changelog.d/cli-sandbox-secrets.added.md
+  s_3768b20845d0e6::t_834839b456e0ac 1-6
+cli/cmd/sandbox_cp.go
+  s_3768b20845d0e6::t_834839b456e0ac 41
+cli/cmd/image_list.go
+  s_3768b20845d0e6::t_cd480f1e70ecc2 104
+  s_3768b20845d0e6::t_cf783cf46f9465 23
+changelog.d/cli-port-in-use.added.md
+  s_3768b20845d0e6::t_834839b456e0ac 2-4
+changelog.d/cli-process-tags.added.md
+  s_3768b20845d0e6::t_834839b456e0ac 5-11
+changelog.d/cli-cp-stdio.breaking.md
+  s_3768b20845d0e6::t_3ff03545ebaf89 2-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ae635589db34e91dffcd32d6425498476bb80e2",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

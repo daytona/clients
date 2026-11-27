@@ -1,0 +1,68 @@
+changelog.d/751-process-interpreter-git-inputs.fixed.md
+  h_e7759ddd73fa65 1-16
+changelog.d/751-process-signal-inputs.fixed.md
+  h_e7759ddd73fa65 1-11
+sdk-go/interpreter_contexts.go
+  h_e7759ddd73fa65 24-25,31-33
+sdk-go/interpreter_r3_contexts_test.go
+  h_e7759ddd73fa65 36-37,39
+sdk-go/process_options.go
+  h_e7759ddd73fa65 58,64-65
+sdk-go/process_signal.go
+  h_e7759ddd73fa65 9,23,32-35,49,57-63,65-74
+sdk-go/process_signal_inputs_test.go
+  h_e7759ddd73fa65 1-80
+sdk-python/README.md
+  h_e7759ddd73fa65 941-943
+sdk-python/src/daytona/v2/_core.py
+  h_e7759ddd73fa65 110,1168-1173,1178-1185,1367-1388,1879-1900,1904-1906,1908-1910,1913-1931,1933-1934
+sdk-python/src/daytona/v2/_sync/interpreter.py
+  h_e7759ddd73fa65 46-51,124-126
+sdk-python/src/daytona/v2/_sync/process.py
+  h_e7759ddd73fa65 80,82-89
+sdk-python/src/daytona/v2/git.py
+  h_e7759ddd73fa65 79,91,161,207,209,225,280,393-394,396
+sdk-python/src/daytona/v2/interpreter.py
+  h_e7759ddd73fa65 17-18,107-116,249-251,291-300,302-311,383-385,416-418,429,505
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 419,421-428,430,940
+sdk-python/src/daytona/v2/session.py
+  h_e7759ddd73fa65 12,95,122
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 7155
+sdk-python/tests/test_process_inputs.py
+  h_e7759ddd73fa65 1-222
+sdk-python/tests/test_toolbox_surface.py
+  h_e7759ddd73fa65 1657
+sdk-typescript/README.md
+  h_e7759ddd73fa65 829-831
+sdk-typescript/src/v2/Git.ts
+  h_e7759ddd73fa65 117,124,135,165-166,199,226,279,281,297-302
+sdk-typescript/src/v2/Interpreter.ts
+  h_e7759ddd73fa65 22,185-190,426,544,554-558,560-563,565,568,581-583,617-619,623-624,631
+sdk-typescript/src/v2/Process.ts
+  h_e7759ddd73fa65 175-177,187-188,191,317
+sdk-typescript/src/v2/ProcessHandle.ts
+  h_e7759ddd73fa65 22,183-189,192,274-295
+sdk-typescript/src/v2/ProcessWire.ts
+  h_e7759ddd73fa65 109-126,171,173,193-195,202,206-223,264-267,269,272
+sdk-typescript/src/v2/Session.ts
+  h_e7759ddd73fa65 15,110,116
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 1188,1190,1192
+sdk-typescript/tests/process-inputs.test.ts
+  h_e7759ddd73fa65 1-153
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 12875-12877,12881-12883
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2e40df1fe11fdcf29b40ddd19a80f92655d8f587",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

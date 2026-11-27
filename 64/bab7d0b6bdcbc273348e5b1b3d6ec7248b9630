@@ -1,0 +1,105 @@
+sdk-python/src/daytona/v2/computer_use_services.py
+  s_2e6e2943dda8a6::t_1f782237d34eef 461-466
+  s_2e6e2943dda8a6::t_9507220c9c7dd7 397-405
+  s_2e6e2943dda8a6::t_2ac971e9beac0c 419-435
+  s_2e6e2943dda8a6::t_d08d239219bb4b 449-453
+sdk-python/src/daytona/v2/types.py
+  s_2e6e2943dda8a6::t_89ab9e9f1e2705 305-308
+examples/typescript/examples.test.ts
+  s_2e6e2943dda8a6::t_e1d82748a6cef2 26,46-47,440-471
+  s_2e6e2943dda8a6::t_5141bc74b898e4 472-485
+changelog.d/docs-terminal-state-error.changed.md
+  s_2e6e2943dda8a6::t_2a7d804eaf110b 1-4
+examples/python/test_examples.py
+  s_2e6e2943dda8a6::t_569adae16e6c3d 491
+  s_2e6e2943dda8a6::t_19232969ed32ca 24
+  s_2e6e2943dda8a6::t_952f54db58c5d6 38,40-45,65-71,139-144,455,461-490,492-509,1190-1260
+examples/typescript/computer-use/index.ts
+  s_2e6e2943dda8a6::t_d2a3edcdb70f90 1-97
+examples/package.json
+  s_2e6e2943dda8a6::t_29f66edde8a739 17
+changelog.d/docs-fs-no-tilde.changed.md
+  s_2e6e2943dda8a6::t_3c7eefb9734161 1-2
+sdk-python/README.md
+  s_2e6e2943dda8a6::t_20875cf973fc3e 805-806
+  s_2e6e2943dda8a6::t_919ba2b07ffd74 604-606
+  s_2e6e2943dda8a6::t_00c758c397e965 1338-1340
+  s_2e6e2943dda8a6::t_3c7eefb9734161 1122-1123
+  s_2e6e2943dda8a6::t_0667e0fa76ffc9 1353-1370
+changelog.d/docs-recording-status.changed.md
+  s_2e6e2943dda8a6::t_ce09cfcfad77e1 1-6
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_2e6e2943dda8a6::t_afc071134d51ff 371-375,379
+  s_2e6e2943dda8a6::t_2a7d804eaf110b 333-334
+  s_2e6e2943dda8a6::t_b0d0c48ebc8d07 335
+  s_2e6e2943dda8a6::t_8c297da82d0318 376-378
+changelog.d/docs-precondition-failed.changed.md
+  s_2e6e2943dda8a6::t_8c297da82d0318 1-5
+sdk-python/src/daytona/v2/errors.py
+  s_2e6e2943dda8a6::t_2a7d804eaf110b 201-202
+  s_2e6e2943dda8a6::t_8c297da82d0318 238-239
+  s_2e6e2943dda8a6::t_b0d0c48ebc8d07 203-204
+  s_2e6e2943dda8a6::t_afc071134d51ff 232-237,240
+examples/python/computer_use.py
+  s_2e6e2943dda8a6::t_74e29a218d98eb 1-95
+sdk-go/README.md
+  s_2e6e2943dda8a6::t_20875cf973fc3e 86-87
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_2e6e2943dda8a6::t_8c5bbb4dd9f56d 341-349,357-372,380-384,389-393
+sdk-typescript/README.md
+  s_2e6e2943dda8a6::t_3c7eefb9734161 1023-1024
+  s_2e6e2943dda8a6::t_d194c3458c4339 200-215
+  s_2e6e2943dda8a6::t_00c758c397e965 1244-1246
+  s_2e6e2943dda8a6::t_919ba2b07ffd74 551-553
+  s_2e6e2943dda8a6::t_1cd90e547c3e19 1259-1277
+  s_2e6e2943dda8a6::t_20875cf973fc3e 1324-1326
+changelog.d/docs-search-default-order.changed.md
+  s_2e6e2943dda8a6::t_919ba2b07ffd74 1-3
+sdk-go/errors_categories.go
+  s_2e6e2943dda8a6::t_afc071134d51ff 34-35
+sdk-go/errors_details.go
+  s_2e6e2943dda8a6::t_2a7d804eaf110b 7,9
+  s_2e6e2943dda8a6::t_b0d0c48ebc8d07 8
+examples/run-examples.sh
+  s_2e6e2943dda8a6::t_29f66edde8a739 16-17,34-36
+  s_2e6e2943dda8a6::t_788fd800a70c18 37
+sdk-python/src/daytona/v2/_sync/computer_use_services.py
+  s_2e6e2943dda8a6::t_e5de4ad2c2307b 256-261,265-269,273-281,285-301
+changelog.d/docs-lifecycle-deadlines.changed.md
+  s_2e6e2943dda8a6::t_20875cf973fc3e 1-4
+sdk-go/fs.go
+  s_2e6e2943dda8a6::t_3c7eefb9734161 17-18
+examples/README.md
+  s_2e6e2943dda8a6::t_29f66edde8a739 45-46,62,86,96
+sdk-typescript/src/v2/types.ts
+  s_2e6e2943dda8a6::t_89ab9e9f1e2705 387-390
+examples/typescript/test-support/fake-sdk.ts
+  s_2e6e2943dda8a6::t_e1d82748a6cef2 15,60-63,80-81,99-100,259,269-298
+  s_2e6e2943dda8a6::t_fd00b12591ec2f 299-300
+sdk-go/sandbox_info.go
+  s_2e6e2943dda8a6::t_89ab9e9f1e2705 129-130,137-138
+cli/README.md
+  s_2e6e2943dda8a6::t_b7c503da85b476 565
+sdk-go/computer_use_recording.go
+  s_2e6e2943dda8a6::t_5e06d0bf4ba80b 28-33,54-58,75-88,103,125-126
+changelog.d/docs-ts-runtimes.changed.md
+  s_2e6e2943dda8a6::t_cb7649e3d1dce8 1-4
+changelog.d/examples-computer-use.added.md
+  s_2e6e2943dda8a6::t_00c758c397e965 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64bab7d0b6bdcbc273348e5b1b3d6ec7248b9630",
+  "prompts": {},
+  "sessions": {
+    "s_2e6e2943dda8a6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2317133ffesN7OkQuJ2ux67k",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
