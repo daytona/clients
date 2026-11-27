@@ -61,21 +61,36 @@ it('keeps the state a successful macOS refresh reads after the hub observed the 
   expect([sandbox.state, sandbox.rawState, sandbox.macBootMode]).toEqual(['started', 'running', 'warm'])
 })
 
-it.each([
-  { path: 'same state', before: { state: 'error', rawState: 'failed', error: 'the guest crashed' }, kept: 'the guest crashed' },
-  { path: 'other wire status', before: { state: 'error', rawState: 'lost', error: 'the host went away' }, kept: undefined },
-  { path: 'other state', before: { state: 'started', rawState: 'running', error: 'an earlier failure' }, kept: undefined },
-] as const)('a terminal report keeps only an error message read with its state ($path)', async ({ before, kept }) => {
-  // Given a report of `error` with no message, and a read that cannot confirm it.
-  const api = createHttpClient('http://api.invalid')
-  const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
-  jest.spyOn(hub, 'wait').mockRejectedValue(new SandboxTerminalStateError('sbx', 'error', { rawState: 'failed' }))
-  jest.spyOn(api, 'get').mockRejectedValue(new ConnectionError('refresh unavailable'))
-  const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'linux', ...before }, api, undefined, undefined, undefined, {}, undefined, undefined, hub)
-  // When the wait ends on the report.
-  await expect(sandbox.wait({ timeoutSeconds: 5 })).rejects.toBeInstanceOf(SandboxTerminalStateError)
-  // Then a message read with another state never labels it.
-  expect([sandbox.state, sandbox.rawState, sandbox.error]).toEqual(['error', 'failed', kept])
+const TERMINAL_REPORTS = [
+  { path: 'same state', before: { state: 'error', rawState: 'failed', error: 'the guest crashed' }, frameReason: undefined, kept: 'the guest crashed' },
+  { path: 'other wire status', before: { state: 'error', rawState: 'lost', error: 'the host went away' }, frameReason: undefined, kept: undefined },
+  { path: 'other state', before: { state: 'started', rawState: 'running', error: 'an earlier failure' }, frameReason: undefined, kept: undefined },
+  { path: 'frame message', before: { state: 'error', rawState: 'failed', error: 'an earlier failure' }, frameReason: 'the guest crashed', kept: 'the guest crashed' },
+] as const
+
+describe.each([
+  // A live frame: the waiter observes it, then the hub rejects.
+  { source: 'live frame', observed: true },
+  // The state the hub holds: no waiter observes it.
+  { source: 'held state', observed: false },
+])('a terminal report from a $source', ({ observed }) => {
+  it.each(TERMINAL_REPORTS)('keeps only an error message read with its state ($path)', async ({ before, frameReason, kept }) => {
+    // Given a report of `error`, and a read that cannot confirm it.
+    const api = createHttpClient('http://api.invalid')
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
+    jest.spyOn(hub, 'wait').mockImplementation(async (_id, _predicate, options) => {
+      if (observed) options!.onObserved!({ state: 'error', rawState: 'failed', reason: frameReason })
+      throw new SandboxTerminalStateError('sbx', 'error', { rawState: 'failed', reason: frameReason })
+    })
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new ConnectionError('refresh unavailable'))
+    const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'linux', ...before }, api, undefined, undefined, undefined, {}, undefined, undefined, hub)
+    // When the wait ends on the report, after its one confirming read failed.
+    await expect(sandbox.wait({ timeoutSeconds: 5 })).rejects.toBeInstanceOf(SandboxTerminalStateError)
+    expect(get).toHaveBeenCalledTimes(1)
+    // Then the frame's message wins; without one, only a message held for the
+    // same state and wire status stays.
+    expect([sandbox.state, sandbox.rawState, sandbox.error]).toEqual(['error', 'failed', kept])
+  })
 })
 
 it('a 404 in a delete drops an error message read with another state', async () => {

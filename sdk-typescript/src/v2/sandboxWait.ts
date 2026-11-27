@@ -84,22 +84,6 @@ export function waitQueryState(state: SandboxWaitState | undefined): string | un
   }
 }
 
-/** A 404 in a delete: destroyed, keeping the error message only of a handle that already read it destroyed. */
-function destroyedOutcome(context: SandboxWaitContext): WaitOutcome {
-  return withKeptReason({ state: 'destroyed', rawState: 'deleted' }, context.current())
-}
-
-/**
- * `outcome` with the error message the handle holds, kept only when that
- * message came with the same state (and wire status, when both are known), as
- * `withReason` does for a terminal error.
- */
-function withKeptReason(outcome: WaitOutcome, seen: WaitOutcome): WaitOutcome {
-  if (outcome.reason !== undefined || seen.reason === undefined || seen.state !== outcome.state) return outcome
-  if (outcome.rawState !== '' && seen.rawState !== '' && seen.rawState !== outcome.rawState) return outcome
-  return { ...outcome, reason: seen.reason }
-}
-
 /**
  * The events hub's share of a wait ending at `deadline`: all but the
  * final-read reserve. The hub reads `0` as no deadline, so a spent budget is a
@@ -133,7 +117,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       return await context.read(timeoutMs, wait, readDeadline, wait !== undefined && exact)
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
-        const destroyed = destroyedOutcome(context)
+        // A message the handle read with `destroyed` stays (observe keeps it).
+        const destroyed = { state: 'destroyed', rawState: 'deleted' } as const
         context.observe(destroyed)
         return destroyed
       }
@@ -242,7 +227,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       }).finally(() => { hubSettled.abort() })
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
-        context.observe(destroyedOutcome(context))
+        context.observe({ state: 'destroyed', rawState: 'deleted' })
         return
       }
       if (deadline !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') {
@@ -273,9 +258,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (!(error instanceof SandboxTerminalStateError)) throw error
       // What the handle last read, before the report overwrites it.
       const seen = context.current()
-      // The report's error message, else the one the handle read with the same state.
-      const report: WaitOutcome = { state: error.state, rawState: error.rawState ?? '', reason: error.reason }
-      context.observe(withKeptReason(report, seen))
+      // The report's error message, else the one the handle holds for the
+      // same state and wire status (observe keeps it).
+      context.observe({ state: error.state, rawState: error.rawState ?? '', reason: error.reason })
       // A terminal state the hub reports may be one it held before this
       // request's frames arrived (an `error` from an earlier wait, while a
       // DELETE already moves the sandbox on): one read confirms it, and the

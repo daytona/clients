@@ -706,11 +706,16 @@ export class Sandbox {
       },
       current: () => ({ state: this.state ?? 'unknown', rawState: this.rawState ?? '', reason: this.error }),
       observe: (outcome) => {
+        // The observation's error message; without one, a message the handle
+        // holds for the same state and wire status stays, and any other is
+        // dropped (a message never labels another state).
+        const rawState = outcome.rawState || undefined
+        const sameState = this.observed.state === outcome.state
+          && (rawState === undefined || this.observed.rawState === undefined || this.observed.rawState === rawState)
+        this.observed.error = outcome.reason ?? (sameState ? this.observed.error : undefined)
         this.observed.state = outcome.state
         // A frame without a status leaves the wire status unknown (never '').
-        this.observed.rawState = outcome.rawState || undefined
-        // The error message the observation carries; none clears it.
-        this.observed.error = outcome.reason
+        this.observed.rawState = rawState
       },
       closed: this.httpOptions?.closed,
     }, states, options)
@@ -1182,15 +1187,18 @@ export class Sandbox {
    * `timeoutSeconds` is a caller wait budget in seconds. The default is 60; `0`,
    * or a value above about 24.8 days (the timer maximum), waits without a deadline. Timeout raises {@link RequestTimeoutError}, and
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
-   * A terminal state the events hub reports is confirmed with one read before it raises,
-   * while the wait has budget left, unless that state already came from a full read or
-   * is `destroyed`. A wait decided by a target event makes no further request: the
-   * handle takes the event's state and the sandbox's error message (cleared when the
-   * event has none), and keeps its other fields, `spotEvictedAt`, the lifecycle-policy
-   * deadlines and the activity clock included, as of the last read (`refreshData()`
-   * reloads them). Only `start()` and `resume()` of a macOS sandbox read once more after
-   * the target event, while budget remains, for the boot mode and the reservation; a
-   * failed read keeps the observed success. When the events hub has reported nothing decisive, the last part
+   * A wait decided by a target event from the sandbox events stream makes no further
+   * request. A terminal event (`error`, `destroying`) gets one confirming read before
+   * the wait throws, except after a `destroyed` report, once the budget is spent, or
+   * when that state already came from a full read; when that read is skipped or fails,
+   * the handle carries the reported state and the wait throws it. The handle takes an
+   * event's state and error message (an event without one keeps only a message held for
+   * the same state and wire status), and keeps its other fields, `spotEvictedAt`, the
+   * lifecycle-policy deadlines and the activity clock included, as of the last read
+   * (`refreshData()` reloads them). Only `start()` and `resume()` of a macOS sandbox read
+   * once more after the target event, while budget remains and never after `destroyed`,
+   * for the boot mode and the reservation; a failed read keeps the observed success.
+   * When the events hub has reported nothing decisive, the last part
    * of a bounded budget (up to 5 s) reads the state from the server, so a state the
    * hub missed still ends the wait; the same holds for the other lifecycle waits and
    * the create and fork waits.

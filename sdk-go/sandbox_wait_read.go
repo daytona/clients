@@ -115,10 +115,18 @@ func (w *sandboxWait) readOutcome(outcome stateObservation) (bool, error) {
 	return false, nil
 }
 
+// observeWait records a wait observation. Its error message replaces the
+// handle's; without one, a message a full read reported for the same state and
+// wire status stays (with its provenance), and any other is dropped.
 func (s *Sandbox) observeWait(outcome stateObservation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	keep := outcome.Reason == "" && s.reasonFromRead &&
+		s.info.State == outcome.State && s.info.RawState == outcome.RawState
 	s.info.State, s.info.RawState = outcome.State, outcome.RawState
+	if keep {
+		return
+	}
 	s.info.Error = outcome.Reason
 	s.reasonFromRead = false
 }

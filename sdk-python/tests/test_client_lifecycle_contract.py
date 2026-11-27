@@ -633,42 +633,66 @@ async def test_an_observed_target_carries_the_frames_error_message() -> None:
 
 
 class _TerminalHub:
-    """An events hub that reports a terminal state at once, with no error message."""
+    """An events hub that reports a terminal state at once.
+
+    ``observed`` delivers it as a live frame does (the waiter observes the
+    frame, then the hub raises); otherwise it comes from the state the hub
+    holds, which no waiter observes.
+    """
 
     enabled = True
 
-    def __init__(self, state: str, raw_state: str) -> None:
-        self.state = state
-        self.raw_state = raw_state
+    def __init__(
+        self, state: str, raw_state: str, reason: Optional[str] = None, *, observed: bool = False
+    ) -> None:
+        self.frame = WaitOutcome(state, raw_state, reason)  # type: ignore[arg-type]
+        self.observed = observed
 
-    async def wait(self, sandbox_id: str, predicate: object, **_options: object) -> WaitOutcome:
-        raise SandboxTerminalStateError(sandbox_id, self.state, raw_state=self.raw_state)  # type: ignore[arg-type]
+    async def wait(
+        self,
+        sandbox_id: str,
+        predicate: object,
+        *,
+        on_observed: Callable[[WaitOutcome], None],
+        **_options: object,
+    ) -> WaitOutcome:
+        if self.observed:
+            on_observed(self.frame)
+        raise SandboxTerminalStateError(
+            sandbox_id, self.frame.state, raw_state=self.frame.raw_state, reason=self.frame.reason
+        )
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("observed", [True, False], ids=["live-frame", "held-state"])
 @pytest.mark.parametrize(
-    ("before", "kept"),
+    ("before", "frame_reason", "kept"),
     [
-        (("error", "failed", "the guest crashed"), "the guest crashed"),
-        (("error", "lost", "the host went away"), None),
-        (("started", "running", "an earlier failure"), None),
+        (("error", "failed", "the guest crashed"), None, "the guest crashed"),
+        (("error", "lost", "the host went away"), None, None),
+        (("started", "running", "an earlier failure"), None, None),
+        (("error", "failed", "an earlier failure"), "the guest crashed", "the guest crashed"),
     ],
-    ids=["same-state", "other-wire-status", "other-state"],
+    ids=["same-state", "other-wire-status", "other-state", "frame-message"],
 )
 async def test_a_terminal_report_keeps_only_an_error_message_read_with_its_state(
-    before: tuple[str, str, str], kept: Optional[str]
+    before: tuple[str, str, str], frame_reason: Optional[str], kept: Optional[str], observed: bool
 ) -> None:
     sandbox = lazy_sandbox(_client(), "sbx")
     state, raw_state, error = before
     sandbox._update(sandbox_class="linux", state=state, raw_state=raw_state, error=error)  # type: ignore[arg-type]
     # The read that would confirm the report fails, so the report stands.
-    sandbox._api = _Api([create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")])  # type: ignore[attr-defined]
-    sandbox._hub = _TerminalHub("error", "failed")  # type: ignore[assignment]
+    api = _Api([create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")])
+    sandbox._api = api  # type: ignore[attr-defined]
+    sandbox._hub = _TerminalHub("error", "failed", frame_reason, observed=observed)  # type: ignore[assignment]
 
     with pytest.raises(SandboxTerminalStateError):
         await sandbox.wait(until="started", timeout=5)
 
+    # The frame's message wins; without one, only a message held for the same
+    # state and wire status stays.
     assert (sandbox.state, sandbox.raw_state, sandbox.error) == ("error", "failed", kept)
+    assert [spec.method for spec in api.specs] == ["GET"]
 
 
 @pytest.mark.anyio

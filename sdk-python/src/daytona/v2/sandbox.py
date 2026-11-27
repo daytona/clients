@@ -1138,8 +1138,12 @@ class AsyncSandbox:
 
             def _observe_outcome(outcome: WaitOutcome) -> None:
                 # A frame without a status leaves the wire status unknown (None,
-                # never ""); its error message replaces the handle's (none clears it).
-                self._update(state=outcome.state, raw_state=outcome.raw_state or None, error=outcome.reason)
+                # never ""). Its error message replaces the handle's; without
+                # one, a message held for the same state and wire status stays,
+                # computed before the update.
+                raw_state = outcome.raw_state or None
+                error = outcome.reason or self._kept_error(outcome.state, raw_state)
+                self._update(state=outcome.state, raw_state=raw_state, error=error)
 
             def _on_observed(outcome: WaitOutcome) -> None:
                 nonlocal refreshed_by_poll
@@ -1410,18 +1414,21 @@ class AsyncSandbox:
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroyed`` or ``error`` first (or ``destroying``, unless
         ``until`` includes ``destroyed``) raises
-        :class:`SandboxTerminalStateError`. A terminal state the events hub
-        reports is confirmed with one read before it raises, while the wait has
-        budget left, unless that state already came from a full read or is
-        ``destroyed``. A wait decided by a target event makes no further
-        request: the handle takes the event's state and the sandbox's error
-        message (cleared when the event has none), and keeps its other fields,
-        ``spot_evicted_at``, the ``lifecycle_policy`` deadlines and the
-        activity clock included, as of the last read (:meth:`refresh_data`
-        reloads them). Only :meth:`start` and :meth:`resume` of a macOS
-        sandbox read once more after the target event, while budget remains,
-        for the boot mode and the reservation; a failed read keeps the
-        observed success. When the events hub has reported nothing decisive, the
+        :class:`SandboxTerminalStateError`. A wait decided by a target event
+        from the sandbox events stream makes no further request. A terminal
+        event (``error``, ``destroying``) gets one confirming read before the
+        wait raises, except after a ``destroyed`` report, once the budget is
+        spent, or when that state already came from a full read; when that
+        read is skipped or fails, the handle carries the reported state and the
+        wait raises it. The handle takes an event's state and error message (an
+        event without one keeps only a message held for the same state and wire
+        status), and keeps its other fields, ``spot_evicted_at``, the
+        ``lifecycle_policy`` deadlines and the activity clock included, as of
+        the last read (:meth:`refresh_data` reloads them). Only :meth:`start`
+        and :meth:`resume` of a macOS sandbox read once more after the target
+        event, while budget remains and never after ``destroyed``, for the boot
+        mode and the reservation; a failed read keeps the observed success.
+        When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits. A read

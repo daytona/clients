@@ -83,24 +83,35 @@ func TestWait_whenTargetEventObserved_readsNothing(t *testing.T) {
 	require.Empty(t, fake.requests())
 }
 
-func TestWait_whenTargetEventHasNoReason_clearsAReadReason(t *testing.T) {
-	// Given: a full read that showed the target state with an error message.
-	fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
-		detail := sandboxFixture("sbx")
-		detail["error"] = "an earlier failure"
-		writeJSON(t, w, detail)
-	}})
-	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
-	require.NoError(t, err)
-	require.NoError(t, sandbox.Refresh(t.Context()))
-	require.Equal(t, "an earlier failure", sandbox.Info().Error)
-	sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
-	// When
-	err = sandbox.Wait(t.Context(), nil)
-	// Then: the event's absent message clears the read's.
-	require.NoError(t, err)
-	require.Empty(t, sandbox.Info().Error)
-	require.Len(t, reads(fake), 1)
+func TestWait_whenTargetEventHasNoReason_keepsOnlyAReadReasonForItsState(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		status string
+		kept   string
+	}{
+		{"same-state", "running", "an earlier failure"},
+		{"other-state", "stopped", ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// Given: a full read that showed an error message with a state.
+			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
+				detail := sandboxFixture("sbx")
+				detail["status"] = test.status
+				detail["error"] = "an earlier failure"
+				writeJSON(t, w, detail)
+			}})
+			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+			require.NoError(t, err)
+			require.NoError(t, sandbox.Refresh(t.Context()))
+			sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
+			// When: a started event without a message decides the wait.
+			err = sandbox.Wait(t.Context(), nil)
+			// Then: the message stays only when it was read with that state.
+			require.NoError(t, err)
+			require.Equal(t, test.kept, sandbox.Info().Error)
+			require.Len(t, reads(fake), 1)
+		})
+	}
 }
 
 func TestResume_whenMacOSTargetEventObserved_refreshIsBestEffort(t *testing.T) {

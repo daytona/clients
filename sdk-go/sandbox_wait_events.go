@@ -133,45 +133,74 @@ func (w *sandboxWait) raceRead(
 }
 
 // A terminal event can predate this operation. Only a full read decides that
-// failure. A target event ends the wait with no read, unless
-// readAfterMacOSTarget asks for one for a macOS sandbox; that read also decides: a target
-// returns, a terminal state no lag can show fails, and any other state polls
-// on under the same deadline; a failed read keeps the observed success.
+// failure: a terminal event gets one confirming read, except after destroyed or
+// once the budget is spent, and a failed confirming read keeps the reported
+// state. A target event ends the wait with no read, unless needsReadAfterTarget
+// asks for one for a macOS sandbox; that read also decides: a target returns, a
+// terminal state no lag can show fails, and any other state polls on under the
+// same deadline; a failed read keeps the observed success.
 // A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
 	if event.NotFound {
-		if w.missingIsDestroyed {
-			w.sandbox.observeWait(stateObservation{State: SandboxStateDestroyed, RawState: "deleted"})
-			return true, nil
-		}
-		return true, newSDKError(CodeNotFound, 404,
-			"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
+		return w.eventNotFound()
 	}
-	reported := event
 	success := w.target(event.State)
-	// A target event's error message, or its absence, stands; only a terminal
-	// event borrows the reason of a matching full read.
-	if reported.Reason == "" && !success {
-		reported.Reason = w.sandbox.readReasonFor(event)
-	}
-	w.sandbox.observeWait(reported)
-	if success && !(w.readAfterMacOSTarget && w.sandbox.Info().Class == SandboxClassMacOS) {
+	reported := w.observeEvent(event, success)
+	if success && !w.needsReadAfterTarget() {
 		return true, nil
 	}
 	if event.State == SandboxStateDestroyed || waitRemaining(w.deadline) == 0 {
 		return w.readOutcome(reported)
 	}
 	fresh, err := w.read(ctx, waitReadOptions{deadline: w.deadline})
-	if err != nil && (ctx.Err() != nil || errors.Is(err, ErrClientClosed)) {
+	if err != nil {
+		return w.confirmingReadFailed(ctx, err, success, reported)
+	}
+	return w.decideConfirmingRead(fresh)
+}
+
+func (w *sandboxWait) eventNotFound() (bool, error) {
+	if w.missingIsDestroyed {
+		w.sandbox.observeWait(stateObservation{State: SandboxStateDestroyed, RawState: "deleted"})
+		return true, nil
+	}
+	return true, newSDKError(CodeNotFound, 404,
+		"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
+}
+
+// observeEvent records the event on the handle. A target event's error
+// message, or its absence, stands; only a terminal event borrows the reason of
+// a matching full read.
+func (w *sandboxWait) observeEvent(event stateObservation, success bool) stateObservation {
+	reported := event
+	if reported.Reason == "" && !success {
+		reported.Reason = w.sandbox.readReasonFor(event)
+	}
+	w.sandbox.observeWait(reported)
+	return reported
+}
+
+// needsReadAfterTarget reports whether a target event is followed by a read:
+// only for Start and Resume of a sandbox the handle knows is macOS when the
+// event arrives.
+func (w *sandboxWait) needsReadAfterTarget() bool {
+	return w.readAfterMacOSTarget && w.sandbox.Info().Class == SandboxClassMacOS
+}
+
+func (w *sandboxWait) confirmingReadFailed(
+	ctx context.Context, err error, success bool, reported stateObservation,
+) (bool, error) {
+	if ctx.Err() != nil || errors.Is(err, ErrClientClosed) {
 		return true, err
 	}
-	if err != nil {
-		if success {
-			// All read failures are SDK errors at this boundary. Success survives.
-			return true, nil
-		}
-		return true, w.terminalError(reported)
+	if success {
+		// All read failures are SDK errors at this boundary. Success survives.
+		return true, nil
 	}
+	return true, w.terminalError(reported)
+}
+
+func (w *sandboxWait) decideConfirmingRead(fresh stateObservation) (bool, error) {
 	if w.target(fresh.State) {
 		return true, nil
 	}

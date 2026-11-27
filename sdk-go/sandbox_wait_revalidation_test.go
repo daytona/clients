@@ -322,7 +322,7 @@ func macOSPreOperationCases() []struct {
 	stale  string
 	target SandboxState
 } {
-	var result = preOperationCases[:0:0]
+	result := preOperationCases[:0:0]
 	for _, test := range preOperationCases {
 		if test.verb == "start" {
 			result = append(result, test)
