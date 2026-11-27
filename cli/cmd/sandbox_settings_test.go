@@ -119,7 +119,7 @@ func TestSandboxSecretsSetIsConditional(t *testing.T) {
 	}
 }
 
-const networkPolicyBody = `{"desired":{"allow_domains":["pypi.org"],"allow_cidrs":[],"block_all":true},"applied":null,"desired_revision":2,"applied_revision":1,"status":"pending"}`
+const networkPolicyBody = `{"desired":{"version":1,"allow_domains":["pypi.org"],"allow_cidrs":[],"block_all":true},"applied":null,"desired_revision":2,"applied_revision":1,"status":"pending"}`
 
 func TestSandboxNetworkPolicySetAndReset(t *testing.T) {
 	f := newFakeAPI(t)
