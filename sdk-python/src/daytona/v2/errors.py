@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copyreg
 from typing import TYPE_CHECKING, Dict, Optional, Type
 
 from typing_extensions import TypedDict, Unpack
@@ -108,6 +109,41 @@ class DaytonaError(_shared.DaytonaError):
         self.region = region
         self.request_id = request_id
         self.retry_after_ms = retry_after_ms
+
+    def __reduce__(self) -> tuple[object, ...]:
+        # Rebuilt without calling __init__: several subclasses take arguments
+        # other than the message (SandboxTerminalStateError(sandbox_id, state),
+        # ...), so replaying ``args`` into them, as BaseException does, fails or
+        # corrupts their fields. pickle and copy restore the attributes after.
+        return (_rebuild_error, (type(self), self.args), self._state())
+
+    def _state(self) -> dict[str, object]:
+        """The instance attributes, ``__slots__`` of a subclass included
+        (``BaseException.__setstate__`` sets each one back)."""
+        state = dict(self.__dict__)
+        for name in copyreg._slotnames(type(self)):  # type: ignore[attr-defined]
+            if hasattr(self, name):
+                state[name] = getattr(self, name)
+        return state
+
+    def __copy__(self) -> DaytonaError:
+        # A shallow copy keeps the exception chain by reference. pickle and
+        # deepcopy leave it out, as for every built-in exception: a chained
+        # transport error can hold the request and its credential, and may not
+        # be picklable at all.
+        duplicate = _rebuild_error(type(self), self.args)
+        for name, value in self._state().items():
+            setattr(duplicate, name, value)
+        duplicate.__cause__ = self.__cause__
+        duplicate.__context__ = self.__context__
+        duplicate.__suppress_context__ = self.__suppress_context__
+        duplicate.__traceback__ = self.__traceback__
+        return duplicate
+
+
+def _rebuild_error(cls: Type[DaytonaError], args: tuple[object, ...]) -> DaytonaError:
+    """An instance of ``cls`` with ``args`` and no state yet (internal; see ``DaytonaError.__reduce__``)."""
+    return cls.__new__(cls, *args)
 
 
 class ClientClosedError(DaytonaError):

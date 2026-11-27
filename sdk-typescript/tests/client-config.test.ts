@@ -545,6 +545,10 @@ describe('request timeout meaning', () => {
       expect(error).toBeInstanceOf(SandboxCreateRequestTimeoutError)
       expect(error).toBeInstanceOf(ClientTimeoutError)
       expect(error).toMatchObject({ idempotencyKey: 'run-42', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      // The request's own timeout is the cause, as Python chains it.
+      const cause = (error as SandboxCreateRequestTimeoutError).cause
+      expect(cause).toBeInstanceOf(ClientTimeoutError)
+      expect(cause).not.toBeInstanceOf(SandboxCreateRequestTimeoutError)
       expect(keys).toEqual(['run-42'])
       await daytona.close()
     } finally {

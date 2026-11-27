@@ -2887,6 +2887,33 @@ describe('V2 model', () => {
     }
   })
 
+  it('keeps the read that ran out of time as the cause when the wait deadline cuts it', async () => {
+    const client = new Daytona({ apiKey: 'key' })
+    const api = clientInstance(client)
+    const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
+    jest.spyOn(hub, 'wait').mockImplementation(async (_sandboxId, _predicate, options) => {
+      await options?.sandboxPollFn?.()
+      throw new Error('unreachable: the poll raises first')
+    })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    let clock = 1_000
+    const now = jest.spyOn(Date, 'now').mockImplementation(() => clock)
+    const cut = new ClientTimeoutError()
+    const get = jest.spyOn(api, 'get').mockImplementation(async () => {
+      clock = 1_000_000
+      throw cut
+    })
+    try {
+      const error = await sandbox.wait({ until: 'started', timeoutSeconds: 1 }).then(() => undefined, (caught: unknown) => caught)
+      expect(error).toBeInstanceOf(RequestTimeoutError)
+      expect(error).toMatchObject({ message: 'sandbox failed to reach the requested state before timeout', source: 'SDK' })
+      expect((error as RequestTimeoutError).cause).toBe(cut)
+    } finally {
+      get.mockRestore()
+      now.mockRestore()
+    }
+  })
+
   it('fills in the handle after a wait the socket decided, and not after a polled one', async () => {
     const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
     process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
@@ -9049,12 +9076,15 @@ describe('toolbox service request shaping', () => {
   it('surfaces the idempotency key when the create POST loses the connection', async () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
-    const post = jest.spyOn(api, 'post').mockRejectedValueOnce(new ConnectionError('socket hang up'))
+    const lost = new ConnectionError('socket hang up')
+    const post = jest.spyOn(api, 'post').mockRejectedValueOnce(lost)
     const get = jest.spyOn(api, 'get')
 
     const dropped = await createFixture(client, { image: Image.base('python:3.12') }).catch((error: unknown) => error)
     expect(dropped).toBeInstanceOf(SandboxCreateConnectionError)
     expect(dropped).toBeInstanceOf(ConnectionError)
+    // The connection failure stays reachable, as Python chains it (`from error`).
+    expect((dropped as SandboxCreateConnectionError).cause).toBe(lost)
     const mintedKey = (post.mock.calls[0]?.[2] as { headers: Record<string, string> }).headers['Idempotency-Key']
     expect((dropped as SandboxCreateConnectionError).idempotencyKey).toBe(mintedKey)
     expect((dropped as Error).message).toContain('socket hang up')
@@ -12639,10 +12669,13 @@ describe('sandbox.docker', () => {
     const transport = transportStub()
     transport.get
       .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 1_000); return status('starting') })
-      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw new publicSdk.ClientTimeoutError() })
+      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 750); throw read })
+    const read = new publicSdk.ClientTimeoutError()
     const failure = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 1.5 })
     await expect(failure).rejects.toBeInstanceOf(publicSdk.DockerWaitTimeoutError)
+    // The read that ran out of time is the cause, as Python chains it.
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
+    expect(await failure.catch((caught: unknown) => (caught as publicSdk.DockerWaitTimeoutError).cause)).toBe(read)
   })
 
   it('waitUntilReady() retries a transport timeout that happens before the deadline', async () => {

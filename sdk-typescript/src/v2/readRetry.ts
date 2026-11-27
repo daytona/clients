@@ -117,13 +117,3 @@ function abortableSleep(ms: number, signals: readonly AbortSignal[]): Promise<vo
     for (const signal of signals) signal.addEventListener('abort', done)
   })
 }
-
-/**
- * `error` with `cause` set, for an error class whose constructor takes no
- * cause (`DockerWaitTimeoutError`). Unchanged without a cause.
- * @internal
- */
-export function withCause<T extends Error>(error: T, cause: unknown): T {
-  if (cause !== undefined) Object.defineProperty(error, 'cause', { value: cause, writable: true, enumerable: true, configurable: true })
-  return error
-}

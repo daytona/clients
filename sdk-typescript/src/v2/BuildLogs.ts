@@ -239,7 +239,7 @@ export async function* buildLogMessages(response: Response): AsyncIterable<Messa
     for (;;) {
       let next: ReadableStreamReadResult<Uint8Array>
       try { next = await reader.read() } catch (error) {
-        throw new ConnectionError(error instanceof Error ? error.message : String(error))
+        throw new ConnectionError(error instanceof Error ? error.message : String(error), { cause: error })
       }
       if (next.done) { closed = true; return } // Never dispatch an incomplete tail.
       for (const byte of next.value) {
@@ -516,7 +516,7 @@ async function finiteBody(response: Response, deadline: number | undefined, kind
   } catch (error) {
     if (expired) throw new ClientTimeoutError(`build log ${kind} response timed out`)
     if (error instanceof DaytonaError || error instanceof ProtocolError) throw error
-    throw new ConnectionError(error instanceof Error ? error.message : String(error))
+    throw new ConnectionError(error instanceof Error ? error.message : String(error), { cause: error })
   } finally {
     clearTimeout(timer)
     await closeReader(reader)
@@ -531,13 +531,13 @@ async function httpError(response: Response, deadline: number | undefined): Prom
   }
   try {
     const body = await finiteBody(response, deadline ?? performance.now() + ERROR_BODY_MS, 'error')
-    return errorFromEnvelopeBody(body, response.headers.get('content-type'), response.status, `build log HTTP ${response.status}`, true)
+    return errorFromEnvelopeBody(body, response.headers.get('content-type'), response.status, `build log HTTP ${response.status}`)
   } catch (error) {
     // A denied request stays denied even if its explanatory JSON stalls. Do
     // not turn a known 401/403/etc into an automatically retried timeout.
-    if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
+    if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status, undefined, undefined, { cause: error })
     // An oversized body keeps its status (so a 429 / 5xx stays retryable), as in Python.
-    if (error instanceof ProtocolError) return createDaytonaError('oversized build log error response', response.status, 'BUILD_LOG_PROTOCOL_ERROR')
+    if (error instanceof ProtocolError) return createDaytonaError('oversized build log error response', response.status, 'BUILD_LOG_PROTOCOL_ERROR', undefined, { cause: error })
     throw error
   }
 }

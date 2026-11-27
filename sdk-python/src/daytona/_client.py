@@ -12,11 +12,14 @@ imports v0 code. The root has no resource methods.
 
 from __future__ import annotations
 
+import difflib
 import functools
 import importlib
+import inspect
 import os
 import threading
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from types import ModuleType
 from typing import TYPE_CHECKING, Callable, Final, Optional, Union
@@ -29,6 +32,7 @@ from .v2._sync import Daytona as _DaytonaV2
 from .v2._transport import SDK_VERSION as _SDK_VERSION
 from .v2.daytona import DEFAULT_V2_API_URL
 from .v2.daytona import AsyncDaytona as _AsyncDaytonaV2
+from .v2.errors import create_error
 
 # Imported at runtime (not only for type checkers) so typing.get_type_hints()
 # resolves DaytonaConfig.events; the root already imports daytona.v2.
@@ -253,6 +257,13 @@ def _config_init(self: DaytonaConfig, *args: object, **kwargs: object) -> None:
     for name in ("api_url", "server_url", "toolbox_url"):
         if name in kwargs:
             raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+    # A misspelled keyword gets the same hint as a misspelled assignment.
+    known = [config_field.name for config_field in fields(type(self))]
+    for name in kwargs:
+        if name not in known:
+            raise TypeError(
+                f"{type(self).__name__}.__init__() got an unexpected keyword argument {name!r}{_field_hint(name, known)}"
+            )
     _dataclass_init(self, *args, **kwargs)  # type: ignore[arg-type]
 
 
@@ -268,7 +279,21 @@ _REMOVED_URL_FIELDS: Final = ("api_url", "server_url", "toolbox_url")
 def _config_setattr(self: DaytonaConfig, name: str, value: object) -> None:
     if name in _REMOVED_URL_FIELDS:
         raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+    # A misspelled field (`cfg.request_timout = 5`) would otherwise be kept as
+    # a plain attribute that no client reads. A subclass's own dataclass fields
+    # and settable properties (any data descriptor) are allowed.
+    known = [config_field.name for config_field in fields(type(self))]
+    if name not in known and not hasattr(inspect.getattr_static(type(self), name, None), "__set__"):
+        # No name= / obj=: the interpreter would append its own suggestion,
+        # which can also name methods, after the SDK's.
+        raise AttributeError(f"{type(self).__name__} has no field {name!r}{_field_hint(name, known)}")
     object.__setattr__(self, name, value)
+
+
+def _field_hint(name: str, known: list[str]) -> str:
+    """``; did you mean '<field>'?`` for the closest config field, or ``""``."""
+    hint = difflib.get_close_matches(name, known, n=1)
+    return f"; did you mean {hint[0]!r}?" if hint else ""
 
 
 DaytonaConfig.__setattr__ = _config_setattr  # type: ignore[method-assign,assignment]
@@ -280,19 +305,38 @@ def _refuse_url_fields(config: DaytonaConfig) -> None:
             raise TypeError(_REMOVED_URL_FIELD.format(name=name))
 
 
-def _snapshot_config(config: DaytonaConfig) -> DaytonaConfig:
+def _snapshot_config(config: object) -> DaytonaConfig:
     """A private copy of ``config``'s fields, taken when the client is built.
 
     Later changes to the caller's object do not reach the client (the
     TypeScript root copies its config the same way). URL fields are refused
     before and after the copy: a property may add one while the fields are
-    read.
+    read. A config that is not a ``DaytonaConfig``, or whose ``events`` is
+    not a ``SandboxEventsConfig``, is a ``BadRequestError``, as in TypeScript.
     """
+    if not isinstance(config, DaytonaConfig):
+        # A 0.x-shaped config keeps the migration error naming its URL field.
+        for name in _REMOVED_URL_FIELDS:
+            if (isinstance(config, Mapping) and name in config) or hasattr(config, name):
+                raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+        given = type(config)
+        # Another DaytonaConfig class (daytona.v2's) is named in full.
+        shown = (
+            f"{given.__module__}.{given.__qualname__}"
+            if given.__name__ == "DaytonaConfig"
+            else given.__name__
+        )
+        raise create_error(f"config must be a DaytonaConfig, got {shown}", 400, "BAD_REQUEST", "SDK")
     _refuse_url_fields(config)
     snapshot = object.__new__(DaytonaConfig)
     for config_field in fields(DaytonaConfig):
         object.__setattr__(snapshot, config_field.name, getattr(config, config_field.name))
     _refuse_url_fields(config)
+    events: object = snapshot.events
+    if events is not None and not isinstance(events, SandboxEventsConfig):
+        raise create_error(
+            f"events must be a SandboxEventsConfig, got {type(events).__name__}", 400, "BAD_REQUEST", "SDK"
+        )
     return snapshot
 
 
@@ -373,8 +417,17 @@ ROOT_CONFIG_ROUTING: Final[dict[str, str]] = {
 }
 
 
+def _check_v0_options(config: DaytonaConfig) -> None:
+    """The root options v0 would truth-test, checked before v0 is loaded, as
+    the v2 client checks them (and as TypeScript checks before loading v0)."""
+    otel_enabled: object = config.otel_enabled
+    if otel_enabled is not None and not isinstance(otel_enabled, bool):
+        raise create_error("otel_enabled must be a boolean", 400, "BAD_REQUEST", "SDK")
+
+
 def _v0_config(module: ModuleType, config: DaytonaConfig) -> object:
     _refuse_url_fields(config)
+    _check_v0_options(config)
     tuning: dict[str, Union[int, bool]] = {}
     # v0 reads None as "unlimited" / "use the env var"; pass only what was set.
     if config.connection_pool_maxsize is not None:
@@ -540,6 +593,7 @@ class Daytona(_Root):
         """
         with self._lock:
             if self._v0 is None:
+                _check_v0_options(self._config)
                 module, client_class = _load_v0("_Daytona")
                 self._v0 = client_class(_v0_config(module, self._config))  # type: ignore[operator]
             return self._v0
@@ -617,6 +671,7 @@ class AsyncDaytona(_Root):
         """
         with self._lock:
             if self._v0 is None:
+                _check_v0_options(self._config)
                 module, client_class = _load_v0("_AsyncDaytona")
                 self._v0 = client_class(_v0_config(module, self._config))  # type: ignore[operator]
             return self._v0

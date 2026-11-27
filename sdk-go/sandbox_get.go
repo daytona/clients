@@ -7,7 +7,10 @@ import (
 	"context"
 	"encoding/hex"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -37,6 +40,11 @@ func (c *Client) Get(ctx context.Context, id string, opts *GetSandboxOptions) (*
 	}
 	if options.AccessToken != "" {
 		if err := headerText(options.AccessToken, "AccessToken"); err != nil {
+			return nil, err
+		}
+	}
+	if options.ToolboxURL != "" {
+		if err := checkToolboxOverride(options.ToolboxURL); err != nil {
 			return nil, err
 		}
 	}
@@ -107,4 +115,51 @@ func regionOf(id string) string {
 		return ""
 	}
 	return region
+}
+
+// overrideAuthority is the raw authority of an http(s) URL; overrideHost is the
+// host (and optional port) of a toolbox URL override, the rule the Python and
+// TypeScript SDKs apply to the same raw text: an IPv6 literal of hex digits,
+// ':' and '.', or a name of ASCII letters, digits, "-._~!$&'()*+,;=" and
+// characters from U+00A0 up. Checked before url.Parse, which would decode a
+// percent-encoded host and drop the brackets of an IPv6 literal.
+var (
+	overrideAuthority = regexp.MustCompile(`^(?i)https?://([^/?#]*)`)
+	overrideHost      = regexp.MustCompile(
+		`^(?:\[[0-9A-Fa-f:.]+\]|(?:[A-Za-z0-9\-._~!$&'()*+,;=]|[^\x00-\x{9f}])+)(?::[0-9]*)?$`)
+)
+
+// checkToolboxOverride refuses what the shared HTTP base URL rule lets through
+// in a caller's ToolboxURL, as the Python and TypeScript SDKs refuse it:
+// whitespace, a C0 or C1 control character, DEL or U+FEFF anywhere; a
+// backslash in the authority; a raw host overrideHost refuses (a percent sign:
+// an encoded host or an IPv6 zone ID); and a port above 65535. URLs the API
+// returns are not checked here.
+func checkToolboxOverride(raw string) error {
+	const message = "ToolboxURL must be an http(s) URL with a host, a port up to 65535, " +
+		"no percent-encoded host, and no whitespace or control characters"
+	// Invalid UTF-8 would range as U+FFFD and pass every character check.
+	if !utf8.ValidString(raw) {
+		return badRequest("ToolboxURL must be valid UTF-8")
+	}
+	for _, char := range raw {
+		if char <= ' ' || (char >= 0x7f && char <= 0x9f) || char == 0xfeff || unicode.IsSpace(char) {
+			return badRequest(message)
+		}
+	}
+	masked := strings.NewReplacer("{sandboxId}", "sandbox", "{sandbox_id}", "sandbox").Replace(raw)
+	match := overrideAuthority.FindStringSubmatch(masked)
+	if match == nil || strings.Contains(match[1], `\`) ||
+		!overrideHost.MatchString(match[1][strings.LastIndex(match[1], "@")+1:]) {
+		return badRequest(message)
+	}
+	// An unparsable URL is left to the shared rule, which reports it.
+	if parsed, err := url.Parse(masked); err == nil {
+		if port := parsed.Port(); port != "" {
+			if number, convErr := strconv.Atoi(port); convErr != nil || number > 65535 {
+				return badRequest(message)
+			}
+		}
+	}
+	return nil
 }

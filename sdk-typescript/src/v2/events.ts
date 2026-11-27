@@ -26,7 +26,7 @@ import {
   ServiceUnavailableError,
 } from './errors/DaytonaError.js'
 import type { SandboxEventsConfig, SandboxState } from './types.js'
-import { MAX_TIMER_DELAY_MS, optionalSeconds } from './options.js'
+import { MAX_TIMER_DELAY_MS, badRequest, optionalSeconds } from './options.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 import { isRetryableReadError } from './readRetry.js'
 import type { ReadRetry } from './readRetry.js'
@@ -75,6 +75,8 @@ export function eventsHubConfig(config: SandboxEventsConfig | undefined): Events
     const valid = optionalSeconds(name, seconds)
     return valid === undefined ? undefined : valid * 1000
   }
+  const enabled: unknown = config?.enabled
+  if (enabled != null && typeof enabled !== 'boolean') throw badRequest('events.enabled must be a boolean')
   return {
     enabled: config?.enabled,
     reconcileIntervalMs: ms('events.reconcileIntervalSeconds', config?.reconcileIntervalSeconds),

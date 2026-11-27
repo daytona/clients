@@ -45,6 +45,12 @@ function assertPresentStringOption(name: 'apiKey' | 'jwtToken' | 'projectId', va
   }
 }
 
+function optionalBoolean(name: 'otelEnabled' | 'sharedHub', value: boolean | undefined): boolean | undefined {
+  // `null` keeps its current meaning (unset); only another type is refused.
+  if (value != null && typeof value !== 'boolean') throw badRequest(`${name} must be a boolean`)
+  return value
+}
+
 /**
  * The credential sent as `Authorization: Bearer <credential>`. Surrounding HTTP
  * whitespace (space, tab, CR, LF) is trimmed from an explicit value, as from an
@@ -96,6 +102,8 @@ interface ClientConnectionConfig {
   readonly maxResponseBytes: number
   readonly httpOptions: HttpClientOptions
   readonly hubIdentityKey: string
+  /** Whether the client shares its events hub (`sharedHub`, default true). */
+  readonly sharedHub: boolean
   readonly events?: SandboxEventsConfig
 }
 
@@ -139,7 +147,8 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   const requestTimeoutSeconds = optionalSeconds('requestTimeoutSeconds', config.requestTimeoutSeconds)
   // Above the timer maximum (about 24.8 days) means no bound, like 0.
   const requestTimeoutMs = requestTimeoutSeconds === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : boundedTimerDelay(requestTimeoutSeconds * 1000)
-  const otelEnabled = config.otelEnabled ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
+  const otelEnabled = optionalBoolean('otelEnabled', config.otelEnabled) ?? envFlag('DAYTONA_OTEL_ENABLED') ?? false
+  const sharedHub = optionalBoolean('sharedHub', config.sharedHub) ?? true
   const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
   const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
   if (!apiKey && !jwtToken) {
@@ -172,5 +181,5 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
     otelEnabled,
     otelApi: config.otelApi,
   }
-  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, maxResponseBytes, httpOptions, hubIdentityKey, events }
+  return { apiUrl: base, apiKey: apiKey ?? undefined, requestTimeoutMs, maxResponseBytes, httpOptions, hubIdentityKey, sharedHub, events }
 }

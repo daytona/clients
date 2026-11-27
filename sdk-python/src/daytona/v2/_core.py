@@ -179,9 +179,7 @@ class RequestSpec:
 def parse_error_payload(status_code: int, payload: JsonObject) -> DaytonaError:
     # ``error`` is a message fallback for bodies without a standard envelope.
     # It never becomes a ``code``: dispatch stays on ``code``/``source``/status.
-    message = (
-        _optional_str(payload.get("message")) or _optional_str(payload.get("error")) or f"HTTP {status_code}"
-    )
+    message = _prose(payload.get("message")) or _prose(payload.get("error")) or f"HTTP {status_code}"
     retry_after_seconds = _optional_int(payload.get("retry_after_seconds"))
     retry_after_ms = payload.get("retryAfterMs")
     return create_error(
@@ -385,7 +383,10 @@ def _error_from_response(status_code: int, body: bytes, content_type: Optional[s
             decoded = None
         payload = decoded if isinstance(decoded, dict) else None
     if payload is None:
-        payload = {"message": body.decode("utf-8", errors="replace") or f"HTTP {status_code}"}
+        # Not an envelope (not JSON, or a JSON value that is not an object):
+        # its text is the message, unless blank (TypeScript and Go agree).
+        text = body.decode("utf-8", errors="replace")
+        payload = {"message": text if text.strip() else f"HTTP {status_code}"}
     return parse_error_payload(status_code, payload)
 
 
@@ -988,6 +989,13 @@ def _lifecycle_enabled(body: JsonObject, name: str) -> bool:
 
 def _optional_int(value: JsonValue) -> Optional[int]:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _prose(value: JsonValue) -> Optional[str]:
+    """An envelope's ``message`` / ``error`` text; blank text is no prose (the
+    TypeScript and Go SDKs agree)."""
+    text = _optional_str(value)
+    return text if text is not None and text.strip() else None
 
 
 def _optional_str(value: JsonValue) -> Optional[str]:

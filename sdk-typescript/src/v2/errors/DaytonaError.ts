@@ -314,8 +314,9 @@ export class ConflictError extends DaytonaError {}
 export class DockerWaitTimeoutError extends RequestTimeoutError {
   public readonly status?: DockerStatus
 
-  constructor(status?: DockerStatus) {
-    super(`docker did not become ready within the requested timeout${status ? ` (last state: ${status.rawState || status.state})` : ''}`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+  /** `options.cause`: the read that ran out of time, when one did. */
+  constructor(status?: DockerStatus, options?: { readonly cause?: unknown }) {
+    super(`docker did not become ready within the requested timeout${status ? ` (last state: ${status.rawState || status.state})` : ''}`, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', ...(options?.cause === undefined ? {} : { cause: options.cause }) })
     this.status = status
   }
 }
@@ -453,10 +454,11 @@ export class TransferCancelledError extends DaytonaError {
 export class SandboxCreateRequestTimeoutError extends ClientTimeoutError {
   public readonly idempotencyKey: string
 
-  constructor(idempotencyKey: string) {
+  /** `options.cause`: the error the request failed with. */
+  constructor(idempotencyKey: string, options?: { readonly cause?: unknown }) {
     super(
       `sandbox create request timed out before the server answered; retry create() with idempotencyKey=${JSON.stringify(idempotencyKey)} to reconcile`,
-      { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
+      { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', ...(options?.cause === undefined ? {} : { cause: options.cause }) },
     )
     this.idempotencyKey = idempotencyKey
   }
@@ -471,10 +473,11 @@ export class SandboxCreateRequestTimeoutError extends ClientTimeoutError {
 export class SandboxCreateConnectionError extends ConnectionError {
   public readonly idempotencyKey: string
 
-  constructor(idempotencyKey: string, detail: string) {
+  /** `options.cause`: the error the request failed with. */
+  constructor(idempotencyKey: string, detail: string, options?: { readonly cause?: unknown }) {
     super(
       `sandbox create request failed before the server answered (${detail}); retry create() with idempotencyKey=${JSON.stringify(idempotencyKey)} to reconcile`,
-      { source: 'SDK' },
+      { source: 'SDK', ...(options?.cause === undefined ? {} : { cause: options.cause }) },
     )
     this.idempotencyKey = idempotencyKey
   }
@@ -940,22 +943,54 @@ function errorBodyText(data: unknown): string | undefined {
   if (typeof data === 'string') return data
   if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
   if (ArrayBuffer.isView(data)) return new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
-  // axios parses a body that looks like JSON whatever its media type.
-  if (data !== null && typeof data === 'object') return JSON.stringify(data)
+  // A JSON body the SDK decoded (any JSON value, `null` included), or one
+  // axios parsed whatever its media type.
+  if (data === null || typeof data === 'object' || typeof data === 'number' || typeof data === 'boolean') return JSON.stringify(data)
   return undefined
 }
 
+/** A JSON object body: the error envelope. Any other JSON value (`null`, an array, ...) is not one. */
 function dataObject(data: unknown): ErrorEnvelope | undefined {
-  if (data && typeof data === 'object') return data as ErrorEnvelope
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) return data as ErrorEnvelope
   return undefined
 }
 
 function messageFromEnvelope(envelope: ErrorEnvelope | undefined, fallback: string): string {
   // `error` is a prose fallback for bodies without `message`, never a code.
-  // Error-class dispatch stays on `code`/`source`/status.
-  if (typeof envelope?.message === 'string') return envelope.message
-  if (typeof envelope?.error === 'string') return envelope.error
+  // Error-class dispatch stays on `code`/`source`/status. A blank string is
+  // no prose, as in the Python and Go SDKs.
+  if (typeof envelope?.message === 'string' && envelope.message.trim() !== '') return envelope.message
+  if (typeof envelope?.error === 'string' && envelope.error.trim() !== '') return envelope.error
   return fallback
+}
+
+/**
+ * The message of an error response, never empty and the same in both SDKs:
+ * a JSON envelope's prose (`message`, else `error`), else `HTTP <status>`;
+ * a body that is no envelope (not JSON, or a JSON value that is not an
+ * object, such as `null`) gives its text, unless that is blank.
+ */
+function errorResponseMessage(envelope: ErrorEnvelope | undefined, bodyText: string | undefined, status: number): string {
+  const statusText = `HTTP ${status}`
+  if (envelope !== undefined) return messageFromEnvelope(envelope, statusText)
+  return bodyText !== undefined && bodyText.trim() !== '' ? bodyText : statusText
+}
+
+/**
+ * The underlying failure of a request that got no response, safe to keep as a
+ * `cause`: the runtime's own network error (Node's `ECONNREFUSED`,
+ * `ENOTFOUND`, ...; fetch's `TypeError` and its cause). An axios error is
+ * never kept: it carries the request configuration, credential headers
+ * included. `undefined` when no such error is known.
+ */
+export function networkCause(error: unknown): unknown {
+  let current: unknown = error
+  for (let depth = 0; depth < 8; depth++) {
+    if (current === null || typeof current !== 'object') return undefined
+    if ((current as { readonly isAxiosError?: unknown }).isAxiosError !== true && !('config' in current) && !('request' in current)) return current
+    current = (current as { readonly cause?: unknown }).cause
+  }
+  return undefined
 }
 
 function isAxiosTimeoutError(error: AxiosError): boolean {
@@ -996,10 +1031,17 @@ export function createAxiosDaytonaError(error: AxiosError): DaytonaError {
   const code = typeof envelope?.code === 'string' ? envelope.code : undefined
   const source = typeof envelope?.source === 'string' ? envelope.source : undefined
   if (isAxiosTimeoutError(error)) return new ClientTimeoutError()
-  if (!error.response && (error.request || error.code)) return new ConnectionError(error.message)
+  if (!error.response && (error.request || error.code)) {
+    const cause = networkCause(error)
+    return new ConnectionError(error.message, cause === undefined ? undefined : { cause })
+  }
   if (isRedirectStatus(status)) return redirectError(status)
-  const fallback = typeof error.response?.data === 'string' ? error.response.data : (json ? undefined : errorBodyText(error.response?.data)) || error.message
-  const mapped = createDaytonaError(messageFromEnvelope(envelope, fallback), status, code, source, errorOptionsFromEnvelope(envelope))
+  // No body at all (`data` undefined): the body was not read (one over the
+  // buffered cap), and the adapter's message says why.
+  const message = status === undefined || error.response?.data === undefined
+    ? messageFromEnvelope(envelope, error.message)
+    : errorResponseMessage(envelope, errorBodyText(error.response.data), status)
+  const mapped = createDaytonaError(message, status, code, source, errorOptionsFromEnvelope(envelope))
   return withRetryAfter(mapped, retryAfter)
 }
 
@@ -1012,20 +1054,18 @@ function withRetryAfter(error: DaytonaError, header: unknown): DaytonaError {
 // Reads the unified envelope off a string body for callers that read the body
 // themselves (build logs, with their own size/deadline bounds), so they
 // classify errors the same way createAxiosDaytonaError does. Not an envelope,
-// or not JSON, falls back to fallbackMessage + status-level dispatch.
-// emptyProseIsAbsent makes an empty-string message/error use the fallback too,
-// so the build-log readers agree with the Python SDK on a prose-less body.
+// or not JSON, or an envelope without prose (an empty message/error is none,
+// as in the Python SDK) falls back to fallbackMessage + status-level dispatch.
 export function errorFromEnvelopeBody(
   body: string,
   contentType: string | null | undefined,
   status: number,
   fallbackMessage: string,
-  emptyProseIsAbsent = false,
 ): DaytonaError {
   const parsed = isJsonMediaType(contentType) ? parsedBody(body) : undefined
   // Nested past JSON_MAX_DEPTH: unreadable, as on the axios and fetch paths.
   if (nestedDeeperThan(parsed)) return tooDeepErrorBody(status)
-  return errorFromEnvelope(parsed, status, fallbackMessage, emptyProseIsAbsent)
+  return errorFromEnvelope(parsed, status, messageFromEnvelope(dataObject(parsed), fallbackMessage))
 }
 
 function parsedBody(body: string): unknown {
@@ -1036,22 +1076,11 @@ function parsedBody(body: string): unknown {
   }
 }
 
-function errorFromEnvelope(
-  body: unknown,
-  status: number,
-  fallbackMessage: string,
-  emptyProseIsAbsent: boolean,
-): DaytonaError {
+function errorFromEnvelope(body: unknown, status: number, message: string): DaytonaError {
   if (isRedirectStatus(status)) return redirectError(status)
   const parsed = dataObject(body)
   const code = typeof parsed?.code === 'string' ? parsed.code : undefined
   const source = typeof parsed?.source === 'string' ? parsed.source : undefined
-  // emptyProseIsAbsent picks the first non-empty of message/error before the
-  // fallback — matching Python's `message or error or fallback` so an empty
-  // message never masks a non-empty error.
-  const message = emptyProseIsAbsent
-    ? (typeof parsed?.message === 'string' && parsed.message) || (typeof parsed?.error === 'string' && parsed.error) || fallbackMessage
-    : messageFromEnvelope(parsed, fallbackMessage)
   return createDaytonaError(message, status, code, source, errorOptionsFromEnvelope(parsed))
 }
 
@@ -1074,7 +1103,9 @@ export async function errorFromFetchResponse(response: Response, limit = 0, onCh
   }
   // Only a body declared as application/json carries a code.
   const parsed = isJsonMediaType(response.headers.get('content-type')) ? parsedBody(text) : undefined
-  const mapped = nestedDeeperThan(parsed) ? tooDeepErrorBody(response.status) : errorFromEnvelope(parsed, response.status, text || response.statusText, false)
+  const mapped = nestedDeeperThan(parsed)
+    ? tooDeepErrorBody(response.status)
+    : errorFromEnvelope(parsed, response.status, errorResponseMessage(dataObject(parsed), text, response.status))
   return withRetryAfter(mapped, response.headers.get('retry-after'))
 }
 

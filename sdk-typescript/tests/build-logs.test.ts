@@ -4,7 +4,7 @@
  */
 
 import { Daytona } from '../src/v2/Daytona.js'
-import { BadRequestError, BuildLogInterruptedError, NotFoundError } from '../src/v2/index.js'
+import { BadRequestError, BuildLogInterruptedError, ConnectionError, ForbiddenError, NotFoundError } from '../src/v2/index.js'
 import type { BuildLogEvent } from '../src/v2/index.js'
 import { buildLogMessages } from '../src/v2/BuildLogs.js'
 import { HttpTransport } from '../src/v2/http.js'
@@ -87,6 +87,49 @@ async function advance<T>(pending: Promise<T>): Promise<T> {
 }
 
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers() })
+
+/** A response whose body fails with `failure` after its first chunk. */
+function failingResponse(failure: Error, init: ResponseInit = {}): Response {
+  let pulls = 0
+  return new Response(new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (pulls++ === 0) controller.enqueue(new TextEncoder().encode(':'))
+      else controller.error(failure)
+    },
+  }, { highWaterMark: 0 }), init)
+}
+
+describe('build log read failures keep the runtime error as their cause', () => {
+  it('on the live stream', async () => {
+    const reset = new Error('socket reset')
+    const error = await (async () => {
+      for await (const message of buildLogMessages(failingResponse(reset, { headers: { 'content-type': 'text/event-stream' } }))) void message
+    })().then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ConnectionError)
+    expect((error as ConnectionError).cause).toBe(reset)
+  })
+
+  it('on a discovery body', async () => {
+    const reset = new Error('socket reset')
+    const { client, fetch } = setup([])
+    fetch.mockImplementation(async () => failingResponse(reset, { headers: { 'content-type': 'application/json' } }))
+    const error = await lazySandbox(client, 'sbx').buildLogs().then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ConnectionError)
+    expect((error as ConnectionError).cause).toBe(reset)
+  })
+
+  it('on an error body, keeping the status', async () => {
+    const reset = new Error('socket reset')
+    const { client, fetch } = setup([])
+    fetch.mockImplementation(async () => failingResponse(reset, { status: 403, headers: { 'content-type': 'application/json' } }))
+    const error = await lazySandbox(client, 'sbx').buildLogs().then(() => undefined, (caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ForbiddenError)
+    expect(error).toMatchObject({ statusCode: 403, message: 'build log HTTP 403' })
+    const cause = (error as ForbiddenError).cause
+    expect(cause).toBeInstanceOf(ConnectionError)
+    expect((cause as ConnectionError).cause).toBe(reset)
+  })
+})
 
 describe('resumable build logs', () => {
   it.each([false, true])('never falls back on discovery 404 for a sandbox without a build (follow=%s)', async follow => {

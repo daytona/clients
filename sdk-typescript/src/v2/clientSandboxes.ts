@@ -10,6 +10,7 @@ import { listPage } from './listPage.js'
 import { SearchProbe, searchOrList } from './searchFirst.js'
 import type { AxiosInstance } from 'axios'
 import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
+import { assertToolboxOverrideUrl } from './toolboxUrl.js'
 import type * as api from './gen/api-types.js'
 import { SearchTotalRelation as SEARCH_TOTAL_RELATIONS } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
@@ -79,13 +80,15 @@ export async function getSandbox(context: SandboxClientContext, id: string, opti
 
 /**
  * `get()`'s connect options, checked before any request as in Python: `null`
- * is omitted; a toolbox URL is a non-blank string; an access token follows
+ * is omitted; a toolbox URL is a non-blank, absolute http(s) URL with a host
+ * and no query or fragment; an access token follows
  * the header rule (it is sent as a bearer credential), never stripped.
  */
 function connectOptions(options: SandboxConnectOptions): SandboxConnectOptions {
   const toolboxUrl: unknown = options.toolboxUrl
   const accessToken: unknown = options.accessToken
   if (toolboxUrl != null && (typeof toolboxUrl !== 'string' || isBlank(toolboxUrl))) throw badRequest('toolboxUrl must be a non-empty string')
+  if (typeof toolboxUrl === 'string') assertToolboxOverrideUrl(toolboxUrl, 'toolboxUrl')
   if (accessToken != null && typeof accessToken !== 'string') throw badRequest('accessToken must be a string')
   return {
     ...(options.autoDelete === undefined ? {} : { autoDelete: options.autoDelete }),

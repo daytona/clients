@@ -7,6 +7,7 @@ import { loadV0, type V0ModuleExports } from '#v0-loader'
 import { concealFields, credentialSafeDiagnostics } from './diagnostics.js'
 import { SDK_VERSION } from './version.js'
 import { DEFAULT_V2_API_URL, Daytona as DaytonaV2 } from './v2/Daytona.js'
+import { badRequest } from './v2/options.js'
 import { DaytonaError as DaytonaErrorV2, NotSupportedError } from './v2/errors/DaytonaError.js'
 import {
   DaytonaAuthenticationError as RootDaytonaAuthenticationError,
@@ -265,6 +266,9 @@ export class Daytona {
   }
 
   private createV0Client(): DaytonaV0Client {
+    // v0 truth-tests it; refused here as the v2 client refuses it.
+    const otelEnabled: unknown = this.config.otelEnabled
+    if (otelEnabled != null && typeof otelEnabled !== 'boolean') throw badRequest('otelEnabled must be a boolean')
     let V0Daytona: V0DaytonaConstructor | undefined
     try {
       const module = this.loadV0Module()
