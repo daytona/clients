@@ -219,7 +219,7 @@ resource id and its `get` command; the operation keeps running on the server.
 `write:images` / `write:snapshots` (exit code `4` without it).
 `image list --platform` accepts only `true`, `false` or `any`.
 `image list --name` and `snapshot list --name` send an explicit empty name
-(`--name ''`) as `name=`, as the SDKs send it; `snapshot list
+(`--name ''`) as `name=`, as the Python and TypeScript SDKs send it; `snapshot list
 --sandbox <id>` lists the snapshots of one sandbox. `image create` without a
 name, and `image capture` without `--name`, make an anonymous image, kept for
 `--idle-expiry` (a duration, or `max`) after its last use; omitted, it is kept
@@ -686,7 +686,9 @@ than the configured duration. While a sandbox is stopped, commands that work ins
   `sandbox cp` prints `{"source", "destination", "bytes"}` for a file and
   `{"source", "destination", "recursive": true}` for `-r`, where
   `destination` is the path the file or directory landed at; a download to
-  `-` prints only the file. With table output `cp` prints nothing.
+  `-` prints only the file. With table output (`-o table`, or the default at
+  a terminal) `cp` prints no acknowledgement; a download to `-` still writes
+  the file to stdout.
   With table output `org delete`, `project delete` and `project budget
   remove` print a sentence on stderr instead.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
