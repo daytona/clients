@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,6 +24,41 @@ func TestProcessListFiltersByTag(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Empty(t, requireJSONStdout(t, stdout)["items"])
+}
+
+// A daemon that predates tags ignores the filter and lists every process;
+// the CLI keeps only the tagged ones, as the SDKs do.
+func TestProcessListByTagDropsUntaggedProcessesAnOlderDaemonReturns(t *testing.T) {
+	item := func(id, tag string) string {
+		tagField := ""
+		if tag != "" {
+			tagField = `"tag":"` + tag + `",`
+		}
+		return `{"id":"` + id + `",` + tagField + `"kind":"exec","state":"running","stdin":"closed","cwd":"/","keepLogs":"on_exit_ttl","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z"}`
+	}
+	stdout, _, err := runToolboxCLI(t, []string{"sandbox", "process", "list", "sbx", "--tag", "build"}, []toolboxExpectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+		{method: http.MethodGet, path: "/test-tools/sbx/processes", status: 200, auth: true, query: url.Values{"tag": {"build"}}, response: `{"items":[` + item("p1", "build") + `,` + item("p2", "") + `,` + item("p3", "other") + `]}`},
+	})
+	require.NoError(t, err)
+	items := requireJSONStdout(t, stdout)["items"].([]any)
+	require.Len(t, items, 1)
+	require.Equal(t, "p1", items[0].(map[string]any)["id"])
+}
+
+// When the toolbox has not answered by the command's own deadline, the error
+// is a timeout (exit 8), not an interruption.
+func TestProcessKillAllDeadlineIsATimeout(t *testing.T) {
+	old := killAllSlack
+	killAllSlack = 50 * time.Millisecond
+	t.Cleanup(func() { killAllSlack = old })
+	_, _, err := runToolboxCLI(t, []string{"sandbox", "process", "kill-all", "sbx", "--tag", "build", "--timeout", "1ms"}, []toolboxExpectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+		{method: http.MethodPost, path: "/test-tools/sbx/processes:kill", status: 200, auth: true, response: `{"processIds":[]}`, check: func(*testing.T, *http.Request, []byte) {
+			time.Sleep(500 * time.Millisecond)
+		}},
+	})
+	require.Equal(t, cerr.ExitTimeout, cerr.ExitCode(err), "%v", err)
 }
 
 func TestProcessKillAllKillsTheTag(t *testing.T) {
@@ -60,6 +96,9 @@ func TestProcessTagIsCheckedBeforeAnyRequest(t *testing.T) {
 		{"sandbox", "process", "list", "sbx", "--tag", "a/b"},
 		{"sandbox", "exec", "sbx", "--tag", "x y", "--", "true"},
 		{"sandbox", "exec", "sbx", "--name", " ", "--", "true"},
+		{"sandbox", "exec", "sbx", "--name", "web server", "--", "true"},
+		{"sandbox", "exec", "sbx", "--name", "a/b", "--", "true"},
+		{"sandbox", "exec", "sbx", "--name", "..", "--", "true"},
 	} {
 		_, _, err := runToolboxCLI(t, args, nil)
 		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%v: %v", args, err)

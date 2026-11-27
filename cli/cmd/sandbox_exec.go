@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -83,8 +82,10 @@ func newSandboxExecSubcommand() *cobra.Command {
 					return err
 				}
 			}
-			if cmd.Flags().Changed("name") && strings.TrimSpace(name) == "" {
-				return cerr.Usage("--name is empty").WithHint("pass a process name, or omit --name")
+			if cmd.Flags().Changed("name") {
+				if err := checkSafeIdentifier("--name", name); err != nil {
+					return err
+				}
 			}
 			a := FromContext(cmd.Context())
 			env, err := input.KV(envPairs, "--env")
@@ -162,7 +163,7 @@ func newSandboxExecSubcommand() *cobra.Command {
 	cmd.Flags().StringArrayVar(&envPairs, "env", nil, "environment variable to set (KEY=VALUE, repeatable)")
 	cmd.Flags().BoolVar(&tty, "tty", false, "run the command in a PTY sized to this terminal and attach interactively (1-65535 columns and rows; a Windows sandbox refuses more than 32767)")
 	cmd.Flags().StringVar(&user, "user", "", "sandbox OS user to run the command as")
-	cmd.Flags().StringVar(&name, "name", "", "live name of the process while it runs (a safe identifier); other process commands accept it in place of the id")
+	cmd.Flags().StringVar(&name, "name", "", "live name of the process while it runs ([A-Za-z0-9._-], 1-128 characters, not . or ..); other process commands accept it in place of the id")
 	cmd.Flags().StringVar(&tag, "tag", "", "tag the process ([A-Za-z0-9._-], 1-128 characters) so `sandbox process list --tag` finds it and `sandbox process kill-all --tag` kills it with everything it started")
 	cmd.Flags().DurationVar(&executionTimeout, "execution-timeout", 0, "server-side execution deadline (positive Go duration, rounded up to milliseconds)")
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long the command may run before the CLI stops waiting (Go duration; exit 8)")

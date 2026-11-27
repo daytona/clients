@@ -71,6 +71,13 @@ func newSandboxProcessListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if tag != "" {
+				// A daemon that predates tags ignores the filter and lists
+				// every process; keep only the tagged ones, as the SDKs do.
+				items = keepItems(items, func(item api.Raw[tbgen.ProcessDto]) bool {
+					return item.V.Tag != nil && *item.V.Tag == tag
+				})
+			}
 			return printToolboxList(a, output.List[api.Raw[tbgen.ProcessDto]]{Items: items}, func(items []tbgen.ProcessDto) output.Table {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
@@ -227,7 +234,7 @@ func newSandboxProcessKillAllCommand() *cobra.Command {
 			"logs are kept, and the tag can be used again right away. Processes whose records expired are killed too but\n" +
 			"not listed, so an empty list does not mean nothing was stopped. A sandbox that cannot contain its processes\n" +
 			"(macOS, or a Linux guest without the kernel support) answers UNSUPPORTED_OPERATION; a kill that did not finish\n" +
-			"within --timeout answers PROCESS_KILL_INCOMPLETE (run it again).\n" +
+			"within --timeout answers PROCESS_KILL_INCOMPLETE (run it again). Without --timeout the sandbox waits 10s.\n" +
 			"Example:\n  daytona sandbox process kill-all <sandbox-id> --tag build",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -248,10 +255,13 @@ func newSandboxProcessKillAllCommand() *cobra.Command {
 			if timeout > 0 {
 				wait = timeout
 			}
-			ctx, cancel := context.WithTimeout(cmd.Context(), wait+30*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), wait+killAllSlack)
 			defer cancel()
 			killed, err := toolClient.KillTagged(ctx, tag, timeout)
 			if err != nil {
+				if errors.Is(ctx.Err(), context.DeadlineExceeded) && cmd.Context().Err() == nil {
+					return cerr.New(cerr.ExitTimeout, "timed out after %s waiting for the kill of tag %s to finish", wait+killAllSlack, tag)
+				}
 				return err
 			}
 			kv := [][2]string{{"tag", tag}, {"process_ids", strings.Join(killed.V.ProcessIds, ",")}}
@@ -265,17 +275,29 @@ func newSandboxProcessKillAllCommand() *cobra.Command {
 	return cmd
 }
 
+// killAllSlack is how long `kill-all` waits past the sandbox's own kill
+// wait for the answer; tests shorten it.
+var killAllSlack = 30 * time.Second
+
 // checkProcessTag refuses a process tag the toolbox would refuse: a safe
 // identifier ([A-Za-z0-9._-], 1-128 characters, not . or ..), as the SDKs
 // check it.
 func checkProcessTag(tag string) error {
-	if tag == "" || len(tag) > 128 || tag == "." || tag == ".." {
-		return cerr.Usage("--tag must be 1-128 characters of [A-Za-z0-9._-], not . or .., got %q", tag)
-	}
-	for _, r := range tag {
+	return checkSafeIdentifier("--tag", tag)
+}
+
+// checkSafeIdentifier refuses a value that is not a toolbox safe identifier
+// (a process tag or live name): [A-Za-z0-9._-], 1-128 characters, not . or ..
+func checkSafeIdentifier(flag, value string) error {
+	bad := value == "" || len(value) > 128 || value == "." || value == ".."
+	for _, r := range value {
 		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-') {
-			return cerr.Usage("--tag must be 1-128 characters of [A-Za-z0-9._-], not . or .., got %q", tag)
+			bad = true
+			break
 		}
+	}
+	if bad {
+		return cerr.Usage("%s must be 1-128 characters of [A-Za-z0-9._-], not . or .., got %q", flag, value)
 	}
 	return nil
 }
