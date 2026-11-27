@@ -365,6 +365,8 @@ export class RecordingService {
    * treat any other value as not usable.
    *
    * @example
+   * const rec = await sandbox.computerUse.recording.start({ label: 'demo' })
+   * // ... drive the desktop ...
    * const done = await sandbox.computerUse.recording.stop({ id: rec.id })
    * if (['completed', 'duration_limit_reached', 'size_limit_reached'].includes(done.status)) {
    *   const data = await sandbox.computerUse.recording.download(done.id)
@@ -392,8 +394,8 @@ export class RecordingService {
   }
 
   /**
-   * Read one recording, a live one included. A recording is live until
-   * `endTime` is set: its `status` is then `recording`, `stopping`,
+   * Read one recording, a live one included. While `endTime` is unset the
+   * recording is live, and its `status` is `recording`, `stopping`,
    * `duration_limit_reached` or `size_limit_reached` (a limit was hit and the
    * file is still being finalized), so do not use its file yet. A recording
    * whose capture failed is still returned, with `status` `failed`; check a

@@ -33,8 +33,9 @@ var (
 	ErrConnection errorCategory = "connection"
 	// ErrPreconditionFailed matches revision conflicts (412): a stale If-Match
 	// ETag on a conditional write, or a create-only secret write that finds the
-	// secret (which also matches ErrSecretAlreadyExists). A malformed ETag is
-	// ErrBadRequest instead.
+	// secret (which also matches ErrSecretAlreadyExists). An empty, non-ASCII
+	// or padded ETag is refused locally with ErrBadRequest, and the API answers
+	// 400 (ErrBadRequest), not 412, for some other values it cannot parse.
 	ErrPreconditionFailed errorCategory = "precondition failed"
 	// ErrMethodNotAllowed matches unavailable HTTP methods (405).
 	ErrMethodNotAllowed errorCategory = "method not allowed"

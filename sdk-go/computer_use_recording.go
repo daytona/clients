@@ -25,10 +25,10 @@ type ComputerUseRecording struct {
 	StartTime time.Time
 	// EndTime is zero until reported.
 	EndTime time.Time
-	// Status is the server's open recording status. A recording is live
-	// until EndTime is set: then Status is "recording", "stopping",
+	// Status is the server's open recording status. While EndTime is unset
+	// the recording is live, and Status is "recording", "stopping",
 	// "duration_limit_reached" or "size_limit_reached" (a limit was hit and
-	// the file is still being finalized). Once final, "completed",
+	// the file is still being finalized). Once EndTime is set, "completed",
 	// "duration_limit_reached" and "size_limit_reached" mean the file at
 	// FilePath is usable; "failed" means the capture ended on its own or
 	// produced no usable output; "interrupted" means the encoder had to be
@@ -78,7 +78,12 @@ func (s *ComputerUseRecordings) Start(
 // set). A nil error does not mean the file is usable: check Status first (see
 // ComputerUseRecording.Status), for example
 //
-//	rec, err := recordings.Stop(ctx, id)
+//	rec, err := recordings.Start(ctx, nil)
+//	if err != nil {
+//		return err
+//	}
+//	// ... drive the desktop ...
+//	rec, err = recordings.Stop(ctx, rec.ID)
 //	if err != nil {
 //		return err
 //	}

@@ -255,8 +255,8 @@ class RecordingService:
     def get(self, id: str, /) -> ComputerUseRecording:
         """Read one recording, a live one included.
 
-        A recording is live until ``end_time`` is set: its ``status`` is then
-        ``recording``, ``stopping``, ``duration_limit_reached`` or
+        While ``end_time`` is unset the recording is live, and its ``status``
+        is ``recording``, ``stopping``, ``duration_limit_reached`` or
         ``size_limit_reached`` (a limit was hit and the file is still being
         finalized), so do not use its file yet. A recording whose capture
         failed is still returned, with ``status`` ``failed``; check a final
@@ -302,6 +302,8 @@ class RecordingService:
 
         Example::
 
+            rec = sandbox.computer_use.recording.start(label="demo")
+            # ... drive the desktop ...
             rec = sandbox.computer_use.recording.stop(id=rec.id)
             if rec.status in ("completed", "duration_limit_reached", "size_limit_reached"):
                 data = sandbox.computer_use.recording.download(rec.id)

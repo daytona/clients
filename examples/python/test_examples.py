@@ -475,20 +475,22 @@ class FakeWorld:
             started = True
             return ComputerUseLifecycleResponse(message="started", status={})
 
-        def recording(rec_id: str, status: str) -> ComputerUseRecording:
+        # A live recording has no end_time; the one stop() returns is final and has it.
+        def recording(rec_id: str, status: str, end_time: Optional[datetime] = None) -> ComputerUseRecording:
             return ComputerUseRecording(
                 id=rec_id,
                 file_name=f"{rec_id}.mp4",
                 file_path=f"/home/daytona/recordings/{rec_id}.mp4",
                 start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 status=status,
+                end_time=end_time,
             )
 
         def stop(*, id: str) -> ComputerUseRecording:
             self.recordings_stopped.append(id)
             if self.recording_stop_fails:
                 raise ConnectionError("stop lost its connection")
-            return recording(id, self.recording_status)
+            return recording(id, self.recording_status, datetime(2026, 1, 1, 0, 0, 5, tzinfo=timezone.utc))
 
         def move(*, x: int, y: int) -> ComputerUsePoint:
             if self.desktop_action_fails:

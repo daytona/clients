@@ -275,8 +275,10 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
 /** A desktop that is ready once started; recording.stop() reports scenario.recordingStatus. */
 function computerUse() {
   let started = false
-  const recording = (id: string, status: string) => ({
+  // A live recording has no endTime; the one stop() returns is final and has it.
+  const recording = (id: string, status: string, endTime?: string) => ({
     id, fileName: `${id}.mp4`, filePath: `/home/daytona/recordings/${id}.mp4`, startTime: '2026-01-01T00:00:00Z', status,
+    ...(endTime === undefined ? {} : { endTime }),
   })
   return {
     start: async () => {
@@ -300,7 +302,7 @@ function computerUse() {
       stop: async ({ id }: { id: string }) => {
         record.recordingsStopped.push(id)
         if (scenario.recordingStopFails) throw new Error('stop lost its connection')
-        return recording(id, scenario.recordingStatus ?? 'completed')
+        return recording(id, scenario.recordingStatus ?? 'completed', '2026-01-01T00:00:05Z')
       },
       download: async (id: string) => {
         record.recordingDownloads.push(id)

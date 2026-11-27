@@ -235,7 +235,10 @@ class PreconditionFailedError(DaytonaError):
     Raised by the conditional writes (network policy, sandbox secrets) when
     the ETag passed as ``if_match`` is stale: read the resource again and
     retry with its new ``etag``. Pass the ETag exactly as returned (an opaque,
-    quoted string); a malformed one is a ``BadRequestError`` (400), not 412.
+    quoted string). The SDK refuses an empty one, or one that is not printable
+    ASCII or has leading or trailing spaces, with ``BadRequestError`` (400)
+    before sending; any other value is sent as given, and the API answers 400,
+    not 412, for some values it cannot parse.
     A create-only ``secrets.set(..., if_not_exists=True)`` that finds the
     secret raises the subclass ``SecretAlreadyExistsError``.
     """

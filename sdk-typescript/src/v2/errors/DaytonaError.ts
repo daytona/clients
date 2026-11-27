@@ -373,8 +373,11 @@ export class DockerNotReadyError extends ConflictError {
  * HTTP 412: the `ifMatch` revision no longer matches. Thrown by the
  * conditional writes (network policy, sandbox secrets) when the ETag passed as
  * `ifMatch` is stale: read the resource again and retry with its new `etag`.
- * Pass the ETag exactly as returned (an opaque, quoted string); a malformed
- * one is a `BadRequestError` (400), not 412. A create-only
+ * Pass the ETag exactly as returned (an opaque, quoted string). The SDK
+ * refuses an empty one, or one that is not printable ASCII or has leading or
+ * trailing spaces, with `BadRequestError` (400) before sending; any other
+ * value is sent as given, and the API answers 400, not 412, for some values it
+ * cannot parse. A create-only
  * `secrets.set(name, value, { allowedDomains, ifNotExists: true })` that
  * finds the secret throws the subclass `SecretAlreadyExistsError`.
  */
