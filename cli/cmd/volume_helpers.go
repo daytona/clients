@@ -85,15 +85,20 @@ func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 		return cerr.Usage("a customer bucket needs --access-key-secret and --secret-key-secret (project secret names), or --role-arn")
 	}
 	creds := req.Bucket.Credentials
-	hasAccessKey := strings.TrimSpace(derefString(creds.AccessKeySecret)) != ""
-	hasSecretKey := strings.TrimSpace(derefString(creds.SecretKeySecret)) != ""
-	if strings.TrimSpace(derefString(creds.RoleArn)) != "" {
-		if hasAccessKey || hasSecretKey {
+	// A field that is present must name something: an empty one would be
+	// sent as "" and read as absent by the server.
+	for flag, v := range map[string]*string{"--role-arn": creds.RoleArn, "--access-key-secret": creds.AccessKeySecret, "--secret-key-secret": creds.SecretKeySecret} {
+		if v != nil && strings.TrimSpace(*v) == "" {
+			return cerr.Usage("%s must not be empty", flag)
+		}
+	}
+	if creds.RoleArn != nil {
+		if creds.AccessKeySecret != nil || creds.SecretKeySecret != nil {
 			return cerr.Usage("--role-arn replaces --access-key-secret and --secret-key-secret; pass one or the other")
 		}
 		return nil
 	}
-	if !hasAccessKey || !hasSecretKey {
+	if creds.AccessKeySecret == nil || creds.SecretKeySecret == nil {
 		return cerr.Usage("--access-key-secret and --secret-key-secret are required together")
 	}
 	return nil

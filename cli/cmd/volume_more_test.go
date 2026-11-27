@@ -36,6 +36,9 @@ func TestVolumeCreate_rejectsShapesTheServerWouldRefuse(t *testing.T) {
 		"a type in another case":          {"volume", "create", "v", "--type", "DISK"},
 		"bucket options on a disk volume": {"volume", "create", "v", "--type", "disk", "--bucket", "corp", "--access-key-secret", "K", "--secret-key-secret", "S"},
 		"a role next to a secret name":    {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--role-arn", "arn:aws:iam::123456789012:role/r", "--access-key-secret", "K"},
+		"an empty role":                   {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--role-arn", ""},
+		"a role next to an empty secret":  {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--role-arn", "arn:aws:iam::123456789012:role/r", "--access-key-secret", ""},
+		"an empty role next to secrets":   {"volume", "create", "v", "--type", "bucket", "--bucket", "corp", "--role-arn", " ", "--access-key-secret", "K", "--secret-key-secret", "S"},
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
