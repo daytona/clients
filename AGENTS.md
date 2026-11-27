@@ -1003,7 +1003,24 @@ skipping exist only in the TypeScript tool).
   the read's error as its cause (a server's 408 included), except a 401 /
   403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
   target was observed, a failed
-  metadata refresh afterwards does not turn that success into an error.
+  metadata refresh afterwards does not turn that success into an error; a
+  refresh that succeeds decides too: a target returns, a state terminal for
+  that wait that no lag can show (`destroyed`, `error`, and `destroying`
+  unless the wait targets `destroyed`) raises with the read's reason, and
+  any other state polls on under the same deadline, so a lifecycle wait
+  never returns a handle outside its targets (create and fork still return
+  theirs however the wait ends). An operation's own failure state (`started`
+  for a pause, `stopped` / `paused` for a joined start) is also the state
+  before it, which a lagging plain read shows; on this read and on the read
+  that confirms a terminal state the events hub reports, it is left to the
+  long-poll reads that follow. The server holds a loose `wait=paused` on
+  `started` and `wait=running` on `paused` for the whole slice, so such a
+  failure is reported up to one 30-second slice later; a loose
+  `wait=running` answers `stopped` at once, so a lagging `stopped` row can
+  still fail a joined start (an accepted residual risk). `start()` that finds the sandbox `starting` (a start or resume
+  another caller sent) sends nothing and waits with `stopped` and `paused`
+  as terminal states too; a `start()` that sends start keeps the default
+  terminal states, since its first reads may still show `stopped`.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:
   budget spent, terminal state, or a failed read (any `DaytonaError`). A

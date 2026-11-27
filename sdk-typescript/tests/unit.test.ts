@@ -8881,7 +8881,10 @@ describe('toolbox service request shaping', () => {
     const waitSecond = jest.spyOn(secondHub, 'wait').mockRejectedValue(new Error('unexpected second hub wait'))
     const sandbox = createSandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
     ;(second as unknown as { hub?: WaitHub }).hub = secondHub
-    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+    // start() reads the stopped sandbox; the read after the hub's event shows it running.
+    jest.spyOn(firstApi, 'get')
+      .mockResolvedValueOnce({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+      .mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     jest.spyOn(firstApi, 'post').mockResolvedValue({ data: {} })
 
     try {
@@ -8933,7 +8936,10 @@ describe('toolbox service request shaping', () => {
     const sandbox = createSandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
     ;(second as unknown as { hub?: WaitHub }).hub = secondHub
     await firstHub.detach()
-    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+    // start() reads the stopped sandbox; the read after the hub's event shows it running.
+    jest.spyOn(firstApi, 'get')
+      .mockResolvedValueOnce({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+      .mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     jest.spyOn(firstApi, 'post').mockResolvedValue({ data: {} })
 
     try {

@@ -892,7 +892,10 @@ the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the
 sandbox in `assigned` and waits for `started`. A paused sandbox keeps its
 memory on its Mac. With auto-renew on, it keeps its reservation renewing;
 otherwise the sandbox is stopped, with its disk, before the reservation ends.
-After a resume,
+Once that reservation is ending, `resume()` raises `ConflictError` with
+`code == "NO_ACTIVE_RESERVATION"`: the memory is on that Mac, so another
+reservation cannot take the sandbox over; after the end, `start()` starts it
+under another reservation. After a resume,
 `sandbox.mac_boot_mode` reports how the sandbox resumed; `sandbox.error`
 provides error details when available.
 
@@ -1263,7 +1266,15 @@ completion: `stop()` returns at `stopped`, and `delete()` returns at
 Client methods accept a sandbox or its id and the same options, for example
 `d.v2.stop(sandbox.id, timeout=120)`. Once the target state has been
 observed, a failed metadata refresh afterwards does not turn that success into
-an error. The server decides which lifecycle actions the sandbox supports.
+an error; a refresh that shows another state decides instead (a state
+terminal for that wait raises, any other state keeps the wait going under the
+same budget), so a lifecycle wait that returns leaves the handle in a
+requested state. `start()` on a sandbox that is already `starting`, because
+another caller started or resumed it, joins that operation and raises
+`SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
+once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,
+after up to one 30-second long-poll read. The server decides which
+lifecycle actions the sandbox supports.
 
 `fork(wait_seconds=60)` has its own wait budget; fractions are allowed,
 `0` skips waiting, and a value above about 24.8 days waits with no deadline;
