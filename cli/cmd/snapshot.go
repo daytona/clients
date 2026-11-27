@@ -106,8 +106,8 @@ func newSnapshotListCommand() *cobra.Command {
 				if cmd.Flags().Changed("name") {
 					q.Set("name", name)
 				}
-				if sandboxID != "" {
-					q.Set("sandbox_id", sandboxID)
+				if id := strings.TrimSpace(sandboxID); id != "" {
+					q.Set("sandbox_id", id)
 				}
 				return q
 			}

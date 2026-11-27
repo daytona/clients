@@ -51,6 +51,11 @@ func TestSnapshotCommands_routeAndRenderJSON(t *testing.T) {
 			expected: []expectedRequest{{method: http.MethodGet, path: "/snapshots/search", query: "limit=1&name=snap1&sandbox_id=11111111-1111-1111-1111-111111111111", status: 200, response: withSearchTotals(t, snapshotPageFixture("33333333-3333-3333-3333-333333333333"))}},
 		},
 		{
+			name:     "list snapshots by a padded source sandbox id, sent trimmed",
+			args:     []string{"snapshot", "list", "--limit", "1", "--sandbox", " 11111111-1111-1111-1111-111111111111 "},
+			expected: []expectedRequest{{method: http.MethodGet, path: "/snapshots/search", query: "limit=1&sandbox_id=11111111-1111-1111-1111-111111111111", status: 200, response: withSearchTotals(t, snapshotPageFixture("33333333-3333-3333-3333-333333333333"))}},
+		},
+		{
 			name: "list snapshots by name without search, empty name kept",
 			args: []string{"snapshot", "list", "--limit", "1", "--name", ""},
 			expected: []expectedRequest{

@@ -63,6 +63,13 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			},
 		},
 		{
+			name: "list images by a padded source sandbox id, sent trimmed",
+			args: []string{"image", "list", "--sandbox", " 22222222-2222-2222-2222-222222222222 ", "--limit", "1"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/images/search", query: "limit=1&sandbox_id=22222222-2222-2222-2222-222222222222", status: 200, response: withSearchTotals(t, `{"images":[],"next_cursor":null}`)},
+			},
+		},
+		{
 			name: "list images with an empty name filter without search",
 			args: []string{"image", "list", "--name", "", "--limit", "1"},
 			expected: []expectedRequest{

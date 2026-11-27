@@ -44,7 +44,8 @@ func newImageListCommand() *cobra.Command {
 			}
 			flags.anonymous = anonymous
 			flags.nameSet = cmd.Flags().Changed("name")
-			if cmd.Flags().Changed("sandbox") && strings.TrimSpace(flags.sandboxID) == "" {
+			flags.sandboxID = strings.TrimSpace(flags.sandboxID)
+			if cmd.Flags().Changed("sandbox") && flags.sandboxID == "" {
 				return cerr.Usage("--sandbox is empty").WithHint("pass a sandbox id, or omit --sandbox")
 			}
 			if cmd.Flags().Changed("platform") {

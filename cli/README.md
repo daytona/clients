@@ -393,8 +393,9 @@ Completion is local: it offers the values of flags and arguments with a
 fixed vocabulary (`-o`, `sandbox wait --for`, `volume create --type`,
 `config set`, signal names, …) and the saved profile names (`--profile`,
 `profile use`), sends no request, and does not complete resource ids or
-regions; it never offers local file names for an argument that names a
-remote resource.
+regions. Arguments that name a remote resource get no local file names;
+`sandbox cp` keeps local file completion for both of its arguments, since
+either one may be the local endpoint.
 
 ## Scripts and agents
 
@@ -685,7 +686,8 @@ than the configured duration. While a sandbox is stopped, commands that work ins
   `sandbox port unexpose` `{"sandbox_id", "port", "unexposed": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
   `sandbox cp` prints `{"source", "destination", "bytes"}` for a file and
   `{"source", "destination", "recursive": true}` for `-r`, where
-  `destination` is the path the file or directory landed at; a download to
+  `destination` is where the file or directory landed: the local path for a
+  download, `<sandbox-id>:<remote path>` for an upload; a download to
   `-` prints only the file. With table output (`-o table`, or the default at
   a terminal) `cp` prints no acknowledgement; a download to `-` still writes
   the file to stdout.
