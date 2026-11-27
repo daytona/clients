@@ -248,8 +248,8 @@ class UnprocessableEntityError(DaytonaError, _shared.DaytonaUnprocessableEntityE
 
 class RateLimitError(DaytonaError, _shared.DaytonaRateLimitError):
     """HTTP 429. ``RATE_LIMITED`` and ``TOO_MANY_REQUESTS`` raise this class
-    itself (read ``code`` to tell them apart); ``LIMIT_EXCEEDED`` and
-    ``OVERLOADED`` raise its subclasses."""
+    itself (read ``code`` to tell them apart); ``LIMIT_EXCEEDED``,
+    ``OVERLOADED`` and ``DELETE_LOCK_TIMEOUT`` raise its subclasses."""
 
 
 class LimitExceededError(RateLimitError):

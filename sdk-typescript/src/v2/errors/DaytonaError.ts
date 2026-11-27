@@ -369,8 +369,8 @@ export class ServiceUnavailableError extends DaytonaError {}
 export class InternalServerError extends DaytonaError {}
 /**
  * HTTP 429. `RATE_LIMITED` and `TOO_MANY_REQUESTS` throw this class itself
- * (read `code` to tell them apart); `LIMIT_EXCEEDED` and `OVERLOADED` throw its
- * subclasses.
+ * (read `code` to tell them apart); `LIMIT_EXCEEDED`, `OVERLOADED` and
+ * `DELETE_LOCK_TIMEOUT` throw its subclasses.
  */
 export class RateLimitError extends DaytonaError {}
 
