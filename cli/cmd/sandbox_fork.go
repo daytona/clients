@@ -25,7 +25,7 @@ func newSandboxForkCommand() *cobra.Command {
 		}
 		memorySet := cmd.Flags().Changed("memory")
 		if macos && memorySet && memory {
-			return nil, "", "", cerr.Usage("a macOS fork copies the disk only; --memory is refused for macOS (NOT_SUPPORTED_FOR_CLASS)").
+			return nil, "", "", cerr.Usage("a macOS fork copies the disk only; --memory is not supported for macOS").
 				WithHint("omit --memory, or pass --memory=false")
 		}
 		body := (*gen.ForkSandboxRequest)(nil)

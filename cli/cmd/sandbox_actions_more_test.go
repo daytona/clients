@@ -679,3 +679,22 @@ func TestSandboxFork_memoryIsRefusedForMacOS(t *testing.T) {
 	})
 	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
 }
+
+// Without --memory the fork's resting state follows the source, as in the
+// SDKs: a stopped Linux source gives a stopped (disk-only) fork, a paused
+// one a paused (memory) fork.
+func TestSandboxFork_defaultMemoryWaitTarget(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	fork := "22222222-2222-2222-2222-222222222222"
+	for _, tc := range []struct{ source, query, status string }{
+		{"stopped", "wait_exact=stopped&timeout_ms=55000", "stopped"},
+		{"paused", "wait=paused&timeout_ms=55000", "paused"},
+	} {
+		_, _, err := runCLI(t, []string{"sandbox", "fork", id}, []expectedRequest{
+			{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", tc.source)},
+			{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `null`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
+			{method: http.MethodGet, path: "/sandboxes/" + fork, query: tc.query, status: 200, response: sandboxDetailFixture(fork, "linux", tc.status)},
+		})
+		require.NoError(t, err, tc.source)
+	}
+}
