@@ -50,13 +50,15 @@ export interface SandboxStateWaitOptions {
   readonly terminalStates?: readonly SandboxState[]
   readonly missingIsDestroyed?: boolean
   /**
-   * Read the sandbox once after the events hub reports a target state. An
-   * events frame carries the state and the error message, and nothing else a
-   * handle exposes changes on a transition, except the boot mode and the
-   * reservation of a macOS sandbox that starts or resumes: only those waits
-   * ask for the read.
+   * Whether to read the sandbox once after the events hub reports a target
+   * state, asked when the report arrives (a read during the wait may have
+   * learned the class). An events frame carries the state and the error
+   * message; the boot mode and the reservation a macOS start or resume
+   * changes are in no response, so only those waits ask for the read. Other
+   * fields that move on a transition (`spotEvictedAt`, lifecycle-policy
+   * deadlines, the activity clock) stay as of the last read.
    */
-  readonly readAfterTarget?: boolean
+  readonly readAfterTarget?: () => boolean
 }
 
 function timeoutError(cause?: unknown): RequestTimeoutError {
@@ -82,13 +84,20 @@ export function waitQueryState(state: SandboxWaitState | undefined): string | un
   }
 }
 
-/** A 404 in a delete: destroyed, with the error message the handle had. */
+/** A 404 in a delete: destroyed, keeping the error message only of a handle that already read it destroyed. */
 function destroyedOutcome(context: SandboxWaitContext): WaitOutcome {
   return withKeptReason({ state: 'destroyed', rawState: 'deleted' }, context.current())
 }
 
+/**
+ * `outcome` with the error message the handle holds, kept only when that
+ * message came with the same state (and wire status, when both are known), as
+ * `withReason` does for a terminal error.
+ */
 function withKeptReason(outcome: WaitOutcome, seen: WaitOutcome): WaitOutcome {
-  return seen.reason === undefined ? outcome : { ...outcome, reason: seen.reason }
+  if (outcome.reason !== undefined || seen.reason === undefined || seen.state !== outcome.state) return outcome
+  if (outcome.rawState !== '' && seen.rawState !== '' && seen.rawState !== outcome.rawState) return outcome
+  return { ...outcome, reason: seen.reason }
 }
 
 /**
@@ -264,8 +273,9 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (!(error instanceof SandboxTerminalStateError)) throw error
       // What the handle last read, before the report overwrites it.
       const seen = context.current()
-      // The report carries no error message here: the handle keeps the one it has.
-      context.observe(withKeptReason({ state: error.state, rawState: error.rawState ?? '' }, seen))
+      // The report's error message, else the one the handle read with the same state.
+      const report: WaitOutcome = { state: error.state, rawState: error.rawState ?? '', reason: error.reason }
+      context.observe(withKeptReason(report, seen))
       // A terminal state the hub reports may be one it held before this
       // request's frames arrived (an `error` from an earlier wait, while a
       // DELETE already moves the sandbox on): one read confirms it, and the
@@ -293,14 +303,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     }
     if (resolved !== undefined) {
       context.observe(resolved)
-      // An events frame carries the state and the error message; nothing else
-      // the handle exposes changes on a transition, so no read follows. A
-      // macOS start or resume changes the boot mode and the reservation,
-      // which no response carries: those waits fill them in with one read
+      // An events frame carries the state and the error message, and no read
+      // follows it: other fields that move on a transition (`spotEvictedAt`,
+      // lifecycle-policy deadlines, the activity clock) stay as of the last
+      // read. A macOS start or resume changes the boot mode and the
+      // reservation, which no response carries: those waits fill them in with one read
       // within the same budget. A destroyed sandbox has nothing to fill in.
       // The target was observed, so neither a spent budget nor a failed read
       // turns that success into an error.
-      if (options.readAfterTarget !== true || refreshedByPoll || resolved.state === 'destroyed') return
+      if (refreshedByPoll || resolved.state === 'destroyed' || options.readAfterTarget?.() !== true) return
       const budget = remaining()
       if (budget !== undefined && budget <= 0) return
       let outcome: SandboxReadOutcome

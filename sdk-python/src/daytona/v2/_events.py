@@ -646,9 +646,13 @@ class WaitHub:
                 source_raw_state = source.raw_states.get(sandbox_id)
                 if source_raw_state is not None:
                     destination.raw_states[sandbox_id] = source_raw_state
+                # The reason belongs to the state it came with: a source state
+                # without one clears the destination's.
                 source_reason = source.reasons.get(sandbox_id)
                 if source_reason is not None:
                     destination.reasons[sandbox_id] = source_reason
+                elif source_state is not None:
+                    destination.reasons.pop(sandbox_id, None)
             if sandbox_id in source.refused_retry_ids:
                 destination.refused_retry_ids.add(sandbox_id)
 
@@ -798,7 +802,10 @@ class WaitHub:
                 _remove_waiter(self._waiters, waiter)
                 # The wire status the hub holds with the state, as TypeScript.
                 raise SandboxTerminalStateError(
-                    sandbox_id, held, raw_state=sock.raw_states.get(sandbox_id) or None
+                    sandbox_id,
+                    held,
+                    raw_state=sock.raw_states.get(sandbox_id) or None,
+                    reason=sock.reasons.get(sandbox_id),
                 )
         waiter.registered_at = _clock.monotonic()
         # The newest waiter's start: a fresh wait (a start() next to an old
@@ -1033,7 +1040,9 @@ class WaitHub:
         else:
             if not waiter.future.done():
                 waiter.future.set_exception(
-                    SandboxTerminalStateError(waiter.sandbox_id, outcome.state, raw_state=outcome.raw_state)
+                    SandboxTerminalStateError(
+                        waiter.sandbox_id, outcome.state, raw_state=outcome.raw_state, reason=outcome.reason
+                    )
                 )
         self._maybe_unsubscribe_for_id(waiter.sandbox_id)
 
@@ -1055,6 +1064,7 @@ class WaitHub:
                         waiter.sandbox_id,
                         outcome.state,
                         raw_state=outcome.raw_state,
+                        reason=outcome.reason,
                     )
                 )
         self._maybe_unsubscribe_for_id(waiter.sandbox_id)
@@ -1363,7 +1373,9 @@ class WaitHub:
             if result == "resolve":
                 to_resolve.append(w)
             elif result == "reject":
-                err = SandboxTerminalStateError(sandbox_id, state, raw_state=outcome.raw_state)
+                err = SandboxTerminalStateError(
+                    sandbox_id, state, raw_state=outcome.raw_state, reason=outcome.reason
+                )
                 to_reject.append((w, err))
 
         for w in to_resolve:
@@ -1808,7 +1820,9 @@ async def _run_poll_loop(
         if result == "resolve":
             return outcome
         if result == "reject":
-            raise SandboxTerminalStateError(sandbox_id, outcome.state, raw_state=outcome.raw_state or None)
+            raise SandboxTerminalStateError(
+                sandbox_id, outcome.state, raw_state=outcome.raw_state or None, reason=outcome.reason
+            )
 
 
 # ---------------------------------------------------------------------------

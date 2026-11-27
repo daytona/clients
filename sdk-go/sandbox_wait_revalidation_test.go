@@ -529,3 +529,51 @@ func TestLifecycle_whenConfirmingReadLeavesLessThanSpacing_firstLongPollReadsAtO
 		require.Equal(t, []string{"", "running"}, holds)
 	})
 }
+
+func TestClientResume_whenAReadDuringTheWaitShowsMacOS_readsAfterTheTargetEvent(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given: a resume by ID (the handle knows no class) whose early probe
+		// reads a booting macOS sandbox before the started event arrives.
+		source := &waitTestSource{events: make(chan stateObservation, 1)}
+		probed := make(chan struct{})
+		var holds []string
+		read := scriptedClassReads(t, SandboxClassMacOS, "booting", "running")
+		sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				writeJSON(t, w, map[string]string{})
+				return
+			}
+			holds = append(holds, r.URL.Query().Get("wait"))
+			read(w, r)
+			if len(holds) == 1 {
+				close(probed)
+			}
+		})
+		sandbox.client.stateSource = source
+		// When
+		done := make(chan error, 1)
+		go func() { done <- sandbox.client.Resume(t.Context(), "sbx", nil) }()
+		<-probed
+		synctest.Wait()
+		source.events <- stateObservation{State: SandboxStateStarted, RawState: "running"}
+		// Then: the class the probe read asks for the macOS read after the event.
+		require.NoError(t, <-done)
+		require.Len(t, holds, 2)
+		require.Empty(t, holds[1])
+	})
+}
+
+func TestClientResume_whenNoReadLearnedTheClass_readsNothingAfterTheTargetEvent(t *testing.T) {
+	// Given: a resume by ID decided by the events stream before any read.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"GET /sandboxes/sbx":         scriptedClassReads(t, SandboxClassMacOS, "running"),
+		"POST /sandboxes/sbx/resume": jsonHandler(t, map[string]string{}),
+	})
+	client := newTestClient(t, fake.Server)
+	client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
+	// When
+	err := client.Resume(t.Context(), "sbx", nil)
+	// Then: the handle the call builds is never returned, and it knows no class.
+	require.NoError(t, err)
+	require.Empty(t, reads(fake))
+}

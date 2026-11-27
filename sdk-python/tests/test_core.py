@@ -7970,14 +7970,14 @@ async def test_sandbox_wait_reads_after_a_socket_decided_outcome_only_when_asked
     await sandbox._wait_for_state(["started"], timeout=60)
     assert refreshes == 0, "an events frame needs no read"
 
-    await sandbox._wait_for_state(["started"], timeout=60, read_after_target=True)
+    await sandbox._wait_for_state(["started"], timeout=60, read_after_target=lambda: True)
     assert refreshes == 1
     timeout_used = refresh_timeouts[-1]
     assert isinstance(timeout_used, float) and 0 < timeout_used <= 60, "the refresh shares the wait's budget"
 
     hub.mode = "destroyed"
     refreshes = 0
-    await sandbox._wait_for_state(["destroyed"], timeout=60, read_after_target=True)
+    await sandbox._wait_for_state(["destroyed"], timeout=60, read_after_target=lambda: True)
     assert refreshes == 0, "a destroyed sandbox has nothing to fill in (the GET would 404)"
 
     hub.mode = "poll"

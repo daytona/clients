@@ -727,8 +727,10 @@ export class Sandbox {
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization (the handle reads the sandbox once more after the events
-   * stream reports `started`, for its boot mode and reservation); after a
-   * start on a different Mac, iCloud asks the user to sign in again. It throws `ConflictError` with `DISK_NOT_READY` while its
+   * stream reports `started`, while budget remains, for its boot mode and
+   * reservation; a failed read keeps the observed success). Other fields,
+   * `spotEvictedAt` and the lifecycle-policy deadlines included, are as of
+   * the last read. After a start on a different Mac, iCloud asks the user to sign in again. It throws `ConflictError` with `DISK_NOT_READY` while its
    * disk is not ready yet (retry later), `NO_FREE_SLOT` when no Mac of the
    * organization has space for its size, `MAC_DISK_FULL` when the Mac with
    * space is low on free disk space, and `NO_ACTIVE_RESERVATION` when the
@@ -778,7 +780,7 @@ export class Sandbox {
     }
     // A macOS start can change the boot mode and the reservation: one read
     // after the events report fills them in.
-    await this.waitForState(['started'], { timeoutSeconds, terminalStates, readAfterTarget: this.sandboxClass === 'macos' })
+    await this.waitForState(['started'], { timeoutSeconds, terminalStates, readAfterTarget: () => this.sandboxClass === 'macos' })
   }
 
   /**
@@ -820,7 +822,10 @@ export class Sandbox {
    * Resume a paused sandbox and wait until it is started.
    * A return to stopped means the resume failed; this then throws
    * `SandboxTerminalStateError`. A macOS sandbox is read once more after the
-   * events stream reports `started`, for its boot mode and reservation.
+   * events stream reports `started`, while budget remains, for its boot mode
+   * and reservation; a failed read keeps the observed success. Other fields,
+   * `spotEvictedAt` and the lifecycle-policy deadlines included, are as of
+   * the last read.
    *
    * Whether the sandbox can resume is the API's decision; a refusal surfaces
    * as its typed error. A sandbox that is not paused, or whose saved state is
@@ -841,7 +846,9 @@ export class Sandbox {
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
     const r = await this.api.post(`/sandboxes/${strictUriEncode(this.id)}/resume`)
     this.learnEventDestination(eventDestinationFromHeaders(r.headers))
-    await this.waitForState(['started'], { timeoutSeconds, terminalStates: RESUME_TERMINAL_STATES, readAfterTarget: this.sandboxClass === 'macos' })
+    // Asked when the events report arrives: a handle built from an id alone
+    // learns its class only from a read during the wait.
+    await this.waitForState(['started'], { timeoutSeconds, terminalStates: RESUME_TERMINAL_STATES, readAfterTarget: () => this.sandboxClass === 'macos' })
   }
 
   /**
@@ -1177,12 +1184,13 @@ export class Sandbox {
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
    * A terminal state the events hub reports is confirmed with one read before it raises,
    * while the wait has budget left, unless that state already came from a full read or
-   * is `destroyed`. A target state the events hub reports ends the wait with no read:
-   * the handle takes the reported state and the sandbox's error message (cleared when
-   * the report has none), and keeps its other fields, lifecycle-policy deadlines
-   * included, as of the last read (`refreshData()` reloads them). Only `start()` and
-   * `resume()` of a macOS sandbox read once more after it, for the boot mode and the
-   * reservation. When the events hub has reported nothing decisive, the last part
+   * is `destroyed`. A wait decided by a target event makes no further request: the
+   * handle takes the event's state and the sandbox's error message (cleared when the
+   * event has none), and keeps its other fields, `spotEvictedAt`, the lifecycle-policy
+   * deadlines and the activity clock included, as of the last read (`refreshData()`
+   * reloads them). Only `start()` and `resume()` of a macOS sandbox read once more after
+   * the target event, while budget remains, for the boot mode and the reservation; a
+   * failed read keeps the observed success. When the events hub has reported nothing decisive, the last part
    * of a bounded budget (up to 5 s) reads the state from the server, so a state the
    * hub missed still ends the wait; the same holds for the other lifecycle waits and
    * the create and fork waits.

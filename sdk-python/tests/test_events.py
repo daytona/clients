@@ -31,6 +31,7 @@ from daytona.v2._events import (
     WaitHub,
     WaitOutcome,
     _evaluate,
+    _SocketState,
     _TargetPredicate,
     _ws_url,
     attach_hub,
@@ -425,6 +426,64 @@ class TestHubSnapshotThenLive:
             background.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await background
+
+    async def test_a_terminal_frames_error_message_reaches_the_raised_error(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            background = asyncio.create_task(
+                hub.wait(
+                    "abc-region-a",
+                    _TargetPredicate(states=frozenset({"destroyed"}), terminal_states=frozenset()),
+                    timeout=5,
+                )
+            )
+            live = asyncio.create_task(hub.wait("abc-region-a", _started_predicate(), timeout=5))
+            await drain()
+            ws.inject(
+                {
+                    "type": "snapshot",
+                    "id": "abc-region-a",
+                    "status": "failed",
+                    "version": 1,
+                    "error": "the guest crashed",
+                }
+            )
+            # The live frame, then the state the hub holds, each name it.
+            with pytest.raises(SandboxTerminalStateError) as from_frame:
+                await live
+            with pytest.raises(SandboxTerminalStateError) as from_held:
+                await hub.wait("abc-region-a", _started_predicate(), timeout=5)
+            background.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await background
+
+        assert (from_frame.value.raw_state, from_frame.value.reason) == ("failed", "the guest crashed")
+        assert (from_held.value.raw_state, from_held.value.reason) == ("failed", "the guest crashed")
+
+    async def test_a_moved_state_without_a_reason_clears_the_destinations(self) -> None:
+        hub = make_hub(FakeConnector())
+        hub._ensure_socket_task = lambda _sock: None  # type: ignore[method-assign]
+        source = _SocketState(key="region-a", region="region-a")
+        destination = _SocketState(key="endpoint-a", region="region-a")
+        hub._sockets.update({"region-a": source, "endpoint-a": destination})
+        for sock, (state, raw) in ((source, ("started", "running")), (destination, ("error", "failed"))):
+            sock.subscriptions.add("abc-region-a")
+            sock.states["abc-region-a"] = state  # type: ignore[assignment]
+            sock.raw_states["abc-region-a"] = raw
+        destination.reasons["abc-region-a"] = "the guest crashed"
+
+        hub._move_socket_subscriptions("region-a", source, destination, preserve_state=True)
+
+        # The moved state carried no error message: none labels it.
+        assert (destination.states["abc-region-a"], destination.raw_states["abc-region-a"]) == (
+            "started",
+            "running",
+        )
+        assert "abc-region-a" not in destination.reasons
 
     async def test_version_rule_lower_dropped(self) -> None:
         fc = FakeConnector()

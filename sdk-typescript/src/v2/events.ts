@@ -585,7 +585,7 @@ export async function runPollLoop(
     }
     const result = evaluate(predicate, outcome.state)
     if (result === 'resolve') return outcome
-    if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, { rawState: outcome.rawState })
+    if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, { rawState: outcome.rawState, reason: outcome.reason })
   }
 }
 
@@ -834,8 +834,11 @@ export class WaitHub {
         if (sourceState !== undefined) destination.states.set(sid, sourceState)
         const sourceRawState = source.rawStates.get(sid)
         if (sourceRawState !== undefined) destination.rawStates.set(sid, sourceRawState)
+        // The reason belongs to the state it came with: a source state
+        // without one clears the destination's.
         const sourceReason = source.reasons.get(sid)
         if (sourceReason !== undefined) destination.reasons.set(sid, sourceReason)
+        else if (sourceState !== undefined) destination.reasons.delete(sid)
       }
       if (source.refusedRetryIds.has(sid)) destination.refusedRetryIds.add(sid)
     }
@@ -992,7 +995,7 @@ export class WaitHub {
     if (haveSnapshot) {
       const verdict = evaluate(predicate, held!)
       if (verdict === 'resolve') return withReason({ state: held!, rawState: sock.rawStates.get(sandboxId) ?? '' }, sock.reasons.get(sandboxId))
-      if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, { rawState: sock.rawStates.get(sandboxId) })
+      if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, { rawState: sock.rawStates.get(sandboxId), reason: sock.reasons.get(sandboxId) })
     }
 
     const waiter = this.registerWaiter(sandboxId, predicate, deadline, onObserved, sandboxPollFn)
@@ -1189,7 +1192,7 @@ export class WaitHub {
     this.clearWaiterTimers(waiter)
     this.removeWaiter(waiter)
     if (result === 'resolve') waiter.resolve(outcome)
-    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState }))
+    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState, reason: outcome.reason }))
     this.maybeUnsubscribeForId(waiter.sandboxId)
   }
 
@@ -1200,7 +1203,7 @@ export class WaitHub {
     this.clearWaiterTimers(waiter)
     this.removeWaiter(waiter)
     if (result === 'resolve') waiter.resolve(outcome)
-    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState }))
+    else waiter.reject(new SandboxTerminalStateError(waiter.sandboxId, outcome.state, { rawState: outcome.rawState, reason: outcome.reason }))
     this.maybeUnsubscribeForId(waiter.sandboxId)
   }
 
@@ -1724,7 +1727,7 @@ export class WaitHub {
       if (result === 'resolve') {
         toResolve.push(w)
       } else if (result === 'reject') {
-        toReject.push([w, new SandboxTerminalStateError(sandboxId, state, { rawState: outcome.rawState })])
+        toReject.push([w, new SandboxTerminalStateError(sandboxId, state, { rawState: outcome.rawState, reason: outcome.reason })])
       }
     }
 

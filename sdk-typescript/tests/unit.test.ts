@@ -2930,6 +2930,19 @@ describe('V2 model', () => {
       expect(config?.params).toBeUndefined()
       expect(sandbox.macBootMode).toBe('warm')
 
+      // A macOS start of a stopped sandbox: its own read before it acts, then
+      // one read after the socket decided, within the budget.
+      get.mockReset()
+      get.mockResolvedValueOnce({ data: { id: 'sbx', class: 'macos', status: 'stopped', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } })
+        .mockResolvedValueOnce({ data: { id: 'sbx', class: 'macos', status: 'running', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [], reservation_id: 'res_b' } })
+      wait.mockResolvedValueOnce({ state: 'started', rawState: 'running' })
+      await sandbox.start({ timeoutSeconds: 1 })
+      expect(get).toHaveBeenCalledTimes(2)
+      const startRead = get.mock.calls[1]?.[1] as { timeout?: number; params?: unknown } | undefined
+      expect(startRead?.timeout).toBeLessThanOrEqual(1_000)
+      expect(startRead?.params).toBeUndefined()
+      expect([sandbox.state, sandbox.reservationId]).toEqual(['started', 'res_b'])
+
       // A destroyed sandbox has nothing to fill in: no GET (it would 404).
       wait.mockResolvedValueOnce({ state: 'destroyed', rawState: 'deleted' })
       get.mockClear()

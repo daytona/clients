@@ -437,3 +437,42 @@ async def test_the_first_long_poll_after_a_confirming_read_keeps_the_minimum_spa
     assert sandbox.state == expected[0]
     assert [read.params.get("wait") for read in api.reads()] == [None, expected[1]]
     assert stamps[1] - stamps[0] >= 0.19
+
+
+class _ProbingHub:
+    """Runs the wait's own probe read once, then reports the target state."""
+
+    enabled = True
+
+    async def wait(
+        self,
+        sandbox_id: str,
+        predicate: _TargetPredicate,
+        *,
+        sandbox_poll_fn: Callable[[], object],
+        on_observed: Callable[[WaitOutcome], None],
+        **_options: object,
+    ) -> WaitOutcome:
+        await sandbox_poll_fn()  # type: ignore[misc]
+        frame = WaitOutcome("started", "running")
+        on_observed(frame)
+        return frame
+
+
+@pytest.mark.parametrize("sandbox_class", ["linux", "macos"])
+async def test_a_resume_whose_class_a_read_during_the_wait_learned_reads_after_the_target(
+    sandbox_class: str,
+) -> None:
+    # A handle built from an id alone knows no class; the probe read reports it.
+    api = _Api(["booting", "running"], sandbox_class=sandbox_class)
+    sandbox = lazy_sandbox(AsyncDaytona(DaytonaConfig(api_key="key")), "sbx")
+    sandbox._update(state="paused", raw_state="paused")
+    sandbox._api = api  # type: ignore[attr-defined]
+    sandbox._hub = _ProbingHub()  # type: ignore[assignment]
+    assert sandbox.sandbox_class is None
+
+    await sandbox.resume(timeout=30)
+
+    assert sandbox.state == "started"
+    # The probe, then (macOS only) the read after the target report.
+    assert len(api.reads()) == (2 if sandbox_class == "macos" else 1)

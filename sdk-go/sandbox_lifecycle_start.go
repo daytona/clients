@@ -15,7 +15,10 @@ import (
 // without a request; its return to stopped or paused is a
 // *SandboxTerminalStateError once the wait's long-poll reads confirm either
 // state (up to one 30-second slice). A macOS sandbox is read once more after
-// the events stream reports started, for its boot mode and reservation.
+// the events stream reports started, while budget remains, for its boot mode
+// and reservation; a failed read keeps the observed success. Other fields,
+// SpotEvictedAt and the lifecycle-policy deadlines included, are as of the
+// last read.
 // NoWait skips settling and completion; for an in-progress stop/pause it sends
 // start immediately and lets the API decide whether it can accept the request.
 // Timeout returns ErrRequestTimeout; terminal failures return *SandboxTerminalStateError.
@@ -88,7 +91,7 @@ func (s *Sandbox) startObserved(ctx context.Context, w *sandboxWait, acceptedOnl
 	}
 	// A macOS start can change the boot mode and the reservation: one read
 	// after the target event fills them in.
-	w.readAfterTarget = s.Info().Class == SandboxClassMacOS
+	w.readAfterMacOSTarget = true
 	if acceptedOnly {
 		info := s.Info()
 		_, err := w.readOutcome(stateObservation{State: info.State, RawState: info.RawState, Reason: info.Error})

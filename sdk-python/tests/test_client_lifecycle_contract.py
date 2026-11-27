@@ -32,6 +32,7 @@ from daytona.v2 import (
     RequestTimeoutError,
     Resources,
     SandboxCreateRequestTimeoutError,
+    SandboxTerminalStateError,
     Secret,
 )
 from daytona.v2._body_limit import DEFAULT_MAX_RESPONSE_BYTES
@@ -629,6 +630,58 @@ async def test_an_observed_target_carries_the_frames_error_message() -> None:
     await sandbox.wait(until="stopped", timeout=5)
 
     assert (sandbox.state, sandbox.error) == ("stopped", "the guest stopped")
+
+
+class _TerminalHub:
+    """An events hub that reports a terminal state at once, with no error message."""
+
+    enabled = True
+
+    def __init__(self, state: str, raw_state: str) -> None:
+        self.state = state
+        self.raw_state = raw_state
+
+    async def wait(self, sandbox_id: str, predicate: object, **_options: object) -> WaitOutcome:
+        raise SandboxTerminalStateError(sandbox_id, self.state, raw_state=self.raw_state)  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("before", "kept"),
+    [
+        (("error", "failed", "the guest crashed"), "the guest crashed"),
+        (("error", "lost", "the host went away"), None),
+        (("started", "running", "an earlier failure"), None),
+    ],
+    ids=["same-state", "other-wire-status", "other-state"],
+)
+async def test_a_terminal_report_keeps_only_an_error_message_read_with_its_state(
+    before: tuple[str, str, str], kept: Optional[str]
+) -> None:
+    sandbox = lazy_sandbox(_client(), "sbx")
+    state, raw_state, error = before
+    sandbox._update(sandbox_class="linux", state=state, raw_state=raw_state, error=error)  # type: ignore[arg-type]
+    # The read that would confirm the report fails, so the report stands.
+    sandbox._api = _Api([create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")])  # type: ignore[attr-defined]
+    sandbox._hub = _TerminalHub("error", "failed")  # type: ignore[assignment]
+
+    with pytest.raises(SandboxTerminalStateError):
+        await sandbox.wait(until="started", timeout=5)
+
+    assert (sandbox.state, sandbox.raw_state, sandbox.error) == ("error", "failed", kept)
+
+
+@pytest.mark.anyio
+async def test_a_404_in_a_delete_drops_an_error_message_read_with_another_state() -> None:
+    sandbox = lazy_sandbox(_client(), "sbx")
+    sandbox._update(sandbox_class="linux", state="started", raw_state="running", error="an earlier failure")
+    # The DELETE, then the read that confirms the reported `error`: a 404.
+    sandbox._api = _Api([{}, create_error("gone", 404, "NOT_FOUND", "DAYTONA_API")])  # type: ignore[attr-defined]
+    sandbox._hub = _TerminalHub("error", "failed")  # type: ignore[assignment]
+
+    await sandbox.delete(timeout=5)
+
+    assert (sandbox.state, sandbox.raw_state, sandbox.error) == ("destroyed", "deleted", None)
 
 
 @pytest.mark.anyio

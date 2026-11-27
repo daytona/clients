@@ -48,7 +48,8 @@ func TestWaitRetry_whenEarlyProbeReturns400_keepsWaiting(t *testing.T) {
 				// Then: early-probe errors do not inherit fallback's permanent-4xx policy.
 				require.NoError(t, err)
 				require.Equal(t, SandboxStateStarted, sandbox.State())
-				// The event decides with no read after the failed probe.
+				// The read completion ends on its second read; the event ends with
+				// no read after the failed probe.
 				require.Equal(t, map[string]int{"read": 2, "event": 1}[completion], reads)
 			})
 		})
