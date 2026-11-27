@@ -463,6 +463,12 @@ export function waitQueryKey(wireState: string, terminalStates: Iterable<Sandbox
 export interface WaitOutcome {
   readonly state: SandboxState
   readonly rawState: string
+  /** The sandbox's error message as of this observation; absent when it has none. */
+  readonly reason?: string
+}
+
+function withReason(outcome: WaitOutcome, reason: string | undefined): WaitOutcome {
+  return reason === undefined ? outcome : { ...outcome, reason }
 }
 
 interface Waiter {
@@ -498,6 +504,8 @@ interface SocketState {
   ws: WebSocket | undefined
   readonly versions: Map<string, number>
   readonly rawStates: Map<string, string>
+  /** The error message the latest frame carried, per id; absent when it carried none. */
+  readonly reasons: Map<string, string>
   /** Pending `idleCloseMs` close; undefined when the knob is off or a
    *  waiter is live. */
   idleTimer: ReturnType<typeof setTimeout> | undefined
@@ -815,6 +823,8 @@ export class WaitHub {
         if (sourceState !== undefined) destination.states.set(sid, sourceState)
         const sourceRawState = source.rawStates.get(sid)
         if (sourceRawState !== undefined) destination.rawStates.set(sid, sourceRawState)
+        const sourceReason = source.reasons.get(sid)
+        if (sourceReason !== undefined) destination.reasons.set(sid, sourceReason)
       }
       if (source.refusedRetryIds.has(sid)) destination.refusedRetryIds.add(sid)
     }
@@ -825,6 +835,7 @@ export class WaitHub {
     source.waitedSince.clear()
     source.states.clear()
     source.rawStates.clear()
+    source.reasons.clear()
     source.versions.clear()
     source.snapshotPending.clear()
     source.refusedRetryIds.clear()
@@ -879,6 +890,7 @@ export class WaitHub {
         ws: undefined,
         versions: new Map(),
         rawStates: new Map(),
+        reasons: new Map(),
         idleTimer: undefined,
         closeGraceTimer: undefined,
         clientPingTimer: undefined,
@@ -966,7 +978,7 @@ export class WaitHub {
     const haveSnapshot = held !== undefined
     if (haveSnapshot) {
       const verdict = evaluate(predicate, held!)
-      if (verdict === 'resolve') return { state: held!, rawState: sock.rawStates.get(sandboxId) ?? '' }
+      if (verdict === 'resolve') return withReason({ state: held!, rawState: sock.rawStates.get(sandboxId) ?? '' }, sock.reasons.get(sandboxId))
       if (verdict === 'reject') throw new SandboxTerminalStateError(sandboxId, held!, { rawState: sock.rawStates.get(sandboxId) })
     }
 
@@ -1256,9 +1268,9 @@ export class WaitHub {
       const state = sandboxState(status)
 
       const result = evaluate(predicate, state)
-      if (result === 'resolve') return { state, rawState: status }
+      const reason = typeof record['error'] === 'string' ? record['error'] : undefined
+      if (result === 'resolve') return withReason({ state, rawState: status }, reason || undefined)
       if (result === 'reject') {
-        const reason = typeof record['error'] === 'string' ? record['error'] : undefined
         throw new SandboxTerminalStateError(sandboxId, state, { rawState: status, reason })
       }
 
@@ -1455,6 +1467,7 @@ export class WaitHub {
     for (const sid of sock.subscriptions) {
       sock.states.delete(sid)
       sock.rawStates.delete(sid)
+      sock.reasons.delete(sid)
     }
   }
 
@@ -1603,7 +1616,10 @@ export class WaitHub {
           const decoded = sandboxState(wireState)
           sock.states.set(sid, decoded)
           sock.rawStates.set(sid, wireState)
-          this.dispatchState(sock, sid, { state: decoded, rawState: wireState })
+          const reason = typeof frame['error'] === 'string' && frame['error'] !== '' ? frame['error'] : undefined
+          if (reason === undefined) sock.reasons.delete(sid)
+          else sock.reasons.set(sid, reason)
+          this.dispatchState(sock, sid, withReason({ state: decoded, rawState: wireState }, reason))
           return
         }
 
@@ -1952,6 +1968,7 @@ export class WaitHub {
     sock.waitedSince.delete(sandboxId)
     sock.states.delete(sandboxId)
     sock.rawStates.delete(sandboxId)
+    sock.reasons.delete(sandboxId)
     sock.versions.delete(sandboxId)
     sock.snapshotPending.delete(sandboxId)
     sock.refusedRetryIds.delete(sandboxId)
@@ -2138,6 +2155,7 @@ export class WaitHub {
     sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
+    sock.reasons.clear()
     sock.versions.clear()
     sock.snapshotPending.clear()
     sock.refusedRetryIds.clear()
@@ -2160,6 +2178,7 @@ export class WaitHub {
     sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
+    sock.reasons.clear()
     sock.versions.clear()
     sock.snapshotPending.clear()
     sock.refusedRetryIds.clear()
@@ -2181,6 +2200,7 @@ export class WaitHub {
     sock.waitedSince.clear()
     sock.states.clear()
     sock.rawStates.clear()
+    sock.reasons.clear()
     sock.versions.clear()
     sock.snapshotPending.clear()
     sock.refusedRetryIds.clear()

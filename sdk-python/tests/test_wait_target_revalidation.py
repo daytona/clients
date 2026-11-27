@@ -3,10 +3,10 @@
 
 """Scripted state sequences for the sandbox waits.
 
-A target state the events hub reports is followed by one read that fills in
-the handle, and that read decides like any other: a target returns, a terminal
-state raises, and any other state keeps the wait going under the same
-deadline. ``start()`` that joins a start or resume another caller sent ends
+A target state the events hub reports ends the wait with no read, except for
+a macOS start or resume: one read follows it to fill in the handle, and that
+read decides like any other: a target returns, a terminal state raises, and
+any other state keeps the wait going under the same deadline. ``start()`` that joins a start or resume another caller sent ends
 when that operation fails. The TypeScript twin is
 ``tests/wait-target-revalidation.test.ts``; Go holds the same rules in
 ``sandbox_wait_revalidation_test.go``.
@@ -49,9 +49,16 @@ class _Api:
     max_response_bytes = DEFAULT_MAX_RESPONSE_BYTES
     _source = "sdk-python-async"
 
-    def __init__(self, statuses: list[object], *, on_read: Optional[Callable[[], None]] = None) -> None:
+    def __init__(
+        self,
+        statuses: list[object],
+        *,
+        on_read: Optional[Callable[[], None]] = None,
+        sandbox_class: str = "linux",
+    ) -> None:
         self.statuses = statuses
         self.on_read = on_read
+        self.sandbox_class = sandbox_class
         self.specs: list[RequestSpec] = []
 
     async def send(self, spec: RequestSpec) -> object:
@@ -64,7 +71,7 @@ class _Api:
         if isinstance(status, Exception):
             raise status
         assert isinstance(status, str)
-        return _detail(status)
+        return _detail(status, self.sandbox_class)
 
     def reads(self) -> list[RequestSpec]:
         return [spec for spec in self.specs if spec.method == "GET"]
@@ -73,9 +80,9 @@ class _Api:
         pass
 
 
-def _detail(status: str) -> dict[str, object]:
+def _detail(status: str, sandbox_class: str) -> dict[str, object]:
     detail: dict[str, object] = {
-        "class": "linux",
+        "class": sandbox_class,
         "cpu": 1,
         "cores_max": 1,
         "id": "sbx",
@@ -129,7 +136,7 @@ class _ScriptedHub:
 
 def _sandbox(api: _Api, hub: Optional[_ScriptedHub], state: str = "creating") -> AsyncSandbox:
     sandbox = lazy_sandbox(AsyncDaytona(DaytonaConfig(api_key="key")), "sbx")
-    sandbox._update(sandbox_class="linux", state=state, raw_state="x")  # type: ignore[arg-type]
+    sandbox._update(sandbox_class=api.sandbox_class, state=state, raw_state="x")  # type: ignore[arg-type]
     sandbox._api = api  # type: ignore[attr-defined]
     if hub is not None:
         sandbox._hub = hub  # type: ignore[assignment]
@@ -153,11 +160,38 @@ def _clock_steps(monkeypatch: pytest.MonkeyPatch, step: float) -> Callable[[], N
     return advance
 
 
-async def test_a_target_event_whose_read_disagrees_waits_for_the_target() -> None:
-    api = _Api(["pending", "pending", "running"])
-    sandbox = _sandbox(api, _ScriptedHub("running"))
+@pytest.mark.parametrize(
+    ("verb", "state", "statuses", "frame", "target"),
+    [
+        ("wait", "creating", [], "running", "started"),
+        # start() reads the sandbox before it sends anything.
+        ("start", "stopped", ["stopped"], "running", "started"),
+        ("resume", "paused", [], "running", "started"),
+        ("stop", "started", [], "stopped", "stopped"),
+        ("pause", "started", [], "paused", "paused"),
+    ],
+)
+async def test_a_target_event_ends_the_wait_with_no_read(
+    verb: str, state: str, statuses: list[object], frame: str, target: str
+) -> None:
+    # Every later read would show a state no lag can show: none is made.
+    api = _Api([*statuses, "deleting"])
+    sandbox = _sandbox(api, _ScriptedHub(frame), state=state)
 
-    await sandbox.wait(until="started", timeout=30)
+    if verb == "wait":
+        await sandbox.wait(until=target, timeout=30)  # type: ignore[arg-type]
+    else:
+        await getattr(sandbox, verb)(timeout=30)
+
+    assert (sandbox.state, sandbox.raw_state) == (target, frame)
+    assert len(api.reads()) == len(statuses)
+
+
+async def test_a_macos_resume_whose_read_after_a_target_event_disagrees_waits_for_the_target() -> None:
+    api = _Api(["booting", "booting", "running"], sandbox_class="macos")
+    sandbox = _sandbox(api, _ScriptedHub("running"), state="paused")
+
+    await sandbox.resume(timeout=30)
 
     assert (sandbox.state, sandbox.raw_state) == ("started", "running")
     reads = api.reads()
@@ -167,12 +201,12 @@ async def test_a_target_event_whose_read_disagrees_waits_for_the_target() -> Non
     assert all(read.params.get("wait") == "running" for read in reads[1:])
 
 
-async def test_a_target_event_whose_read_shows_a_terminal_state_raises_it() -> None:
-    api = _Api(["failed"])
-    sandbox = _sandbox(api, _ScriptedHub("running"))
+async def test_a_macos_resume_whose_read_after_a_target_event_shows_a_terminal_state_raises_it() -> None:
+    api = _Api(["failed"], sandbox_class="macos")
+    sandbox = _sandbox(api, _ScriptedHub("running"), state="paused")
 
     with pytest.raises(SandboxTerminalStateError) as raised:
-        await sandbox.wait(until="started", timeout=30)
+        await sandbox.resume(timeout=30)
 
     assert (raised.value.state, raised.value.raw_state, raised.value.reason) == (
         "error",
@@ -182,27 +216,27 @@ async def test_a_target_event_whose_read_shows_a_terminal_state_raises_it() -> N
     assert len(api.reads()) == 1
 
 
-async def test_a_target_event_whose_read_never_converges_times_out_on_the_same_deadline(
+async def test_a_macos_resume_whose_read_after_a_target_event_never_converges_times_out_on_the_same_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    api = _Api(["pending"])
+    api = _Api(["booting"], sandbox_class="macos")
     api.on_read = _clock_steps(monkeypatch, 1.0)
-    sandbox = _sandbox(api, _ScriptedHub("running"))
+    sandbox = _sandbox(api, _ScriptedHub("running"), state="paused")
 
     with pytest.raises(RequestTimeoutError) as raised:
-        await sandbox.wait(until="started", timeout=5)
+        await sandbox.resume(timeout=5)
 
     assert raised.value.source == "SDK"
-    assert sandbox.state == "creating"
+    assert sandbox.state == "starting"
     # One read a second of a 5-second budget: the budget is not restarted.
     assert len(api.reads()) == 5
 
 
-async def test_a_target_event_whose_read_fails_keeps_the_target() -> None:
-    api = _Api([create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")])
-    sandbox = _sandbox(api, _ScriptedHub("running"))
+async def test_a_macos_resume_whose_read_after_a_target_event_fails_keeps_the_target() -> None:
+    api = _Api([create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API")], sandbox_class="macos")
+    sandbox = _sandbox(api, _ScriptedHub("running"), state="paused")
 
-    await sandbox.wait(until="started", timeout=30)
+    await sandbox.resume(timeout=30)
 
     assert (sandbox.state, sandbox.raw_state) == ("started", "running")
     assert len(api.reads()) == 1
@@ -214,14 +248,12 @@ async def test_a_target_event_whose_read_fails_keeps_the_target() -> None:
         # start() reads the sandbox first; the read after the event lags behind it.
         ("start", "stopped", ["stopped", "booting", "running"], "running", "started"),
         ("resume", "paused", ["booting", "running"], "running", "started"),
-        ("stop", "started", ["stopping", "stopped"], "stopped", "stopped"),
-        ("pause", "started", ["pausing", "paused"], "paused", "paused"),
     ],
 )
-async def test_lifecycle_waits_revalidate_the_reported_target(
+async def test_macos_lifecycle_waits_revalidate_the_reported_target(
     verb: str, state: str, statuses: list[object], frame: str, target: str
 ) -> None:
-    api = _Api(statuses)
+    api = _Api(statuses, sandbox_class="macos")
     sandbox = _sandbox(api, _ScriptedHub(frame), state=state)
 
     await getattr(sandbox, verb)(timeout=30)
@@ -231,18 +263,20 @@ async def test_lifecycle_waits_revalidate_the_reported_target(
     assert api.statuses == [frame]
 
 
-def test_the_sync_surface_revalidates_the_reported_target() -> None:
-    api = _Api(["pending", "running"])
+@pytest.mark.parametrize("sandbox_class", ["linux", "macos"])
+def test_the_sync_surface_reads_after_a_target_event_only_for_macos(sandbox_class: str) -> None:
+    api = _Api(["booting", "running"], sandbox_class=sandbox_class)
     with Daytona(DaytonaConfig(api_key="key")) as client:
         sandbox = lazy_sandbox(client, "sbx")
-        sandbox._impl._update(sandbox_class="linux", state="creating", raw_state="pending")
+        sandbox._impl._update(sandbox_class=sandbox_class, state="paused", raw_state="paused")  # type: ignore[arg-type]
         sandbox._impl._api = api  # type: ignore[attr-defined]
         sandbox._impl._hub = _ScriptedHub("running")  # type: ignore[assignment]
 
-        sandbox.wait(until="started", timeout=30)
+        sandbox.resume(timeout=30)
 
         assert sandbox.state == "started"
-    assert len(api.reads()) == 2
+    # A macOS resume revalidates through a lagging read; any other class reads nothing.
+    assert len(api.reads()) == (2 if sandbox_class == "macos" else 0)
 
 
 @pytest.mark.parametrize("hub", [True, False], ids=["events", "polling"])
@@ -300,11 +334,15 @@ _PRE_OPERATION = [
 ]
 
 
-@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _PRE_OPERATION)
-async def test_a_read_showing_the_state_before_the_operation_after_a_target_event_waits_for_the_target(
+# Only a macOS start reads after a target event.
+_MACOS_PRE_OPERATION = [row for row in _PRE_OPERATION if row[0] == "start"]
+
+
+@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _MACOS_PRE_OPERATION)
+async def test_a_macos_read_showing_the_state_before_the_operation_after_a_target_event_waits_for_the_target(
     verb: str, state: str, before: list[object], frame: str, stale: str, target: str
 ) -> None:
-    api = _Api([*before, stale, frame])
+    api = _Api([*before, stale, frame], sandbox_class="macos")
     sandbox = _sandbox(api, _ScriptedHub(frame), state=state)
 
     await getattr(sandbox, verb)(timeout=30)
@@ -331,12 +369,12 @@ async def test_a_held_state_before_the_operation_is_decided_by_long_polls(
     assert api.reads()[-1].params.get("wait") == frame
 
 
-@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _PRE_OPERATION)
-async def test_an_operation_that_failed_is_reported_by_the_long_poll(
+@pytest.mark.parametrize(("verb", "state", "before", "frame", "stale", "target"), _MACOS_PRE_OPERATION)
+async def test_a_macos_operation_that_failed_is_reported_by_the_long_poll(
     verb: str, state: str, before: list[object], frame: str, stale: str, target: str
 ) -> None:
     del target
-    api = _Api([*before, stale])
+    api = _Api([*before, stale], sandbox_class="macos")
     sandbox = _sandbox(api, _ScriptedHub(frame), state=state)
 
     with pytest.raises(SandboxTerminalStateError) as raised:
@@ -346,12 +384,12 @@ async def test_an_operation_that_failed_is_reported_by_the_long_poll(
     assert api.reads()[-1].params.get("wait") == frame
 
 
-async def test_a_read_showing_an_irreversible_state_after_a_target_event_raises_at_once() -> None:
-    api = _Api(["deleting"])
-    sandbox = _sandbox(api, _ScriptedHub("paused"), state="started")
+async def test_a_macos_read_showing_an_irreversible_state_after_a_target_event_raises_at_once() -> None:
+    api = _Api(["deleting"], sandbox_class="macos")
+    sandbox = _sandbox(api, _ScriptedHub("running"), state="paused")
 
     with pytest.raises(SandboxTerminalStateError) as raised:
-        await sandbox.pause(timeout=30)
+        await sandbox.resume(timeout=30)
 
     assert (raised.value.state, raised.value.raw_state) == ("destroying", "deleting")
     assert len(api.reads()) == 1
@@ -378,14 +416,24 @@ async def test_a_held_failure_state_that_every_read_confirms_is_reported_by_the_
 
 @pytest.mark.parametrize("held", [True, False], ids=["terminal-report", "target-report"])
 async def test_the_first_long_poll_after_a_confirming_read_keeps_the_minimum_spacing(held: bool) -> None:
-    # The read that confirms an events report shows the state before the pause,
-    # and polling takes over; its first long poll waits out the minimum spacing.
+    # The read that confirms an events report shows the state before the
+    # operation, and polling takes over; its first long poll waits out the
+    # minimum spacing. A terminal report: a pause whose report still holds
+    # `started`. A target report: a macOS resume whose read still shows `paused`.
     stamps: list[float] = []
-    api = _Api(["running", "paused"], on_read=lambda: stamps.append(time.monotonic()))
-    sandbox = _sandbox(api, _ScriptedHub("running" if held else "paused"), state="started")
+    if held:
+        api = _Api(["running", "paused"], on_read=lambda: stamps.append(time.monotonic()))
+        sandbox = _sandbox(api, _ScriptedHub("running"), state="started")
+        await sandbox.pause(timeout=30)
+        expected = ("paused", "paused")
+    else:
+        api = _Api(
+            ["paused", "running"], on_read=lambda: stamps.append(time.monotonic()), sandbox_class="macos"
+        )
+        sandbox = _sandbox(api, _ScriptedHub("running"), state="paused")
+        await sandbox.resume(timeout=30)
+        expected = ("started", "running")
 
-    await sandbox.pause(timeout=30)
-
-    assert sandbox.state == "paused"
-    assert [read.params.get("wait") for read in api.reads()] == [None, "paused"]
+    assert sandbox.state == expected[0]
+    assert [read.params.get("wait") for read in api.reads()] == [None, expected[1]]
     assert stamps[1] - stamps[0] >= 0.19

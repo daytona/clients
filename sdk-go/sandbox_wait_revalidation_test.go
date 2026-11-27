@@ -13,18 +13,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Scripted state sequences for the sandbox waits: a target event is followed by
-// a read that decides like any other, and Start that joins a start or resume
-// another caller sent ends when that operation fails. The Python and TypeScript
+// Scripted state sequences for the sandbox waits: a target event ends the wait
+// with no read, except for a macOS start or resume, whose read after it decides
+// like any other; Start that joins a start or resume another caller sent ends
+// when that operation fails. The Python and TypeScript
 // twins are test_wait_target_revalidation.py and wait-target-revalidation.test.ts.
 
 // scriptedReads answers each GET with the next status; the last one repeats.
 func scriptedReads(t *testing.T, statuses ...string) http.HandlerFunc {
 	t.Helper()
+	return scriptedClassReads(t, SandboxClassLinux, statuses...)
+}
+
+// scriptedClassReads is scriptedReads for a sandbox of the given class.
+func scriptedClassReads(t *testing.T, class SandboxClass, statuses ...string) http.HandlerFunc {
+	t.Helper()
 	var reads atomic.Int32
 	return func(w http.ResponseWriter, _ *http.Request) {
 		index := min(int(reads.Add(1)), len(statuses)) - 1
 		detail := sandboxFixture("sbx")
+		detail["class"] = string(class)
 		detail["status"] = statuses[index]
 		if statuses[index] == "failed" {
 			detail["error"] = "the guest crashed"
@@ -61,16 +69,73 @@ func posts(fake *fakeServer) []string {
 	return result
 }
 
-func TestWait_whenTargetEventReadDisagrees_waitsForTarget(t *testing.T) {
-	// Given: the read after the started event still shows the sandbox creating.
-	fake := newFakeServer(t, map[string]http.HandlerFunc{
-		"GET /sandboxes/sbx": scriptedReads(t, "pending", "pending", "running"),
-	})
+// macOSSandbox is a lifecycle handle that knows its class is macOS.
+func macOSSandbox(t *testing.T, fake *fakeServer) *Sandbox {
+	t.Helper()
 	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
 	require.NoError(t, err)
+	sandbox.info.Class = SandboxClassMacOS
+	return sandbox
+}
+
+func TestLifecycle_whenTargetEventObserved_readsNothingAfterIt(t *testing.T) {
+	for _, test := range []struct {
+		verb     string
+		statuses []string
+		frame    stateObservation
+	}{
+		{"wait", nil, stateObservation{State: SandboxStateStarted, RawState: "running"}},
+		// Start reads the sandbox before it sends anything.
+		{"start", []string{"stopped"}, stateObservation{State: SandboxStateStarted, RawState: "running"}},
+		{"resume", nil, stateObservation{State: SandboxStateStarted, RawState: "running"}},
+		{"stop", nil, stateObservation{State: SandboxStateStopped, RawState: "stopped"}},
+		{"pause", nil, stateObservation{State: SandboxStatePaused, RawState: "paused"}},
+		{"delete", nil, stateObservation{State: SandboxStateDestroyed, RawState: "deleted"}},
+	} {
+		t.Run(test.verb, func(t *testing.T) {
+			// Given: every later read would show a state no lag can show.
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"GET /sandboxes/sbx":               scriptedReads(t, append(append([]string{}, test.statuses...), "deleting")...),
+				"POST /sandboxes/sbx/" + test.verb: jsonHandler(t, map[string]string{}),
+				"DELETE /sandboxes/sbx":            jsonHandler(t, map[string]string{}),
+			})
+			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+			require.NoError(t, err)
+			sandbox.client.stateSource = eventSource(test.frame)
+			options := &LifecycleWaitOptions{Timeout: 30 * time.Second}
+			// When
+			switch test.verb {
+			case "wait":
+				err = sandbox.Wait(t.Context(), &WaitOptions{Timeout: 30 * time.Second})
+			case "start":
+				err = sandbox.Start(t.Context(), options)
+			case "resume":
+				err = sandbox.Resume(t.Context(), options)
+			case "stop":
+				err = sandbox.Stop(t.Context(), options)
+			case "pause":
+				err = sandbox.Pause(t.Context(), options)
+			case "delete":
+				err = sandbox.Delete(t.Context(), options)
+			}
+			// Then: the event decides; only Start's own first read was made.
+			require.NoError(t, err)
+			require.Equal(t, test.frame.State, sandbox.State())
+			require.Len(t, reads(fake), len(test.statuses))
+		})
+	}
+}
+
+func TestResume_whenMacOSTargetEventReadDisagrees_waitsForTarget(t *testing.T) {
+	// Given: the read after the started event still shows the sandbox booting.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"GET /sandboxes/sbx":         scriptedClassReads(t, SandboxClassMacOS, "booting", "booting", "running"),
+		"POST /sandboxes/sbx/resume": jsonHandler(t, map[string]string{}),
+	})
+	sandbox := macOSSandbox(t, fake)
 	sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
 	// When
-	err = sandbox.Wait(t.Context(), &WaitOptions{Timeout: 30 * time.Second})
+	err := sandbox.Resume(t.Context(), &LifecycleWaitOptions{Timeout: 30 * time.Second})
 	// Then: the refresh is plain; the reads after it are long polls for the target.
 	require.NoError(t, err)
 	require.Equal(t, SandboxStateStarted, sandbox.State())
@@ -82,14 +147,16 @@ func TestWait_whenTargetEventReadDisagrees_waitsForTarget(t *testing.T) {
 	}
 }
 
-func TestWait_whenTargetEventReadIsTerminal_returnsTerminalError(t *testing.T) {
+func TestResume_whenMacOSTargetEventReadIsTerminal_returnsTerminalError(t *testing.T) {
 	// Given
-	fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": scriptedReads(t, "failed")})
-	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
-	require.NoError(t, err)
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"GET /sandboxes/sbx":         scriptedClassReads(t, SandboxClassMacOS, "failed"),
+		"POST /sandboxes/sbx/resume": jsonHandler(t, map[string]string{}),
+	})
+	sandbox := macOSSandbox(t, fake)
 	sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
 	// When
-	err = sandbox.Wait(t.Context(), &WaitOptions{Timeout: 30 * time.Second})
+	err := sandbox.Resume(t.Context(), &LifecycleWaitOptions{Timeout: 30 * time.Second})
 	// Then
 	var terminal *SandboxTerminalStateError
 	require.ErrorAs(t, err, &terminal)
@@ -99,25 +166,33 @@ func TestWait_whenTargetEventReadIsTerminal_returnsTerminalError(t *testing.T) {
 	require.Len(t, reads(fake), 1)
 }
 
-func TestWait_whenTargetEventReadNeverConverges_timesOutOnTheSameDeadline(t *testing.T) {
+func TestResume_whenMacOSTargetEventReadNeverConverges_timesOutOnTheSameDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		// Given
-		began := time.Now()
-		sandbox := virtualWaitSandbox(t, scriptedReads(t, "pending"))
+		read := scriptedClassReads(t, SandboxClassMacOS, "booting")
+		sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				writeJSON(t, w, map[string]string{})
+				return
+			}
+			read(w, r)
+		})
+		sandbox.info.Class = SandboxClassMacOS
 		sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
+		began := time.Now()
 		// When
-		err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: 5 * time.Second})
+		err := sandbox.Resume(t.Context(), &LifecycleWaitOptions{Timeout: 5 * time.Second})
 		// Then: the budget is not restarted after the event.
 		require.ErrorIs(t, err, ErrRequestTimeout)
 		var detail *Error
 		require.ErrorAs(t, err, &detail)
 		require.Equal(t, SourceSDK, detail.Source)
 		require.Equal(t, 5*time.Second, time.Since(began))
-		require.Equal(t, SandboxStateCreating, sandbox.State())
+		require.Equal(t, SandboxStateStarting, sandbox.State())
 	})
 }
 
-func TestLifecycle_whenTargetEventReadLags_waitsForTarget(t *testing.T) {
+func TestLifecycle_whenMacOSTargetEventReadLags_waitsForTarget(t *testing.T) {
 	for _, test := range []struct {
 		verb     string
 		statuses []string
@@ -127,29 +202,22 @@ func TestLifecycle_whenTargetEventReadLags_waitsForTarget(t *testing.T) {
 		// Start reads the sandbox first; the read after the event lags behind it.
 		{"start", []string{"stopped", "booting", "running"}, stateObservation{State: SandboxStateStarted, RawState: "running"}, SandboxStateStarted},
 		{"resume", []string{"booting", "running"}, stateObservation{State: SandboxStateStarted, RawState: "running"}, SandboxStateStarted},
-		{"stop", []string{"stopping", "stopped"}, stateObservation{State: SandboxStateStopped, RawState: "stopped"}, SandboxStateStopped},
-		{"pause", []string{"pausing", "paused"}, stateObservation{State: SandboxStatePaused, RawState: "paused"}, SandboxStatePaused},
 	} {
 		t.Run(test.verb, func(t *testing.T) {
 			// Given
 			fake := newFakeServer(t, map[string]http.HandlerFunc{
-				"GET /sandboxes/sbx":               scriptedReads(t, test.statuses...),
+				"GET /sandboxes/sbx":               scriptedClassReads(t, SandboxClassMacOS, test.statuses...),
 				"POST /sandboxes/sbx/" + test.verb: jsonHandler(t, map[string]string{}),
 			})
-			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
-			require.NoError(t, err)
+			sandbox := macOSSandbox(t, fake)
 			sandbox.client.stateSource = eventSource(test.frame)
 			options := &LifecycleWaitOptions{Timeout: 30 * time.Second}
 			// When
-			switch test.verb {
-			case "start":
+			var err error
+			if test.verb == "start" {
 				err = sandbox.Start(t.Context(), options)
-			case "resume":
+			} else {
 				err = sandbox.Resume(t.Context(), options)
-			case "stop":
-				err = sandbox.Stop(t.Context(), options)
-			case "pause":
-				err = sandbox.Pause(t.Context(), options)
 			}
 			// Then: every scripted read was served; the lagging one did not end the wait.
 			require.NoError(t, err)
@@ -244,29 +312,59 @@ var preOperationCases = []struct {
 	{"joined-start/paused", "start", []string{"booting"}, stateObservation{State: SandboxStateStarted, RawState: "running"}, "paused", SandboxStateStarted},
 }
 
+// macOSPreOperationCases are the cases whose target event is followed by a read:
+// only a macOS start reads after one.
+func macOSPreOperationCases() []struct {
+	name   string
+	verb   string
+	before []string
+	frame  stateObservation
+	stale  string
+	target SandboxState
+} {
+	var result = preOperationCases[:0:0]
+	for _, test := range preOperationCases {
+		if test.verb == "start" {
+			result = append(result, test)
+		}
+	}
+	return result
+}
+
 func runPreOperation(t *testing.T, verb string, statuses []string, frames ...stateObservation) (*Sandbox, *fakeServer, error) {
 	t.Helper()
+	return runClassPreOperation(t, SandboxClassLinux, verb, statuses, frames...)
+}
+
+func runClassPreOperation(t *testing.T, class SandboxClass, verb string, statuses []string, frames ...stateObservation) (*Sandbox, *fakeServer, error) {
+	t.Helper()
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
-		"GET /sandboxes/sbx":          scriptedReads(t, statuses...),
+		"GET /sandboxes/sbx":          scriptedClassReads(t, class, statuses...),
 		"POST /sandboxes/sbx/" + verb: jsonHandler(t, map[string]string{}),
 	})
 	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
 	require.NoError(t, err)
+	if class == SandboxClassMacOS {
+		sandbox.info.Class = class
+	}
 	sandbox.client.stateSource = eventSource(frames...)
 	options := &LifecycleWaitOptions{Timeout: 30 * time.Second}
-	if verb == "pause" {
+	switch verb {
+	case "pause":
 		return sandbox, fake, sandbox.Pause(t.Context(), options)
+	case "resume":
+		return sandbox, fake, sandbox.Resume(t.Context(), options)
 	}
 	return sandbox, fake, sandbox.Start(t.Context(), options)
 }
 
-func TestLifecycle_whenTargetEventReadShowsPreOperationState_waitsForTarget(t *testing.T) {
-	for _, test := range preOperationCases {
+func TestLifecycle_whenMacOSTargetEventReadShowsPreOperationState_waitsForTarget(t *testing.T) {
+	for _, test := range macOSPreOperationCases() {
 		t.Run(test.name, func(t *testing.T) {
 			// Given: the read after the target event shows the state before the operation.
 			statuses := append(append([]string{}, test.before...), test.stale, test.frame.RawState)
 			// When
-			sandbox, fake, err := runPreOperation(t, test.verb, statuses, test.frame)
+			sandbox, fake, err := runClassPreOperation(t, SandboxClassMacOS, test.verb, statuses, test.frame)
 			// Then: a long poll decides, and it shows the target.
 			require.NoError(t, err)
 			require.Equal(t, test.target, sandbox.State())
@@ -298,13 +396,13 @@ func TestLifecycle_whenHeldEventShowsPreOperationState_longPollsDecide(t *testin
 	}
 }
 
-func TestLifecycle_whenLongPollShowsPreOperationState_returnsTerminalError(t *testing.T) {
-	for _, test := range preOperationCases {
+func TestLifecycle_whenMacOSLongPollShowsPreOperationState_returnsTerminalError(t *testing.T) {
+	for _, test := range macOSPreOperationCases() {
 		t.Run(test.name, func(t *testing.T) {
 			// Given: the operation failed; every read shows the state before it.
 			statuses := append(append([]string{}, test.before...), test.stale)
 			// When
-			_, fake, err := runPreOperation(t, test.verb, statuses, test.frame)
+			_, fake, err := runClassPreOperation(t, SandboxClassMacOS, test.verb, statuses, test.frame)
 			// Then: the long poll reports the failure.
 			var terminal *SandboxTerminalStateError
 			require.ErrorAs(t, err, &terminal)
@@ -338,10 +436,10 @@ func TestLifecycle_whenHeldFailureStateIsConfirmedByEveryRead_longPollReturnsTer
 	}
 }
 
-func TestLifecycle_whenTargetEventReadIsIrreversible_returnsTerminalErrorAtOnce(t *testing.T) {
+func TestResume_whenMacOSTargetEventReadIsIrreversible_returnsTerminalErrorAtOnce(t *testing.T) {
 	// Given
-	sandbox, fake, err := runPreOperation(t, "pause", []string{"deleting"},
-		stateObservation{State: SandboxStatePaused, RawState: "paused"})
+	sandbox, fake, err := runClassPreOperation(t, SandboxClassMacOS, "resume", []string{"deleting"},
+		stateObservation{State: SandboxStateStarted, RawState: "running"})
 	// Then
 	var terminal *SandboxTerminalStateError
 	require.ErrorAs(t, err, &terminal)
@@ -352,18 +450,23 @@ func TestLifecycle_whenTargetEventReadIsIrreversible_returnsTerminalErrorAtOnce(
 
 func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacing(t *testing.T) {
 	for _, test := range []struct {
-		name  string
-		frame stateObservation
+		name     string
+		verb     string
+		class    SandboxClass
+		statuses []string
+		target   SandboxState
 	}{
-		{"terminal-report", stateObservation{State: SandboxStateStarted, RawState: "running"}},
-		{"target-report", stateObservation{State: SandboxStatePaused, RawState: "paused"}},
+		// A pause whose events report still holds started, its failure state.
+		{"terminal-report", "pause", SandboxClassLinux, []string{"running", "paused"}, SandboxStatePaused},
+		// A macOS resume whose read after the target report still shows paused.
+		{"target-report", "resume", SandboxClassMacOS, []string{"paused", "running"}, SandboxStateStarted},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				// Given: the read that confirms the report shows the state before the pause.
+				// Given: the read that confirms the report shows the state before the operation.
 				var stamps []time.Time
 				var holds []string
-				read := scriptedReads(t, "running", "paused")
+				read := scriptedClassReads(t, test.class, test.statuses...)
 				sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
 					if r.Method == http.MethodPost {
 						writeJSON(t, w, map[string]string{})
@@ -373,15 +476,22 @@ func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacin
 					holds = append(holds, r.URL.Query().Get("wait"))
 					read(w, r)
 				})
-				sandbox.client.stateSource = eventSource(test.frame)
+				sandbox.info.Class = test.class
+				sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
+				options := &LifecycleWaitOptions{Timeout: 30 * time.Second}
 				// When
-				err := sandbox.Pause(t.Context(), &LifecycleWaitOptions{Timeout: 30 * time.Second})
+				var err error
+				if test.verb == "pause" {
+					err = sandbox.Pause(t.Context(), options)
+				} else {
+					err = sandbox.Resume(t.Context(), options)
+				}
 				// Then: the first long poll waits out the minimum spacing.
 				require.NoError(t, err)
-				require.Equal(t, SandboxStatePaused, sandbox.State())
+				require.Equal(t, test.target, sandbox.State())
 				require.Len(t, stamps, 2)
 				require.GreaterOrEqual(t, stamps[1].Sub(stamps[0]), waitMinInterval)
-				require.Equal(t, []string{"", "paused"}, holds)
+				require.Equal(t, []string{"", test.statuses[1]}, holds)
 			})
 		})
 	}
@@ -389,12 +499,13 @@ func TestLifecycle_whenConfirmingReadHandsOverToPolling_firstLongPollKeepsSpacin
 
 func TestLifecycle_whenConfirmingReadLeavesLessThanSpacing_firstLongPollReadsAtOnce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		// Given: the confirming read takes 900 ms of a 1 s budget and shows the
-		// state before the pause, leaving less than the minimum spacing.
+		// Given: the read after a macOS resume's target event takes 900 ms of a
+		// 1 s budget and shows the state before the resume, leaving less than
+		// the minimum spacing.
 		began := time.Now()
 		var stamps []time.Duration
 		var holds []string
-		read := scriptedReads(t, "running", "paused")
+		read := scriptedClassReads(t, SandboxClassMacOS, "paused", "running")
 		sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost {
 				writeJSON(t, w, map[string]string{})
@@ -407,13 +518,14 @@ func TestLifecycle_whenConfirmingReadLeavesLessThanSpacing_firstLongPollReadsAtO
 			}
 			read(w, r)
 		})
-		sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStatePaused, RawState: "paused"})
+		sandbox.info.Class = SandboxClassMacOS
+		sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
 		// When
-		err := sandbox.Pause(t.Context(), &LifecycleWaitOptions{Timeout: time.Second})
+		err := sandbox.Resume(t.Context(), &LifecycleWaitOptions{Timeout: time.Second})
 		// Then: the long poll reads at once instead of being pushed past the deadline.
 		require.NoError(t, err)
-		require.Equal(t, SandboxStatePaused, sandbox.State())
+		require.Equal(t, SandboxStateStarted, sandbox.State())
 		require.Equal(t, []time.Duration{0, 900 * time.Millisecond}, stamps)
-		require.Equal(t, []string{"", "paused"}, holds)
+		require.Equal(t, []string{"", "running"}, holds)
 	})
 }

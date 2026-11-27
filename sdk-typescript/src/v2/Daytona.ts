@@ -203,9 +203,9 @@ export class Daytona {
    * response carries one) plus what the request fixed (the class, the region,
    * an `img_` / `snap_` id you passed). The rest (`cpu`, `memory`, `disk` and their limits, `labels`,
    * `user`, ...) is `undefined` (unknown, not empty) until a detail read.
-   * `create()` does not read the sandbox itself when the create response
-   * already reports it started (the usual case), so call
-   * `sandbox.refreshData()` before reading them. The
+   * `create()` does not read the sandbox itself (its wait follows the
+   * sandbox's state only), so call `sandbox.refreshData()` before reading
+   * them. The
    * same holds for {@link createFromSnapshot}, {@link createFromBuild} and
    * {@link createMacos}.
    *

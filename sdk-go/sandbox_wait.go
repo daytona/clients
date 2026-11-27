@@ -21,8 +21,9 @@ import (
 // A healthy events socket suppresses early API probes; a quiet socket permits
 // a probe after about ten seconds (sooner for a short wait with no frames).
 // A bounded wait reserves up to five seconds for authoritative API reads
-// regardless of socket activity. Once a target event was observed, failure to
-// refresh metadata does not undo success. Caller cancellation is never hidden.
+// regardless of socket activity. A target event ends the wait with no read: the
+// handle takes its state and error message, and keeps its other fields as of
+// the last read (Refresh reloads them). Caller cancellation is never hidden.
 // With events enabled, nondecisive read failures (including rate limits) retry
 // within the budget; the last read failure is retained as a timeout cause.
 // Live probes rearm after a fresh jittered ten seconds. Fallback polling

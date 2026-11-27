@@ -481,9 +481,9 @@ withWebSocket('a script that never calls close() exits after its last wait', asy
   const started = Date.now()
   const { code, out } = await runChild(steadyScript)
   expect(out).toContain('DONE'); expect(code).toBe(0)
-  // One ticket and one socket for all three waits; each socket-decided wait
-  // refreshes the handle once.
-  expect(out).toContain('MINTS=1 UPGRADES=1 REFRESHES=3')
+  // One ticket and one socket for all three waits; a socket-decided wait
+  // reads nothing after it.
+  expect(out).toContain('MINTS=1 UPGRADES=1 REFRESHES=0')
   // ~2.4 s of deliberate pauses; the exit itself must follow at once, not
   // after an idle close.
   expect(Date.now() - started).toBeLessThan(6_000)

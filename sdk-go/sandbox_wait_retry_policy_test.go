@@ -28,8 +28,8 @@ func TestWaitRetry_whenEarlyProbeReturns400_keepsWaiting(t *testing.T) {
 						close(firstRead)
 						return
 					}
-					if completion == "event" && r.URL.RawQuery != "" {
-						t.Error("target event must use a plain confirming read")
+					if completion == "event" {
+						t.Error("a target event needs no read")
 					}
 					writeJSON(t, w, sandboxFixture("sbx"))
 				})
@@ -48,7 +48,8 @@ func TestWaitRetry_whenEarlyProbeReturns400_keepsWaiting(t *testing.T) {
 				// Then: early-probe errors do not inherit fallback's permanent-4xx policy.
 				require.NoError(t, err)
 				require.Equal(t, SandboxStateStarted, sandbox.State())
-				require.Equal(t, 2, reads)
+				// The event decides with no read after the failed probe.
+				require.Equal(t, map[string]int{"read": 2, "event": 1}[completion], reads)
 			})
 		})
 	}

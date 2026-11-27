@@ -7878,10 +7878,11 @@ async def test_sandbox_wait_for_state_reaches_target_via_api_long_poll_slices():
 
 
 @pytest.mark.anyio
-async def test_sandbox_wait_fills_in_the_handle_after_a_socket_decided_outcome() -> None:
-    # A socket frame carries only the state; create/start/resume hand back
-    # this handle, so the rest (toolbox URL, resources) must come from one
-    # GET, as on the polling path. A poll-decided wait already did that GET.
+async def test_sandbox_wait_reads_after_a_socket_decided_outcome_only_when_asked() -> None:
+    # A socket frame carries the state and the error message, and nothing else
+    # the handle exposes changes on a transition: no GET follows it. A macOS
+    # start or resume asks for one (`read_after_target`), within the wait's
+    # budget. A poll-decided wait already did its GET.
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
     sandbox = lazy_sandbox(client, "abc-region-a")
     refreshes = 0
@@ -7914,13 +7915,16 @@ async def test_sandbox_wait_fills_in_the_handle_after_a_socket_decided_outcome()
     sandbox._hub = hub  # type: ignore[assignment]
 
     await sandbox._wait_for_state(["started"], timeout=60)
+    assert refreshes == 0, "an events frame needs no read"
+
+    await sandbox._wait_for_state(["started"], timeout=60, read_after_target=True)
     assert refreshes == 1
     timeout_used = refresh_timeouts[-1]
     assert isinstance(timeout_used, float) and 0 < timeout_used <= 60, "the refresh shares the wait's budget"
 
     hub.mode = "destroyed"
     refreshes = 0
-    await sandbox._wait_for_state(["destroyed"], timeout=60)
+    await sandbox._wait_for_state(["destroyed"], timeout=60, read_after_target=True)
     assert refreshes == 0, "a destroyed sandbox has nothing to fill in (the GET would 404)"
 
     hub.mode = "poll"
@@ -8005,6 +8009,7 @@ async def test_sandbox_wait_for_state_normalizes_local_target_to_no_region_hint(
             class Outcome:
                 state = "started"
                 raw_state = "running"
+                reason = None
 
             return Outcome()
 

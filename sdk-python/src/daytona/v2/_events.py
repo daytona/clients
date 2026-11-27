@@ -265,10 +265,12 @@ def wait_query_key(wire_state: str, terminal_states: Iterable[str]) -> str:
 
 @dataclass(frozen=True)
 class WaitOutcome:
-    """What a wait resolved with: the decoded state and the wire status."""
+    """What a wait resolved with: the decoded state, the wire status and the
+    sandbox's error message (``None`` when it has none)."""
 
     state: SandboxState
     raw_state: str
+    reason: Optional[str] = None
 
 
 @dataclass
@@ -352,6 +354,8 @@ class _SocketState:
     # its target state emits no further event to wait for).
     states: Dict[str, SandboxState] = field(default_factory=dict)
     raw_states: Dict[str, str] = field(default_factory=dict)
+    # The error message the latest frame carried, per id; absent when it carried none.
+    reasons: Dict[str, str] = field(default_factory=dict)
     # Set when a waiter registers; the socket loop sleeps on it while it has
     # nothing to subscribe instead of polling.
     wake: asyncio.Event = field(default_factory=asyncio.Event)
@@ -530,6 +534,7 @@ class WaitHub:
             sock.waited_since.clear()
             sock.states.clear()
             sock.raw_states.clear()
+            sock.reasons.clear()
             sock.versions.clear()
             sock.snapshot_pending.clear()
             sock.pending_subscribe_ids.clear()
@@ -639,6 +644,9 @@ class WaitHub:
                 source_raw_state = source.raw_states.get(sandbox_id)
                 if source_raw_state is not None:
                     destination.raw_states[sandbox_id] = source_raw_state
+                source_reason = source.reasons.get(sandbox_id)
+                if source_reason is not None:
+                    destination.reasons[sandbox_id] = source_reason
             if sandbox_id in source.refused_retry_ids:
                 destination.refused_retry_ids.add(sandbox_id)
 
@@ -647,6 +655,7 @@ class WaitHub:
         source.waited_since.clear()
         source.states.clear()
         source.raw_states.clear()
+        source.reasons.clear()
         source.snapshot_pending.clear()
         self._clear_pending_subscribe_ids(source)
         source.refused_retry_ids.clear()
@@ -775,7 +784,7 @@ class WaitHub:
             if verdict == "resolve":
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
-                return WaitOutcome(held, sock.raw_states.get(sandbox_id, ""))
+                return WaitOutcome(held, sock.raw_states.get(sandbox_id, ""), sock.reasons.get(sandbox_id))
             if verdict == "reject":
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
@@ -893,10 +902,10 @@ class WaitHub:
             raw = str(data.get("status") or "")
             state = sandbox_state(raw)
             result = _evaluate(predicate, state, sandbox_id)
+            reason = data.get("error")
             if result == "resolve":
-                return WaitOutcome(state, raw)
+                return WaitOutcome(state, raw, reason if isinstance(reason, str) and reason else None)
             if result == "reject":
-                reason = data.get("error")
                 raise SandboxTerminalStateError(
                     sandbox_id, state, raw_state=raw, reason=reason if isinstance(reason, str) else None
                 )
@@ -1153,6 +1162,7 @@ class WaitHub:
         for sandbox_id in list(sock.subscriptions):
             sock.states.pop(sandbox_id, None)
             sock.raw_states.pop(sandbox_id, None)
+            sock.reasons.pop(sandbox_id, None)
 
     async def _mint_ticket(self, sock: _SocketState) -> Tuple[str, str]:
         """``POST /events/{region}/ticket``. A 404 selects long-poll fallback;
@@ -1283,7 +1293,13 @@ class WaitHub:
                 decoded = sandbox_state(raw)
                 sock.states[sid] = decoded
                 sock.raw_states[sid] = raw
-                self._dispatch_state(sock, sid, WaitOutcome(decoded, raw))
+                error = frame.get("error")
+                reason = error if isinstance(error, str) and error else None
+                if reason is None:
+                    sock.reasons.pop(sid, None)
+                else:
+                    sock.reasons[sid] = reason
+                self._dispatch_state(sock, sid, WaitOutcome(decoded, raw, reason))
             elif ftype == "error":
                 sid = frame.get("id")
                 code = frame.get("code")
@@ -1587,6 +1603,7 @@ class WaitHub:
         sock.waited_since.pop(sandbox_id, None)
         sock.states.pop(sandbox_id, None)
         sock.raw_states.pop(sandbox_id, None)
+        sock.reasons.pop(sandbox_id, None)
         sock.versions.pop(sandbox_id, None)
         sock.snapshot_pending.pop(sandbox_id, None)
         sock.refused_retry_ids.discard(sandbox_id)
@@ -1698,6 +1715,7 @@ class WaitHub:
         sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
+        sock.reasons.clear()
         sock.versions.clear()
         sock.snapshot_pending.clear()
         self._clear_pending_subscribe_ids(sock)
@@ -1716,6 +1734,7 @@ class WaitHub:
         sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
+        sock.reasons.clear()
         sock.versions.clear()
         sock.snapshot_pending.clear()
         self._clear_pending_subscribe_ids(sock)
@@ -1737,6 +1756,7 @@ class WaitHub:
         sock.waited_since.clear()
         sock.states.clear()
         sock.raw_states.clear()
+        sock.reasons.clear()
         sock.versions.clear()
         sock.snapshot_pending.clear()
         self._clear_pending_subscribe_ids(sock)

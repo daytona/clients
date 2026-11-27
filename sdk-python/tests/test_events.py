@@ -383,6 +383,49 @@ class TestHubSnapshotThenLive:
 
         assert result.state == "started"
 
+    async def test_a_frames_error_message_comes_with_its_outcome_and_with_the_held_state(self) -> None:
+        fc = FakeConnector()
+        hub = make_hub(fc)
+        stopped = _TargetPredicate(states=frozenset({"stopped"}), terminal_states=frozenset({"error"}))
+
+        with respx.mock:
+            ticket_mock("region-a")
+            ws = fc.prepare()
+            # A waiter that keeps the subscription, so later waits read the held state.
+            background = asyncio.create_task(
+                hub.wait(
+                    "abc-region-a",
+                    _TargetPredicate(states=frozenset({"destroyed"}), terminal_states=frozenset()),
+                    timeout=5,
+                )
+            )
+            first = asyncio.create_task(hub.wait("abc-region-a", stopped, timeout=5))
+            await drain()
+            ws.inject(
+                {
+                    "type": "snapshot",
+                    "id": "abc-region-a",
+                    "status": "stopped",
+                    "version": 1,
+                    "error": "the guest stopped",
+                }
+            )
+            assert await first == WaitOutcome("stopped", "stopped", "the guest stopped")
+            assert await hub.wait("abc-region-a", stopped, timeout=5) == WaitOutcome(
+                "stopped", "stopped", "the guest stopped"
+            )
+            # A frame without an error message clears it.
+            ws.inject(
+                {"type": "event", "id": "abc-region-a", "status": "running", "version": 2, "error": None}
+            )
+            await drain()
+            assert await hub.wait("abc-region-a", _started_predicate(), timeout=5) == WaitOutcome(
+                "started", "running"
+            )
+            background.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await background
+
     async def test_version_rule_lower_dropped(self) -> None:
         fc = FakeConnector()
         hub = make_hub(fc)
@@ -3203,7 +3246,8 @@ class TestEndpointLearnedThroughTheTransport:
             assert fc.connection_count() == 1
             # The subprotocol and ticket names.
             assert fc.last_subprotocols == ["daytona.events.v1", "daytona.ticket.t0k3n"]
-            assert seen_queries == [{}]
+            # The frame decided the wait: no long poll, and no read after it.
+            assert seen_queries == []
             assert client._acquire_hub()._learned.get("region-a") == "endpoint-a"  # type: ignore[union-attr]
         finally:
             await client.close()

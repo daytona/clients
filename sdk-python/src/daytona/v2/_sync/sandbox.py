@@ -371,7 +371,9 @@ class Sandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
-        raises :class:`SandboxTerminalStateError`.
+        raises :class:`SandboxTerminalStateError`. A macOS sandbox is read once
+        more after the events stream reports ``started``, for its boot mode
+        and reservation.
 
         Whether the sandbox can resume is the API's decision; a refusal
         surfaces as its typed error. A sandbox that is not paused, or whose
@@ -462,8 +464,9 @@ class Sandbox:
         confirm either state (up to one 30-second slice).
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
-        organization; after a start on a different Mac, iCloud asks the user to
-        sign in again. It raises :class:`ConflictError` with
+        organization (the handle reads the sandbox once more after the events
+        stream reports ``started``, for its boot mode and reservation); after a
+        start on a different Mac, iCloud asks the user to sign in again. It raises :class:`ConflictError` with
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later),
         ``NO_FREE_SLOT`` when no Mac of the organization has space for its
         size, ``MAC_DISK_FULL`` when the Mac with space is low on free disk
@@ -557,14 +560,13 @@ class Sandbox:
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
-        ``destroyed``. A target state the events hub reports is followed by
-        one read of the sandbox's details; when that read shows another state,
-        it decides instead: a state terminal for this wait raises, and any
-        other state keeps the wait going under the same deadline, so the
-        returned handle is in a requested state. No read follows a
-        ``destroyed`` report (it would be a 404) or a report that arrives as
-        the budget runs out, and a failed read keeps the reported state; the
-        handle then carries the reported target. When the events hub has reported nothing decisive, the
+        ``destroyed``. A target state the events hub reports ends the wait
+        with no read: the handle takes the reported state and the sandbox's
+        error message (cleared when the report has none), and keeps its other
+        fields, ``lifecycle_policy`` deadlines included, as of the last read
+        (:meth:`refresh_data` reloads them). Only :meth:`start` and
+        :meth:`resume` of a macOS sandbox read once more after it, for the
+        boot mode and the reservation. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits.
@@ -665,9 +667,9 @@ class Sandbox:
     def labels(self) -> Optional[Mapping[str, str]]:
         """The sandbox labels: a fresh copy on every read (changing it changes
         nothing); replace them with :meth:`set_labels`. ``None`` until the API
-        has reported them: a ``create*()`` or ``fork()`` handle whose wait read
-        nothing holds only what the create response carries (call
-        :meth:`refresh_data` to load them).
+        has reported them: a ``create*()`` handle, or a ``fork()`` handle whose
+        detail read failed or was skipped, holds only what the create or fork
+        response carries (call :meth:`refresh_data` to load them).
         """
         return self._impl.labels
 

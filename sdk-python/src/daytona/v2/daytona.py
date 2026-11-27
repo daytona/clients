@@ -364,8 +364,8 @@ class AsyncDaytona:
         the region, an ``img_`` / ``snap_`` id you passed). The rest (``cpu``,
         ``memory``, ``disk`` and their limits, ``labels``, ``user``, ...) is
         ``None`` (unknown, not empty) until a detail read. ``create()`` does
-        not read the sandbox itself when the create response already reports
-        it started (the usual case), so call
+        not read the sandbox itself (its wait follows the sandbox's state
+        only), so call
         :meth:`AsyncSandbox.refresh_data` before reading them. The same holds
         for :meth:`create_from_snapshot`, :meth:`create_from_build` and
         :meth:`create_macos`.

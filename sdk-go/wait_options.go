@@ -117,6 +117,11 @@ type sandboxWait struct {
 	// wait timeout, even before the context's own timer has fired.
 	contextDeadline    bool
 	missingIsDestroyed bool
+	// readAfterTarget follows a target event with one read. An event carries
+	// the state and the error message, and nothing else a handle exposes
+	// changes on a transition, except the boot mode and the reservation of a
+	// macOS sandbox that starts or resumes: only those waits set it.
+	readAfterTarget bool
 	// lastRead is when the read that confirmed an event and handed over to
 	// polling ended; the first poll read keeps the minimum spacing after it.
 	lastRead time.Time

@@ -241,18 +241,20 @@ describe('sandbox wait budgets', () => {
     expect(sandbox.state).toBe('destroyed')
   })
 
-  it('refreshes full metadata after an event-backed wait resolves', async () => {
-    // Given a socket outcome carrying state only.
+  it('reads nothing after an event-backed wait resolves', async () => {
+    // Given a socket outcome carrying the state and no error message.
     const api = createHttpClient('http://api.invalid')
     jest.spyOn(WaitHub.prototype, 'enabled', 'get').mockReturnValue(true)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unexpected websocket') }, api)
     jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
-    jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', memory_mib: 513, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } })
+    const get = jest.spyOn(api, 'get')
     const sandbox = createSandbox('sbx', api, undefined, undefined, undefined, {}, undefined, undefined, hub)
     // When the socket completes the wait.
     await sandbox.wait()
-    // Then the returned handle has a complete fresh observation too.
-    expect(sandbox.memory).toBe(513 / 1024)
+    // Then the handle carries the reported state, and no detail read was made.
+    expect([sandbox.state, sandbox.rawState]).toEqual(['started', 'running'])
+    expect(sandbox.memory).toBeUndefined()
+    expect(get).not.toHaveBeenCalled()
   })
 
   it.each(['stop', 'delete', 'start', 'pause', 'resume'] as const)('rejects old or invalid %s wait options before sending a request', async (operation) => {

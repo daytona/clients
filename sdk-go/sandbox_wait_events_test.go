@@ -62,39 +62,65 @@ func TestWait_whenEventTerminal_isConfirmedByRead(t *testing.T) {
 	}
 }
 
-func TestWait_whenTargetEventObserved_refreshIsBestEffort(t *testing.T) {
+func TestWait_whenTargetEventObserved_readsNothing(t *testing.T) {
+	// Given: an event carrying the target state and no error message, on a
+	// handle that holds an earlier error message.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{})
+	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+	require.NoError(t, err)
+	sandbox.info.Region = " Local "
+	sandbox.info.Error = "an earlier failure"
+	source := &waitTestSource{events: make(chan stateObservation, 1)}
+	source.events <- stateObservation{State: SandboxStateStarted, RawState: "running"}
+	sandbox.client.stateSource = source
+	// When
+	err = sandbox.Wait(t.Context(), nil)
+	// Then: no read follows, and the event clears the error message.
+	require.NoError(t, err)
+	require.Equal(t, SandboxStateStarted, sandbox.State())
+	require.Empty(t, sandbox.Info().Error)
+	require.Empty(t, source.region)
+	require.Empty(t, fake.requests())
+}
+
+func TestResume_whenMacOSTargetEventObserved_refreshIsBestEffort(t *testing.T) {
 	for _, status := range []string{"stopping", "500"} {
 		t.Run(status, func(t *testing.T) {
-			// Given: the refresh after the event fails, or shows a state that
-			// is not the target before a later read does.
-			var reads atomic.Int32
-			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
-				if status == "500" {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				detail := sandboxFixture("sbx")
-				if reads.Add(1) == 1 {
-					detail["status"] = status
-				}
-				writeJSON(t, w, detail)
-			}})
+			// Given: the read after a macOS resume's event fails, or shows a
+			// state that is not the target before a later read does.
+			var served atomic.Int32
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"POST /sandboxes/sbx/resume": jsonHandler(t, map[string]string{}),
+				"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
+					if status == "500" {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					detail := sandboxFixture("sbx")
+					detail["class"] = "macos"
+					detail["mac_boot_mode"] = "warm"
+					if served.Add(1) == 1 {
+						detail["status"] = status
+					}
+					writeJSON(t, w, detail)
+				},
+			})
 			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
 			require.NoError(t, err)
-			sandbox.info.Region = " Local "
+			sandbox.info.Class = SandboxClassMacOS
 			source := &waitTestSource{events: make(chan stateObservation, 1)}
 			source.events <- stateObservation{State: SandboxStateStarted, RawState: "running"}
 			sandbox.client.stateSource = source
 			// When
-			err = sandbox.Wait(t.Context(), nil)
+			err = sandbox.Resume(t.Context(), nil)
 			// Then
 			require.NoError(t, err)
 			require.Equal(t, SandboxStateStarted, sandbox.State())
-			require.Empty(t, source.region)
 			if status == "500" {
-				require.Len(t, fake.requests(), 1)
+				require.Len(t, reads(fake), 1)
 			} else {
-				require.Len(t, fake.requests(), 2)
+				require.Len(t, reads(fake), 2)
+				require.Equal(t, MacBootMode("warm"), sandbox.Info().MacBootMode)
 			}
 		})
 	}

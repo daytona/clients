@@ -534,25 +534,61 @@ class _ResolvingHub:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("verb", ["wait", "start", "stop"])
-async def test_an_observed_target_survives_a_failed_metadata_refresh(verb: str) -> None:
+@pytest.mark.parametrize("verb", ["wait", "start", "stop", "pause", "resume"])
+async def test_an_observed_target_ends_the_wait_with_no_read(verb: str) -> None:
     target = {
         "wait": ("started", "running"),
         "start": ("started", "running"),
         "stop": ("stopped", "stopped"),
+        "pause": ("paused", "paused"),
+        "resume": ("started", "running"),
     }[verb]
+    before = {"start": "stopped", "resume": "paused"}.get(verb, "started")
     sandbox = lazy_sandbox(_client(), "sbx")
-    sandbox._update(sandbox_class="linux", state="stopped" if verb == "start" else "started", raw_state="x")
-    # start() reads the current state first; start() and stop() then send their request.
-    responses: list[object] = {"wait": [], "start": [_detail("sbx", "stopped"), {}], "stop": [{}]}[verb]
-    # The follow-up read that fills in the rest of the metadata fails.
-    responses.append(create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"))
-    sandbox._api = _Api(responses)  # type: ignore[attr-defined]
+    sandbox._update(sandbox_class="linux", state=before, raw_state="x", error="an earlier failure")
+    # start() reads the current state first; every verb but wait() then sends its request.
+    responses: list[object] = {"wait": [], "start": [_detail("sbx", "stopped"), {}]}.get(verb, [{}])
+    api = _Api(responses)
+    sandbox._api = api  # type: ignore[attr-defined]
     sandbox._hub = _ResolvingHub(*target)  # type: ignore[assignment]
 
     await getattr(sandbox, verb)(timeout=5)
 
-    assert sandbox.state == target[0]
+    # The frame carried no error message: the handle's is cleared.
+    assert (sandbox.state, sandbox.raw_state, sandbox.error) == (*target, None)
+    assert api.responses == []
+    assert [spec.method for spec in api.specs].count("GET") == (1 if verb == "start" else 0)
+
+
+@pytest.mark.anyio
+async def test_an_observed_target_carries_the_frames_error_message() -> None:
+    sandbox = lazy_sandbox(_client(), "sbx")
+    sandbox._update(sandbox_class="linux", state="started", raw_state="running")
+    sandbox._api = _Api([])  # type: ignore[attr-defined]
+    hub = _ResolvingHub("stopped", "stopped")
+    hub.outcome = WaitOutcome("stopped", "stopped", "the guest stopped")
+    sandbox._hub = hub  # type: ignore[assignment]
+
+    await sandbox.wait(until="stopped", timeout=5)
+
+    assert (sandbox.state, sandbox.error) == ("stopped", "the guest stopped")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("verb", ["start", "resume"])
+async def test_an_observed_target_survives_a_failed_macos_metadata_refresh(verb: str) -> None:
+    sandbox = lazy_sandbox(_client(), "sbx")
+    sandbox._update(sandbox_class="macos", state="stopped" if verb == "start" else "paused", raw_state="x")
+    # start() reads the current state first; both then send their request.
+    responses: list[object] = [_detail("sbx", "stopped", **{"class": "macos"}), {}] if verb == "start" else [{}]
+    # The read that fills in the boot mode and the reservation fails.
+    responses.append(create_error("boom", 500, "INTERNAL_SERVER_ERROR", "DAYTONA_API"))
+    sandbox._api = _Api(responses)  # type: ignore[attr-defined]
+    sandbox._hub = _ResolvingHub("started", "running")  # type: ignore[assignment]
+
+    await getattr(sandbox, verb)(timeout=5)
+
+    assert sandbox.state == "started"
     assert sandbox._api.responses == []  # type: ignore[attr-defined]
 
 
@@ -568,17 +604,20 @@ async def test_local_is_never_a_region_hint() -> None:
 
 
 @pytest.mark.anyio
-async def test_a_successful_refresh_after_an_observed_target_keeps_what_it_read() -> None:
+async def test_a_successful_macos_refresh_after_an_observed_target_keeps_what_it_read() -> None:
     sandbox = lazy_sandbox(_client(), "sbx")
-    sandbox._update(sandbox_class="linux", state="starting", raw_state="booting")
-    sandbox._api = _Api([_detail("sbx", "stopping"), _detail("sbx", "running", cpu=2)])  # type: ignore[attr-defined]
+    sandbox._update(sandbox_class="macos", state="paused", raw_state="paused")
+    macos = {"class": "macos"}
+    sandbox._api = _Api(  # type: ignore[attr-defined]
+        [{}, _detail("sbx", "stopping", **macos), _detail("sbx", "running", mac_boot_mode="warm", **macos)]
+    )
     sandbox._hub = _ResolvingHub("started", "running")  # type: ignore[assignment]
 
-    await sandbox.wait(timeout=5)
+    await sandbox.resume(timeout=5)
 
     # The handle reports what the server said last, not the event-time state;
     # a read outside the targets kept the wait going until one showed a target.
-    assert (sandbox.state, sandbox.raw_state, sandbox.cpu) == ("started", "running", 2)
+    assert (sandbox.state, sandbox.raw_state, sandbox.mac_boot_mode) == ("started", "running", "warm")
 
 
 @pytest.mark.anyio

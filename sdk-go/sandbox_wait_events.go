@@ -133,10 +133,10 @@ func (w *sandboxWait) raceRead(
 }
 
 // A terminal event can predate this operation. Only a full read decides that
-// failure. A target event is followed by a metadata refresh that also decides:
-// a target returns, a terminal state no lag can show fails, and any other
-// state polls on under the same deadline; a failed refresh keeps the observed
-// success.
+// failure. A target event ends the wait with no read, unless readAfterTarget
+// (a macOS start or resume) asks for one; that read also decides: a target
+// returns, a terminal state no lag can show fails, and any other state polls
+// on under the same deadline; a failed read keeps the observed success.
 // A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
 	if event.NotFound {
@@ -153,6 +153,9 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 	}
 	w.sandbox.observeWait(reported)
 	success := w.target(event.State)
+	if success && !w.readAfterTarget {
+		return true, nil
+	}
 	if event.State == SandboxStateDestroyed || waitRemaining(w.deadline) == 0 {
 		return w.readOutcome(reported)
 	}

@@ -334,6 +334,26 @@ describe('WaitHub: snapshot then live', () => {
     await expect(prom).resolves.toMatchObject({ state: 'started' })
   })
 
+  test("a frame's error message comes with its outcome, and with the state the hub holds", async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    const ws = fc.prepare()
+    // A waiter that keeps the subscription, so later waits read the held state.
+    const background = hub.wait(SANDBOX_ID, targetPredicate(new Set(['destroyed']), new Set()), { timeout: 5000 })
+    void background.catch(() => undefined)
+    const stopped = targetPredicate(new Set(['stopped']), new Set(['error']))
+    const first = hub.wait(SANDBOX_ID, stopped, { timeout: 5000 })
+    await drain()
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'stopped', version: 1, error: 'the guest stopped' })
+    await expect(first).resolves.toEqual({ state: 'stopped', rawState: 'stopped', reason: 'the guest stopped' })
+    await expect(hub.wait(SANDBOX_ID, stopped, { timeout: 5000 })).resolves.toEqual({ state: 'stopped', rawState: 'stopped', reason: 'the guest stopped' })
+    // A frame without an error message clears it.
+    ws.inject({ type: 'event', id: SANDBOX_ID, status: 'running', version: 2, error: null })
+    await drain()
+    await expect(hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5000 })).resolves.toEqual({ state: 'started', rawState: 'running' })
+    await hub.detach()
+  })
+
   test('version rule: lower version dropped', async () => {
     const fc = makeFakeConnector()
     const hub = makeHub(fc)
