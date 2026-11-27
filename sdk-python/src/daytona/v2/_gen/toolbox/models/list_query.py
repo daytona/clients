@@ -35,7 +35,7 @@ class ListQuery(BaseModel):
     """
     `GET /processes` filters.
     """ # noqa: E501
-    kind: Optional[Kind] = None
+    kind: Optional[Kind] = Field(default=None, description="Filter by process kind.")
     name: Optional[StrictStr] = Field(default=None, description="Filter by live name alias.")
     pid: Optional[StrictInt] = Field(default=None, description="Filter by OS process id.")
     session_id: Optional[StrictStr] = Field(default=None, description="Filter by the session a process ran in (`kind=session` process id or interpreter context id).", alias="sessionId")

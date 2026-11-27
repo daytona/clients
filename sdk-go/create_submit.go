@@ -126,11 +126,15 @@ func (c *Client) parseCreated(raw JSONValue, prepared preparedCreate) (*Sandbox,
 			State: sandboxState(status), RawState: status,
 			Class: prepared.class, RawClass: string(prepared.class), Region: prepared.body.Region,
 			ReservationID: createResponseText(object, "reservation_id"),
+			Persistent:    clonePointer(prepared.body.Persistent),
 			// The lifecycle policy as the create set it. A malformed one is
 			// absent, never an error: the sandbox exists.
 			LifecyclePolicy: createResponseLifecycle(object),
 		},
 		ToolboxURL: createResponseToolboxURL(object, id), FromCreate: true,
+	}
+	if persistent, parseErr := field[bool](object, "persistent", true); parseErr == nil {
+		init.Info.Persistent = &persistent
 	}
 	if init.Info.Region == "" {
 		init.Info.Region = regionOf(id)

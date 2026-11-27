@@ -80,3 +80,15 @@ func ExampleComputerUseRecordings_Download() {
 	}
 	fmt.Printf("Recording: %d bytes\n", len(data))
 }
+
+func ExampleParseComputerUseStatus() {
+	// The body of a status response read through the application's own
+	// transport to the sandbox toolbox.
+	body := []byte(`{"status":"inactive","desktop":"failed","cause":{"code":"addon_crashed","message":"exited"}}`)
+	status, err := daytona.ParseComputerUseStatus(body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(status.Status, status.Desktop, status.Cause.Code)
+	// Output: inactive failed addon_crashed
+}

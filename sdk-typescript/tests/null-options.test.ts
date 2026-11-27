@@ -15,7 +15,7 @@ import type { Daytona } from '../src/Daytona'
 // policy) an explicit null. Python's twin table is tests/test_null_options.py.
 type Route = 'create' | 'createFromSnapshot' | 'createMacos'
 const OMITTED: Readonly<Record<Route, readonly string[]>> = {
-  create: ['name', 'labels', 'ports', 'lifecyclePolicy', 'region', 'createTimeoutSeconds', 'idempotencyKey', 'volumes', 'env', 'resources', 'secrets', 'spot', 'user', 'cpuArch', 'cpuType'],
+  create: ['name', 'labels', 'ports', 'lifecyclePolicy', 'region', 'createTimeoutSeconds', 'idempotencyKey', 'volumes', 'env', 'resources', 'secrets', 'spot', 'user', 'cpuArch', 'cpuType', 'persistent'],
   createFromSnapshot: ['name', 'labels', 'ports', 'lifecyclePolicy', 'region', 'createTimeoutSeconds', 'idempotencyKey'],
   createMacos: ['name', 'labels', 'ports', 'lifecyclePolicy', 'region', 'createTimeoutSeconds', 'idempotencyKey', 'volumes', 'env', 'secrets', 'resources', 'persistent', 'reservation', 'autoRenew'],
 }

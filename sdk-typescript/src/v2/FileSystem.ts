@@ -123,6 +123,41 @@ export interface MkdirOptions {
 export interface RemoveOptions {
   /** Remove a directory and everything in it. */
   readonly recursive?: boolean
+  /**
+   * Total deadline of this call in seconds, replacing the client's
+   * `requestTimeoutSeconds` (work over a large tree can outlast it); `0`, or a
+   * value above 2,147,483.647 (about 24.8 days), is no limit. Omitted, the
+   * client's request timeout applies. A negative or non-finite value (or one
+   * that is not a number) throws `BadRequestError` before any request. A
+   * timeout ends the call, not the work in the sandbox.
+   */
+  readonly timeoutSeconds?: number
+}
+
+/** Options of `grep()` and `glob()`. */
+export interface FileSearchOptions {
+  /**
+   * Total deadline of this call in seconds, replacing the client's
+   * `requestTimeoutSeconds` (work over a large tree can outlast it); `0`, or a
+   * value above 2,147,483.647 (about 24.8 days), is no limit. Omitted, the
+   * client's request timeout applies. A negative or non-finite value (or one
+   * that is not a number) throws `BadRequestError` before any request. A
+   * timeout ends the call, not the work in the sandbox.
+   */
+  readonly timeoutSeconds?: number
+}
+
+/** Options of `replace()`. */
+export interface ReplaceOptions {
+  /**
+   * Total deadline of this call in seconds, replacing the client's
+   * `requestTimeoutSeconds` (work over a large tree can outlast it); `0`, or a
+   * value above 2,147,483.647 (about 24.8 days), is no limit. Omitted, the
+   * client's request timeout applies. A negative or non-finite value (or one
+   * that is not a number) throws `BadRequestError` before any request. A
+   * timeout ends the call, not the work in the sandbox.
+   */
+  readonly timeoutSeconds?: number
 }
 
 export interface MoveOptions {
@@ -163,12 +198,20 @@ const WRITE_FILE_OPTION_KEYS = optionKeys<WriteFileOptions>()({ atomic: true })
 const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
 const LIST_FILES_OPTION_KEYS = optionKeys<ListFilesOptions>()({ depth: true })
 const MKDIR_OPTION_KEYS = optionKeys<MkdirOptions>()({ mode: true })
-const REMOVE_OPTION_KEYS = optionKeys<RemoveOptions>()({ recursive: true })
+const REMOVE_OPTION_KEYS = optionKeys<RemoveOptions>()({ recursive: true, timeoutSeconds: true })
 const MOVE_OPTION_KEYS = optionKeys<MoveOptions>()({ timeoutSeconds: true })
+const FILE_SEARCH_OPTION_KEYS = optionKeys<FileSearchOptions>()({ timeoutSeconds: true })
+const REPLACE_OPTION_KEYS = optionKeys<ReplaceOptions>()({ timeoutSeconds: true })
 const WATCH_DIR_OPTION_KEYS = optionKeys<WatchDirOptions>()({ recursive: true, onExit: true, onOverflow: true })
-const FILE_PERMISSIONS_OPTION_KEYS = optionKeys<FilePermissionsOptions>()({ mode: true, owner: true, group: true })
+const FILE_PERMISSIONS_OPTION_KEYS = optionKeys<FilePermissionsOptions>()({ mode: true, owner: true, group: true, timeoutSeconds: true })
 const UPLOAD_FILE_OPTION_KEYS = optionKeys<UploadFileOptions>()({ onProgress: true, signal: true, atomic: true })
 const DOWNLOAD_FILE_OPTION_KEYS = optionKeys<DownloadFileOptions>()({ onProgress: true, signal: true })
+
+/** A per-call `timeoutSeconds` as the request's `timeout` (ms, `0` = no limit); omitted keeps the request timeout. */
+function callTimeout(timeoutSeconds: number | undefined): { readonly timeout?: number } {
+  const timeout = secondsToMs('timeoutSeconds', timeoutSeconds)
+  return timeout === undefined ? {} : { timeout }
+}
 
 interface AsyncLocalStorageLike<T> {
   getStore(): T | undefined
@@ -451,7 +494,7 @@ export class FileSystemService {
   public async remove(path: string, options: RemoveOptions = {}): Promise<void> {
     sandboxPath('path', path)
     assertKnownOptions('RemoveOptions', options, REMOVE_OPTION_KEYS)
-    await this.transport.delete<void>('/files', { params: { path, recursive: options.recursive } })
+    await this.transport.delete<void>('/files', { params: { path, recursive: options.recursive }, ...callTimeout(options.timeoutSeconds) })
   }
 
   /**
@@ -485,10 +528,12 @@ export class FileSystemService {
    * are not searched; `skipped` lists their absolute paths (at most 1000). Only
    * an unreadable `path` itself throws `FileAccessDeniedError`.
    */
-  public async grep(path: string, pattern: string): Promise<FileSearchResult<FileMatch>> {
+  public async grep(path: string, pattern: string, options: FileSearchOptions = {}): Promise<FileSearchResult<FileMatch>> {
     sandboxPath('path', path)
+    assertKnownOptions('FileSearchOptions', options, FILE_SEARCH_OPTION_KEYS)
+    const timeout = callTimeout(options.timeoutSeconds)
     // Daemons that predate `skipped` answer a bare array of matches.
-    const data = await this.transport.get<toolbox.Match[] | { items: toolbox.Match[]; skipped?: string[] }>('/files/find', { params: { path, pattern } })
+    const data = await this.transport.get<toolbox.Match[] | { items: toolbox.Match[]; skipped?: string[] }>('/files/find', { params: { path, pattern }, ...timeout })
     if (Array.isArray(data)) return deepFrozen({ items: data.map((item) => fileMatchFromWire(item)), skipped: [] })
     const response = record(data, 'grep response')
     return deepFrozen({ items: envelopeList(response, 'items', 'grep response', fileMatchFromWire), skipped: searchSkipped(response, 'grep response') })
@@ -724,17 +769,21 @@ export class FileSystemService {
    * not searched; `skipped` lists their absolute paths (at most 1000). Only an
    * unreadable `path` itself throws `FileAccessDeniedError`.
    */
-  public async glob(path: string, pattern: string): Promise<FileSearchResult<string>> {
+  public async glob(path: string, pattern: string, options: FileSearchOptions = {}): Promise<FileSearchResult<string>> {
     sandboxPath('path', path)
-    const data = record(await this.transport.get<toolbox.SearchResponse & { skipped?: string[] }>('/files/search', { params: { path, pattern } }), 'glob response')
+    assertKnownOptions('FileSearchOptions', options, FILE_SEARCH_OPTION_KEYS)
+    const timeout = callTimeout(options.timeoutSeconds)
+    const data = record(await this.transport.get<toolbox.SearchResponse & { skipped?: string[] }>('/files/search', { params: { path, pattern }, ...timeout }), 'glob response')
     return deepFrozen({ items: strList(data, 'files', 'glob response'), skipped: searchSkipped(data, 'glob response') })
   }
 
   /** Replace the literal substring `pattern` with `newValue` in `files`. */
-  public async replace(files: readonly string[], pattern: string, newValue: string): Promise<ListResult<ReplaceResult>> {
+  public async replace(files: readonly string[], pattern: string, newValue: string, options: ReplaceOptions = {}): Promise<ListResult<ReplaceResult>> {
     const checkedFiles = pathSequence('files', files).map((path, index) => sandboxPath(`files[${index}]`, path))
+    assertKnownOptions('ReplaceOptions', options, REPLACE_OPTION_KEYS)
+    const timeout = callTimeout(options.timeoutSeconds)
     const body: toolbox.ReplaceRequest = { files: checkedFiles, pattern, newValue }
-    const data = await this.transport.post<toolbox.ReplaceResult[] | ListResult<toolbox.ReplaceResult>>('/files/replace', body)
+    const data = await this.transport.post<toolbox.ReplaceResult[] | ListResult<toolbox.ReplaceResult>>('/files/replace', body, timeout)
     return listItems(data, 'items', 'replace response', replaceResultFromWire)
   }
 
@@ -744,6 +793,7 @@ export class FileSystemService {
     assertKnownOptions('FilePermissionsOptions', permissions, FILE_PERMISSIONS_OPTION_KEYS)
     await this.transport.post<void>('/files/permissions', undefined, {
       params: { path, mode: permissions.mode, owner: permissions.owner, group: permissions.group },
+      ...callTimeout(permissions.timeoutSeconds),
     })
   }
 

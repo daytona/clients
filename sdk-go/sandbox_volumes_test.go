@@ -101,7 +101,7 @@ func TestSandboxVolumesPull_whenIDsInvalid(t *testing.T) {
 }
 
 func TestSandboxVolumesPull_whenTimeoutInvalid(t *testing.T) {
-	for _, timeout := range []time.Duration{-time.Second, WaitForever, NoTimeout, 30*time.Second + time.Nanosecond} {
+	for _, timeout := range []time.Duration{-time.Second, NoTimeout} {
 		t.Run(timeout.String(), func(t *testing.T) {
 			// Given
 			fake := newFakeServer(t, nil)

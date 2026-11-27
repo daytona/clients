@@ -55,7 +55,7 @@ class ProcessDto(BaseModel):
     login: Optional[StrictBool] = Field(default=None, description="Whether the API requested a login shell.")
     name: Optional[StrictStr] = Field(default=None, description="Optional live-only alias, omitted when unnamed.")
     pid: Optional[StrictInt] = Field(default=None, description="OS process id while running, omitted before spawn and after exit. Always omitted for commands run in a session: they run inside the session's shell, whose own record carries its pid.")
-    reason: Optional[Reason] = None
+    reason: Optional[Reason] = Field(default=None, description="Terminal reason, omitted until known.")
     resolved_shell: Optional[StrictStr] = Field(default=None, description="Resolved shell path or name, omitted until resolution has happened.", alias="resolvedShell")
     session_id: Optional[StrictStr] = Field(default=None, description="The session this process ran in: a `kind=session` process for shell commands, or the interpreter context for `kind=code`. Omitted for standalone processes.", alias="sessionId")
     shell: Optional[StrictStr] = Field(default=None, description="Requested shell, omitted when the API used its default resolution.")
@@ -66,12 +66,12 @@ class ProcessDto(BaseModel):
     stdin: StdinMode
     system: Optional[StrictBool] = Field(default=None, description="Whether this is a protected system process.")
     tag: Optional[StrictStr] = Field(default=None, description="The tag the process was created with, omitted when it has none. A command run in a session carries the session's tag. Never changes.")
-    terminal: Optional[TerminalSize] = None
+    terminal: Optional[TerminalSize] = Field(default=None, description="PTY geometry, omitted for non-PTY processes.")
     timeout_ms: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, description="Process execution timeout in milliseconds; omitted or 0 means no limit.", alias="timeoutMs")
     user: Optional[StrictStr] = Field(default=None, description="Requested user, omitted when the API runs as its default user.")
     first_available_cursor: Optional[StrictStr] = Field(default=None, description="Cursor of the first surviving log frame, omitted when nothing was evicted.", alias="firstAvailableCursor")
     last_cursor: Optional[StrictStr] = Field(default=None, description="Cursor of the last known log frame, omitted until at least one frame exists.", alias="lastCursor")
-    logs: Optional[ProcessLogsResponse] = None
+    logs: Optional[ProcessLogsResponse] = Field(default=None, description="Inline first logs page on `POST /processes?waitMs=...&logs=...`, omitted otherwise.")
     truncated_head: StrictBool = Field(description="Whether retention removed earlier output logs.", alias="truncatedHead")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["argv", "code", "createdAt", "cwd", "exitCode", "exitedAt", "id", "keepLogs", "kind", "language", "login", "name", "pid", "reason", "resolvedShell", "sessionId", "shell", "shellCommand", "signal", "startedAt", "state", "stdin", "system", "tag", "terminal", "timeoutMs", "user", "firstAvailableCursor", "lastCursor", "logs", "truncatedHead"]
@@ -165,6 +165,11 @@ class ProcessDto(BaseModel):
         if self.pid is None and "pid" in self.model_fields_set:
             _dict['pid'] = None
 
+        # set to None if reason (nullable) is None
+        # and model_fields_set contains the field
+        if self.reason is None and "reason" in self.model_fields_set:
+            _dict['reason'] = None
+
         # set to None if resolved_shell (nullable) is None
         # and model_fields_set contains the field
         if self.resolved_shell is None and "resolved_shell" in self.model_fields_set:
@@ -199,6 +204,11 @@ class ProcessDto(BaseModel):
         # and model_fields_set contains the field
         if self.tag is None and "tag" in self.model_fields_set:
             _dict['tag'] = None
+
+        # set to None if terminal (nullable) is None
+        # and model_fields_set contains the field
+        if self.terminal is None and "terminal" in self.model_fields_set:
+            _dict['terminal'] = None
 
         # set to None if timeout_ms (nullable) is None
         # and model_fields_set contains the field

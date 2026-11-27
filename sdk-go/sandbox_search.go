@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // Search returns one page and its hit count. Unlike List it never falls back
@@ -88,6 +89,7 @@ func snapshotSearchOptions(opts *SearchSandboxesOptions) SearchSandboxesOptions 
 	result.Classes = slices.Clone(opts.Classes)
 	result.Regions = slices.Clone(opts.Regions)
 	result.Spot = clonePointer(opts.Spot)
+	result.Persistent = clonePointer(opts.Persistent)
 	result.MinCores, result.MaxCores = clonePointer(opts.MinCores), clonePointer(opts.MaxCores)
 	result.MinMemoryMiB, result.MaxMemoryMiB = clonePointer(opts.MinMemoryMiB), clonePointer(opts.MaxMemoryMiB)
 	result.MinDiskMiB, result.MaxDiskMiB = clonePointer(opts.MinDiskMiB), clonePointer(opts.MaxDiskMiB)
@@ -95,15 +97,18 @@ func snapshotSearchOptions(opts *SearchSandboxesOptions) SearchSandboxesOptions 
 }
 
 // FindByNameOptions selects a region. Empty, whitespace or "local" (ignoring
-// case) uses the default region; other values are sent unchanged.
+// case) uses the default region and searches every region; any other value is
+// sent unchanged and returns only sandboxes in that region.
 type FindByNameOptions struct {
-	// Region selects a region; empty or "local" uses the default.
+	// Region selects and filters by a region; empty or "local" uses the
+	// default region and applies no region filter.
 	Region string
 }
 
 // FindByName returns every name-label match across all pages, excluding deleted
 // and deleting sandboxes. Names are not unique. This is the intentional
-// all-pages exception to the SDK's one-page list methods.
+// all-pages exception to the SDK's one-page list methods. A Region other than
+// the default is also sent as the search's region filter.
 func (c *Client) FindByName(ctx context.Context, name string, opts *FindByNameOptions) ([]*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err
@@ -111,20 +116,22 @@ func (c *Client) FindByName(ctx context.Context, name string, opts *FindByNameOp
 	if strings.TrimSpace(name) == "" {
 		return nil, badRequest("name must be a non-blank string")
 	}
+	if !utf8.ValidString(name) {
+		return nil, badRequest("name must be valid UTF-8")
+	}
 	headers := make(http.Header)
-	region := ""
-	if opts != nil {
-		region = opts.Region
+	region, err := findByNameRegion(opts)
+	if err != nil {
+		return nil, err
 	}
-	switch strings.ToLower(strings.TrimSpace(region)) {
-	case "", "local":
-	default:
-		if err := headerText(region, "region"); err != nil {
-			return nil, err
-		}
+	var regions []string
+	if region != "" {
 		headers.Set("X-Daytona-Region", region)
+		regions = []string{region}
 	}
-	query, err := searchQuery(SearchSandboxesOptions{Labels: map[string]string{"name": name}, Limit: 100})
+	query, err := searchQuery(SearchSandboxesOptions{
+		Labels: map[string]string{"name": name}, Regions: regions, Limit: 100,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -163,4 +170,23 @@ func (c *Client) FindByName(ctx context.Context, name string, opts *FindByNameOp
 		items = append(items, sandbox)
 	}
 	return items, nil
+}
+
+// findByNameRegion is the region FindByName selects and filters by, or "" for
+// the default region (no selector, every region searched).
+func findByNameRegion(opts *FindByNameOptions) (string, error) {
+	if opts == nil {
+		return "", nil
+	}
+	switch strings.ToLower(strings.TrimSpace(opts.Region)) {
+	case "", "local":
+		return "", nil
+	}
+	if err := headerText(opts.Region, "region"); err != nil {
+		return "", err
+	}
+	if strings.Contains(opts.Region, ",") {
+		return "", badRequest("region entries must be non-empty strings without commas")
+	}
+	return opts.Region, nil
 }

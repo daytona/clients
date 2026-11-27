@@ -37,6 +37,13 @@ type MkdirOptions struct {
 type RemoveFileOptions struct {
 	// Recursive removes directory contents too; default false.
 	Recursive bool
+	// Timeout replaces the client's request timeout for this call as its total
+	// deadline (work over a large tree can outlast it); zero keeps the request
+	// timeout, NoTimeout (or a duration above 2,147,483.647 seconds) disables
+	// it, and any other negative value returns ErrBadRequest before a request.
+	// The context always bounds the call. A timeout ends the call, not the
+	// work in the sandbox.
+	Timeout time.Duration
 }
 
 // MoveOptions controls a move.
@@ -55,6 +62,13 @@ type FilePermissionsOptions struct {
 	Owner string
 	// Group is a group name or ID; empty leaves it unchanged.
 	Group string
+	// Timeout replaces the client's request timeout for this call as its total
+	// deadline (a slow sandbox file system can outlast it); zero keeps the request
+	// timeout, NoTimeout (or a duration above 2,147,483.647 seconds) disables
+	// it, and any other negative value returns ErrBadRequest before a request.
+	// The context always bounds the call. A timeout ends the call, not the
+	// work in the sandbox.
+	Timeout time.Duration
 }
 
 func filePath(path string) (url.Values, error) {
@@ -132,10 +146,17 @@ func (f *FileSystem) Remove(ctx context.Context, path string, opts *RemoveFileOp
 	if err != nil {
 		return err
 	}
+	var timeout time.Duration
 	if opts != nil {
 		query.Set("recursive", strconv.FormatBool(opts.Recursive))
+		timeout = opts.Timeout
 	}
-	return f.sandbox.toolbox().do(ctx, toolboxRequest{Method: http.MethodDelete, Path: "/files", Query: query})
+	if timeoutErr := checkCallTimeout(timeout); timeoutErr != nil {
+		return timeoutErr
+	}
+	return f.sandbox.toolbox().do(ctx, toolboxRequest{
+		Method: http.MethodDelete, Path: "/files", Query: query, Timeout: timeout,
+	})
 }
 
 // Move moves or renames a file between absolute sandbox paths.
@@ -175,14 +196,19 @@ func (f *FileSystem) Chmod(ctx context.Context, path string, opts *FilePermissio
 	if err != nil {
 		return err
 	}
+	var timeout time.Duration
 	if opts != nil {
 		for name, value := range map[string]string{"mode": opts.Mode, "owner": opts.Owner, "group": opts.Group} {
 			if value != "" {
 				query.Set(name, value)
 			}
 		}
+		timeout = opts.Timeout
+	}
+	if timeoutErr := checkCallTimeout(timeout); timeoutErr != nil {
+		return timeoutErr
 	}
 	return f.sandbox.toolbox().do(ctx, toolboxRequest{
-		Method: http.MethodPost, Path: "/files/permissions", Query: query,
+		Method: http.MethodPost, Path: "/files/permissions", Query: query, Timeout: timeout,
 	})
 }

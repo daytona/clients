@@ -37,8 +37,8 @@ class EffectiveLifecyclePolicy(BaseModel):
     EffectiveLifecyclePolicy
     """ # noqa: E501
     idle_timeout_seconds: Optional[StrictInt] = Field(description="The effective idle timeout in seconds.")
-    on_idle_timeout: Optional[LifecycleAction]
-    on_timeout: Optional[LifecycleAction]
+    on_idle_timeout: Optional[LifecycleAction] = Field(description="The effective action at the idle timeout.")
+    on_timeout: Optional[LifecycleAction] = Field(description="The effective action at the maximum lifetime.")
     timeout_capped: StrictBool = Field(description="Whether a higher requested timeout was capped.")
     timeout_seconds: Optional[StrictInt] = Field(description="The effective maximum lifetime in seconds.")
     timeout_source: TimeoutSource

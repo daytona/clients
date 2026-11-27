@@ -40,8 +40,8 @@ it.each([
   ['a blank toolboxUrl', { toolboxUrl: ' \u0085 ' }, 'toolboxUrl must be a non-empty string'],
   ['a numeric accessToken', { accessToken: 5 as never }, 'accessToken must be a string'],
   ['an empty accessToken', { accessToken: '' }, 'accessToken must be a non-empty string'],
-  ['a padded accessToken', { accessToken: ' tok ' }, 'accessToken must be printable ASCII with no leading or trailing whitespace'],
-  ['a non-ASCII accessToken', { accessToken: 'tök' }, 'accessToken must be printable ASCII with no leading or trailing whitespace'],
+  ['a padded accessToken', { accessToken: ' tok ' }, 'accessToken must have no leading or trailing whitespace'],
+  ['a non-ASCII accessToken', { accessToken: 'tök' }, 'accessToken must be printable ASCII'],
 ] as const)('refuses %s before any request', async (_name, options, message) => {
   const api = await startFakeApi([])
   const client = clientAt(api.url)

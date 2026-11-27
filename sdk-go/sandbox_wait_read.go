@@ -92,7 +92,7 @@ func (w *sandboxWait) accept(result waitReadResult) (stateObservation, error) {
 	s := w.sandbox
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.info = result.detail.info
+	s.replaceInfo(result.detail.info)
 	s.reasonFromRead = true
 	s.info.ID = s.id
 	if !s.explicitToolboxURL && endpoint != "" {
