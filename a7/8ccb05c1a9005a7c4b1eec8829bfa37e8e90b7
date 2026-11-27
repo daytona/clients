@@ -1,0 +1,18 @@
+changelog.d/sandbox-desktop.added.md
+  h_5fc330b445be98 4-5
+sdk-typescript/src/v2/Sandbox.ts
+  h_5fc330b445be98 352-353
+sdk-typescript/src/v2/desktop.ts
+  h_5fc330b445be98 24-27,41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a78ccb05c1a9005a7c4b1eec8829bfa37e8e90b7",
+  "prompts": {},
+  "humans": {
+    "h_5fc330b445be98": {
+      "author": "Luka Brecic <luka.brecic3@gmail.com>"
+    }
+  }
+}

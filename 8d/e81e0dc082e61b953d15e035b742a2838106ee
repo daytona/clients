@@ -1,0 +1,87 @@
+changelog.d/docs-create-timeout-range.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+changelog.d/cli-readme-cursors.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/cli-readme-ci-output.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_e26152c3e6ca81::t_45348eec7203e8 137-139
+sdk-python/README.md
+  s_e26152c3e6ca81::t_45348eec7203e8 456
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 457-459
+sdk-python/src/daytona/v2/_sync/process.py
+  s_e26152c3e6ca81::t_717a38e0efaaae 62-67
+changelog.d/docs-reservations-get.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+sdk-go/process_handle.go
+  s_e26152c3e6ca81::t_45348eec7203e8 111-115
+changelog.d/docs-search-ordering.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+changelog.d/docs-default-image.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-pty-close-stdin.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-volume-ids.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_e26152c3e6ca81::t_717a38e0efaaae 679-681
+changelog.d/docs-fs-list-depth.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-persistence-lifecycle.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+changelog.d/docs-kill-interactive-shell.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+changelog.d/docs-fs-glob.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+changelog.d/docs-if-match.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+sdk-python/src/daytona/v2/process.py
+  s_e26152c3e6ca81::t_45348eec7203e8 412-417
+sdk-typescript/src/v2/Sandbox.ts
+  s_e26152c3e6ca81::t_45348eec7203e8 366-368
+changelog.d/docs-v0-import-guard.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-create-snapshot.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/cli-readme-lifecycle-deadlines.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+changelog.d/docs-build-context-region.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-computer-use-availability.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-docker-off.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-fs-upload-atomic.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-python-asyncio.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 393-395
+  s_e26152c3e6ca81::t_45348eec7203e8 392
+sdk-python/src/daytona/v2/sandbox.py
+  s_e26152c3e6ca81::t_45348eec7203e8 463-465
+changelog.d/cli-readme-units.changed.md
+  s_e26152c3e6ca81::t_eb0e1daa4681dc 1
+cli/README.md
+  s_e26152c3e6ca81::t_45348eec7203e8 359-360
+changelog.d/docs-capture-session-examples.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+changelog.d/docs-image-regions.changed.md
+  s_e26152c3e6ca81::t_f3e38e58eb7215 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8de81e0dc082e61b953d15e035b742a2838106ee",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

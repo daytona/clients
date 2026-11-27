@@ -1,0 +1,49 @@
+sdk-go/images_build.go
+  s_da52886f8bc83e::t_67d679227f726e 25
+  s_da52886f8bc83e::t_da0ca612d93a32 135
+  s_da52886f8bc83e::t_557a4801eabd44 19-24,27,138-140
+  s_da52886f8bc83e::t_52618c24b341db 26,54,61,150-152
+sdk-go/docker_boundary_test.go
+  s_da52886f8bc83e::t_505d49bfaaac2e 74
+sdk-go/image_resource_pull_deadline_test.go
+  s_da52886f8bc83e::t_67d679227f726e 33-36
+sdk-go/errors_response.go
+  s_da52886f8bc83e::t_505d49bfaaac2e 100
+sdk-go/read_retry_test.go
+  s_da52886f8bc83e::t_505d49bfaaac2e 86-89
+  s_da52886f8bc83e::t_bb63fe1ed53dfb 350-431
+  s_da52886f8bc83e::t_67d679227f726e 149-150
+sdk-go/README.md
+  s_da52886f8bc83e::t_d1fe566dd78662 213-223
+sdk-go/images_ready.go
+  s_da52886f8bc83e::t_da0ca612d93a32 28-32,120-135
+  s_da52886f8bc83e::t_f6bef62edc2aaf 27,136-137
+sdk-go/sandbox_lifecycle_fork_errors_test.go
+  s_da52886f8bc83e::t_505d49bfaaac2e 34,52-54,62-67
+sdk-go/docker_wait.go
+  s_da52886f8bc83e::t_00e632dd14a854 26-28
+  s_da52886f8bc83e::t_505d49bfaaac2e 65-66
+sdk-go/read_retry.go
+  s_da52886f8bc83e::t_505d49bfaaac2e 23-25,46,62-63,65,69-71
+  s_da52886f8bc83e::t_00e632dd14a854 15-16
+sdk-go/sandbox_wait.go
+  s_da52886f8bc83e::t_00e632dd14a854 27
+sdk-go/image_wait.go
+  s_da52886f8bc83e::t_00e632dd14a854 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd48d770a43326e84f36d2c4bb528dc3d7aaae55",
+  "prompts": {},
+  "sessions": {
+    "s_da52886f8bc83e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10c6fd9ffe74ldMAmv77mY9h",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

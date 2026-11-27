@@ -1,0 +1,19 @@
+sdk-go/pkg/daytona/object_storage_test.go
+  s_9f424cdd06a807::t_5c0057bb8dfbf6 497-500,502
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15a8ff24699452965813e0f528c3d08f548300ee",
+  "prompts": {},
+  "sessions": {
+    "s_9f424cdd06a807": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099c695a1ffeuN49eE4GhUz2KZ",
+        "model": "claude-fable-5"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

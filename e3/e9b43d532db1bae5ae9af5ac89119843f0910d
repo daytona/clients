@@ -1,0 +1,25 @@
+upgrade/MIGRATION.md
+  s_10fa96e9a2d7a2::t_5e9545d97229c5 87-88,92-93,99-100,107-108,238,247-248,252-253,285,294-295,299-300
+upgrade/python/src/daytona_upgrade/mapping.json
+  s_10fa96e9a2d7a2::t_5e9545d97229c5 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+upgrade/mapping/mapping.json
+  s_10fa96e9a2d7a2::t_4bf3c0ba7d1dbc 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+upgrade/typescript/src/mapping.json
+  s_10fa96e9a2d7a2::t_5e9545d97229c5 3818,3829,3855,3861,4033,4037,4058,4063,5012,5016,5226,5231,5253,5258,5357,5361,5381,5385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3e9b43d532db1bae5ae9af5ac89119843f0910d",
+  "prompts": {},
+  "sessions": {
+    "s_10fa96e9a2d7a2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8583a2cffeyYEmfi9LTedj0j",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+sdk-go/sandbox_get.go
+  s_d224a4b57159e6::t_6b63f892a2ebb5 120-123,128,135,146-161
+  s_d224a4b57159e6::t_ba6af1b0a5a815 162
+sdk-typescript/tests/config-validation.test.ts
+  s_d224a4b57159e6::t_68ec2192ed8521 14,104-144
+  s_d224a4b57159e6::t_2bf4b17f2d080a 81-87,95-96
+  s_d224a4b57159e6::t_d1cd2369dd7b13 145
+sdk-python/tests/test_config_validation.py
+  s_d224a4b57159e6::t_2bf4b17f2d080a 200,202-207,210-212,221-222
+  s_d224a4b57159e6::t_68ec2192ed8521 18,224-238,240-267
+  s_d224a4b57159e6::t_b79a61cce12e2b 125-140
+  s_d224a4b57159e6::t_2b52d776d353f6 239
+sdk-typescript/src/v2/toolboxUrl.ts
+  s_d224a4b57159e6::t_6b63f892a2ebb5 9,51-52,58-73,79-80,95
+changelog.d/sdk-toolbox-url-override.fixed.md
+  s_d224a4b57159e6::t_b79a61cce12e2b 2-12
+sdk-go/toolbox_url_validation_test.go
+  s_d224a4b57159e6::t_68ec2192ed8521 7,21,74-127
+  s_d224a4b57159e6::t_2bf4b17f2d080a 55-59,72-73
+sdk-python/src/daytona/v2/sandbox.py
+  s_d224a4b57159e6::t_d4e76a563fafde 2381-2393,2398-2401,2406,2412-2414,2430
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "93d78b322e9e718b894e48c00db6c07c9d35312c",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

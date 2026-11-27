@@ -1,0 +1,25 @@
+sdk-typescript/tests/unit.test.ts
+  s_d86ecc115dc312::t_80b96c1abec29b 5560-5582
+sdk-typescript/src/v2/Interpreter.ts
+  s_d86ecc115dc312::t_a401220830239b 428-432
+sdk-typescript/README.md
+  s_d86ecc115dc312::t_f2732df3e4e179 956-958
+changelog.d/ts-interpreter-context-dispose.added.md
+  s_d86ecc115dc312::t_a56adcb9b6e597 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4df156957fc85f5ff37aa2b9a500785a60f8d99e",
+  "prompts": {},
+  "sessions": {
+    "s_d86ecc115dc312": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defae85a6ffeTg1OSIytB17FCk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

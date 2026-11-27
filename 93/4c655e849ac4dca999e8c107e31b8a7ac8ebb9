@@ -1,0 +1,23 @@
+sdk-go/image.go
+  s_9d5be4f9a6d6f5::t_b43ccc47091f6f 92-93
+sdk-go/image_parse.go
+  s_9d5be4f9a6d6f5::t_b43ccc47091f6f 172-173
+sdk-go/image_r3_class_test.go
+  s_9d5be4f9a6d6f5::t_e2911d48d1dd06 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "934c655e849ac4dca999e8c107e31b8a7ac8ebb9",
+  "prompts": {},
+  "sessions": {
+    "s_9d5be4f9a6d6f5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627a881ffevh3tdxXoAWVj76",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

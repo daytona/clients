@@ -1,0 +1,25 @@
+sdk-go/exec_cubic_replay_test.go
+  s_a6afde9c610931::t_1423442db4828f 1-99,103-115,144
+  s_a6afde9c610931::t_f74f59d7cc3157 100-102,116-143
+sdk-go/exec_run.go
+  s_a6afde9c610931::t_e44d14f4116728 86,88-90,97
+sdk-go/process_logs.go
+  s_a6afde9c610931::t_f74f59d7cc3157 138-151
+  s_a6afde9c610931::t_e44d14f4116728 131-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b0b5da266f9db7f15c127d64c297818fc9725f3",
+  "prompts": {},
+  "sessions": {
+    "s_a6afde9c610931": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065df86dffew5nl7SNsNM92uX",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

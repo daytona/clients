@@ -1,0 +1,21 @@
+sdk-go/exec_stream.go
+  s_a6afde9c610931::t_e44d14f4116728 62-64
+sdk-go/exec_cubic_stream_test.go
+  s_a6afde9c610931::t_1423442db4828f 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "95e224d5ecec3600d60687f3a8ae5d3ee48c9061",
+  "prompts": {},
+  "sessions": {
+    "s_a6afde9c610931": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e065df86dffew5nl7SNsNM92uX",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

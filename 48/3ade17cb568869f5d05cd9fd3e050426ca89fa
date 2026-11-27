@@ -1,0 +1,16 @@
+package.json
+  h_e7759ddd73fa65 51
+yarn.lock
+  h_e7759ddd73fa65 3052-3054,3056-3058,3077-3079,3081,3083,3089-3090,4979,5021,5360-5366,5618,6795,7293-7301,8124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "483ade17cb568869f5d05cd9fd3e050426ca89fa",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

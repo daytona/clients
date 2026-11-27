@@ -1,0 +1,30 @@
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_0e395f21ff7e9c 17
+  s_e26152c3e6ca81::t_954e8a6f7e5410 9,12-16
+sdk-python/README.md
+  s_e26152c3e6ca81::t_954e8a6f7e5410 9-11,14-19,208
+upgrade/python/README.md
+  s_e26152c3e6ca81::t_ae2435ef4fb41e 16-18
+cli/README.md
+  s_e26152c3e6ca81::t_d659369dadf26d 21-23,26-27,41-42,47
+upgrade/typescript/README.md
+  s_e26152c3e6ca81::t_ae2435ef4fb41e 15-17
+SECURITY.md
+  s_e26152c3e6ca81::t_ae2435ef4fb41e 17,21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a30b750c434bb023eff3546ed8eb1772e2a9e6d",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

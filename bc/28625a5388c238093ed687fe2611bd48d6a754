@@ -1,0 +1,54 @@
+cli/cmd/orgkey.go
+  s_e26152c3e6ca81::t_82536e6179b8fe 25
+cli/cmd/sandbox_cp.go
+  s_e26152c3e6ca81::t_20c27aa6d3d50a 37
+cli/cmd/image.go
+  s_e26152c3e6ca81::t_b8100ec044cc35 44,46
+cli/cmd/sandbox_create.go
+  s_e26152c3e6ca81::t_b5505f6520bac3 78,159,207
+cli/cmd/sandbox_actions.go
+  s_e26152c3e6ca81::t_c40dfca680a4d2 247
+  s_e26152c3e6ca81::t_ea7829805953e2 258
+  s_e26152c3e6ca81::t_fdf9b486f14ffc 244-246,248-253
+cli/cmd/secret.go
+  s_e26152c3e6ca81::t_8eef540f427d84 39-40,102-103
+cli/README.md
+  s_e26152c3e6ca81::t_e0b1b6056ff7e2 90,103,356-357,380-383,433,468-474,530-532
+  s_e26152c3e6ca81::t_96128e4934a1ac 398-413
+  s_e26152c3e6ca81::t_d34e93ede55a42 26-27
+cli/cmd/key.go
+  s_e26152c3e6ca81::t_82536e6179b8fe 30
+cli/cmd/volume.go
+  s_e26152c3e6ca81::t_b8100ec044cc35 47-48,149
+cli/cmd/sandbox_search.go
+  s_e26152c3e6ca81::t_4f258f1d389da4 59-62,155,157-158,161
+  s_e26152c3e6ca81::t_a8b3814c683496 63
+cli/cmd/service_account.go
+  s_e26152c3e6ca81::t_82536e6179b8fe 50
+cli/cmd/snapshot.go
+  s_e26152c3e6ca81::t_b8100ec044cc35 129,131
+cli/cmd/reservation.go
+  s_e26152c3e6ca81::t_c4e03f1b5f7294 25
+cli/cmd/member.go
+  s_e26152c3e6ca81::t_82536e6179b8fe 102
+cli/cmd/sandbox_create_macos.go
+  s_e26152c3e6ca81::t_c4e03f1b5f7294 98
+cli/cmd/sandbox_create_macos_test.go
+  s_e26152c3e6ca81::t_18360e526282ee 74,92-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc28625a5388c238093ed687fe2611bd48d6a754",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

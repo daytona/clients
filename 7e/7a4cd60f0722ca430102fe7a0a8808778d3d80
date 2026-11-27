@@ -1,0 +1,45 @@
+sdk-go/fs.go
+  s_1c8257112609a8::t_a8ce07fc7405a6 13,42-49,142-149,153-162,165-166
+sdk-go/README.md
+  s_1c8257112609a8::t_3fc086e2c99693 212-219
+sdk-typescript/src/v2/index.ts
+  s_1c8257112609a8::t_d65ac906ee9d5f 26
+sdk-typescript/README.md
+  s_1c8257112609a8::t_3fc086e2c99693 751-756,900-905
+  s_1c8257112609a8::t_18e6c9ebbed95a 906
+sdk-go/fs_move_timeout_test.go
+  s_1c8257112609a8::t_3ff7e1dcaf37cc 1-79
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_1c8257112609a8::t_0365836186d7ac 105-118
+sdk-python/src/daytona/v2/filesystem.py
+  s_1c8257112609a8::t_6403ebb11a7356 40,42,607-626,628-631
+changelog.d/fs-move-timeout.added.md
+  s_1c8257112609a8::t_e4b794ebf6470f 1-7
+sdk-python/tests/test_filesystem_move_timeout.py
+  s_1c8257112609a8::t_8b15ef91773023 25-35,50-51,54-55,64-65,67,73-74,82
+  s_1c8257112609a8::t_962e25799b1e58 77-81,92-96
+  s_1c8257112609a8::t_f4786a6ec5872e 1-24,36-49,52-53,56-63,66,68-72,75-76,83-91,97-103
+sdk-typescript/src/v2/FileSystem.ts
+  s_1c8257112609a8::t_9fe3ba9b670832 31,128-136,165,455-466,469-474
+sdk-typescript/tests/filesystem-move-timeout.test.ts
+  s_1c8257112609a8::t_8f61bf291f40b7 1-80
+sdk-python/README.md
+  s_1c8257112609a8::t_65a42b7bd50eba 838-843,979-984
+  s_1c8257112609a8::t_d7b445acb57a0a 985
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e7a4cd60f0722ca430102fe7a0a8808778d3d80",
+  "prompts": {},
+  "sessions": {
+    "s_1c8257112609a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1bf4bd9ffeVE6HXMU1d1usNI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

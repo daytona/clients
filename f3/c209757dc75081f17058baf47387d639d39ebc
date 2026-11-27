@@ -1,0 +1,27 @@
+sdk-python/README.md
+  s_e26152c3e6ca81::t_0d21afcd716930 732-733
+sdk-python/src/daytona/v2/sandbox.py
+  s_e26152c3e6ca81::t_0d21afcd716930 1776-1777
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_0d21afcd716930 653-654
+sdk-typescript/src/v2/Sandbox.ts
+  s_e26152c3e6ca81::t_0d21afcd716930 1167-1168
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_e26152c3e6ca81::t_723018e9a5c539 142-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3c209757dc75081f17058baf47387d639d39ebc",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

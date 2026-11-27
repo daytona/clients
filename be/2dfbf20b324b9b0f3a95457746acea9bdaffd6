@@ -1,0 +1,106 @@
+sdk-python/src/daytona/v2/sandbox.py
+  s_e26152c3e6ca81::t_ec75d7efe12568 1765-1768
+  s_e26152c3e6ca81::t_8f8d341227f5ce 1352,1355-1356,1373-1377,1388-1389,1407-1408
+  s_e26152c3e6ca81::t_dc475b2a81a333 1353-1354,1404-1406
+  s_e26152c3e6ca81::t_82ffa1b3692bc4 1409
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_e26152c3e6ca81::t_5cb04947c117b1 136-141
+sdk-typescript/src/v2/types.ts
+  s_e26152c3e6ca81::t_8b134f7416aa26 291
+sdk-typescript/src/v2/Sandbox.ts
+  s_e26152c3e6ca81::t_8f8d341227f5ce 767,770,790,803-804,816,818-819
+  s_e26152c3e6ca81::t_dc475b2a81a333 768-769,788-789,817
+  s_e26152c3e6ca81::t_ec75d7efe12568 1155-1158
+sdk-typescript/src/v2/Images.ts
+  s_e26152c3e6ca81::t_2c0db514f1105b 42-48
+sdk-python/src/daytona/v2/process.py
+  s_e26152c3e6ca81::t_5cb04947c117b1 410-415
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_e26152c3e6ca81::t_5ba32e7b39bc2a 77,79-83,102-107
+sdk-python/src/daytona/v2/services.py
+  s_e26152c3e6ca81::t_24e6ff8f7f44d3 409-415
+  s_e26152c3e6ca81::t_f577c6b03acc49 942-946
+  s_e26152c3e6ca81::t_57509ad575b024 1191-1194
+README.md
+  s_e26152c3e6ca81::t_e5b11c507b0f3b 73-76
+sdk-python/README.md
+  s_e26152c3e6ca81::t_8cb82daf41ee96 957-958,1234-1238
+  s_e26152c3e6ca81::t_785545d50e4b8e 432-436
+  s_e26152c3e6ca81::t_22e2ec5c8cd5cb 721-724
+  s_e26152c3e6ca81::t_446058444b7613 1330-1337
+  s_e26152c3e6ca81::t_a338006dc1a5ae 82-85
+  s_e26152c3e6ca81::t_6b31a82c450f87 941,943-944,971-972
+  s_e26152c3e6ca81::t_8b134f7416aa26 558-561
+  s_e26152c3e6ca81::t_129d174e4a324a 1203-1205
+  s_e26152c3e6ca81::t_33a1d0b8afcc90 911-913,986-988
+  s_e26152c3e6ca81::t_33f065957351f6 725-726
+  s_e26152c3e6ca81::t_5cb04947c117b1 894-896,925
+  s_e26152c3e6ca81::t_382b2ceac087e0 1014,1027-1030,1073-1076,1101-1104,1135-1154
+  s_e26152c3e6ca81::t_27a5968e9200b3 247-249,251-253,266-267,271-275,680-685,702-704
+  s_e26152c3e6ca81::t_57509ad575b024 444-445,453-456,476-477
+  s_e26152c3e6ca81::t_0753e82b40d8c3 1173-1174
+  s_e26152c3e6ca81::t_f577c6b03acc49 481-498
+  s_e26152c3e6ca81::t_aef8f2cf386b26 1175
+  s_e26152c3e6ca81::t_e5257b87d1b661 1155,1338
+sdk-typescript/README.md
+  s_e26152c3e6ca81::t_22e2ec5c8cd5cb 642-645
+  s_e26152c3e6ca81::t_6b31a82c450f87 838-839,854,857,890-891
+  s_e26152c3e6ca81::t_0753e82b40d8c3 1098-1099
+  s_e26152c3e6ca81::t_57509ad575b024 388-391,412-413
+  s_e26152c3e6ca81::t_5cb04947c117b1 811-813
+  s_e26152c3e6ca81::t_382b2ceac087e0 933,950-953,1007-1010,1024-1027,1060-1079
+  s_e26152c3e6ca81::t_aef8f2cf386b26 1100
+  s_e26152c3e6ca81::t_27a5968e9200b3 162,164-167,218-222,612-617,623-625
+  s_e26152c3e6ca81::t_129d174e4a324a 1129-1131
+  s_e26152c3e6ca81::t_8b134f7416aa26 531-534
+  s_e26152c3e6ca81::t_446058444b7613 1222-1229
+  s_e26152c3e6ca81::t_f577c6b03acc49 462-479
+  s_e26152c3e6ca81::t_33f065957351f6 646-647
+  s_e26152c3e6ca81::t_785545d50e4b8e 373-377
+  s_e26152c3e6ca81::t_4941dd138cd033 140-145
+  s_e26152c3e6ca81::t_8cb82daf41ee96 871-873,1158-1161
+  s_e26152c3e6ca81::t_33a1d0b8afcc90 831-834,900-901
+  s_e26152c3e6ca81::t_c9d833d9482e7b 1080,1230
+sdk-python/src/daytona/v2/_sync/services.py
+  s_e26152c3e6ca81::t_5ba32e7b39bc2a 207-213,435-438,536-540
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_e26152c3e6ca81::t_5ba32e7b39bc2a 136-139,266-271,321-325,372-373,464-468
+sdk-typescript/src/v2/Reservations.ts
+  s_e26152c3e6ca81::t_f577c6b03acc49 155-159
+docs/adr/0001-sdk-parity.md
+  s_e26152c3e6ca81::t_945358e04999f4 36-39
+sdk-python/src/daytona/v2/_sync/process.py
+  s_e26152c3e6ca81::t_5ba32e7b39bc2a 60-65
+sdk-typescript/src/v2/Secret.ts
+  s_e26152c3e6ca81::t_57509ad575b024 35,45-48
+sdk-typescript/src/v2/accountTypes.ts
+  s_e26152c3e6ca81::t_da7e719635898f 85
+sdk-python/src/daytona/v2/types.py
+  s_e26152c3e6ca81::t_da7e719635898f 839
+  s_e26152c3e6ca81::t_57509ad575b024 661-662
+  s_e26152c3e6ca81::t_8b134f7416aa26 475
+sdk-go/fs_search.go
+  s_e26152c3e6ca81::t_192e55eb05e26f 47-48
+sdk-go/process_handle.go
+  s_e26152c3e6ca81::t_32dc9a9234f047 111
+sdk-python/src/daytona/v2/filesystem.py
+  s_e26152c3e6ca81::t_41be41767f9c17 574-579,639,641-645
+sdk-typescript/src/v2/FileSystem.ts
+  s_e26152c3e6ca81::t_eb2a1a7bdca792 413-417,695-700
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be2dfbf20b324b9b0f3a95457746acea9bdaffd6",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

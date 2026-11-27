@@ -1,0 +1,30 @@
+sdk-go/internal/dockerignore/pattern.go
+  s_1db28ee31433aa::t_b08d5ee869318b 17,50,86-104
+  s_1977b0a940b116::t_50fa3ae3500a40 105-106
+sdk-go/internal/dockerignore/utf8_test.go
+  s_1db28ee31433aa::t_f543d3f5bff74b 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "89e5c61027f96aad06212b519cb64a9aeacceec1",
+  "prompts": {},
+  "sessions": {
+    "s_1977b0a940b116": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06726c30ffevYDamQ3HFduaDw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_1db28ee31433aa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e067254bcffefoTPsv2qeXrqp3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

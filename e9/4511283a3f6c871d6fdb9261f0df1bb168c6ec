@@ -1,0 +1,30 @@
+sdk-go/internal/buildcontext/buildkit_test.go
+  s_039d407f899aa9::t_6d1c4b6281441d 15
+  s_039d407f899aa9::t_d7d6df13d301b1 1-14,16-69
+.github/workflows/sdk-go-ci.yaml
+  s_13d469ea31db97::t_49ba7bf5cb27a8 12,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e94511283a3f6c871d6fdb9261f0df1bb168c6ec",
+  "prompts": {},
+  "sessions": {
+    "s_039d407f899aa9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0649c269ffe3E2uz9XdL9LLkq",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_13d469ea31db97": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e064ac5afffeiJFAddBb12srCS",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

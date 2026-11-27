@@ -1,0 +1,21 @@
+sdk-go/volume.go
+  s_fc06a0558e5e14::t_431157f9038b39 116,148
+sdk-go/volume_whitespace_test.go
+  s_fc06a0558e5e14::t_cb65f0cd9c1e47 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d766c8e7ee5e531ca5f3f56783e41628144e530c",
+  "prompts": {},
+  "sessions": {
+    "s_fc06a0558e5e14": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0647f499ffeJ6Yw2fBkqDNdMu",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+sdk-go/events_iface.go
+  s_f3c35abb815091::t_38d74c1934b1b7 24
+sdk-go/internal/events/watch.go
+  s_f3c35abb815091::t_38d74c1934b1b7 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31aaec767cfca5d4fb8327ae383eb47428c4d3a7",
+  "prompts": {},
+  "sessions": {
+    "s_f3c35abb815091": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0589e913ffePrGqaUnM7te6IH",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

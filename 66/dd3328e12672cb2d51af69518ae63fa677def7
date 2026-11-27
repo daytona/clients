@@ -1,0 +1,23 @@
+sdk-go/interpreter_r3_contexts_test.go
+  s_173701f4a295bd::t_96a3aa1518434e 41
+  s_173701f4a295bd::t_eb68766e168cb2 44
+  s_173701f4a295bd::t_179afbe967b238 1-40,42-43,45-60
+sdk-go/interpreter_contexts.go
+  s_173701f4a295bd::t_c1305c48d577ab 25-26,52-55,62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66dd3328e12672cb2d51af69518ae63fa677def7",
+  "prompts": {},
+  "sessions": {
+    "s_173701f4a295bd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06274656ffeiwlTw95vAqe48z",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+sdk-go/sandbox_lifecycle_fork.go
+  s_36fb739d0bfc3e::t_5dbe9afed32595 79,81,83-86,92,95,162-169,171,187-193
+  s_36fb739d0bfc3e::t_872bd95a7fcc4f 194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69d10ba2eaba1addf36f8e10953ca643ca105e29",
+  "prompts": {},
+  "sessions": {
+    "s_36fb739d0bfc3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8aebfbfffenfIc2YZHjA9fdz",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

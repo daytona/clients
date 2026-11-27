@@ -1,0 +1,75 @@
+sdk-go/sandbox_wait_probe_schedule_test.go
+  s_0749e2112a6ab5::t_d2fb94092f9e84 1-94
+sdk-go/internal/events/socket.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 48,52,73,113-114,155,166
+sdk-go/internal/events/watch.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 1-35
+sdk-go/sandbox_wait.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 91,97
+  s_0749e2112a6ab5::t_ce18c937e84d5c 17,19-22,25-27
+sdk-go/events_test.go
+  s_0749e2112a6ab5::t_d22f0eb12abecd 57,94,118,128,178,182
+sdk-go/events_connect_test.go
+  s_0749e2112a6ab5::t_d22f0eb12abecd 96,125
+sdk-go/sandbox_wait_probe.go
+  s_0749e2112a6ab5::t_d22f0eb12abecd 65-66,70-75
+  s_0749e2112a6ab5::t_d2fb94092f9e84 76-82
+  s_0749e2112a6ab5::t_221002a59ad6f7 7,22,25,30-32,46-62
+  s_0749e2112a6ab5::t_ce18c937e84d5c 18-21,23-24,26-29,33-45,63-64
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 1-6,8-17,67-69,83
+sdk-go/sandbox_wait_retry_decisive_test.go
+  s_0749e2112a6ab5::t_ce18c937e84d5c 149
+sdk-go/sandbox_wait_helpers_test.go
+  s_0749e2112a6ab5::t_f9df7d73e20237 13,24
+  s_0749e2112a6ab5::t_d2fb94092f9e84 25,41-43
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 16-17,28-30,33-40,44-45
+  s_0749e2112a6ab5::t_5c553b5eb81420 21-23
+sdk-go/internal/events/watch_test.go
+  s_0749e2112a6ab5::t_812310abebcd28 1-97
+sdk-go/sandbox_wait_retry_after_test.go
+  s_0749e2112a6ab5::t_ce18c937e84d5c 64-67
+sdk-go/internal/events/hub.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 95,114-115,118,123,131,142-149,176
+sdk-go/sandbox_wait_events_test.go
+  s_0749e2112a6ab5::t_ce18c937e84d5c 109,126
+sdk-go/wait_options.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 37
+sdk-go/events_iface.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 9-10,25,30-31
+sdk-go/sandbox_wait_retry_policy_test.go
+  s_0749e2112a6ab5::t_ce18c937e84d5c 65
+sdk-go/sandbox_wait_probe_test.go
+  s_0749e2112a6ab5::t_f9df7d73e20237 1-48
+  s_0749e2112a6ab5::t_5e4e75c03afaa5 49-174
+sdk-go/sandbox_wait_retry_budget_test.go
+  s_0749e2112a6ab5::t_ce18c937e84d5c 46-50
+sdk-go/sandbox_wait_events.go
+  s_0749e2112a6ab5::t_ce18c937e84d5c 25,38,51
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 13-15,17,39-42,49-50
+  s_0749e2112a6ab5::t_221002a59ad6f7 23,54-58
+sdk-go/events_states_test.go
+  s_0749e2112a6ab5::t_d2fb94092f9e84 65
+  s_0749e2112a6ab5::t_913df89f84aa7a 73-74
+sdk-go/sandbox_wait_probe_contract_test.go
+  s_0749e2112a6ab5::t_5e4e75c03afaa5 1-35
+sdk-go/DEVELOPMENT.md
+  s_0749e2112a6ab5::t_ce18c937e84d5c 215-230
+sdk-go/events.go
+  s_0749e2112a6ab5::t_9ef4389d25ccd9 54-56,58,67,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb2398ae2a81108122c116696176e62edef1f2ea",
+  "prompts": {},
+  "sessions": {
+    "s_0749e2112a6ab5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05aebc5dffevuS7ZU8IrwTuIT",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

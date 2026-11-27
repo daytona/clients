@@ -1,0 +1,21 @@
+sdk-go/sandbox_volumes_test.go
+  s_30fd999cbefaac::t_1b10dfa7717320 41,73
+sdk-go/sandbox_volumes.go
+  s_30fd999cbefaac::t_36056104d9c354 64,66,69,76,96,115,118,122,126,129,133,146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae1accf102f4b3e94f10d0a7868e85bb615b1bb8",
+  "prompts": {},
+  "sessions": {
+    "s_30fd999cbefaac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06064bf5ffePamsvXL0slHL3S",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,74 @@
+sdk-go/run_code_output.go
+  s_426c2be5d96cec::t_69f151249ea3f2 45,47,50-79
+  s_426c2be5d96cec::t_9f47162c7868aa 1-44,46,48-49,80-114
+sdk-go/run_code.go
+  s_426c2be5d96cec::t_69f151249ea3f2 127,141-156
+  s_426c2be5d96cec::t_e81618d0698ad4 1-126,128-140,157
+sdk-go/interpreter_queue_test.go
+  s_426c2be5d96cec::t_386e56b0d461f7 68
+  s_426c2be5d96cec::t_cec341197f06ab 1-67,69-191
+sdk-go/sandbox.go
+  s_03bbfffc72be27::t_f488e230a1a70a 25
+sdk-go/interpreter_contexts.go
+  s_426c2be5d96cec::t_cc22e5a552966b 1-144
+sdk-go/run_code_test.go
+  s_426c2be5d96cec::t_3fb122cd3c8e5d 1-17,19-130,132-144
+  s_426c2be5d96cec::t_41fe699588f671 18,131
+sdk-go/interpreter_output.go
+  s_426c2be5d96cec::t_e4a218866272f5 9,119-132
+  s_426c2be5d96cec::t_69f151249ea3f2 23,26-27
+  s_426c2be5d96cec::t_e81618d0698ad4 1-8,10-14,16-17,19-20,22,25,28-30,33-35,44,52-72,75-118,133-137
+  s_426c2be5d96cec::t_9f47162c7868aa 15,18,21,24,31-32,73-74
+  s_426c2be5d96cec::t_dd54e47380c926 36-43,45-51
+sdk-go/interpreter_models.go
+  s_426c2be5d96cec::t_cc22e5a552966b 1-117
+sdk-go/interpreter.go
+  s_426c2be5d96cec::t_cc22e5a552966b 1-73
+sdk-go/run_code_timeout_test.go
+  s_426c2be5d96cec::t_a62c2271f98ab8 1-125
+sdk-go/run_code_stream_test.go
+  s_426c2be5d96cec::t_ff9653aa9b9ef1 1-143
+sdk-go/run_code_execution.go
+  s_426c2be5d96cec::t_e81618d0698ad4 1-123
+sdk-go/interpreter_queue.go
+  s_426c2be5d96cec::t_cc22e5a552966b 1-95
+sdk-go/interpreter_test.go
+  s_426c2be5d96cec::t_3fb122cd3c8e5d 1-17,19-149
+  s_426c2be5d96cec::t_41fe699588f671 18
+sdk-go/run_code_collect.go
+  s_426c2be5d96cec::t_7dbdc5199b3b25 1-67,69-94,96-97,99-102,104-108,110
+  s_426c2be5d96cec::t_06c9e2d2d1630b 68,95,98,103,109
+sdk-go/run_code_results_test.go
+  s_426c2be5d96cec::t_41fe699588f671 59-72
+  s_426c2be5d96cec::t_e4a218866272f5 127-132,141-154
+  s_426c2be5d96cec::t_445b2d8cbdb870 1-58,73-126
+  s_426c2be5d96cec::t_45b24013646ffc 133-140
+sdk-go/interpreter_queue_lifecycle_test.go
+  s_426c2be5d96cec::t_663f1fc457b296 1-110
+sdk-go/run_code_stream_timeout_test.go
+  s_426c2be5d96cec::t_663f1fc457b296 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "043e6366ef956b3e958e25578888feace5f88eb4",
+  "prompts": {},
+  "sessions": {
+    "s_03bbfffc72be27": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b45ebdffeD5eM7maR04dhP3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_426c2be5d96cec": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b35525ffe1TFRQ8jhkNucOK",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

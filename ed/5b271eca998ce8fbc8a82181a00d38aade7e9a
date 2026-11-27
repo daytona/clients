@@ -1,0 +1,21 @@
+.github/workflows/e2e.yaml
+  s_12257b84f26bcc::t_d7f6801a7e4421 3,59,71-75
+e2e/run.sh
+  s_12257b84f26bcc::t_f72cfdafd97c3a 5,8,11,44-48,53,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed5b271eca998ce8fbc8a82181a00d38aade7e9a",
+  "prompts": {},
+  "sessions": {
+    "s_12257b84f26bcc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0bc23f8fffee5n5QPBYTIanIM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

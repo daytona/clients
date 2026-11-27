@@ -1,0 +1,21 @@
+sdk-go/capture.go
+  s_508be20ad0811c::t_ff18e60ab717ff 58
+sdk-go/capture_validation_test.go
+  s_508be20ad0811c::t_e07ed7d0c2fbc1 8,50-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "074e4491d23545dbb7d9732ffa2b0a7167efd0c6",
+  "prompts": {},
+  "sessions": {
+    "s_508be20ad0811c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05f1818fffeZKyTxIH5Evq5cp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

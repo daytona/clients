@@ -1,0 +1,23 @@
+sdk-python/src/daytona/v2/_pages.py
+  s_d86ecc115dc312::t_f4d7d1df0a88cb 59-70,75,84-85
+AGENTS.md
+  s_d86ecc115dc312::t_a9db7593a04f7c 925
+sdk-python/tests/test_iter_pages.py
+  s_d86ecc115dc312::t_6c21cbf6b209a3 11,205-210,316-356
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c53ce34ac1d630ef05c3c47f264d4de4a82a89a",
+  "prompts": {},
+  "sessions": {
+    "s_d86ecc115dc312": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defae85a6ffeTg1OSIytB17FCk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

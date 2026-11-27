@@ -1,0 +1,19 @@
+changelog.d/745-cli-blank-arguments.breaking.md
+  s_680d0d36c83fce::t_b40d5908e81fb6 9-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f73d8a3b9755281c985b88db367628201efaf1ef",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

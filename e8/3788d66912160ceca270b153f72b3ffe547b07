@@ -1,0 +1,38 @@
+AGENTS.md
+  h_e7759ddd73fa65 283
+changelog.d/v0-pin-0-234-0.changed.md
+  h_e7759ddd73fa65 1-5
+scripts/check-no-bundled-v0.sh
+  h_e7759ddd73fa65 49
+scripts/v0-sdk-version
+  h_e7759ddd73fa65 1-2
+sdk-python/DEVELOPMENT.md
+  h_e7759ddd73fa65 69
+sdk-python/tests/test_root_client.py
+  h_e7759ddd73fa65 1031,1056
+sdk-typescript/DEVELOPMENT.md
+  h_e7759ddd73fa65 161
+sdk-typescript/src/Daytona.ts
+  h_e7759ddd73fa65 281
+sdk-typescript/src/v0-unbundled.ts
+  h_e7759ddd73fa65 25
+upgrade/mapping/mapping.json
+  h_e7759ddd73fa65 7
+upgrade/python/DEVELOPMENT.md
+  h_e7759ddd73fa65 184
+upgrade/python/src/daytona_upgrade/mapping.json
+  h_e7759ddd73fa65 7
+upgrade/typescript/src/mapping.json
+  h_e7759ddd73fa65 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e83788d66912160ceca270b153f72b3ffe547b07",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

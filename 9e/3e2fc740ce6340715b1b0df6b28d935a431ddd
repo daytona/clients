@@ -1,0 +1,32 @@
+sdk-go/sandbox_policy_options.go
+  s_97e4bb3f1cc114::t_90a3eca5d13380 37-40,42-45,60-73
+  s_97e4bb3f1cc114::t_cb3edb1c9f78e3 1-36,41,46-59,74-94
+sdk-go/sandbox_policy.go
+  s_97e4bb3f1cc114::t_90a3eca5d13380 33-34
+  s_97e4bb3f1cc114::t_cb3edb1c9f78e3 1-32,35-40,44-56,60-70,84-115
+  s_97e4bb3f1cc114::t_84f37e54a94412 41-43,57-59,71-83
+sdk-go/sandbox_policy_reset_test.go
+  s_97e4bb3f1cc114::t_7530efe353b0c7 1-85,89,92-107,109,111-130
+  s_97e4bb3f1cc114::t_8249d9f4c7bdc9 86-88,90-91,108,110
+sdk-go/sandbox_policy_test.go
+  s_97e4bb3f1cc114::t_8249d9f4c7bdc9 18,20,60,63-66,68-70,112,144
+  s_97e4bb3f1cc114::t_7530efe353b0c7 1-17,19,21-59,61-62,67,71-96,99-104,111,113-143,145-148,150,152-156
+  s_97e4bb3f1cc114::t_a23f7f703d2ff2 149,151
+  s_97e4bb3f1cc114::t_17337334f74295 97-98,105-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e3e2fc740ce6340715b1b0df6b28d935a431ddd",
+  "prompts": {},
+  "sessions": {
+    "s_97e4bb3f1cc114": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b39971ffeQiPSwMK8g6sf53",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

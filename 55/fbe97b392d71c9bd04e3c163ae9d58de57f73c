@@ -1,0 +1,19 @@
+sdk-go/internal/gen/api/models.gen.go
+  s_67b025aa04a837::t_93c1f71966c506 4060-4062,4420,4449,5259-5264,5280-5281,5283-5287,5333-5334,5339-5342,5345-5347,5950-5951,6652-6653,6656-6657,6660-6661,6792-6795,6800-6802,6805-6807,6878-6880
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55fbe97b392d71c9bd04e3c163ae9d58de57f73c",
+  "prompts": {},
+  "sessions": {
+    "s_67b025aa04a837": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b6ce9abffekDqT9J4gZ3HKlb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

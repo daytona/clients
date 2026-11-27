@@ -1,0 +1,16 @@
+sdk-python/src/daytona/v2/errors.py
+  h_e7759ddd73fa65 251-252
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  h_e7759ddd73fa65 372-373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1b8aaa12aad5040e2f17ccf3fd0491d3c7821272",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

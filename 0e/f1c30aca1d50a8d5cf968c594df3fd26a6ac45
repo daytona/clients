@@ -1,0 +1,39 @@
+examples/README.md
+  s_e26152c3e6ca81::t_ec26d38c1a07e6 74
+examples/python/git_ops.py
+  s_e26152c3e6ca81::t_11c82091936a1d 5-8
+examples/python/images.py
+  s_e26152c3e6ca81::t_e730b70337153b 13-16,25,27-28,33-36,50-73,77,80-84,110-115
+examples/python/test_examples.py
+  s_e26152c3e6ca81::t_b7bba4ff8e765e 110-113,188-191,253-256,259-261,565,572-607
+examples/python/volumes.py
+  s_e26152c3e6ca81::t_bcd5ad932419f0 10-15
+examples/run-examples.sh
+  s_e26152c3e6ca81::t_e92d6d598b6e99 12
+examples/typescript/examples.test.ts
+  s_e26152c3e6ca81::t_e0864d83000596 45,349-366
+examples/typescript/git/index.ts
+  s_e26152c3e6ca81::t_db16f949cbf19f 5-8
+examples/typescript/images/index.ts
+  s_e26152c3e6ca81::t_1afd6a472b15df 7-10,17,19-22,34-58,62,65-69,96-101
+examples/typescript/test-support/fake-sdk.ts
+  s_e26152c3e6ca81::t_602fd658a4b985 56-59,102,309-312,323,337-340
+examples/typescript/volumes/index.ts
+  s_e26152c3e6ca81::t_6ac68de977a8b3 9-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0ef1c30aca1d50a8d5cf968c594df3fd26a6ac45",
+  "prompts": {},
+  "sessions": {
+    "s_e26152c3e6ca81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f73027ffe43wpC9lj4toFxe",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

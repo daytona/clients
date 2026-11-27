@@ -1,0 +1,31 @@
+sdk-go/process_control_test.go
+  s_30fd999cbefaac::t_73300bfb14e5d5 92
+sdk-go/run_code.go
+  s_30fd999cbefaac::t_dca2ce693885d3 158
+sdk-go/interpreter.go
+  s_30fd999cbefaac::t_dca2ce693885d3 50-53
+sdk-go/session_test.go
+  s_30fd999cbefaac::t_73300bfb14e5d5 28
+sdk-go/interpreter_test.go
+  s_30fd999cbefaac::t_73300bfb14e5d5 88
+sdk-go/process_handle.go
+  s_30fd999cbefaac::t_dca2ce693885d3 69-72
+sdk-go/session.go
+  s_30fd999cbefaac::t_dca2ce693885d3 85-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9558aa596d9db672c53aba209693f9c8f4f0df3c",
+  "prompts": {},
+  "sessions": {
+    "s_30fd999cbefaac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06064bf5ffePamsvXL0slHL3S",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

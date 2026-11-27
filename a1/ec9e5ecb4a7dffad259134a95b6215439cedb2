@@ -1,0 +1,26 @@
+sdk-go/computer_use_r3_test.go
+  s_21d896b854cf75::t_eb733ee61d7882 1-7,9-15,17-31,33-75
+  s_21d896b854cf75::t_538ebc1c858dcb 8,16,32
+sdk-go/computer_use_decode.go
+  s_21d896b854cf75::t_46b1f258c45bde 67-70
+sdk-go/computer_use_screen.go
+  s_21d896b854cf75::t_46b1f258c45bde 106
+sdk-go/computer_use_display.go
+  s_21d896b854cf75::t_46b1f258c45bde 57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a1ec9e5ecb4a7dffad259134a95b6215439cedb2",
+  "prompts": {},
+  "sessions": {
+    "s_21d896b854cf75": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0626f16bffeTAenfoWJZ0lCrH",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

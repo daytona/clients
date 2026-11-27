@@ -1,0 +1,23 @@
+cli/cmd/search_first_test.go
+  s_5890c3fcaf315b::t_89386e0cd88765 219-244
+sdk-python/README.md
+  s_5890c3fcaf315b::t_88d68b496ff8f5 542-545
+sdk-typescript/README.md
+  s_5890c3fcaf315b::t_066ab9f2ac7831 514-516
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fbf2d1b04c9a7b0a639d5556d6ceaa1e52f890a1",
+  "prompts": {},
+  "sessions": {
+    "s_5890c3fcaf315b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7aca8cbffeVSjS728694YrB3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

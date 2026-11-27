@@ -1,0 +1,19 @@
+changelog.d/758-policy-update-validation.fixed.md
+  s_10fa96e9a2d7a2::t_4bf3c0ba7d1dbc 1-2,5-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3fb7f03016b4b8a0f391db52f67d443388220823",
+  "prompts": {},
+  "sessions": {
+    "s_10fa96e9a2d7a2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de8583a2cffeyYEmfi9LTedj0j",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

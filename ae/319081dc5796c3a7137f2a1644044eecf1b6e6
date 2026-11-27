@@ -1,0 +1,82 @@
+sdk-typescript/src/v2/clientCreate.ts
+  s_2dc132768e1011::t_4bedddfc5da2a3 84-86
+  s_2dc132768e1011::t_69b2b582392516 102
+sdk-typescript/tests/linux-persistent.test.ts
+  s_2dc132768e1011::t_f66f9fa41c3270 149-161
+  s_2dc132768e1011::t_bdb006f538d218 136
+  s_2dc132768e1011::t_65c9c94fd2f94c 162-166,173
+  s_d999daaefd2648::t_48e4220196f51a 67
+  s_2dc132768e1011::t_3df62e9635fcef 1-7,9-30,49-58,62-66,82-91,94-95,98-111,114-135,137-148,167-172,174-181
+  s_d999daaefd2648::t_2e35908c45cf74 33-39,41,43-48
+  s_2dc132768e1011::t_756b1108ffb5ef 182-195
+  s_2dc132768e1011::t_6abfa1f8591477 59,68-81
+  s_d999daaefd2648::t_b3f80177ccfadf 32
+  s_2dc132768e1011::t_b94d21d86eee83 60-61
+  s_d999daaefd2648::t_a7bf7bef8230ee 31,40,42
+  s_2dc132768e1011::t_ce6714e14034d7 8,92-93,96-97,112-113
+sdk-typescript/src/v2/clientCreateRequests.ts
+  s_2dc132768e1011::t_062ea69458e02d 102
+  s_2dc132768e1011::t_4bedddfc5da2a3 39
+  s_2dc132768e1011::t_69b2b582392516 40,64,81,156
+  s_d999daaefd2648::t_82f0ae1f3c43dc 91
+sdk-typescript/src/v2/http.ts
+  s_2dc132768e1011::t_bdb006f538d218 16,2301,2316
+  s_2dc132768e1011::t_69b2b582392516 2296-2297,2321,2323
+sdk-typescript/tests/null-options.test.ts
+  s_2dc132768e1011::t_69b2b582392516 18
+sdk-typescript/tests/lifecycle-policy-reads.test.ts
+  s_2dc132768e1011::t_dd271289fdd478 10-13
+sdk-typescript/src/v2/Sandbox.ts
+  s_2dc132768e1011::t_1c62f326549904 1056-1057
+  s_2dc132768e1011::t_5c74351ea43aa0 1054-1055
+  s_2dc132768e1011::t_452b8e31c720d0 927-931
+  s_2dc132768e1011::t_de0fa6e74502f3 856,872
+  s_2dc132768e1011::t_bdb006f538d218 1058-1059
+  s_2dc132768e1011::t_062ea69458e02d 904
+  s_2dc132768e1011::t_7abef1fa0fe264 33,874-878,1157-1161,1180-1183
+  s_2dc132768e1011::t_cc5a56ca22d313 1060-1065
+  s_d999daaefd2648::t_b8a2c11cb4fb4b 589-591
+sdk-typescript/tests/unit.test.ts
+  s_2dc132768e1011::t_f66f9fa41c3270 10623
+  s_2dc132768e1011::t_4156a0d183093b 1650
+sdk-typescript/src/v2/sandboxTransitionRetry.ts
+  s_2dc132768e1011::t_7abef1fa0fe264 1-33,35-54
+  s_2dc132768e1011::t_dcc296133d09ed 34
+sdk-typescript/tests/sandbox-transition-retry.test.ts
+  s_2dc132768e1011::t_de0fa6e74502f3 134
+  s_2dc132768e1011::t_6abfa1f8591477 129-133,135-140,142,184
+  s_2dc132768e1011::t_a787c6e37dde5a 1-10,12-13,15-17,19-128,185-188,191-193
+  s_2dc132768e1011::t_7ff7acbc36b7d3 141
+  s_2dc132768e1011::t_4bac3a2c1e91c0 145-158
+  s_2dc132768e1011::t_ac306cf68e0b73 164
+  s_2dc132768e1011::t_efafb1b49106df 14,162,189-190
+  s_2dc132768e1011::t_7cefa380f3d57b 11,18,143-144,159-161,163,165-183
+sdk-typescript/src/v2/types.ts
+  s_2dc132768e1011::t_69b2b582392516 338-339,501-502
+sdk-typescript/src/v2/clientOptionKeys.ts
+  s_2dc132768e1011::t_69b2b582392516 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae319081dc5796c3a7137f2a1644044eecf1b6e6",
+  "prompts": {},
+  "sessions": {
+    "s_2dc132768e1011": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb99667bffehkd5X8W02I8Kf2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_d999daaefd2648": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb9a07e2ffevnirtQoEG2Ylur",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+sdk-go/secret.go
+  s_1db28ee31433aa::t_af75a21478efea 98-99
+  s_1db28ee31433aa::t_ec9f3ba5c99d34 60,96-97
+sdk-go/volume.go
+  s_1db28ee31433aa::t_ec9f3ba5c99d34 69,127
+sdk-go/volume_model.go
+  s_1db28ee31433aa::t_ec9f3ba5c99d34 154,156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "30830a65514809d17d5c925740a37badcf1abdc6",
+  "prompts": {},
+  "sessions": {
+    "s_1db28ee31433aa": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e067254bcffefoTPsv2qeXrqp3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

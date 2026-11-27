@@ -1,0 +1,20 @@
+sdk-go/create_from_build_test.go
+  s_b5788db0bcfac8::t_8076ce0e866bd0 136-137,139,141-145,147-151,158-160,163-170
+  s_b5788db0bcfac8::t_e8ed871f7385e6 138,146,156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "946b346a1daeade66c7b70a02d12860ba681cb38",
+  "prompts": {},
+  "sessions": {
+    "s_b5788db0bcfac8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defaefaf0ffed9xI1aKFESdygL",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

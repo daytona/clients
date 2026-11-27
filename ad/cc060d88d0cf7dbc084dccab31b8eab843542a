@@ -1,0 +1,40 @@
+sdk-go/sandbox_volumes.go
+  s_36c6457251413e::t_f4433bb5c1c530 65-69,99-112
+  s_36c6457251413e::t_4d611203fc0686 62-64
+  s_36c6457251413e::t_38939441de6bc9 1-61,70-98,113-147
+sdk-go/sandbox_volumes_test.go
+  s_36c6457251413e::t_ae153946e54201 36
+  s_36c6457251413e::t_fb6dfc4d1dc0e1 1-31,33-35,37-49,51,54-55,58-86,90-132
+  s_29ea5c3bed31ea::t_fe1909a3017424 50,56-57
+  s_36c6457251413e::t_b935a1bd780262 52-53,87-89
+  s_36c6457251413e::t_d58d2145cf0dd0 32
+sdk-go/sandbox_volumes_example_test.go
+  s_36c6457251413e::t_f4433bb5c1c530 20,23-24
+  s_36c6457251413e::t_b935a1bd780262 17-19,26-28,31-33
+  s_36c6457251413e::t_b64d8ad5447e6c 1-16,25,29-30,34-35
+  s_36c6457251413e::t_4d611203fc0686 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "adcc060d88d0cf7dbc084dccab31b8eab843542a",
+  "prompts": {},
+  "sessions": {
+    "s_29ea5c3bed31ea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b45dfdffe4ZMJBVHgLMeDuZ",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_36c6457251413e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b391aaffe8F4kYHSlEe7o85",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+changelog.d/iter-page-cursor.added.md
+  s_d86ecc115dc312::t_2e0eb81263a39e 1-5
+AGENTS.md
+  s_d86ecc115dc312::t_4427b0d35b4b2a 919-926
+changelog.d/python-async-watch-yield.fixed.md
+  s_d86ecc115dc312::t_2e0eb81263a39e 1-4
+changelog.d/python-sync-watch-stop.fixed.md
+  s_d86ecc115dc312::t_2e0eb81263a39e 6
+changelog.d/iter-page-retries.added.md
+  s_d86ecc115dc312::t_2e0eb81263a39e 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17280ca2e3882c37608d8b8ebf3d044ff545a821",
+  "prompts": {},
+  "sessions": {
+    "s_d86ecc115dc312": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_defae85a6ffeTg1OSIytB17FCk",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+changelog.d/cli-catalog-output.added.md
+  s_680d0d36c83fce::t_9624e977142df6 1-8
+cli/cmd/catalog.go
+  s_680d0d36c83fce::t_aabfc156d3b02b 10,121-123,144-145,147,150-160,165,169-171,176-185,388-426
+  s_680d0d36c83fce::t_738ecb6e502e45 427
+cli/cmd/region.go
+  s_680d0d36c83fce::t_aabfc156d3b02b 9,11,17,46,54-55,58-67,73-74,81-99
+  s_680d0d36c83fce::t_bb04626d2fc7df 100
+cli/cmd/sandbox_logs.go
+  s_680d0d36c83fce::t_aabfc156d3b02b 89,93-97,300-320
+  s_680d0d36c83fce::t_9f5ede8443012d 321-322
+cli/cmd/catalog_test.go
+  s_680d0d36c83fce::t_0c8ae1e4903d6f 221-230,264,279-281,299,394
+cli/cmd/catalog_output_test.go
+  s_680d0d36c83fce::t_ea56f35d0a836c 1-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "312b78616dfddad92ff04ba87f2fa8011d5a0eaf",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

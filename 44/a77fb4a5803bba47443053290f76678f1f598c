@@ -1,0 +1,21 @@
+sdk-python/tests/test_transfer_cancel.py
+  s_24803b7d9359b3::t_579b57a933fce7 224,234-242,244,246-247
+  s_24803b7d9359b3::t_3899c11350b441 113-124
+  s_24803b7d9359b3::t_07a69153b7260d 112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "44a77fb4a5803bba47443053290f76678f1f598c",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

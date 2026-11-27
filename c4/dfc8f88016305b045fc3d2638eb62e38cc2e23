@@ -1,0 +1,26 @@
+sdk-go/README.md
+  h_e7759ddd73fa65 153-155
+sdk-go/doc.go
+  h_e7759ddd73fa65 59-60
+sdk-go/errors.go
+  h_e7759ddd73fa65 30-32
+sdk-go/page.go
+  h_e7759ddd73fa65 87,90
+sdk-go/page_query_limit_test.go
+  h_e7759ddd73fa65 1-28
+sdk-go/reservation_create.go
+  h_e7759ddd73fa65 86
+sdk-go/session_run.go
+  h_e7759ddd73fa65 19-20,31-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4dfc8f88016305b045fc3d2638eb62e38cc2e23",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

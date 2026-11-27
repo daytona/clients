@@ -1,0 +1,23 @@
+changelog.d/secret-volume-search-first.changed.md
+  s_5890c3fcaf315b::t_8b47586dc0b7af 2-3
+changelog.d/secret-volume-search-name.changed.md
+  s_5890c3fcaf315b::t_bc096244db839d 1,4-5
+changelog.d/secret-volume-search.added.md
+  s_5890c3fcaf315b::t_c7bf0628b894f4 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ce8531d3764290387e2d949c653d0bcb185a0ac",
+  "prompts": {},
+  "sessions": {
+    "s_5890c3fcaf315b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7aca8cbffeVSjS728694YrB3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+sdk-go/toolbox_url_validation_test.go
+  s_d224a4b57159e6::t_71b9e1af6db4ea 133-152
+sdk-go/sandbox_get.go
+  s_d224a4b57159e6::t_71b9e1af6db4ea 141-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7cd8b834066bf494db519e671f06af4f445973f6",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

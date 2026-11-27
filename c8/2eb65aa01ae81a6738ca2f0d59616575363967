@@ -1,0 +1,22 @@
+.github/workflows/sdk_publish.yaml
+  h_e7759ddd73fa65 22,39-41,111,211-214,248-250
+PUBLISHING.md
+  h_e7759ddd73fa65 93
+api-client/project.json
+  h_e7759ddd73fa65 49
+sdk-typescript/project.json
+  h_e7759ddd73fa65 123
+toolbox-api-client/project.json
+  h_e7759ddd73fa65 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c82eb65aa01ae81a6738ca2f0d59616575363967",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

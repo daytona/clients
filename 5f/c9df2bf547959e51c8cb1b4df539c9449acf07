@@ -1,0 +1,16 @@
+sdk-go/ports.go
+  h_e7759ddd73fa65 22-24,58-60,107-124
+sdk-go/ports_no_toolbox_test.go
+  h_e7759ddd73fa65 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5fc9df2bf547959e51c8cb1b4df539c9449acf07",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

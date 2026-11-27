@@ -1,0 +1,16 @@
+changelog.d/616-cli-org-limits.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/616-unreturned-limits.changed.md
+  h_e7759ddd73fa65 2-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55dd54752f374b06c86ae6fcbdd5ea6ff3802656",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

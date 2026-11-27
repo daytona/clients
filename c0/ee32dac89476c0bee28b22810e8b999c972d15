@@ -1,0 +1,19 @@
+sdk-python/src/daytona/v2/_transfer_cancel.py
+  s_24803b7d9359b3::t_b27fe5deacffc4 73-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0ee32dac89476c0bee28b22810e8b999c972d15",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

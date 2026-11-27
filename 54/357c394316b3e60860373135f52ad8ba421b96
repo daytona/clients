@@ -1,0 +1,32 @@
+cli/cmd/blank_args_test.go
+  s_680d0d36c83fce::t_00653fb3a991a9 19-20,94-97,100-102
+  s_680d0d36c83fce::t_1074f18420a493 1-18,21-39,41-71,87-93,98-99,103-112
+  s_680d0d36c83fce::t_fb3c28c42b4c25 40,72-86
+cli/cmd/usage_errors.go
+  s_680d0d36c83fce::t_aabfc156d3b02b 16-17,30-62,65-77
+cli/internal/input/input.go
+  s_680d0d36c83fce::t_d85e527b751237 77
+  s_680d0d36c83fce::t_aabfc156d3b02b 12,16,46,49-50,52-54,56,59-76,78,172-175,180-194
+changelog.d/cli-local-argument-checks.fixed.md
+  s_680d0d36c83fce::t_9624e977142df6 1-9
+cli/internal/input/input_test.go
+  s_680d0d36c83fce::t_d357aef09f0b5c 206-209
+  s_680d0d36c83fce::t_a6cadcee544f86 174-200,202-205,210-221
+  s_680d0d36c83fce::t_94fdb1d55afe2c 201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "54357c394316b3e60860373135f52ad8ba421b96",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

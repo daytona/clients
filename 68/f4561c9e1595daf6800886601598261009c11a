@@ -1,0 +1,21 @@
+cli/internal/input/input_test.go
+  s_680d0d36c83fce::t_2c5a30abd4ea04 235-244
+cli/internal/input/input.go
+  s_680d0d36c83fce::t_5aad70bd3ea0bd 18,256-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68f4561c9e1595daf6800886601598261009c11a",
+  "prompts": {},
+  "sessions": {
+    "s_680d0d36c83fce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df10b1074ffeuPrKxT73K9WLAp",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

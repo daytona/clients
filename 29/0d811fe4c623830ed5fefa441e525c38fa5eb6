@@ -1,0 +1,51 @@
+sdk-go/sandbox_lifecycle_start.go
+  s_bd8e772cc63f66::t_b64b2ca0ede09e 16-17
+sdk-python/src/daytona/v2/sandbox.py
+  s_bd8e772cc63f66::t_b64b2ca0ede09e 1003-1010,1180-1182,1202-1207,1327-1328,1334-1336,1359-1360,1427-1428
+changelog.d/joined-start-failure.fixed.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 3-6
+sdk-typescript/src/v2/Sandbox.ts
+  s_bd8e772cc63f66::t_b64b2ca0ede09e 718-720,791-793,1137-1138
+changelog.d/sandbox-wait-target-revalidation.fixed.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 4-6
+sdk-python/DEVELOPMENT.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 161-170
+sdk-python/README.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 1146-1147,1151-1154
+sdk-typescript/README.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 1070-1077
+sdk-python/tests/test_wait_target_revalidation.py
+  s_bd8e772cc63f66::t_972775718eb849 357-375
+sdk-go/sandbox_wait_revalidation_test.go
+  s_bd8e772cc63f66::t_234ac94ab3910d 318-340
+sdk-typescript/tests/wait-target-revalidation.test.ts
+  s_bd8e772cc63f66::t_234ac94ab3910d 232-245
+sdk-go/sandbox_wait_events.go
+  s_bd8e772cc63f66::t_b64b2ca0ede09e 137-139,176-177
+AGENTS.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 979-992
+sdk-go/sandbox_lifecycle.go
+  s_bd8e772cc63f66::t_419937c1d5cf68 19-20
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_bd8e772cc63f66::t_972775718eb849 309-310,448-449,542-543,549-551
+sdk-typescript/src/v2/sandboxWait.ts
+  s_bd8e772cc63f66::t_b64b2ca0ede09e 230-233,253-254,256-257
+sdk-go/README.md
+  s_bd8e772cc63f66::t_419937c1d5cf68 207-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "290d811fe4c623830ed5fefa441e525c38fa5eb6",
+  "prompts": {},
+  "sessions": {
+    "s_bd8e772cc63f66": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a41a73ffeI1UxOH6bGD07IM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

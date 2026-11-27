@@ -1,0 +1,63 @@
+sdk-go/README.md
+  s_d999daaefd2648::t_fc03ba3ea81900 76-77,81-82
+  s_fb683fe2b3df34::t_2454bd06183cd2 72-75,78-80,83-88,209,217-221
+  s_cac027eeb4a33c::t_3cd57eca43fd52 222
+sdk-python/README.md
+  s_cac027eeb4a33c::t_2e61c2da904ec0 663-667,673-675,677
+  s_cac027eeb4a33c::t_1cb7b25f53927c 1166-1170
+  s_cac027eeb4a33c::t_f4e1ee753834c3 670-672
+  s_d999daaefd2648::t_e6505da0844d59 668-669
+  s_cac027eeb4a33c::t_06b71b444d8957 1171
+changelog.d/linux-persistent-sandboxes.added.md
+  s_d999daaefd2648::t_6b65984874e1a4 1-4
+changelog.d/sandbox-transition-retries.changed.md
+  s_d999daaefd2648::t_6b65984874e1a4 1-4
+sdk-typescript/README.md
+  s_2dc132768e1011::t_80926bbe58c92e 1048-1053,1057-1072,1103-1107
+  s_2dc132768e1011::t_b849bfdd8f992d 1054-1056
+  s_2dc132768e1011::t_0b00a9bc936a3b 1108
+sdk-typescript/src/v2/types.ts
+  s_d999daaefd2648::t_c78531c83f89a0 501-508
+cli/README.md
+  s_d999daaefd2648::t_6b65984874e1a4 96,123-138,306-308,527-531,672
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a1f8f244f15f33aa41645cf38cc007a7eb2040d8",
+  "prompts": {},
+  "sessions": {
+    "s_2dc132768e1011": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb99667bffehkd5X8W02I8Kf2",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_cac027eeb4a33c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb994b93ffeKpfbNO60RqOETX",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_d999daaefd2648": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb9a07e2ffevnirtQoEG2Ylur",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_fb683fe2b3df34": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_deb992f5fffe4JbMV0Dn0Q2BZ3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

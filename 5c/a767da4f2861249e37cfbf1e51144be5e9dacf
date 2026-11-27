@@ -1,0 +1,30 @@
+sdk-typescript/runtime-tests/nextjs/stub-api.js
+  s_10413bdfe4b841::t_bbe5b73bbbced2 7,11,22-24
+sdk-typescript/runtime-tests/nextjs/app/api/create/route.ts
+  s_10413bdfe4b841::t_bbe5b73bbbced2 17-19,24
+sdk-typescript/runtime-tests/esbuild-cjs/isolated.ts
+  s_10413bdfe4b841::t_d91f5302ec7e80 12,15-16,20-21
+sdk-typescript/runtime-tests/nextjs/run.sh
+  s_10413bdfe4b841::t_bbe5b73bbbced2 14,20-34,43,50-66,68-70,78-79,92,95-96,99-100,105-106
+sdk-typescript/runtime-tests/nextjs/app/api/otel/route.ts
+  s_10413bdfe4b841::t_88ef6340ec5f75 20-22
+  s_10413bdfe4b841::t_bbe5b73bbbced2 8-11,13-18
+sdk-typescript/runtime-tests/nextjs/app/api/sandboxes/route.ts
+  s_10413bdfe4b841::t_bbe5b73bbbced2 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ca767da4f2861249e37cfbf1e51144be5e9dacf",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

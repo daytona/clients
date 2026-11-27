@@ -1,0 +1,21 @@
+sdk-go/exec.go
+  s_1977b0a940b116::t_ab374b52d03723 28,30-31
+sdk-go/session_run.go
+  s_1977b0a940b116::t_ab374b52d03723 33-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6afdd34c7d29ef8f6c7695a2ba121d291643f7e2",
+  "prompts": {},
+  "sessions": {
+    "s_1977b0a940b116": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06726c30ffevYDamQ3HFduaDw",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

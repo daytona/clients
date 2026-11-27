@@ -1,0 +1,35 @@
+sdk-go/fs.go
+  s_8ddc3f7076678c::t_3c53ef1c4339fe 1-79,83-93,97-154,158
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 82,94-96,155-157
+  s_8ddc3f7076678c::t_4a649a000a4320 80-81
+sdk-go/fs_search.go
+  s_8ddc3f7076678c::t_3c53ef1c4339fe 1-21,25-59,63-101,103,106-108
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 22-24,60-62,102,104-105
+sdk-go/fs_search_test.go
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 76-78
+  s_8ddc3f7076678c::t_63af091a75f9b7 1-75,79-87
+sdk-go/fs_parse.go
+  s_8ddc3f7076678c::t_d20ec23a12ab5e 32-33,130-131
+  s_8ddc3f7076678c::t_3c53ef1c4339fe 1-31,34-129,132-134
+sdk-go/fs_test.go
+  s_8ddc3f7076678c::t_26c8a46e74b9f3 21,77,80,82-89,91-102,104-113,116-117
+  s_8ddc3f7076678c::t_63af091a75f9b7 1-20,22-76,78-79,81,90,103,114-115,118-169
+sdk-go/fs_models.go
+  s_8ddc3f7076678c::t_3c53ef1c4339fe 1-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd14782670acc9a611cc9bd803c54d59a06e5082",
+  "prompts": {},
+  "sessions": {
+    "s_8ddc3f7076678c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06b47cdcffebUAXlziizykrvb",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

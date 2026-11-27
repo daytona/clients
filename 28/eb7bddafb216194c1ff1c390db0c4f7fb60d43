@@ -1,0 +1,32 @@
+changelog.d/758-policy-update-validation.fixed.md
+  h_e7759ddd73fa65 5-7
+cli/cmd/sandbox_transition.go
+  h_e7759ddd73fa65 48-51
+sdk-go/sandbox_lifecycle.go
+  h_e7759ddd73fa65 22
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 670-671
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 465-466
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 366-367
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 87-88,99-100,238,285
+upgrade/mapping/mapping.json
+  h_e7759ddd73fa65 3818,3829,3855,3861,5012,5016
+upgrade/python/src/daytona_upgrade/mapping.json
+  h_e7759ddd73fa65 3818,3829,3855,3861,5012,5016
+upgrade/typescript/src/mapping.json
+  h_e7759ddd73fa65 3818,3829,3855,3861,5012,5016
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28eb7bddafb216194c1ff1c390db0c4f7fb60d43",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

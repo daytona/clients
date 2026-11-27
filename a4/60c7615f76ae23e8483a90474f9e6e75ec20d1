@@ -1,0 +1,25 @@
+changelog.d/process-wait-rounds.fixed.md
+  s_1c8257112609a8::t_b2a91777924217 5-17
+AGENTS.md
+  s_1c8257112609a8::t_b2a91777924217 597-598,760
+  s_1c8257112609a8::t_fa6ce6bf32c801 761-762
+sdk-go/README.md
+  s_1c8257112609a8::t_b2a91777924217 213-214,222
+  s_1c8257112609a8::t_66150017c4beec 223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a460c7615f76ae23e8483a90474f9e6e75ec20d1",
+  "prompts": {},
+  "sessions": {
+    "s_1c8257112609a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1bf4bd9ffeVE6HXMU1d1usNI",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

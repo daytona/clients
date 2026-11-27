@@ -1,0 +1,22 @@
+sdk-go/computer_use_recording_r6_test.go
+  s_a9b305409642a4::t_8744f82da60773 25,30
+  s_a9b305409642a4::t_5adb82a26d2583 1-24,26-29,31-36
+sdk-go/computer_use_recording.go
+  s_a9b305409642a4::t_940fc34153c42d 129,149-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "915d3fad83501e5f454095919d071f00d7169964",
+  "prompts": {},
+  "sessions": {
+    "s_a9b305409642a4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05b8e83dffehe8r03371NDtJc",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

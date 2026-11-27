@@ -1,0 +1,73 @@
+sdk-go/sandbox_wait_events.go
+  s_bd8e772cc63f66::t_48ce85e8222877 136-138,163-166,169-172
+changelog.d/sandbox-wait-target-revalidation.fixed.md
+  s_bd8e772cc63f66::t_938462ed5cc74e 1-6
+sdk-typescript/tests/unit.test.ts
+  s_bd8e772cc63f66::t_0c37d4fbb8b485 8884-8887,8939-8942
+sdk-go/sandbox_wait_events_test.go
+  s_bd8e772cc63f66::t_76a5548516ed85 68-70,77-79,92-93,95-97
+sdk-typescript/src/v2/sandboxWait.ts
+  s_bd8e772cc63f66::t_3b40956da54100 164,166
+  s_bd8e772cc63f66::t_cdfe8e1d973bdc 225-250
+  s_bd8e772cc63f66::t_5764b2187d90b8 18
+sdk-typescript/src/v2/Sandbox.ts
+  s_bd8e772cc63f66::t_5764b2187d90b8 53,715-718,765-768,805-819
+  s_bd8e772cc63f66::t_0541c3d2cc382e 1131-1135
+sdk-python/tests/test_wait_target_revalidation.py
+  s_bd8e772cc63f66::t_5d3a0a272a34e2 211,213-217,220-222,229
+  s_bd8e772cc63f66::t_be208bde212abd 1-123,127-175,181-210,212,218-219,223-228,230-232,234-288
+  s_bd8e772cc63f66::t_5f0804e6f8d936 124-126,176-180
+  s_bd8e772cc63f66::t_4270201f1c5d45 233
+sdk-python/src/daytona/v2/sandbox.py
+  s_bd8e772cc63f66::t_b243d3d029da36 1431-1433
+  s_bd8e772cc63f66::t_de333b887468d4 1422-1426,1430,1434-1436
+  s_bd8e772cc63f66::t_7ef05470840d40 155
+  s_bd8e772cc63f66::t_df10ceaba97d45 1379-1382
+  s_bd8e772cc63f66::t_dff33f822d4008 1427-1429
+  s_bd8e772cc63f66::t_d768552eb293e8 1001-1004
+  s_bd8e772cc63f66::t_f903f6509aa867 1313-1317
+  s_bd8e772cc63f66::t_66ff4bf91a2c64 1177-1203
+  s_bd8e772cc63f66::t_1c987796421276 1335-1339
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_bd8e772cc63f66::t_685fd2acb307b1 361-375,443-447,544-548
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_bd8e772cc63f66::t_a683b41e6b4370 573,578-580
+sdk-go/README.md
+  s_bd8e772cc63f66::t_54cb817738a293 205-212
+sdk-typescript/README.md
+  s_bd8e772cc63f66::t_54cb817738a293 726-729,1067-1075
+AGENTS.md
+  s_bd8e772cc63f66::t_e719748f469b2b 978-985
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  s_bd8e772cc63f66::t_ba3177e3f81000 48-50,54-56
+sdk-go/sandbox_lifecycle_start.go
+  s_bd8e772cc63f66::t_48ce85e8222877 14-16,67-70,75
+sdk-python/DEVELOPMENT.md
+  s_bd8e772cc63f66::t_e719748f469b2b 161-162
+sdk-go/sandbox_wait_revalidation_test.go
+  s_bd8e772cc63f66::t_25e7bc38047a78 136
+  s_bd8e772cc63f66::t_dfc36086b34224 1-135,137-229
+sdk-typescript/tests/wait-target-revalidation.test.ts
+  s_bd8e772cc63f66::t_acdf11b70222e5 80
+  s_bd8e772cc63f66::t_7acd13abffffc0 1-79,81-198
+sdk-python/README.md
+  s_bd8e772cc63f66::t_54cb817738a293 812-815,1146-1152
+changelog.d/joined-start-failure.fixed.md
+  s_bd8e772cc63f66::t_938462ed5cc74e 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a4fb979b498c733cb33303dc0b7607a98b270268",
+  "prompts": {},
+  "sessions": {
+    "s_bd8e772cc63f66": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df1a41a73ffeI1UxOH6bGD07IM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

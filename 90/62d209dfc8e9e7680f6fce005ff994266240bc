@@ -1,0 +1,26 @@
+sdk-go/fs_search.go
+  s_6ed1a2ce5cbb1b::t_b74089eb0ae3ec 39,62,77
+sdk-go/fs_parse.go
+  s_6ed1a2ce5cbb1b::t_b74089eb0ae3ec 59-60,65,68,95,132,141
+sdk-go/fs_r5_test.go
+  s_6ed1a2ce5cbb1b::t_da00fa11e7e566 38-39,43-44,46-47,51-52
+  s_6ed1a2ce5cbb1b::t_45727fab14e264 1-7,9-17,19-36,40-42,48-50,53-57,59-65,67-78
+  s_6ed1a2ce5cbb1b::t_42edf30972f085 8,18,58,66
+  s_6ed1a2ce5cbb1b::t_4300e6a40cb8a9 37,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9062d209dfc8e9e7680f6fce005ff994266240bc",
+  "prompts": {},
+  "sessions": {
+    "s_6ed1a2ce5cbb1b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e05d91afdffe1LDDJz7Fxj51HP",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

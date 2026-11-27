@@ -1,0 +1,19 @@
+sdk-python/tests/test_interpreter_shutdown.py
+  s_24803b7d9359b3::t_1e703b952783b8 28,343-360
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "553f4c6c2a5c89f0455dc8b8cdfeb7fb12081a13",
+  "prompts": {},
+  "sessions": {
+    "s_24803b7d9359b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f942eafferBjSw4O8XqyRPf",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

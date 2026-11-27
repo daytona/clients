@@ -1,0 +1,29 @@
+sdk-python/src/daytona/v2/sandbox.py
+  s_d224a4b57159e6::t_1bfcf2d1fd3eb5 2390-2392,2394-2396
+sdk-python/tests/test_config_validation.py
+  s_d224a4b57159e6::t_1bfcf2d1fd3eb5 229-230,254
+sdk-typescript/src/v2/toolboxUrl.ts
+  s_d224a4b57159e6::t_1bfcf2d1fd3eb5 71-73,76
+sdk-typescript/tests/config-validation.test.ts
+  s_d224a4b57159e6::t_1bfcf2d1fd3eb5 108-109,133-134
+sdk-go/toolbox_url_validation_test.go
+  s_d224a4b57159e6::t_1bfcf2d1fd3eb5 80-81,106
+changelog.d/sdk-toolbox-url-override.breaking.md
+  s_d224a4b57159e6::t_0681ae7d95de58 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6193c97f7913eaf65b2a65408afa6e544bf88992",
+  "prompts": {},
+  "sessions": {
+    "s_d224a4b57159e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df06612d5ffe6tLc2hWebvOoRG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

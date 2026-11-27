@@ -1,0 +1,22 @@
+sdk-go/fs_parse_r3_test.go
+  s_e5793a77dcc993::t_59c6a017bccdf2 1-29
+sdk-go/fs_parse.go
+  s_e5793a77dcc993::t_f7b6131c64b26c 22-28
+  s_e5793a77dcc993::t_83e4c03745f806 18-21,30,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ac26421d22a4b685d3619a5e6729da0d38f5944",
+  "prompts": {},
+  "sessions": {
+    "s_e5793a77dcc993": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0627a9b8ffechPxzfK61AgYe0",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

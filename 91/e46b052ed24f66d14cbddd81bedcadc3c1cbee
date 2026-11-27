@@ -1,0 +1,22 @@
+scripts/sdk-version.sh
+  s_709742e8671045::t_01f56fa1fee411 19-24,41,78,82-84,98-110
+scripts/sdk-version_test.sh
+  s_709742e8671045::t_01f56fa1fee411 38,70-92,96-98
+  s_709742e8671045::t_2c14e2ce5b60a2 93-95,99-100,123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91e46b052ed24f66d14cbddd81bedcadc3c1cbee",
+  "prompts": {},
+  "sessions": {
+    "s_709742e8671045": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e06cbdc56ffe1Cgtov2NZVaw5r",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

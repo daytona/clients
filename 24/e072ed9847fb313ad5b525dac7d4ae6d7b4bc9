@@ -1,0 +1,39 @@
+changelog.d/secret-volume-search.added.md
+  s_13dc1dfef3c825::t_193d045ab7b47e 1-3
+changelog.d/secret-volume-search-name.breaking.md
+  s_13dc1dfef3c825::t_193d045ab7b47e 1-3
+changelog.d/secret-volume-search-first.changed.md
+  s_13dc1dfef3c825::t_193d045ab7b47e 1-7
+cli/gen/api/types.gen.go
+  s_9f5179767e23c5::t_6cec2c5f72bc68 6397-6399,6402,6408,6411,6414
+contract/api-openapi.json
+  s_9f5179767e23c5::t_de2bd217c116ba 9292-9294,9296-9306,9308,30714
+sdk-python/src/daytona/v2/_gen/api/models/secret_search_list_item.py
+  s_9f5179767e23c5::t_875d06e137b060 38-42,45,116-117
+sdk-typescript/src/v2/gen/api.ts
+  s_9f5179767e23c5::t_4b24cf5ab0004f 7164,19700
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24e072ed9847fb313ad5b525dac7d4ae6d7b4bc9",
+  "prompts": {},
+  "sessions": {
+    "s_13dc1dfef3c825": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b4d9187ffe82XBcuic15esKW",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    },
+    "s_9f5179767e23c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0c0c34b2ffeZhmepWHNxNSdfx",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}

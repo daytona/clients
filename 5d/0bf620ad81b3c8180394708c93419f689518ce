@@ -1,0 +1,19 @@
+changelog.d/watch-error-event.fixed.md
+  s_7991759a9fd4ac::t_aacf456448fd59 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d0bf620ad81b3c8180394708c93419f689518ce",
+  "prompts": {},
+  "sessions": {
+    "s_7991759a9fd4ac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7871be4ffeAuAtRvQ03RAuaM",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}

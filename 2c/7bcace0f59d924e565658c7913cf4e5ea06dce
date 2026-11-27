@@ -1,0 +1,21 @@
+e2e/e2e.py
+  s_5890c3fcaf315b::t_08be321d661c69 30,99-109,181-182
+e2e/e2e.ts
+  s_5890c3fcaf315b::t_cd87c280282314 39-49,131-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c7bcace0f59d924e565658c7913cf4e5ea06dce",
+  "prompts": {},
+  "sessions": {
+    "s_5890c3fcaf315b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df7aca8cbffeVSjS728694YrB3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Fabjan Vucina <fabjanvucina@gmail.com>"
+    }
+  }
+}
