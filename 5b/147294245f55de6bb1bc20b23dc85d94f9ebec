@@ -1,0 +1,24 @@
+sdk-go/network_policy_upstream_proxy_test.go
+  s_0d8c2fb2924e84::t_db55fdd03cc9d3 22-36
+  s_0d8c2fb2924e84::t_993ec083e112f2 1-21,37-144
+sdk-typescript/tests/networkPolicyUpstreamProxy.test.ts
+  s_0d8c2fb2924e84::t_2abd405ec7b703 1-141
+sdk-python/tests/test_network_policy_upstream_proxy.py
+  s_0d8c2fb2924e84::t_1ad5cc4cc53fcb 1-46,48-51,53-95,97-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5b147294245f55de6bb1bc20b23dc85d94f9ebec",
+  "prompts": {},
+  "sessions": {
+    "s_0d8c2fb2924e84": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "47f2147d-9cd7-4d78-9d00-3f11a27ce41f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Tpuljak <toma.puljak@hotmail.com>"
+    }
+  }
+}
