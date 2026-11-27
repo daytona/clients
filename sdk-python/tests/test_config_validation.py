@@ -8,6 +8,7 @@ toolbox URL override is an http(s) URL. The TypeScript twin is
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any, Callable
 
 import pytest
@@ -54,6 +55,40 @@ def test_another_daytona_config_class_is_named_in_full() -> None:
     with pytest.raises(BadRequestError) as error:
         Daytona(DaytonaConfigV2(api_key="key"))  # type: ignore[arg-type]
     _assert_bad_request(error, "config must be a DaytonaConfig, got daytona.v2.types.DaytonaConfig")
+
+
+def test_assigning_a_misspelled_field_raises_with_a_hint() -> None:
+    config = DaytonaConfig(api_key="key")
+    with pytest.raises(AttributeError, match=r"no field 'request_timout'; did you mean 'request_timeout'\?"):
+        config.request_timout = 5  # type: ignore[attr-defined]
+    assert not hasattr(config, "request_timout")
+
+
+def test_assigning_an_unknown_name_without_a_close_field_raises() -> None:
+    config = DaytonaConfig()
+    with pytest.raises(AttributeError) as error:
+        config.zzz = 1  # type: ignore[attr-defined]
+    assert str(error.value) == "DaytonaConfig has no field 'zzz'"
+
+
+def test_assigning_a_real_field_works() -> None:
+    config = DaytonaConfig(api_key="key")
+    config.request_timeout = 5
+    config.shared_hub = False
+    assert (config.request_timeout, config.shared_hub) == (5, False)
+
+
+def test_a_subclass_may_assign_its_own_dataclass_fields() -> None:
+    @dataclasses.dataclass(kw_only=True)
+    class TeamConfig(DaytonaConfig):
+        team: str = "default"
+
+    config = TeamConfig(api_key="key", team="a")
+    config.team = "b"
+    config.request_timeout = 3
+    assert (config.team, config.request_timeout) == ("b", 3)
+    with pytest.raises(AttributeError, match="did you mean 'team'"):
+        config.taem = "c"  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize("events", ["x", {"enabled": False}, 5])

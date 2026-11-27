@@ -12,6 +12,7 @@ imports v0 code. The root has no resource methods.
 
 from __future__ import annotations
 
+import difflib
 import functools
 import importlib
 import os
@@ -270,6 +271,13 @@ _REMOVED_URL_FIELDS: Final = ("api_url", "server_url", "toolbox_url")
 def _config_setattr(self: DaytonaConfig, name: str, value: object) -> None:
     if name in _REMOVED_URL_FIELDS:
         raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+    # A misspelled field (`cfg.request_timout = 5`) would otherwise be kept as
+    # a plain attribute that no client reads. Fields of a subclass are allowed.
+    known = [config_field.name for config_field in fields(type(self))]
+    if name not in known:
+        hint = difflib.get_close_matches(name, known, n=1)
+        suggestion = f"; did you mean {hint[0]!r}?" if hint else ""
+        raise AttributeError(f"DaytonaConfig has no field {name!r}{suggestion}", name=name, obj=self)
     object.__setattr__(self, name, value)
 
 
