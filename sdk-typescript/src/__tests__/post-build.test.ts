@@ -206,19 +206,19 @@ describe('post-build published dependencies', () => {
 })
 
 describe('post-build ESM Node loaders', () => {
-  const nodeLoaders = `import * as fs from 'fs';\nimport * as expandTilde from 'expand-tilde';\nexport const nodeLoaders = {\n    fs: () => fs,\n    'expand-tilde': () => expandTilde,\n    tar: () => import('tar'),\n};\n`
+  const nodeLoaders = `import * as fs from 'fs';\nimport { createRequire } from 'module';\nexport const nodeLoaders = {\n    fs: () => fs,\n    tinyglobby: () => createRequire(__filename)('tinyglobby'),\n};\nexport const nodeImporters = { tar: () => import('tar') };\n`
   const importer = `import { nodeLoaders } from './NodeLoaders.js';\nexport const l = () => require('stream')\n`
 
-  it('publishes the loaders unchanged, with their static imports and literal import() calls', () => {
+  it('publishes the loaders with createRequire pointed at import.meta.url', () => {
     const { read } = runPostBuild({ 'utils/NodeLoaders.js': nodeLoaders, 'utils/Import.js': importer })
 
-    expect(read('utils/NodeLoaders.js')).toBe(nodeLoaders)
+    expect(read('utils/NodeLoaders.js')).toBe(nodeLoaders.replace('__filename', 'import.meta.url'))
   })
 
   it('fails the build when the loaders call require, which Next.js webpack builds do not trace', () => {
     expect(() =>
       runPostBuild({
-        'utils/NodeLoaders.js': `export const nodeLoaders = { fs: () => require('fs') };\n`,
+        'utils/NodeLoaders.js': `export const nodeLoaders = { fs: () => require('fs'), f: __filename };\n`,
         'utils/Import.js': importer,
       }),
     ).toThrow()
@@ -229,7 +229,7 @@ describe('post-build ESM Node loaders', () => {
 
     expect(read('utils/Import.js')).toContain(`import { nodeLoaders } from '#node-loaders';`)
     expect(read('utils/Import.js')).not.toContain('./NodeLoaders.js')
-    expect(read('utils/NodeLoaders.stub.js')).toBe('export const nodeLoaders = {};\n')
+    expect(read('utils/NodeLoaders.stub.js')).toBe('export const nodeLoaders = {};\nexport const nodeImporters = {};\n')
     expect(JSON.parse(fs.readFileSync(path.join(esmDir, 'package.json'), 'utf8'))).toEqual({
       type: 'module',
       imports: {

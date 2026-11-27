@@ -5,7 +5,7 @@
 
 const mockNodeLoaders: Partial<Record<string, () => unknown>> = {}
 
-jest.mock('../utils/NodeLoaders', () => ({ nodeLoaders: mockNodeLoaders }))
+jest.mock('../utils/NodeLoaders', () => ({ nodeLoaders: mockNodeLoaders, nodeImporters: {} }))
 
 const mockRequireUntraced = jest.fn()
 jest.mock('../utils/UntracedRequire', () => ({ requireUntraced: (id: string) => mockRequireUntraced(id) }))

@@ -48,15 +48,73 @@ describe('requireUntraced', () => {
     })
   })
 
-  it('explains the requirement when the runtime has no process.getBuiltinModule', () => {
-    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue(undefined as never)
+  // createRequire rejecting a base is skipped; the same error code from the package itself is
+  // the package's own failure and must not be reported as a missing package.
+  it('reports an ERR_INVALID_* error thrown while the package loads', () => {
+    const packageError = Object.assign(new TypeError('bad argument inside the package'), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    })
+    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue({
+      createRequire: () => () => {
+        throw packageError
+      },
+    } as never)
     try {
-      expect(() => requireUntraced('@opentelemetry/api')).toThrow(
-        'The "@opentelemetry/api" package can only be loaded in Node.js 20.16, 22.3 or later, Bun or Deno.',
-      )
+      expect(() => requireUntraced('@opentelemetry/api')).toThrow(packageError)
     } finally {
       spy.mockRestore()
     }
+  })
+
+  it('skips a base that createRequire rejects', () => {
+    let calls = 0
+    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue({
+      createRequire: (base: string) => {
+        calls++
+        if (calls === 1) throw Object.assign(new TypeError(`invalid base ${base}`), { code: 'ERR_INVALID_ARG_VALUE' })
+        return () => 'loaded'
+      },
+    } as never)
+    try {
+      expect(requireUntraced('@opentelemetry/api')).toBe('loaded')
+      expect(calls).toBe(2)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('falls back to the module API from require without process.getBuiltinModule', () => {
+    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue(undefined as never)
+    try {
+      expect(requireUntraced('@opentelemetry/api')).toBe(require('@opentelemetry/api'))
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('explains the requirement when the module API is unavailable', () => {
+    jest.isolateModules(() => {
+      jest.doMock('module', () => {
+        throw new Error('no module API')
+      })
+      const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue(undefined as never)
+      try {
+        const { requireUntraced: load } = require('../utils/UntracedRequire')
+        expect(() => load('@opentelemetry/api')).toThrow(
+          'The "@opentelemetry/api" package can only be loaded in Node.js 20.16, 22.3 or later, Bun or Deno, ' +
+            'or with the CommonJS build of @daytona/sdk.',
+        )
+      } finally {
+        spy.mockRestore()
+        jest.dontMock('module')
+      }
+    })
+  })
+
+  // The README documents the same include for Next.js standalone output.
+  it('documents every glob in the README', () => {
+    const readme = fs.readFileSync(path.resolve(__dirname, '..', '..', 'README.md'), 'utf8')
+    for (const glob of OTEL_OUTPUT_FILE_TRACING_GLOBS) expect(readme).toContain(`'${glob}',`)
   })
 
   // Next.js does not trace the dependencies of included files, so the globs must name every

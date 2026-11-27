@@ -8,20 +8,12 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 
+// The local-file helpers run first, before any await, while the importing module is still
+// evaluating: they must not depend on a module the SDK is still loading in the background.
 module.exports = async function check({ Daytona, Image }) {
   const image = Image.base('alpine').env({ FOO: 'bar' })
   if (!image.dockerfile.includes('FROM alpine')) throw new Error('Image.base failed')
   if (!image.dockerfile.includes('ENV FOO')) throw new Error('Image.env failed')
-
-  const daytona = new Daytona()
-  const iter = daytona.list()
-  if (typeof iter[Symbol.asyncIterator] !== 'function') {
-    throw new Error('list() did not return an async iterator')
-  }
-  const first = await iter.next()
-  if (typeof first !== 'object' || !('done' in first)) {
-    throw new Error('list() iterator did not yield a valid result')
-  }
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-webpack-cjs-'))
   try {
@@ -47,6 +39,16 @@ module.exports = async function check({ Daytona, Image }) {
     if (!withDir.dockerfile.includes('/app/src')) throw new Error('addLocalDir failed')
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
+  }
+
+  const daytona = new Daytona()
+  const iter = daytona.list()
+  if (typeof iter[Symbol.asyncIterator] !== 'function') {
+    throw new Error('list() did not return an async iterator')
+  }
+  const first = await iter.next()
+  if (typeof first !== 'object' || !('done' in first)) {
+    throw new Error('list() iterator did not yield a valid result')
   }
 
   console.log('PASS')

@@ -42,8 +42,8 @@ The orchestrator iterates every subdirectory that contains a `run.sh`, packs the
 | `remix` | `remix vite:build` + `remix-serve` + `curl` | Production Remix server |
 | `cloudflare-workers` | `wrangler dev --local` + `curl` | Real `workerd` (Cloudflare's actual Workers runtime) |
 | `aws-lambda` | `esbuild` bundle + [`lambda-local`](https://github.com/ashiina/lambda-local) (real Lambda event/context shapes, env vars, timeout) | Lambda emulator |
-| `esbuild-cjs` | `esbuild` bundle (`--platform=node --format=cjs`) + `node` runs the bundle and exercises `dynamicRequire`, then runs a second bundle from a directory without `node_modules`: the local-file helpers work and `otelEnabled` explains the missing OpenTelemetry packages | Node.js |
-| `webpack-cjs` | `webpack --mode production --target node` bundles a CommonJS `require` entry and an ESM `import` entry (the ESM build must bundle with no webpack warnings) + `node` runs both bundles, also from a directory without `node_modules`, and exercises `Image.fromDockerfile` with a COPY glob | Node.js |
+| `esbuild-cjs` | `esbuild` bundle (`--platform=node --format=cjs`) + `node` runs the bundle and exercises `dynamicRequire`, then runs a second bundle from a directory without `node_modules`: the local-file helpers work (except COPY globs, which need `tinyglobby`'s CommonJS entry and so the CommonJS build of the SDK there) and `otelEnabled` names the missing `@opentelemetry/api` | Node.js |
+| `webpack-cjs` | `webpack --mode production --target node` bundles a CommonJS `require` entry and an ESM `import` entry (the ESM build must bundle with no webpack warnings; the config leaves `ws`'s optional native add-ons external, as `ws` documents) + `node` runs both bundles, also from a directory without `node_modules`, and exercises `Image.fromDockerfile` with a COPY glob before the first `await` | Node.js |
 | `azure-functions` | `func start` (Azure Functions Core Tools host) + `curl` | Real Functions host |
 
 ## Required external tools

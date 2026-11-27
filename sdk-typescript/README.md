@@ -242,9 +242,11 @@ const sandboxes = await Array.fromAsync(daytona.list()) // Node.js 22+
 
 ## OpenTelemetry and bundled apps
 
-`new Daytona({ otelEnabled: true })` (or `DAYTONA_OTEL_ENABLED=true`) loads the OpenTelemetry packages when the client is created, not when the SDK is imported. Bundlers do not see these packages, so they stay out of your bundle and must be present at runtime: they are installed with `@daytona/sdk`, so this works whenever the app runs next to its `node_modules`.
+`new Daytona({ otelEnabled: true })` (or `DAYTONA_OTEL_ENABLED=true`) loads the OpenTelemetry SDK and its instrumentation (`@opentelemetry/sdk-node`, `@opentelemetry/instrumentation-http`, the exporter and their dependencies) when the client is created, not when the SDK is imported. Bundlers do not see these packages, so they stay out of your bundle and must be present at runtime. They are installed with `@daytona/sdk`, so this works whenever the app runs next to its `node_modules`. `@opentelemetry/api`, which the SDK uses for its own tracing calls, is imported as usual and bundled like any other dependency.
 
-With Next.js `output: 'standalone'`, the build output only contains the files Next.js traces, so add the OpenTelemetry packages and their dependencies to it in `next.config.js`:
+Loading them this way needs Node.js 20.16+ or 22.3+ (or Bun or Deno) when the app imports the SDK as an ES module; with `require('@daytona/sdk')` older Node.js versions work too. Apps that do not enable OpenTelemetry need none of this.
+
+If your server build copies only the files it traces, add the packages to it. Alternatively leave `@daytona/sdk` unbundled: `serverExternalPackages: ['@daytona/sdk']` in Next.js, or `externals` in webpack. With Next.js `output: 'standalone'`, add them in `next.config.js`:
 
 ```js
 module.exports = {
@@ -262,4 +264,6 @@ module.exports = {
 }
 ```
 
-Without it, creating the client with `otelEnabled` throws a `DaytonaError` that names the missing package and shows this snippet. Apps that do not enable OpenTelemetry need no configuration. The other Node-only modules the SDK loads lazily (local files for `Image`, context uploads) are bundled and traced as usual.
+The paths assume npm or Yarn with a hoisted `node_modules` next to `next.config.js`. With pnpm the packages live under `node_modules/.pnpm`, and in a monorepo they may be hoisted to the workspace root: adjust the paths to where they are installed (relative to the project, or to `outputFileTracingRoot` when you set it).
+
+Without the packages, creating the client with `otelEnabled` throws a `DaytonaError` that names the missing package and shows this snippet. The other Node-only modules the SDK loads lazily (local files for `Image`, context uploads) are bundled and traced as usual.

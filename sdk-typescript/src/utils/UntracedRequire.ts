@@ -60,10 +60,27 @@ function missingPackageError(id: string, cause: unknown): DaytonaError {
   return new DaytonaError(
     `The "${id}" package could not be loaded at runtime (${detail}). ` +
       'The SDK loads the OpenTelemetry packages at runtime, so bundlers do not copy them into the build output. ' +
-      'Install them next to your app or mark @daytona/sdk as an external package. ' +
+      'Install them next to your app, or leave @daytona/sdk unbundled (serverExternalPackages in Next.js, ' +
+      'externals in webpack). ' +
       "With Next.js `output: 'standalone'`, add them to the output in next.config.js:\n" +
       OUTPUT_FILE_TRACING_SNIPPET,
   )
+}
+
+// Node's `module` API. process.getBuiltinModule (Node.js 20.16, 22.3 and later, Bun, Deno)
+// gives it without a require that bundlers would follow; the CommonJS build can also require
+// it on older Node.js versions. post-build.js turns the require below into the ESM shim,
+// which needs process.getBuiltinModule there too.
+function nodeModuleApi(): NodeModuleApi | undefined {
+  const builtin = (
+    globalThis as { process?: { getBuiltinModule?: (name: string) => unknown } }
+  ).process?.getBuiltinModule?.('module') as NodeModuleApi | undefined
+  if (builtin?.createRequire) return builtin
+  try {
+    return require('module') as NodeModuleApi
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -74,11 +91,12 @@ function missingPackageError(id: string, cause: unknown): DaytonaError {
  * @throws {DaytonaError} If the package cannot be found, naming it and how to include it.
  */
 export function requireUntraced(id: string): unknown {
-  const nodeModule = (
-    globalThis as { process?: { getBuiltinModule?: (name: string) => unknown } }
-  ).process?.getBuiltinModule?.('module') as NodeModuleApi | undefined
+  const nodeModule = nodeModuleApi()
   if (!nodeModule?.createRequire) {
-    throw new DaytonaError(`The "${id}" package can only be loaded in Node.js 20.16, 22.3 or later, Bun or Deno.`)
+    throw new DaytonaError(
+      `The "${id}" package can only be loaded in Node.js 20.16, 22.3 or later, Bun or Deno, ` +
+        'or with the CommonJS build of @daytona/sdk.',
+    )
   }
 
   const process = globalThis.process
@@ -86,14 +104,19 @@ export function requireUntraced(id: string): unknown {
   let notFound: unknown
   for (const base of bases) {
     if (!base) continue
+    let requireFrom: (id: string) => unknown
     try {
-      return nodeModule.createRequire(base)(id)
+      requireFrom = nodeModule.createRequire(base)
     } catch (error) {
-      if (isModuleNotFound(error)) {
-        notFound ??= error
-      } else if (!isUnusableBase(error)) {
-        throw error
-      }
+      // An unusable base, e.g. an empty import.meta.url after re-bundling to CommonJS.
+      if (isUnusableBase(error)) continue
+      throw error
+    }
+    try {
+      return requireFrom(id)
+    } catch (error) {
+      if (!isModuleNotFound(error)) throw error
+      notFound ??= error
     }
   }
   throw missingPackageError(id, notFound ?? new Error(`Cannot find module '${id}'`))

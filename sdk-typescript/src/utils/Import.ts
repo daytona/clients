@@ -7,7 +7,7 @@
  */
 
 import { DaytonaError } from '../errors/DaytonaError'
-import { nodeLoaders } from './NodeLoaders'
+import { nodeImporters, nodeLoaders } from './NodeLoaders'
 import { RUNTIME } from './Runtime'
 import { requireUntraced } from './UntracedRequire'
 
@@ -101,9 +101,12 @@ function loadWithNodeLoader(name: string, fallback: () => unknown): unknown {
   }
 }
 
-/** {@link loadWithNodeLoader} for loaders that may return a promise, with the same error policy. */
+/**
+ * {@link loadWithNodeLoader} for dynamicImport, with the same error policy. It also uses the
+ * asynchronous Node loaders, which dynamicRequire must not: they return promises.
+ */
 async function loadWithNodeLoaderAsync(name: string, fallback: () => unknown): Promise<unknown> {
-  const nodeLoader = nodeLoaders[name]
+  const nodeLoader = nodeImporters[name] ?? nodeLoaders[name]
   if (!nodeLoader) return await fallback()
 
   try {

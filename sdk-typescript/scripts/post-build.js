@@ -89,7 +89,10 @@ if (fs.existsSync(nodeLoadersPath)) {
   if (/\brequire\s*\(/.test(fs.readFileSync(nodeLoadersPath, 'utf8'))) {
     throw new Error(`post-build: ${nodeLoadersJs} calls require(); use static imports or a literal import()`)
   }
-  fs.writeFileSync(path.join(esmDir, nodeLoadersStubJs), 'export const nodeLoaders = {};\n')
+  fs.writeFileSync(
+    path.join(esmDir, nodeLoadersStubJs),
+    'export const nodeLoaders = {};\nexport const nodeImporters = {};\n',
+  )
 
   const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   let importers = 0
@@ -116,17 +119,18 @@ if (fs.existsSync(nodeLoadersPath)) {
   }
 }
 
-// utils/UntracedRequire.js resolves OpenTelemetry from its own location first; ESM has no
-// __filename, so point it at import.meta.url.
-const untracedRequireJs = path.join('utils', 'UntracedRequire.js')
-const untracedRequirePath = path.join(esmDir, untracedRequireJs)
-if (fs.existsSync(untracedRequirePath)) {
-  const original = fs.readFileSync(untracedRequirePath, 'utf8')
+// utils/UntracedRequire.js resolves OpenTelemetry from its own location, and
+// utils/NodeLoaders.js requires tinyglobby relative to itself; ESM has no __filename, so
+// point both at import.meta.url.
+for (const file of [path.join('utils', 'UntracedRequire.js'), nodeLoadersJs]) {
+  const filePath = path.join(esmDir, file)
+  if (!fs.existsSync(filePath)) continue
+  const original = fs.readFileSync(filePath, 'utf8')
   const rewritten = original.replace(/\b__filename\b/g, 'import.meta.url')
   if (rewritten === original) {
-    throw new Error(`post-build: ${untracedRequireJs} has no __filename to point at import.meta.url`)
+    throw new Error(`post-build: ${file} has no __filename to point at import.meta.url`)
   }
-  fs.writeFileSync(untracedRequirePath, rewritten)
+  fs.writeFileSync(filePath, rewritten)
 }
 
 writeJson(path.join(esmDir, 'package.json'), esmPackageJson)

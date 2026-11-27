@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Bundled like test.ts, then run from a directory without node_modules. The local-file
-// helpers' modules are in the bundle; OpenTelemetry is loaded at runtime, so otelEnabled must
-// explain what is missing rather than fail with a bare module-not-found error.
+// helpers' modules are in the bundle (except tinyglobby for COPY globs, whose ESM entry cannot
+// run in a CommonJS bundle); OpenTelemetry is loaded at runtime, so otelEnabled must explain
+// what is missing rather than fail with a bare module-not-found error.
 import { Daytona, Image } from '@daytona/sdk'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -28,8 +29,7 @@ try {
   message = e instanceof Error ? e.message : String(e)
 }
 for (const expected of [
-  'OpenTelemetry instrumentation is not supported: The "@opentelemetry/',
-  'package could not be loaded at runtime',
+  'OpenTelemetry instrumentation is not supported: The "@opentelemetry/api" package could not be loaded at runtime',
   'outputFileTracingIncludes',
 ]) {
   if (!message.includes(expected)) {

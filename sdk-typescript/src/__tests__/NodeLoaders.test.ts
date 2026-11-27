@@ -6,11 +6,7 @@
 import { dynamicImport, dynamicRequire } from '../utils/Import'
 import { nodeLoaders } from '../utils/NodeLoaders'
 
-const settle = () => new Promise((resolve) => setImmediate(resolve))
-
 describe('Node loaders', () => {
-  beforeAll(settle)
-
   it.each(['fs', 'stream', 'buffer', 'busboy', 'expand-tilde', '@iarna/toml', 'tinyglobby'] as const)(
     'loads %s synchronously through its Node loader and passes validation',
     (name) => {
@@ -20,6 +16,23 @@ describe('Node loaders', () => {
       expect(dynamicRequire(name)).toBeDefined()
     },
   )
+
+  // A COPY glob resolved while the app's modules are still evaluating must not depend on the
+  // background import having settled.
+  it('loads tinyglobby synchronously right after the SDK is imported', () => {
+    jest.isolateModules(() => {
+      const fresh = require('../utils/NodeLoaders') as typeof import('../utils/NodeLoaders')
+      const mod = fresh.nodeLoaders.tinyglobby?.() as { globSync?: unknown }
+      expect(typeof mod.globSync).toBe('function')
+    })
+  })
+
+  // dynamicRequire is synchronous, so it must never return an asynchronous loader's promise.
+  it.each(['tar', 'form-data'] as const)('returns %s itself from dynamicRequire, not a promise', (name) => {
+    const mod = dynamicRequire(name)
+    expect(typeof (mod as { then?: unknown }).then).not.toBe('function')
+    expect(mod).toBeDefined()
+  })
 
   it('returns the functions that expand-tilde and busboy export', () => {
     expect(typeof dynamicRequire('expand-tilde')).toBe('function')
