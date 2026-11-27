@@ -4,9 +4,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -42,7 +44,7 @@ func TestCompletionOffersFlagValues(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{[]string{"sandbox", "list", "-o", ""}, []string{"table", "json", "yaml"}},
+		{[]string{"sandbox", "list", "-o", ""}, []string{"table", "json", "yaml", "yml"}},
 		{[]string{"sandbox", "list", "--output", "j"}, []string{"json"}},
 		{[]string{"sandbox", "wait", "sbx", "--for", ""}, []string{"running", "stopped", "paused", "deleted", "started", "destroyed"}},
 		{[]string{"volume", "create", "v", "--type", ""}, []string{"disk", "bucket"}},
@@ -140,5 +142,50 @@ func TestCompletionTableNamesExistingFlags(t *testing.T) {
 	}
 	for _, path := range append(append([]string{}, profileArgumentPaths...), fileArgumentPaths...) {
 		require.NotNil(t, findCommandPath(root, path), path)
+	}
+}
+
+// The completion lists that mirror a contract enum offer exactly its values,
+// so a value the API adds or drops fails here.
+func TestCompletionValuesFollowTheContractEnums(t *testing.T) {
+	enums := func(file string) map[string][]string {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "contract", file))
+		require.NoError(t, err)
+		var doc struct {
+			Components struct {
+				Schemas map[string]struct {
+					Enum []string `json:"enum"`
+				} `json:"schemas"`
+			} `json:"components"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &doc))
+		out := map[string][]string{}
+		for name, schema := range doc.Components.Schemas {
+			out[name] = schema.Enum
+		}
+		return out
+	}
+	api, toolbox := enums("api-openapi.json"), enums("toolbox-openapi.json")
+	values := func(path, flag string) []string {
+		for _, entry := range flagValueCompletions {
+			if entry.flag == flag && slices.Contains(entry.paths, path) {
+				return entry.values
+			}
+		}
+		t.Fatalf("no completion for %s --%s", path, flag)
+		return nil
+	}
+	for _, tc := range []struct {
+		path, flag string
+		want       []string
+	}{
+		{"daytona sandbox search", "status", api["SandboxStatus"]},
+		{"daytona sandbox search", "class", api["SandboxClass"]},
+		{"daytona registry set", "kind", api["RegistryKind"]},
+		{"daytona volume create", "type", api["VolumeType"]},
+		{"daytona sandbox process list", "kind", toolbox["Kind"]},
+	} {
+		require.NotEmpty(t, tc.want, "%s --%s", tc.path, tc.flag)
+		require.ElementsMatch(t, tc.want, values(tc.path, tc.flag), "%s --%s", tc.path, tc.flag)
 	}
 }

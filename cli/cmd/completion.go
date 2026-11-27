@@ -36,7 +36,7 @@ var (
 )
 
 var flagValueCompletions = []flagValueCompletion{
-	{paths: []string{""}, flag: "output", values: []string{"table", "json", "yaml"}},
+	{paths: []string{""}, flag: "output", values: []string{"table", "json", "yaml", "yml"}},
 	{paths: []string{"daytona sandbox wait"}, flag: "for", values: []string{"running", "stopped", "paused", "deleted", "started", "destroyed"}},
 	{paths: []string{"daytona sandbox create", "daytona sandbox create-from-snapshot", "daytona sandbox update"}, flag: "on-idle-timeout", values: linuxTimeoutActions},
 	{paths: []string{"daytona sandbox create", "daytona sandbox create-from-snapshot", "daytona sandbox update"}, flag: "on-lifecycle-timeout", values: linuxTimeoutActions},

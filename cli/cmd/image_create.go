@@ -28,7 +28,8 @@ func newImageImportCommand() *cobra.Command {
 			imageNameRulesHelp +
 			"A name that already exists for different content or import options (ref, region, CPU architecture) answers\n" +
 			"409 IMAGE_NAME_TAKEN and changes nothing; repeating an identical import returns the existing image.\n" +
-			"Without a name (here or in --file) the image is anonymous: it is kept for --idle-expiry after its last use;\n" +
+			"Without a name (here or in --file) the image is anonymous: it is kept for --idle-expiry after its last use\n" +
+			"(omitted, the longest the platform allows: 7 days by default);\n" +
 			"`daytona image promote` names it and makes it permanent.\n" +
 			"Examples:\n  daytona image create my-base --ref python:3.12\n  daytona image create --ref python:3.12 --idle-expiry 24h",
 		Args: cobra.MaximumNArgs(1),
