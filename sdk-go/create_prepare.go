@@ -67,6 +67,8 @@ func idempotencyKeyText(key string) error {
 // randomIdempotencyKey is a lowercase UUID v4, the random key every SDK sends.
 func randomIdempotencyKey() string {
 	var raw [16]byte
+	// Since Go 1.24 rand.Read never returns an error: it crashes the program
+	// instead, so the buffer is never left zero-filled.
 	_, _ = rand.Read(raw[:])
 	raw[6] = raw[6]&0x0f | 0x40
 	raw[8] = raw[8]&0x3f | 0x80
