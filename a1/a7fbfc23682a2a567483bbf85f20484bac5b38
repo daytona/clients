@@ -1,0 +1,565 @@
+AGENTS.md
+  s_9915432471174a::t_6ab2309064b367 625-633,789-801,964-971,1031-1048
+README.md
+  s_9915432471174a::t_d9635cee4a2f1f 73-76
+SECURITY.md
+  s_9915432471174a::t_8dbdf874c47ab3 17,21-22
+changelog.d/538-process-run-wait.fixed.md
+  s_9915432471174a::t_a9c9aa353ebde0 2-4
+changelog.d/751-process-interpreter-git-inputs.fixed.md
+  s_9915432471174a::t_802deff3cf2433 1-16
+changelog.d/751-process-signal-inputs.fixed.md
+  s_9915432471174a::t_7611be5626a6af 1-11
+changelog.d/755-create-handle-docs.fixed.md
+  s_9915432471174a::t_3eb9615be04634 1-4
+changelog.d/755-first-run-docs.fixed.md
+  s_9915432471174a::t_07b637df4a2bc1 1-4
+changelog.d/755-interpreter-setup-failure.fixed.md
+  s_9915432471174a::t_a970cab8f97466 1-7
+changelog.d/755-resource-visibility-docs.fixed.md
+  s_9915432471174a::t_fb2c46626bd615 1-4
+changelog.d/build-logs-fallback-text.changed.md
+  s_9915432471174a::t_b59c423a147bec 1-7
+changelog.d/build-logs-follow-by-name.fixed.md
+  s_9915432471174a::t_e04dc2e288bfa7 1-7
+changelog.d/cli-help-auto-renew.fixed.md
+  s_9915432471174a::t_709a53c1343c8f 1-3
+changelog.d/cli-help-cp.fixed.md
+  s_9915432471174a::t_4f64dc56e6fab2 1-2
+changelog.d/cli-help-get-id-or-name.fixed.md
+  s_9915432471174a::t_e0c92ff98a626e 1-2
+changelog.d/cli-help-required-roles.fixed.md
+  s_9915432471174a::t_d88f2c75b755b9 1-2
+changelog.d/cli-help-search.fixed.md
+  s_9915432471174a::t_9ac4c04c4b3c00 1-4
+changelog.d/cli-help-secret-set.fixed.md
+  s_9915432471174a::t_05882eb70b3748 1-3
+changelog.d/cli-help-volume-create-name.fixed.md
+  s_9915432471174a::t_639011cd4fe25c 1-2
+changelog.d/cli-help-volume-flag.fixed.md
+  s_9915432471174a::t_ccc099059d6f16 1-2
+changelog.d/cli-readme-ci-output.changed.md
+  s_9915432471174a::t_c358c135be4691 1-2
+changelog.d/cli-readme-cursors.changed.md
+  s_9915432471174a::t_61bb748b90ad6c 1-2
+changelog.d/cli-readme-lifecycle-deadlines.changed.md
+  s_9915432471174a::t_2c12c07dea6814 1-3
+changelog.d/cli-readme-units.changed.md
+  s_9915432471174a::t_b787839a9a8d08 1-2
+changelog.d/docs-account.changed.md
+  s_9915432471174a::t_412d03807caab1 1-3
+changelog.d/docs-build-context-region.changed.md
+  s_9915432471174a::t_1d949371116301 1-3
+changelog.d/docs-capture-image-examples.changed.md
+  s_9915432471174a::t_d65ba5b89de611 1-3
+changelog.d/docs-computer-use-availability.changed.md
+  s_9915432471174a::t_e2ed7ff09d8274 1-3
+changelog.d/docs-create-snapshot.changed.md
+  s_9915432471174a::t_0c702fde5f4a0f 1-4
+changelog.d/docs-create-timeout-range.changed.md
+  s_9915432471174a::t_e798c70da33bfa 1-3
+changelog.d/docs-default-image.changed.md
+  s_9915432471174a::t_6532c6599a842b 1-3
+changelog.d/docs-docker-off.changed.md
+  s_9915432471174a::t_9b4c54088feb35 1-3
+changelog.d/docs-fs-glob.changed.md
+  s_9915432471174a::t_02564eea71f632 1-3
+changelog.d/docs-fs-list-depth.changed.md
+  s_9915432471174a::t_de017fe4bc328a 1-2
+changelog.d/docs-fs-upload-atomic.changed.md
+  s_9915432471174a::t_912467d1765537 1-3
+changelog.d/docs-git-clone-timeout.changed.md
+  s_9915432471174a::t_4d5f0c942763ef 1-4
+changelog.d/docs-git-history-unpaged.changed.md
+  s_9915432471174a::t_50725826c15d41 1-2
+changelog.d/docs-git-init-remote-reset.changed.md
+  s_9915432471174a::t_1a41be70e2abfd 1-4
+changelog.d/docs-git-pull-remotes.changed.md
+  s_9915432471174a::t_b4d206ce033279 1-5
+changelog.d/docs-if-match.changed.md
+  s_9915432471174a::t_3426fd37adeba2 1-4
+changelog.d/docs-image-regions.changed.md
+  s_9915432471174a::t_4c483a48abeb2b 1-3
+changelog.d/docs-kill-all-sessions.changed.md
+  s_9915432471174a::t_0fc0d0668ab69f 1-5
+changelog.d/docs-kill-interactive-shell.changed.md
+  s_9915432471174a::t_4d3c1842f5f913 1-3
+changelog.d/docs-persistence-lifecycle.changed.md
+  s_9915432471174a::t_97bc9014071a3e 1-4
+changelog.d/docs-pty-close-stdin.changed.md
+  s_9915432471174a::t_d66c1b19416aa3 1-4
+changelog.d/docs-python-asyncio.changed.md
+  s_9915432471174a::t_21ed4f378717d8 1-2
+changelog.d/docs-reservations-get.changed.md
+  s_9915432471174a::t_adf9f803bd82c0 1-3
+changelog.d/docs-retries-timeouts.changed.md
+  s_9915432471174a::t_597cd5389ee694 1-5
+changelog.d/docs-search-ordering.changed.md
+  s_9915432471174a::t_11bf3fd879dff8 1-3
+changelog.d/docs-session-examples.changed.md
+  s_9915432471174a::t_5020383165dcc3 1-3
+changelog.d/docs-volume-ids.changed.md
+  s_9915432471174a::t_eb28e14887b200 1-3
+changelog.d/examples-image-cleanup.fixed.md
+  s_9915432471174a::t_20f041e3c80754 1-4
+changelog.d/examples-images-rename.fixed.md
+  s_9915432471174a::t_480f58d8c03551 1-2
+changelog.d/examples-volume-notes.fixed.md
+  s_9915432471174a::t_bdcc965df120ac 1-3
+changelog.d/fs-move-timeout.added.md
+  s_9915432471174a::t_10794e66eccf77 1-15
+changelog.d/image-build-timeout-id.added.md
+  s_9915432471174a::t_4c5b0bafb34d37 1-8
+changelog.d/image-promote-readback.fixed.md
+  s_9915432471174a::t_8d8c1a12d3ef3f 1-8
+changelog.d/iter-page-cursor.added.md
+  s_9915432471174a::t_d4bf1f89c930ff 1-5
+changelog.d/iter-page-retries.added.md
+  s_9915432471174a::t_2a673384b1fedd 1-7
+changelog.d/joined-start-failure.fixed.md
+  s_9915432471174a::t_fe49b1002cb0f2 1-6
+changelog.d/process-wait-rounds.fixed.md
+  s_9915432471174a::t_9ce6b1b78ddae3 1-18
+changelog.d/python-async-watch-yield.fixed.md
+  s_9915432471174a::t_feef2641244fae 1-4
+changelog.d/python-sync-watch-stop.fixed.md
+  s_9915432471174a::t_6f27c71f9c97e1 1-6
+changelog.d/resume-errors-docs.changed.md
+  s_9915432471174a::t_337e780bd152ab 1-4
+changelog.d/sandbox-wait-target-revalidation.fixed.md
+  s_9915432471174a::t_01d049d20b8ae5 1-9
+changelog.d/stable-install-docs.changed.md
+  s_9915432471174a::t_2b95aecaf769b7 1-5
+changelog.d/ts-interpreter-context-dispose.added.md
+  s_9915432471174a::t_d7f88668cfce0d 1-4
+changelog.d/upgrade-guide-stable.changed.md
+  s_9915432471174a::t_795a5a9a43a735 1-2
+changelog.d/volume-bucket-role-arn.added.md
+  s_9915432471174a::t_bff15163bfc1aa 1
+changelog.d/wait-read-retries.fixed.md
+  s_9915432471174a::t_e9d4ec0764b020 1-12
+cli/README.md
+  s_9915432471174a::t_ea2fd7adfd80c5 21-25,43-45,49,98,112,390-392,419-422,437-453,476-477,512-518,578-580
+cli/cmd/image.go
+  s_9915432471174a::t_9c867eee59a323 44,46
+cli/cmd/key.go
+  s_9915432471174a::t_bec1475cc7cd54 30
+cli/cmd/member.go
+  s_9915432471174a::t_0a01bc27fc0a85 102
+cli/cmd/orgkey.go
+  s_9915432471174a::t_9929edc7d7bb39 25
+cli/cmd/reservation.go
+  s_9915432471174a::t_3bca009c0e0e93 25
+cli/cmd/sandbox_actions.go
+  s_9915432471174a::t_bdf7458f59579b 212-224,229
+cli/cmd/sandbox_cp.go
+  s_9915432471174a::t_52550515183e0e 37
+cli/cmd/sandbox_create.go
+  s_9915432471174a::t_c696218fe03fb4 78,159,209
+cli/cmd/sandbox_create_macos.go
+  s_9915432471174a::t_a8869205262fa5 98
+cli/cmd/sandbox_create_macos_test.go
+  s_9915432471174a::t_2054e74b78a148 74,92-93
+cli/cmd/sandbox_display_actions_test.go
+  s_9915432471174a::t_7c0e5ac68491c6 7,107-119
+cli/cmd/sandbox_fork.go
+  s_9915432471174a::t_9b08391c538b07 58-59
+cli/cmd/sandbox_search.go
+  s_9915432471174a::t_732bc238efb25d 63-67,160,162-163,166-167
+cli/cmd/secret.go
+  s_9915432471174a::t_4b276d83cd3b55 39-40,105-106
+cli/cmd/service_account.go
+  s_9915432471174a::t_d062a9eafbaef7 50
+cli/cmd/snapshot.go
+  s_9915432471174a::t_d0059465bda55a 131,133
+cli/cmd/volume.go
+  s_9915432471174a::t_83e0370454e008 44,48-49,78-80,108,145,148,158
+cli/cmd/volume_helpers.go
+  s_9915432471174a::t_e2e262c068c371 19,56,83,85,88-101,178-184
+cli/cmd/volume_more_test.go
+  s_9915432471174a::t_fb575c7dd2b804 38-41,62-71
+docs/adr/0001-sdk-parity.md
+  s_9915432471174a::t_73284d8b1a963c 36-39
+examples/README.md
+  s_9915432471174a::t_2a3eff2589fbb9 11-14,16-22,34,52,74,76,133
+examples/package.json
+  s_9915432471174a::t_fb2bcdb2f14514 12
+examples/python/git_ops.py
+  s_9915432471174a::t_3ea1dd61d1cacf 4-8
+examples/python/images.py
+  s_9915432471174a::t_ab5e6c3ad8fbd3 2,11-16,20,25,28,30,33-65,67-71,77,82-93,102-104,109-115
+examples/python/test_examples.py
+  s_9915432471174a::t_e966776e1536c2 108-114,161,188-191,250-257,259-261,538-607
+examples/python/volumes.py
+  s_9915432471174a::t_e2635c86bbebea 10-15,53
+examples/run-examples.sh
+  s_9915432471174a::t_919fd64b81c5a1 12-14,26-27
+examples/typescript/examples.test.ts
+  s_9915432471174a::t_230ef6128dfe33 45,324-368
+examples/typescript/git/index.ts
+  s_9915432471174a::t_33f24d067bbb11 4-8
+examples/typescript/images/index.ts
+  s_9915432471174a::t_fa8a37ad3a49f7 1-15,17-19,21-30,34-41,43,45-62,65-87,89-92,95-101,105-110
+examples/typescript/test-support/fake-sdk.ts
+  s_9915432471174a::t_36c0bef688ef35 54-59,102,309-312,318-325,337-340
+examples/typescript/volumes/index.ts
+  s_9915432471174a::t_9bf3ec2420664b 9-14,46
+sdk-go/README.md
+  s_9915432471174a::t_65023f2a44739d 46-47,112-121,197-198,242-253,266-277,301-333
+sdk-go/build_logs.go
+  s_9915432471174a::t_b7b34784a67aeb 65-67,81-84
+sdk-go/build_logs_identity.go
+  s_9915432471174a::t_818ffa5307f552 8,22-29,44,47-54
+sdk-go/build_logs_identity_test.go
+  s_9915432471174a::t_33a2eca4204fa9 9,12,54-56,63-67,106-107,116-121,143-289
+sdk-go/build_logs_request.go
+  s_9915432471174a::t_30c86292c65d4b 11-12,21-22,49-84
+sdk-go/create_from_build.go
+  s_9915432471174a::t_2fb055c5b5d90e 34-35
+sdk-go/create_from_build_test.go
+  s_9915432471174a::t_0dc626d7803a57 129-171,221-249
+sdk-go/create_wait_test.go
+  s_9915432471174a::t_f4ff37f6b6e74a 17
+sdk-go/doc.go
+  s_9915432471174a::t_f367fd8f461abe 14
+sdk-go/docker_boundary_test.go
+  s_9915432471174a::t_0fcc9c80e365ec 73-75
+sdk-go/docker_wait.go
+  s_9915432471174a::t_153cabdbe8c5d0 25-28,50,59,61-70,72,87-88,93-114,117
+sdk-go/errors.go
+  s_9915432471174a::t_05a1874dc5be63 39-47
+sdk-go/errors_details.go
+  s_9915432471174a::t_7db0eb5890f72b 60-88
+sdk-go/errors_response.go
+  s_9915432471174a::t_4e442b775027f8 101
+sdk-go/errors_wrappers_test.go
+  s_9915432471174a::t_0d449f7c60eeb6 80-82
+sdk-go/exec.go
+  s_9915432471174a::t_14cef59cd0ec7c 51-52
+sdk-go/exec_run.go
+  s_9915432471174a::t_931f63b47bc281 29-34,36-37,42
+sdk-go/exec_test.go
+  s_9915432471174a::t_bd83cf07258dcb 35,84-86
+sdk-go/fs.go
+  s_9915432471174a::t_33bce882c8970a 49-56,163-172,176-185,188-189
+sdk-go/fs_move_timeout_test.go
+  s_9915432471174a::t_b3965e9755949c 1-79
+sdk-go/fs_search.go
+  s_9915432471174a::t_aed4ff29220ffe 93-94
+sdk-go/image_resource_operations_test.go
+  s_9915432471174a::t_6a87442f7ba2d4 8,10,14,22-28,32,37,39,41-42,196-220
+sdk-go/image_resource_pull_deadline_test.go
+  s_9915432471174a::t_71a18ee2f9af02 33-36
+sdk-go/image_wait.go
+  s_9915432471174a::t_dd4307949ad60c 20-23,72,75,84-93,95,101,128-135,141-153
+sdk-go/images.go
+  s_9915432471174a::t_91fce0f14d8da9 134-137,156-173
+sdk-go/images_build.go
+  s_9915432471174a::t_2d78165268ee40 19-27,54,61,135,138-140,150-152
+sdk-go/images_r3_ready_test.go
+  s_9915432471174a::t_ba854eecd68e07 29-30,36-37,50-53,55,57
+sdk-go/images_ready.go
+  s_9915432471174a::t_b0c0f1020e38a3 8,28-33,48-49,71,73-90,97,100,119-128,130,136,142-159
+sdk-go/interpreter.go
+  s_9915432471174a::t_5669fedb709cad 62-64
+sdk-go/interpreter_contexts.go
+  s_9915432471174a::t_e80f30483babc9 24-25,31-33
+sdk-go/interpreter_r3_contexts_test.go
+  s_9915432471174a::t_1e83b78a06d7ea 36-37,39
+sdk-go/page.go
+  s_9915432471174a::t_826370dbfd3cbf 8,10-11,14,51-136,139-148,159-160
+sdk-go/page_retry_test.go
+  s_9915432471174a::t_71ab06202a53f7 1-301
+sdk-go/preview_malformed_test.go
+  s_9915432471174a::t_9b727f3cdcaa35 134,147-149
+sdk-go/process_cubic_wait_test.go
+  s_9915432471174a::t_6f11b6e72a1fa3 15,17-18,35-57
+sdk-go/process_handle.go
+  s_9915432471174a::t_a6da27bed7f9b6 111-115
+sdk-go/process_options.go
+  s_9915432471174a::t_f8a59611cd8df6 58,64-65
+sdk-go/process_signal.go
+  s_9915432471174a::t_86177d03ad5a95 9,23,32-35,49,57-63,65-74
+sdk-go/process_signal_inputs_test.go
+  s_9915432471174a::t_e35fb4a381d403 1-80
+sdk-go/process_wait.go
+  s_9915432471174a::t_33f8e9a64da9bd 15-22,24-31,97-101,117-119,121-123,125-126
+sdk-go/process_wait_r3_test.go
+  s_9915432471174a::t_6c61ecb88c7ccb 8-9,11,17-37,39-40,42-85
+sdk-go/process_wait_rounds_test.go
+  s_9915432471174a::t_cd87b9bf15cd35 1-154
+sdk-go/process_wait_test.go
+  s_9915432471174a::t_f0334da98aab6c 31
+sdk-go/read_retry.go
+  s_9915432471174a::t_74c972fc0516b1 1-77
+sdk-go/read_retry_test.go
+  s_9915432471174a::t_3972ddd87b3a13 1-493
+sdk-go/run_code.go
+  s_9915432471174a::t_ef058dfa222cd8 20-24,61-77,85-87
+sdk-go/run_code_collect.go
+  s_9915432471174a::t_289cc90d459ba9 31,108
+sdk-go/run_code_output.go
+  s_9915432471174a::t_b5c9cac38597ff 17,49-53,88-108
+sdk-go/run_code_setup_failure_test.go
+  s_9915432471174a::t_1532a7dddcd551 1-138
+sdk-go/sandbox_create.go
+  s_9915432471174a::t_d320047fb9892b 12-14,30-39
+sdk-go/sandbox_lifecycle.go
+  s_9915432471174a::t_a95e4b43b62d41 21-22,34-44
+sdk-go/sandbox_lifecycle_fork.go
+  s_9915432471174a::t_a4e1ef9e450ca3 26-28
+sdk-go/sandbox_lifecycle_fork_errors_test.go
+  s_9915432471174a::t_61bf7ba07a7954 52-54,62-67
+sdk-go/sandbox_lifecycle_start.go
+  s_9915432471174a::t_f2fc7baaa926d1 14-17,68-71,76
+sdk-go/sandbox_search.go
+  s_9915432471174a::t_a3d8d1fe67a8ca 166
+sdk-go/sandbox_wait.go
+  s_9915432471174a::t_79c1ed115126df 26-33,96,123-131,133,136
+sdk-go/sandbox_wait_budget_test.go
+  s_9915432471174a::t_1bc7350b006a31 44-46,48-53,64-69,72
+sdk-go/sandbox_wait_events.go
+  s_9915432471174a::t_7d1fd0599b1801 136-139,164-167,173-178,181,184-198
+sdk-go/sandbox_wait_events_test.go
+  s_9915432471174a::t_e1d4f8cfecedb0 68-70,77-79,92-93,95-97
+sdk-go/sandbox_wait_retry.go
+  s_9915432471174a::t_94d9b867d1ae58 25,28-30,34-35
+sdk-go/sandbox_wait_retry_decisive_test.go
+  s_9915432471174a::t_2e49f337e9b1ca 112
+sdk-go/sandbox_wait_retry_test.go
+  s_9915432471174a::t_de3710193e6b13 8,106,108,112-113,121-128,134-138,144-198
+sdk-go/sandbox_wait_revalidation_test.go
+  s_9915432471174a::t_d8c874c36ea368 1-419
+sdk-go/sandbox_wait_review_test.go
+  s_9915432471174a::t_03c493b5ee8fea 7,79,81,95,97-98,100,104-105
+sdk-go/wait_options.go
+  s_9915432471174a::t_3361c19b78511b 120-122
+sdk-python/DEVELOPMENT.md
+  s_9915432471174a::t_028604619dfeee 163-172,183-184
+sdk-python/README.md
+  s_9915432471174a::t_84da8a67a85501 9-11,14-20,104-107,239,275-277,279-281,294-295,299-303,400-405,467-471,479-480,488-493,513-514,518-537,546-554,616-619,715-718,758-763,780-782,787-790,815-822,958-961,987-993,1000-1005,1018-1023,1035,1051,1053-1054,1067-1068,1081-1082,1096-1098,1132,1145-1148,1151-1160,1172-1173,1202-1205,1234-1238,1243-1265,1292-1312,1330-1332,1364-1366,1388-1408,1416-1427,1433,1529-1569
+sdk-python/gen/gen_sync.py
+  s_9915432471174a::t_d89d6e4e2f50df 490,497,577-583
+sdk-python/src/daytona/v2/__init__.py
+  s_9915432471174a::t_dc7ad0ef602bd6 231,530
+sdk-python/src/daytona/v2/_bridge.py
+  s_9915432471174a::t_dd71b9f05f5721 112-114,118-121,166-169,301-306,309-312,359-361,376-378
+sdk-python/src/daytona/v2/_core.py
+  s_9915432471174a::t_cc68bfc8d8555f 79,111,353-355,360-361,366-371,1144-1166,1201-1206,1211-1218,1287-1291,1300,1399-1420,1588-1594,1598-1599,1908-1929,1933-1935,1937-1939,1942-1960,1962-1963
+sdk-python/src/daytona/v2/_events.py
+  s_9915432471174a::t_43ca1198e1626b 45,50,723,731-733,743-745,995-996,1768,1778-1786
+sdk-python/src/daytona/v2/_exports.py
+  s_9915432471174a::t_181fe7cab0abce 145
+sdk-python/src/daytona/v2/_image_pull.py
+  s_9915432471174a::t_39391144038ee0 15,17,32-34,39,60-71,73-79,84,87-89,102-118
+sdk-python/src/daytona/v2/_pages.py
+  s_9915432471174a::t_e3b6f4f41d152d 1-116
+sdk-python/src/daytona/v2/_read_retry.py
+  s_9915432471174a::t_b824cb69fa7217 1-145
+sdk-python/src/daytona/v2/_sync/_runtime.py
+  s_9915432471174a::t_c623e97d7455d6 100,118
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_9915432471174a::t_af380111f5438c 99,172-197,276-280,565-574
+sdk-python/src/daytona/v2/_sync/docker.py
+  s_9915432471174a::t_a10b697eae21dd 63-68
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  s_9915432471174a::t_005664769e4480 92,94-98,135-141,148-164,378
+sdk-python/src/daytona/v2/_sync/interpreter.py
+  s_9915432471174a::t_b35abdae3dc377 46-51,76-78,124-126,134-155
+sdk-python/src/daytona/v2/_sync/process.py
+  s_9915432471174a::t_0fab7a7e52302b 60-70,90,92-99,148-155,277-282
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  s_9915432471174a::t_d12cec991d0d89 139-147,279-280,298-299,333-334,337,385-399,427,467-472,565-566,570-577,580-586
+sdk-python/src/daytona/v2/_sync/services.py
+  s_9915432471174a::t_5d4359ac4002eb 141-147,211-217,239-243,527-530,628-632
+sdk-python/src/daytona/v2/_sync/types.py
+  s_9915432471174a::t_1c0441c2f17325 77-81
+sdk-python/src/daytona/v2/_transport.py
+  s_9915432471174a::t_969e3569a0295f 342-345,372-375,582-585,591-611,621,943-946,1044-1054,1166-1169,1240-1241,1247,1324,1380-1383
+sdk-python/src/daytona/v2/build_logs.py
+  s_9915432471174a::t_a97560c0a9f7c9 46,434-449,463-465,468,474-475,503-506,547-553,558-559,562,567,569-570,643-652,674-675,678-679,683-723,972-974
+sdk-python/src/daytona/v2/daytona.py
+  s_9915432471174a::t_fe7e8dd3ea35d8 80,89,348-373,664-668,719-728,743,746-751,762,1298-1309,1376-1384,1391,1692-1693
+sdk-python/src/daytona/v2/docker.py
+  s_9915432471174a::t_63c7624a6f0118 21,23,72-77,84,88,104-109,111-116
+sdk-python/src/daytona/v2/errors.py
+  s_9915432471174a::t_63e9ef304bd728 55-59,62-63,720-742
+sdk-python/src/daytona/v2/filesystem.py
+  s_9915432471174a::t_27be27ba110e1e 39,41,181-184,312-317,594-600,645-667,669-672,707,709-713,877-880
+sdk-python/src/daytona/v2/git.py
+  s_9915432471174a::t_bef6f4543f9570 79,91,161,207,209,225,280,393-394,396
+sdk-python/src/daytona/v2/interpreter.py
+  s_9915432471174a::t_eeab19dd9b7192 17-18,26,94-116,245-247,249-251,291-300,302-311,383-385,393-414,416-418,429,505,556-557
+sdk-python/src/daytona/v2/ports.py
+  s_9915432471174a::t_e1d9b50948fefa 34,174-177
+sdk-python/src/daytona/v2/process.py
+  s_9915432471174a::t_a681f4a55d9f00 30-31,285-292,308,312-316,322-324,341-342,407-417,426,428-435,437,714-719,782,948
+sdk-python/src/daytona/v2/sandbox.py
+  s_9915432471174a::t_b97f0b3ca272bd 80,96,160-165,753,1012-1023,1037-1041,1047-1049,1076-1078,1081,1092-1106,1129,1147,1149-1155,1157-1158,1202,1206-1211,1221-1251,1254-1262,1273,1279-1281,1283-1284,1300-1302,1305,1315-1329,1377-1378,1382-1389,1392-1398,1413-1418,1458-1461,1487-1488,1491,1503-1517,1532-1533,1551-1552,1923-1931,2783-2787
+sdk-python/src/daytona/v2/services.py
+  s_9915432471174a::t_93e51d266ab479 68-69,149-157,381-385,390-398,419-425,458,635-636,656,660,683,686-687,692-697,701,756,904,1111,1118-1122,1351,1420-1423
+sdk-python/src/daytona/v2/session.py
+  s_9915432471174a::t_3794f06804c062 12,95,122
+sdk-python/src/daytona/v2/types.py
+  s_9915432471174a::t_853b757329cf42 432-435,478,664-665,842,1503-1507
+sdk-python/tests/test_bridge.py
+  s_9915432471174a::t_5dc462c08bcbc6 1149-1192
+sdk-python/tests/test_build_logs.py
+  s_9915432471174a::t_3f17127e4af15a 441-627,1234-1239,1246-1250,1323-1327,1335
+sdk-python/tests/test_client_lifecycle_contract.py
+  s_9915432471174a::t_333672080b5b98 445,449,453-474,493-529,631,636-638
+sdk-python/tests/test_core.py
+  s_9915432471174a::t_20e13831c0fff0 42,6353,6371,6373,6376,7041-7045,7156,7416-7417,7419,7421,7434-7437,7449-7493,7612-7614,8054,8487-8488,8499,8737,8748,8789,8794-8795,8797-8798,8801,8820-8822,11101,11113-11116
+sdk-python/tests/test_error_contract.py
+  s_9915432471174a::t_e1030651b45eb8 100-117
+sdk-python/tests/test_filesystem_move_timeout.py
+  s_9915432471174a::t_9e7e3c6a5127b0 1-156
+sdk-python/tests/test_image_pull_deadline_http.py
+  s_9915432471174a::t_259c4e827345f7 172-181,183-184
+sdk-python/tests/test_interpreter_setup_failure.py
+  s_9915432471174a::t_d7b53d2b72e2aa 1-170
+sdk-python/tests/test_iter_pages.py
+  s_9915432471174a::t_5a1f9351e4e75b 1-396
+sdk-python/tests/test_process_inputs.py
+  s_9915432471174a::t_c5db039b6b1933 1-222
+sdk-python/tests/test_process_wait_rounds.py
+  s_9915432471174a::t_5fb2d51c279a09 1-271
+sdk-python/tests/test_toolbox_surface.py
+  s_9915432471174a::t_92d2ddb7f38748 592-594,1050,1053,1058,1060-1065,1662
+sdk-python/tests/test_unbounded_waits.py
+  s_9915432471174a::t_79db4f162bc048 25-31,182
+sdk-python/tests/test_wait_deadlines.py
+  s_9915432471174a::t_4c09e62fec13db 282,290-292
+sdk-python/tests/test_wait_final_read.py
+  s_9915432471174a::t_c2043617b71a84 233-256
+sdk-python/tests/test_wait_read_retries.py
+  s_9915432471174a::t_e87997535a55ee 1-722
+sdk-python/tests/test_wait_target_revalidation.py
+  s_9915432471174a::t_5c6f08dc1f2126 1-391
+sdk-python/tests/test_watch_sync.py
+  s_9915432471174a::t_12a0c51256596a 11,157-250
+sdk-typescript/DEVELOPMENT.md
+  s_9915432471174a::t_cabe9450111b56 49-50,196
+sdk-typescript/README.md
+  s_9915432471174a::t_c8f2f103c59808 9,12-19,150-155,172,174-177,228-232,326-331,389-393,404-409,430-431,453-461,485-503,569-572,637-639,669-674,680-682,686-690,703-710,840-843,869-875,885-889,906-911,915-916,931,934,948-950,967-968,977-978,1018,1035-1038,1041-1050,1102-1105,1116-1118,1121-1126,1131-1155,1184-1204,1222-1224,1257-1259,1307-1327,1333-1346,1355,1420-1431,1451-1480
+sdk-typescript/src/v2/BuildLogs.ts
+  s_9915432471174a::t_b60a5e69a176d4 23,287-297,311-312,319,337,360-366,372,376,380-381,411-419,423,433,436,438,441-470,674-677
+sdk-typescript/src/v2/Daytona.ts
+  s_9915432471174a::t_704352646d0d31 36,61-62,71,121,205-215,344
+sdk-typescript/src/v2/Docker.ts
+  s_9915432471174a::t_e8dec42c0762a5 7,16,112-116,124,127,135-139,141
+sdk-typescript/src/v2/FileSystem.ts
+  s_9915432471174a::t_8a414ceee115eb 163-173,202,469-474,505-518,521-526,772-777
+sdk-typescript/src/v2/Git.ts
+  s_9915432471174a::t_600f51e89b1b1b 117,124,135,165-166,199,226,279,281,297-302
+sdk-typescript/src/v2/Images.ts
+  s_9915432471174a::t_8d3fdecb39d9cf 22,30,34,44-50,130-134,136,237,260-263,288-301,320-333,349,363-367,371-379
+sdk-typescript/src/v2/Interpreter.ts
+  s_9915432471174a::t_c82e5f30d772fb 21-22,185-190,252-254,273-286,419-422,426,455-459,542-546,549,559-563,565-568,570,573,586-588,603-624,628-629,636
+sdk-typescript/src/v2/Ports.ts
+  s_9915432471174a::t_e080024138a41a 24,195
+sdk-typescript/src/v2/Process.ts
+  s_9915432471174a::t_42cc8ed981eb35 130-135,179-181,191-192,195,321
+sdk-typescript/src/v2/ProcessHandle.ts
+  s_9915432471174a::t_208493ed8f96fe 15,22,136-145,154-160,167-171,174-175,181-185,188,194,204-210,213,295-316
+sdk-typescript/src/v2/ProcessRun.ts
+  s_9915432471174a::t_ba23d9f69623fa 12-13,62-66,71
+sdk-typescript/src/v2/ProcessWire.ts
+  s_9915432471174a::t_9e5e92fb5c1bf9 66-88,132-149,194,196,216-218,225,229-246,287-290,292,295
+sdk-typescript/src/v2/Reservations.ts
+  s_9915432471174a::t_b853baa279d42d 23,144,147-151
+sdk-typescript/src/v2/Sandbox.ts
+  s_9915432471174a::t_80f1ae56aa7707 54,546,713,720-724,771-774,797-799,802-803,816-830,842-844,1174-1180,1223-1231
+sdk-typescript/src/v2/Secret.ts
+  s_9915432471174a::t_d6097fce026cad 32,40,50-53,135
+sdk-typescript/src/v2/Session.ts
+  s_9915432471174a::t_956b5935721526 15,110,116
+sdk-typescript/src/v2/Snapshots.ts
+  s_9915432471174a::t_76458e5b89c7f0 21,66
+sdk-typescript/src/v2/Volume.ts
+  s_9915432471174a::t_60390d96c2f553 25,165
+sdk-typescript/src/v2/accountTypes.ts
+  s_9915432471174a::t_45c9204e17c424 85
+sdk-typescript/src/v2/artifactOptions.ts
+  s_9915432471174a::t_67951e5fd75a16 8,10,19-23,48-49,61-62,65,81-85,87,89
+sdk-typescript/src/v2/clientCreate.ts
+  s_9915432471174a::t_266e4608eb2d3e 6,15,155-162,168-172,185
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_9915432471174a::t_2ebe866cb40b75 10,212-218,555-575,993-994,1002-1009,1070,1073,1077-1078,1201
+sdk-typescript/src/v2/events.ts
+  s_9915432471174a::t_4d80bc781244a4 19,31-32,558,560,566,569-577,935-936,939,944,1150-1151
+sdk-typescript/src/v2/http.ts
+  s_9915432471174a::t_17bee3985841c5 234-235,1900-1904
+sdk-typescript/src/v2/index.ts
+  s_9915432471174a::t_66ab9bf00522a4 27,183,195
+sdk-typescript/src/v2/pages.ts
+  s_9915432471174a::t_fb9604f3559de5 1-124
+sdk-typescript/src/v2/readRetry.ts
+  s_9915432471174a::t_221fba20897e61 1-129
+sdk-typescript/src/v2/retryAfterHint.ts
+  s_9915432471174a::t_b560afcfd3930b 1-32
+sdk-typescript/src/v2/sandboxWait.ts
+  s_9915432471174a::t_eb2a78105f5d61 7,12,19-24,45-46,55-56,99-100,132-135,138-140,149-151,153,155-163,178-180,186-190,192,195-204,209,211,216-217,241,268-303
+sdk-typescript/src/v2/types.ts
+  s_9915432471174a::t_65d3c968c00a3d 253-256,293,495-506,1189,1191,1193
+sdk-typescript/tests/acquisition-reads.test.ts
+  s_9915432471174a::t_715162f321c61c 22,24-25,28
+sdk-typescript/tests/artifact-deadlines.test.ts
+  s_9915432471174a::t_a23522815b8f7f 9,61-64
+sdk-typescript/tests/build-logs.test.ts
+  s_9915432471174a::t_25abb75d9cfaa8 7,309-348,738-849
+sdk-typescript/tests/errors-contract.test.ts
+  s_9915432471174a::t_99d08dbb29aaf9 85-91,175
+sdk-typescript/tests/filesystem-move-timeout.test.ts
+  s_9915432471174a::t_2cfd3d391e1966 1-80
+sdk-typescript/tests/image-pull-deadline.test.ts
+  s_9915432471174a::t_f60843a4a1cc46 162-164,170-181
+sdk-typescript/tests/interpreter-setup-failure.test.ts
+  s_9915432471174a::t_cb305df92b8c2c 1-116
+sdk-typescript/tests/iter-pages.test.ts
+  s_9915432471174a::t_d3993b88ce122d 1-261
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  s_9915432471174a::t_9b6e7ee27f3030 48-50,54-56
+sdk-typescript/tests/process-inputs.test.ts
+  s_9915432471174a::t_b9c3a8457dfc7b 1-153
+sdk-typescript/tests/process-wait-rounds.test.ts
+  s_9915432471174a::t_e876ab76f6d0dc 1-184
+sdk-typescript/tests/sandbox-waits.test.ts
+  s_9915432471174a::t_3f2ca3dfbbc801 124-125,130-131,136-143
+sdk-typescript/tests/sessions.test.ts
+  s_9915432471174a::t_e3d17940e06163 126,128,169
+sdk-typescript/tests/toolbox-frozen-results.test.ts
+  s_9915432471174a::t_e94f7baaf6f732 188-189
+sdk-typescript/tests/unbounded-waits.test.ts
+  s_9915432471174a::t_14539b1334eb4c 9,69
+sdk-typescript/tests/unit.test.ts
+  s_9915432471174a::t_f745d9566fc7e0 118,2997-2998,3704-3706,3893-3894,3909-3910,3915-3934,5113-5114,5146-5148,5150,5154-5159,5451,5458,5494,5501,5536,5594-5616,5630,5637,5685,5692,5735,5909-5911,5953,5963,6659,8945-8948,9000-9003,9133,9176,9186,9188-9189,9202-9206,12648,12651-12662,12954-12956,12960-12962,13571-13572
+sdk-typescript/tests/wait-read-retries.test.ts
+  s_9915432471174a::t_df0a8f98084f63 1-624
+sdk-typescript/tests/wait-target-revalidation.test.ts
+  s_9915432471174a::t_215376ce4691da 1-281
+upgrade/MIGRATION.md
+  s_9915432471174a::t_09c0a3885476b8 30-31,47-49
+upgrade/python/README.md
+  s_9915432471174a::t_7d7c382b71a867 16-18
+upgrade/scripts/gen-guide.mjs
+  s_9915432471174a::t_9b5b87b8e477a5 62-63,79-81
+upgrade/typescript/README.md
+  s_9915432471174a::t_60590e242edcf6 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a1a7fbfc23682a2a567483bbf85f20484bac5b38",
+  "prompts": {},
+  "sessions": {
+    "s_9915432471174a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de265250cffeBmLEjSOYjJl5DV",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
