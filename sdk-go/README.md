@@ -116,8 +116,10 @@ cannot be installed or started, `RunCode` returns `ErrKernelUnavailable` with
 the sandbox's setup diagnostic in the message.
 
 **Metadata after create.** A handle from `Create*` holds only what the create
-response reports; call `sandbox.Refresh(ctx)` before reading `Info().Resources`,
-labels or other detail fields.
+response reports. A create already started when the response arrives returns
+with no wait and no read; otherwise its wait reads only as every wait does
+(see "Durations and waits"). Call `sandbox.Refresh(ctx)` before reading
+`Info().Resources`, labels or other detail fields.
 
 **Files.** Paths are inside the sandbox.
 
@@ -265,21 +267,24 @@ Every duration is a `time.Duration`:
   60 seconds by default. `daytona.NoWait` skips waiting where supported;
   `daytona.WaitForever` removes the SDK's wait deadline. When `Sandbox.Wait`
   or a lifecycle operation returns nil, `State()` reports the target it
-  observed. A wait decided by a target event from the sandbox events stream
-  makes no further request: the handle takes the event's state and the
-  sandbox's error message (cleared when there is none), and its other
-  fields, `SpotEvictedAt`, the lifecycle-policy deadlines and the activity
-  clock included, are as of the last read (`Refresh` reloads them). A
-  terminal state the stream reports gets one confirming read, unless it is
-  destroyed or the budget is spent, and a wait the stream leaves undecided
-  reads the sandbox while it polls. `Start` / `Resume` of a macOS sandbox
-  read it once more after the target event, while budget remains and unless
-  the event is destroyed, to report the boot mode and the reservation
-  (`Client.Resume` by ID knows the class only when a read during the wait
-  reported it); a failed read keeps the observed success, and when the read
-  shows another state, a state terminal for that wait returns
-  `*daytona.SandboxTerminalStateError` and any other state keeps polling
-  until the deadline. `Start` on a sandbox that
+  observed. Waits and reads: a wait decided by a target event from the
+  sandbox events stream makes no further request. A terminal event (error,
+  destroying) gets one confirming read before the wait fails, except after a
+  destroyed report or once the budget is spent; when that read is skipped or
+  fails, the handle carries the reported state and the wait returns it as
+  `*daytona.SandboxTerminalStateError`. A wait the stream leaves undecided
+  reads the sandbox while it polls. The handle takes an event's state and
+  error message (an event without one keeps only a message a read reported
+  for the same state and wire status), and its other fields,
+  `SpotEvictedAt`, the lifecycle-policy deadlines and the activity clock
+  included, are as of the last read (`Refresh` reloads them). `Start` /
+  `Resume` of a macOS sandbox read it once more after the target event,
+  while budget remains and never after destroyed, for the boot mode and the
+  reservation (`Client.Resume` by ID knows the class only when a read during
+  the wait reported it): a failed read keeps the observed success, and a read
+  that shows another state decides (destroying, destroyed or error return
+  `*daytona.SandboxTerminalStateError` at once; any other state, such as
+  stopped or paused, keeps the wait polling until the deadline). `Start` on a sandbox that
   is already starting (another caller started or resumed it) joins that
   operation and returns `*daytona.SandboxTerminalStateError` when the sandbox
   returns to stopped or paused, once the wait's long-poll reads confirm it

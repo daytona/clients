@@ -546,13 +546,18 @@ Update it with methods such as `set_labels()` and reload it with
 `refresh_data()`. A handle from `create*()` holds only what the create response
 carries (id, name, state, image, reservation and, when reported, the lifecycle
 policy) plus what the request fixed (`sandbox_class`, `region`, an `img_` / `snap_`
-id you passed) until something reads the sandbox. A create wait that a target
-event from the sandbox events stream decides does not read it (one the stream
-leaves undecided reads it while it polls): call `refresh_data()` before
-reading `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
-response does not report. Until then they are `None` (unknown), with
-`labels is None` rather than `{}`. A `fork()` handle whose wait did not read the
-sandbox (`wait_seconds=0`, or a failed read) is the same. `state` is
+id you passed) until something reads the sandbox. A create whose response
+already reports the sandbox started (the usual case) returns with no wait and
+no read; otherwise its wait reads the sandbox only as every wait does (see
+"Waits and reads" below: never after a target event, once to confirm a
+terminal event, and while it polls when the events stream decides nothing).
+Call
+`refresh_data()` before reading `cpu`, `memory`, `disk`, their limits,
+`labels` or any other field the response does not report. Until then they are
+`None` (unknown), with `labels is None` rather than `{}`. A `fork()` handle
+holds the fork's detail read, made before its wait (a fork wait decided by a
+target event adds none); with `wait_seconds=0`, or when that read fails, it
+is the same as a create handle. `state` is
 `"unknown"` and `raw_state` is `None` before a status is known. A class this SDK does not know reads as
 `sandbox_class == "unknown"` with the API's value in `raw_sandbox_class`.
 `sandbox.access_token` is the sandbox-scoped token the handle authenticates
@@ -1412,20 +1417,22 @@ cause. A failed probe is retried on the probes' own schedule (after about
 completion: `stop()` returns at `stopped`, and `delete()` returns at
 `destroyed` (a sandbox disappearing during deletion also means completion).
 Client methods accept a sandbox or its id and the same options, for example
-`d.v2.stop(sandbox.id, timeout=120)`. A wait decided by a target event from
-the sandbox events stream makes no further request: the handle takes the
-event's state and the sandbox's error message (cleared when there is none),
-and its other fields, `spot_evicted_at`, the `lifecycle_policy` deadlines and
-the activity clock included, are as of the last read (`refresh_data()`
-reloads them). A terminal state the stream reports (`error`, `destroying`)
-gets one confirming read before it raises, unless it is `destroyed` or the
-budget is spent, and a wait the stream leaves undecided reads the sandbox
-while it polls. `start()` / `resume()` of a macOS sandbox read it once more
-after the target event, while budget remains and unless the event is
-`destroyed`, to report the boot mode and the reservation; a failed read there
-does not turn the observed success into an error, and a read that shows
-another state decides instead (a state terminal for that wait raises, any
-other state keeps the wait going under the same budget). `start()` on a sandbox that is already `starting`, because
+`d.v2.stop(sandbox.id, timeout=120)`. **Waits and reads:** a wait decided by
+a target event from the sandbox events stream makes no further request. A
+terminal event (`error`, `destroying`) gets one confirming read before the
+wait raises, except after a `destroyed` report or once the budget is spent;
+when that read is skipped or fails, the handle carries the reported state and
+the wait raises it. A wait the stream leaves undecided reads the sandbox
+while it polls. The handle takes an event's state and error message (an
+event without one keeps only a message held for the same state and wire
+status), and its other fields, `spot_evicted_at`, the `lifecycle_policy`
+deadlines and the activity clock included, are as of the last read
+(`refresh_data()` reloads them). `start()` / `resume()` of a macOS sandbox
+read it once more after the target event, while budget remains and never
+after `destroyed`, for the boot mode and the reservation: a failed read keeps
+the observed success, and a read that shows another state decides
+(`destroying`, `destroyed` or `error` raise at once; any other state, such
+as `stopped` or `paused`, keeps the wait polling under the same deadline). `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and raises
 `SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
 once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,

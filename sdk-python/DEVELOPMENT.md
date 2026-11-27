@@ -158,17 +158,31 @@ sandbox. A raised create or fork means the request itself failed, except for
 carry the idempotency key because a sandbox may exist), caller cancellation,
 and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
-response (id, status, `forked_from`, class) and no wait follows. A target
-state the events hub reports ends the wait with no read (`_observe_outcome`
-takes the frame's state and error message; `spot_evicted_at`, the
-lifecycle-policy deadlines and the activity clock stay as of the last read);
-only `start()` / `resume()` pass `read_after_target=self._is_macos` to
-`_wait_for_state`, checked when the report arrives, for the boot mode and the
-reservation of a macOS sandbox. Once that wait has observed its target, a failed
-read is suppressed; a successful one decides too (a target returns, `destroyed` or
-`error` raises, and `destroying` too unless the wait targets `destroyed`; any
-other state polls on under the same deadline). An operation's own failure
-state (`started` for a pause, `stopped` / `paused` for a joined start) is also
+response (id, status, `forked_from`, class) and no wait follows.
+
+Reads in `_wait_for_state`:
+
+- A wait decided by a target event makes no further request
+  (`_observe_outcome` takes the frame's state and error message; without a
+  message, `_kept_error` keeps one held for the same state and wire status;
+  `spot_evicted_at`, the lifecycle-policy deadlines and the activity clock
+  stay as of the last read).
+- A terminal event (`error`, `destroying`) gets one confirming read before
+  the wait raises. It is skipped after a `destroyed` report, once the budget
+  is spent, and when the reported state already came from a full read (the
+  hub's probe). When it is skipped or fails, the handle carries the reported
+  state and the wait raises it; when it succeeds, it decides (a target
+  returns, `destroyed` / `error` / `destroying` raise, any other state polls
+  on under the same deadline).
+- A wait the stream leaves undecided reads while it polls (the hub's probes,
+  the final reserve, or the long-poll fallback).
+- The macOS post-target read: only `start()` / `resume()` pass
+  `read_after_target=self._is_macos`, checked when the report arrives, for
+  the boot mode and the reservation. It happens while budget remains and
+  never after `destroyed`. A failed read is suppressed and the observed
+  success stands; a successful one decides as the confirming read does.
+
+An operation's own failure state (`started` for a pause, `stopped` / `paused` for a joined start) is also
 the state before it, so a plain read that confirms an events report never
 raises on it; the long polls that follow decide. The server holds a loose
 `wait=paused` on `started`, and `wait=running` on `paused`, for the whole

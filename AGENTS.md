@@ -1027,11 +1027,13 @@ skipping exist only in the TypeScript tool).
   once if the state was reached. A failed read there keeps the timeout, with
   the read's error as its cause (a server's 408 included), except a 401 /
   403 and a 404, which are raised (a 404 in a delete is `destroyed`). A
-  wait decided by a target event makes no further request (terminal events
-  get the one confirming read above; the polling fallback and the final
-  reserve read). The handle takes the event's state and error message (a
-  frame without a message clears it, and no error message is kept for
-  another state or wire status); its other fields are as of the last read,
+  wait decided by a target event makes no further request; a terminal event
+  gets the one confirming read above (skipped after `destroyed`, once the
+  budget is spent, or when the state came from a full read; when skipped or
+  failed, the handle carries the reported state); the polling fallback and
+  the final reserve read. The handle takes the event's state and error
+  message; an event without one keeps a message held for the same state and
+  wire status (Go: one a full read reported) and drops any other; its other fields are as of the last read,
   among them those that do move on a transition: `spot_evicted_at` (set on
   an eviction, cleared by start and resume), the lifecycle-policy deadlines
   and the activity clock. The SDKs neither read for them nor clear them
@@ -1044,8 +1046,8 @@ skipping exist only in the TypeScript tool).
   reads only when a read during the wait reported it macOS. A target the hub
   resolves from a state it already held is trusted like a fresh frame: a
   stale held target (another caller moved the sandbox and its frame has not
-  arrived) can end a wait early, an accepted residual risk. Once the target was observed, a failed read there does not turn
-  that success into an error; a read that succeeds decides: a target
+  arrived) can end a wait early, an accepted residual risk. Once the target
+  was observed, a failed read there does not turn that success into an error; a read that succeeds decides: a target
   returns, a state terminal for that wait that no lag can show
   (`destroyed`, `error`, and `destroying` unless the wait targets
   `destroyed`) raises with the read's reason, and any other state polls on

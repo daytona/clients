@@ -207,10 +207,14 @@ export class Daytona {
    * response carries one) plus what the request fixed (the class, the region,
    * an `img_` / `snap_` id you passed). The rest (`cpu`, `memory`, `disk` and their limits, `labels`,
    * `user`, ...) is `undefined` (unknown, not empty) until a detail read.
-   * A create wait that a target event from the sandbox events stream
-   * decides does not read the sandbox (one the stream leaves undecided reads
-   * it while it polls), so call `sandbox.refreshData()` before reading
-   * them. The
+   * A create whose response already reports the sandbox started returns with
+   * no wait and no read. Otherwise its wait reads as every wait does: a wait
+   * decided by a target event from the sandbox events stream makes no further
+   * request; a terminal event (`error`, `destroying`) gets one confirming read,
+   * except after a `destroyed` report or once the budget is spent, and when
+   * that read is skipped or fails the handle carries the reported state; a
+   * wait the stream leaves undecided reads the sandbox while it polls. So call
+   * `sandbox.refreshData()` before reading them. The
    * same holds for {@link createFromSnapshot}, {@link createFromBuild} and
    * {@link createMacos}.
    *

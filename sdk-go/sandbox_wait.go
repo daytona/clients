@@ -25,7 +25,11 @@ import (
 // further request: the handle takes the event's state and error message, and
 // keeps its other fields, SpotEvictedAt, the lifecycle-policy deadlines and the
 // activity clock included, as of the last read (Refresh reloads them). A
-// terminal event gets one confirming read. Caller cancellation is never hidden.
+// terminal event (error, destroying) gets one confirming read, except after a
+// destroyed report or once the budget is spent; when that read is skipped or
+// fails, the handle carries the reported state and the wait returns it. A wait
+// the stream leaves undecided reads while it polls. Caller cancellation is
+// never hidden.
 // Polling retries a transient read failure (no response, a client read
 // timeout, HTTP 429 other than LIMIT_EXCEEDED, or a 5xx other than 501) after a backoff of 200 ms
 // doubling to 5 s, or RetryAfter when longer, within the budget; the last
