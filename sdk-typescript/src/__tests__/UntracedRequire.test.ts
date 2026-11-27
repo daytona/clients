@@ -8,6 +8,21 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { OTEL_OUTPUT_FILE_TRACING_GLOBS, requireUntraced } from '../utils/UntracedRequire'
 
+// process.getBuiltinModule is missing on older Node.js versions, where jest.spyOn cannot
+// replace it, so define it for the duration of a test and restore what was there.
+function mockGetBuiltinModule(value: unknown): { mockRestore(): void } {
+  const target = process as unknown as Record<string, unknown>
+  const had = Object.prototype.hasOwnProperty.call(target, 'getBuiltinModule')
+  const original = target.getBuiltinModule
+  target.getBuiltinModule = () => value
+  return {
+    mockRestore() {
+      if (had) target.getBuiltinModule = original
+      else delete target.getBuiltinModule
+    },
+  }
+}
+
 describe('requireUntraced', () => {
   it('loads an installed package', () => {
     expect(requireUntraced('@opentelemetry/api')).toBe(require('@opentelemetry/api'))
@@ -26,7 +41,11 @@ describe('requireUntraced', () => {
     expect(message).toMatch(
       /^The "@opentelemetry\/not-installed" package could not be loaded at runtime \(Cannot find module '@opentelemetry\/not-installed'/,
     )
-    expect(message).toContain("With Next.js `output: 'standalone'`, add them to the output in next.config.js:")
+    expect(message).toContain(
+      "With Next.js (`output: 'standalone'` and other traced deployments), add them to the output in next.config.js; " +
+        'this is needed even with serverExternalPackages, because output tracing cannot follow this runtime load:\n',
+    )
+    expect(message).not.toMatch(/unbundled|externals in webpack/)
     expect(message).toContain("outputFileTracingIncludes: {\n  '/**': [\n    './node_modules/{@grpc,")
     for (const glob of OTEL_OUTPUT_FILE_TRACING_GLOBS) expect(message).toContain(`    '${glob}',`)
     expect(message).not.toContain('Require stack')
@@ -34,11 +53,11 @@ describe('requireUntraced', () => {
 
   it('rethrows errors other than a missing module', () => {
     jest.isolateModules(() => {
-      const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue({
+      const spy = mockGetBuiltinModule({
         createRequire: () => () => {
           throw new SyntaxError('broken package')
         },
-      } as never)
+      })
       try {
         const { requireUntraced: load } = require('../utils/UntracedRequire')
         expect(() => load('@opentelemetry/api')).toThrow(SyntaxError)
@@ -54,11 +73,11 @@ describe('requireUntraced', () => {
     const packageError = Object.assign(new TypeError('bad argument inside the package'), {
       code: 'ERR_INVALID_ARG_TYPE',
     })
-    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue({
+    const spy = mockGetBuiltinModule({
       createRequire: () => () => {
         throw packageError
       },
-    } as never)
+    })
     try {
       expect(() => requireUntraced('@opentelemetry/api')).toThrow(packageError)
     } finally {
@@ -68,13 +87,13 @@ describe('requireUntraced', () => {
 
   it('skips a base that createRequire rejects', () => {
     let calls = 0
-    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue({
+    const spy = mockGetBuiltinModule({
       createRequire: (base: string) => {
         calls++
         if (calls === 1) throw Object.assign(new TypeError(`invalid base ${base}`), { code: 'ERR_INVALID_ARG_VALUE' })
         return () => 'loaded'
       },
-    } as never)
+    })
     try {
       expect(requireUntraced('@opentelemetry/api')).toBe('loaded')
       expect(calls).toBe(2)
@@ -84,7 +103,7 @@ describe('requireUntraced', () => {
   })
 
   it('falls back to the module API from require without process.getBuiltinModule', () => {
-    const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue(undefined as never)
+    const spy = mockGetBuiltinModule(undefined)
     try {
       expect(requireUntraced('@opentelemetry/api')).toBe(require('@opentelemetry/api'))
     } finally {
@@ -97,7 +116,7 @@ describe('requireUntraced', () => {
       jest.doMock('module', () => {
         throw new Error('no module API')
       })
-      const spy = jest.spyOn(process, 'getBuiltinModule').mockReturnValue(undefined as never)
+      const spy = mockGetBuiltinModule(undefined)
       try {
         const { requireUntraced: load } = require('../utils/UntracedRequire')
         expect(() => load('@opentelemetry/api')).toThrow(

@@ -107,7 +107,7 @@ check_routes() {
     # module-not-found error.
     for expected in '"otelOk":false' \
       'OpenTelemetry instrumentation is not supported: The \"@opentelemetry/sdk-node\" package could not be loaded at runtime' \
-      "add them to the output in next.config.js:\\noutputFileTracingIncludes: {"; do
+      "needed even with serverExternalPackages, because output tracing cannot follow this runtime load:\\noutputFileTracingIncludes: {"; do
       echo "$RESPONSE" | grep -qF "$expected" || { echo "FAIL ($label): otel error does not contain: $expected"; exit 1; }
     done
   fi

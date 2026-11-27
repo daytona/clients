@@ -14,9 +14,23 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'daytona-esbuild-cjs-isolated-
 try {
   const reqPath = path.join(dir, 'requirements.txt')
   fs.writeFileSync(reqPath, 'requests==2.31.0\n')
-  const image = Image.debianSlim('3.12').pipInstallFromRequirements(reqPath)
-  if (!image.dockerfile.includes('pip install -r /.requirements.txt')) {
-    throw new Error('pipInstallFromRequirements did not produce the expected dockerfile')
+  const pyprojectPath = path.join(dir, 'pyproject.toml')
+  fs.writeFileSync(pyprojectPath, '[project]\nname = "app"\ndependencies = ["httpx"]\n')
+  fs.mkdirSync(path.join(dir, 'src'))
+  fs.writeFileSync(path.join(dir, 'src', 'a.txt'), 'a')
+
+  const image = Image.debianSlim('3.12')
+    .pipInstallFromRequirements(reqPath)
+    .pipInstallFromPyproject(pyprojectPath)
+    .addLocalFile(reqPath, '/app/requirements.txt')
+    .addLocalDir(path.join(dir, 'src'), '/app/src')
+  for (const [helper, expected] of [
+    ['pipInstallFromRequirements', 'pip install -r /.requirements.txt'],
+    ['pipInstallFromPyproject', 'pip install -- httpx'],
+    ['addLocalFile', '/app/requirements.txt'],
+    ['addLocalDir', '/app/src'],
+  ]) {
+    if (!image.dockerfile.includes(expected)) throw new Error(`${helper} did not produce the expected dockerfile`)
   }
 } finally {
   fs.rmSync(dir, { recursive: true, force: true })

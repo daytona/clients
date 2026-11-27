@@ -60,9 +60,9 @@ function missingPackageError(id: string, cause: unknown): DaytonaError {
   return new DaytonaError(
     `The "${id}" package could not be loaded at runtime (${detail}). ` +
       'The SDK loads the OpenTelemetry packages at runtime, so bundlers do not copy them into the build output. ' +
-      'Install them next to your app, or leave @daytona/sdk unbundled (serverExternalPackages in Next.js, ' +
-      'externals in webpack). ' +
-      "With Next.js `output: 'standalone'`, add them to the output in next.config.js:\n" +
+      'Install them next to your app. ' +
+      "With Next.js (`output: 'standalone'` and other traced deployments), add them to the output in next.config.js; " +
+      'this is needed even with serverExternalPackages, because output tracing cannot follow this runtime load:\n' +
       OUTPUT_FILE_TRACING_SNIPPET,
   )
 }
