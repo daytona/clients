@@ -13,7 +13,7 @@ import { DOCKER_OWNERS, DOCKER_STATES } from './types.js'
 import type { DockerOwner, DockerState, DockerStatus } from './types.js'
 import { knownOrUnknown } from './knownValue.js'
 import { assertKnownOptions, optionKeys, optionalSeconds, waitDeadline } from './options.js'
-import { ReadRetry, withCause } from './readRetry.js'
+import { ReadRetry } from './readRetry.js'
 import { checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
 
@@ -124,7 +124,7 @@ export class DockerService {
     const retry = new ReadRetry(closedSignalOf(this.transport.http))
     for (;;) {
       const remaining = deadline === undefined ? undefined : Math.ceil(deadline - Date.now())
-      if (remaining !== undefined && remaining <= 0) throw withCause(new DockerWaitTimeoutError(last), retry.lastError)
+      if (remaining !== undefined && remaining <= 0) throw new DockerWaitTimeoutError(last, { cause: retry.lastError })
       const waitMs = remaining === undefined ? DOCKER_STATUS_MAX_WAIT_MS : Math.min(DOCKER_STATUS_MAX_WAIT_MS, remaining)
       // Allow response slack without running far past the caller's deadline.
       const requestTimeout = remaining === undefined ? waitMs + WAIT_READ_SLACK_MS : Math.min(waitMs + WAIT_READ_SLACK_MS, remaining + DOCKER_WAIT_DEADLINE_GRACE_MS)
@@ -132,7 +132,7 @@ export class DockerService {
       try {
         last = dockerStatusFromWire(await this.transport.get<toolbox.DockerStatus>(`/docker/status${encodeQuery({ waitMs })}`, { timeout: requestTimeout }))
       } catch (error) {
-        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw withCause(new DockerWaitTimeoutError(last), error)
+        if (error instanceof ClientTimeoutError && deadline !== undefined && Date.now() >= deadline) throw new DockerWaitTimeoutError(last, { cause: error })
         if (!retry.note(error)) throw error
         // Never sooner than the poll spacing, whatever the back-off.
         await retry.pause(deadline, pollStarted + DOCKER_STATUS_POLL_INTERVAL_MS)

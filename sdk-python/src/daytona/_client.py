@@ -15,6 +15,7 @@ from __future__ import annotations
 import difflib
 import functools
 import importlib
+import inspect
 import os
 import threading
 import warnings
@@ -256,6 +257,13 @@ def _config_init(self: DaytonaConfig, *args: object, **kwargs: object) -> None:
     for name in ("api_url", "server_url", "toolbox_url"):
         if name in kwargs:
             raise TypeError(_REMOVED_URL_FIELD.format(name=name))
+    # A misspelled keyword gets the same hint as a misspelled assignment.
+    known = [config_field.name for config_field in fields(type(self))]
+    for name in kwargs:
+        if name not in known:
+            raise TypeError(
+                f"{type(self).__name__}.__init__() got an unexpected keyword argument {name!r}{_field_hint(name, known)}"
+            )
     _dataclass_init(self, *args, **kwargs)  # type: ignore[arg-type]
 
 
@@ -272,13 +280,20 @@ def _config_setattr(self: DaytonaConfig, name: str, value: object) -> None:
     if name in _REMOVED_URL_FIELDS:
         raise TypeError(_REMOVED_URL_FIELD.format(name=name))
     # A misspelled field (`cfg.request_timout = 5`) would otherwise be kept as
-    # a plain attribute that no client reads. Fields of a subclass are allowed.
+    # a plain attribute that no client reads. A subclass's own dataclass fields
+    # and settable properties (any data descriptor) are allowed.
     known = [config_field.name for config_field in fields(type(self))]
-    if name not in known:
-        hint = difflib.get_close_matches(name, known, n=1)
-        suggestion = f"; did you mean {hint[0]!r}?" if hint else ""
-        raise AttributeError(f"DaytonaConfig has no field {name!r}{suggestion}", name=name, obj=self)
+    if name not in known and not hasattr(inspect.getattr_static(type(self), name, None), "__set__"):
+        # No name= / obj=: the interpreter would append its own suggestion,
+        # which can also name methods, after the SDK's.
+        raise AttributeError(f"{type(self).__name__} has no field {name!r}{_field_hint(name, known)}")
     object.__setattr__(self, name, value)
+
+
+def _field_hint(name: str, known: list[str]) -> str:
+    """``; did you mean '<field>'?`` for the closest config field, or ``""``."""
+    hint = difflib.get_close_matches(name, known, n=1)
+    return f"; did you mean {hint[0]!r}?" if hint else ""
 
 
 DaytonaConfig.__setattr__ = _config_setattr  # type: ignore[method-assign,assignment]

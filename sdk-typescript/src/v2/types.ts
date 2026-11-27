@@ -633,7 +633,8 @@ export interface SandboxConnectOptions {
    * project token, or a minted sandbox token), so pass only a URL you trust —
    * never one read from stored or user-supplied data. Omit it to use the URL
    * the API returns. It must be an absolute `http` / `https` URL with a host
-   * and no query or fragment (a `{sandboxId}` placeholder only in its path),
+   * and no query or fragment (a `{sandboxId}` or `{sandbox_id}` placeholder only
+   * in its path),
    * checked before any request.
    */
   readonly toolboxUrl?: string

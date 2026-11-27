@@ -9,6 +9,7 @@ toolbox URL override is an http(s) URL. The TypeScript twin is
 from __future__ import annotations
 
 import dataclasses
+import traceback
 from typing import Any, Callable
 
 import pytest
@@ -62,6 +63,42 @@ def test_assigning_a_misspelled_field_raises_with_a_hint() -> None:
     with pytest.raises(AttributeError, match=r"no field 'request_timout'; did you mean 'request_timeout'\?"):
         config.request_timout = 5  # type: ignore[attr-defined]
     assert not hasattr(config, "request_timout")
+
+
+def test_the_hint_appears_once_in_the_rendered_error() -> None:
+    config = DaytonaConfig()
+    with pytest.raises(AttributeError) as error:
+        config.request_timout = 5  # type: ignore[attr-defined]
+    rendered = "".join(traceback.format_exception_only(error.value))
+    assert rendered.count("request_timeout") == 1
+    assert "did you mean 'request_timeout'?" in rendered
+
+
+def test_a_misspelled_constructor_keyword_gets_the_same_hint() -> None:
+    with pytest.raises(
+        TypeError, match=r"unexpected keyword argument 'request_timout'; did you mean 'request_timeout'\?"
+    ):
+        DaytonaConfig(request_timout=5)  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match=r"unexpected keyword argument 'zzz'$"):
+        DaytonaConfig(zzz=5)  # type: ignore[call-arg]
+
+
+def test_a_subclass_property_setter_and_its_message() -> None:
+    @dataclasses.dataclass(kw_only=True)
+    class MsConfig(DaytonaConfig):
+        @property
+        def timeout_ms(self) -> float:
+            return (self.request_timeout or 0) * 1000
+
+        @timeout_ms.setter
+        def timeout_ms(self, value: float) -> None:
+            self.request_timeout = value / 1000
+
+    config = MsConfig(api_key="key")
+    config.timeout_ms = 2500
+    assert config.request_timeout == 2.5
+    with pytest.raises(AttributeError, match=r"^MsConfig has no field 'timout_ms'"):
+        config.timout_ms = 1  # type: ignore[attr-defined]
 
 
 def test_assigning_an_unknown_name_without_a_close_field_raises() -> None:
