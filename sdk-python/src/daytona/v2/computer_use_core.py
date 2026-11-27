@@ -88,7 +88,7 @@ def computer_use_params(**kwargs: JsonValue) -> Dict[str, JsonValue]:
 
 def screenshot_region_params(region: object) -> Dict[str, JsonValue]:
     """``screenshot(region=...)``'s query: a :class:`ComputerUseRegion` of
-    integers, ``width`` and ``height`` above zero, refused before any request
+    integers within 2**53 - 1, ``width`` and ``height`` above zero, refused before any request
     otherwise (TypeScript checks the same)."""
     if not isinstance(region, ComputerUseRegion):
         raise create_error("region must be a ComputerUseRegion", 400, "BAD_REQUEST", "SDK")
@@ -97,6 +97,13 @@ def screenshot_region_params(region: object) -> Dict[str, JsonValue]:
         value = getattr(region, name)
         if isinstance(value, bool) or not isinstance(value, int):
             raise create_error(f"region.{name} must be an integer", 400, "BAD_REQUEST", "SDK")
+        if abs(value) > MAX_SAFE_INTEGER:
+            raise create_error(
+                f"region.{name} must be between -{MAX_SAFE_INTEGER} and {MAX_SAFE_INTEGER}",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         if name in ("width", "height") and value <= 0:
             raise create_error(f"region.{name} must be greater than 0", 400, "BAD_REQUEST", "SDK")
         params[name] = value

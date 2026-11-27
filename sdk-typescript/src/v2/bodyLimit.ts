@@ -41,8 +41,12 @@ export function maxResponseBytesOption(name: string, value: unknown): number | u
  * hint through {@link withPerCallHint}.
  */
 export const CLIENT_CAP_HINT = "; raise the client's maxResponseBytes (0 = no limit)"
-/** The hint of the in-memory file reads, which take a per-call cap and have a streaming alternative. */
-export const FILE_READ_HINT = '; pass a higher maxResponseBytes for this call (0 = no limit), or use downloadFile() for large files'
+/**
+ * The hint of the in-memory file reads, which take a per-call cap and have a
+ * streaming alternative (`downloadFile()` in Node.js; elsewhere a pre-signed URL).
+ */
+export const FILE_READ_HINT = '; pass a higher maxResponseBytes for this call (0 = no limit), '
+  + 'or use downloadFile() (Node.js) or presignedDownloadUrl() for large files'
 /** The hint of the recording download, which takes a per-call cap. */
 export const PER_CALL_HINT = '; pass a higher maxResponseBytes for this call (0 = no limit)'
 

@@ -496,8 +496,12 @@ def _first_validation_error_line(error: ValidationError) -> str:
         return "is invalid"
     first = details[0]
     path = ".".join(str(part) for part in first["loc"])
-    # As TypeScript's mappers: an absent or null field "is required".
-    if first["type"] in _VALIDATION_TYPE_TEXT and first.get("input", ...) is None:
+    # As TypeScript's mappers: an absent or null field "is required"; a null
+    # list item is a wrong-typed value, not a missing one.
+    field_is_null = (
+        bool(first["loc"]) and isinstance(first["loc"][-1], str) and first.get("input", ...) is None
+    )
+    if first["type"] == "missing" or (first["type"] in _VALIDATION_TYPE_TEXT and field_is_null):
         text = "is required"
     else:
         text = _validation_error_text(first["type"], first.get("ctx") or {})
@@ -1443,6 +1447,8 @@ def check_env_key(key: object) -> str:
         raise create_error("env keys must be strings", 400, "BAD_REQUEST", "SDK")
     if not key or any(invalid in key for invalid in ("=", "\0", "\n", "\r")):
         raise create_error(INVALID_ENV_KEY_REASON, 400, "BAD_REQUEST", "SDK")
+    if has_surrogate(key):
+        raise create_error("env keys must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
     return key
 
 
@@ -1452,6 +1458,8 @@ def check_env_value(value: object) -> str:
         raise create_error("env values must be strings", 400, "BAD_REQUEST", "SDK")
     if "\0" in value:
         raise create_error("env values must not contain NUL", 400, "BAD_REQUEST", "SDK")
+    if has_surrogate(value):
+        raise create_error("env values must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
     return value
 
 
@@ -2348,7 +2356,9 @@ def _wire_statuses(states: object) -> str:
     for state in items:
         statuses = _STATE_WIRE_STATUSES.get(state) if isinstance(state, str) else None
         if statuses is None:
-            shown = json.dumps(state) if isinstance(state, str) else repr(state)
+            if not isinstance(state, str):
+                raise create_error("states entries must be strings", 400, "BAD_REQUEST", "SDK")
+            shown = json.dumps(state, ensure_ascii=False)
             raise create_error(
                 f"states entries must be known sandbox states, got {shown}", 400, "BAD_REQUEST", "SDK"
             )

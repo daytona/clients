@@ -167,7 +167,8 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
   }
   if (options.env !== undefined) {
     if (!isPlainStringRecord(options.env)) throw badRequest('env must be a plain object of string to string')
-    // The names and values `updateEnv` takes.
+    // The names and values `updateEnv` takes. The request builders send a
+    // copy (`createEnv`), so a later change to the caller's object is not sent.
     for (const [key, value] of Object.entries(options.env)) {
       envKey(key)
       envValue(value)
@@ -179,4 +180,13 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
   for (const key of ['spot', 'persistent', 'autoRenew', 'autoDelete'] as const) optionalTyped(options, key, 'boolean')
   // The platform's architectures (the contract's CpuArchitecture), as for the image option: SDK inputs are closed.
   if (options.cpuArch !== undefined && options.cpuArch !== 'amd64' && options.cpuArch !== 'arm64') throw badRequest('cpuArch must be "amd64" or "arm64"')
+}
+
+/**
+ * A copy of a create's `env`, checked by {@link assertCreateNestedOptions}:
+ * the request carries it, never the caller's object.
+ * @internal
+ */
+export function createEnv(env: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {
+  return env === undefined ? undefined : { ...env }
 }

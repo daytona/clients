@@ -237,17 +237,12 @@ function labelsBody(labels: unknown): Record<string, string> {
 }
 
 function updateEnvBody(env: Record<string, string>, options: UpdateEnvOptions): toolbox.EnvRequest {
-  if (typeof env !== 'object' || env === null || Array.isArray(env)) {
+  // A Map or class instance has no own string entries: refused, never sent as {}.
+  if (!isPlainStringRecord(env)) {
     throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const outputEnv = emptyStringMap()
-  for (const [key, value] of Object.entries(env)) {
-    envKey(key)
-    if (typeof value !== 'string') {
-      throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
-    outputEnv[key] = envValue(value)
-  }
+  for (const [key, value] of Object.entries(env)) outputEnv[envKey(key)] = envValue(value)
   const unset = options.unset ?? []
   if (!Array.isArray(unset) || unset.some((key) => typeof key !== 'string')) {
     throw new BadRequestError('updateEnv requires unset to be an array of strings', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })

@@ -118,9 +118,17 @@ func (s *ComputerUseScreen) Screenshot(
 	return result, nil
 }
 
-// checkScreenshotRegion refuses an empty region before any request, as the
-// Python and TypeScript SDKs do.
+// checkScreenshotRegion refuses an empty region, or a coordinate beyond
+// 2**53 - 1, before any request, as the Python and TypeScript SDKs do.
 func checkScreenshotRegion(region ComputerUseRegion) error {
+	for _, field := range []struct {
+		name  string
+		value int
+	}{{"X", region.X}, {"Y", region.Y}, {"Width", region.Width}, {"Height", region.Height}} {
+		if int64(field.value) > maxSafeInteger || int64(field.value) < -maxSafeInteger {
+			return badRequest("Region." + field.name + " must be between -9007199254740991 and 9007199254740991")
+		}
+	}
 	if region.Width <= 0 {
 		return badRequest("Region.Width must be greater than 0")
 	}

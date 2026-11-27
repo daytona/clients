@@ -63,7 +63,7 @@ describe('transfer inputs (#575)', () => {
     expect(existsSync(join(dir, 'dest'))).toBe(false)
   })
 
-  it('accepts an AbortSignal and a signal-shaped object from another realm', async () => {
+  it('accepts an AbortSignal and a signal-shaped object', async () => {
     const source = join(dir, 'source.txt')
     writeFileSync(source, 'x')
     const { fs, requests } = fileSystem()
@@ -111,6 +111,7 @@ describe('screenshot region (#575)', () => {
     [{ x: 0, y: 0, width: '1', height: 1 }, 'region.width must be an integer'],
     [{ x: 0, y: 0, width: 0, height: 1 }, 'region.width must be greater than 0'],
     [{ x: 0, y: 0, width: 1, height: -2 }, 'region.height must be greater than 0'],
+    [{ x: 2 ** 53, y: 0, width: 1, height: 1 }, 'region.x must be between -9007199254740991 and 9007199254740991'],
   ])('refuses region %j before any request', async (region, message) => {
     const { get, screen: service } = screen()
     await refused(() => service.screenshot({ region: region as never }), message)
@@ -126,6 +127,8 @@ describe('screenshot region (#575)', () => {
 
 describe('create inputs (#575)', () => {
   it.each([
+    [{ 'A\ud800': 'x' }, 'env keys must not contain a lone surrogate'],
+    [{ A: 'x\udc00' }, 'env values must not contain a lone surrogate'],
     [{ 'A=B': 'x' }, 'env key is not a valid variable name'],
     [{ '': 'x' }, 'env key is not a valid variable name'],
     [{ 'A\nB': 'x' }, 'env key is not a valid variable name'],
@@ -155,6 +158,22 @@ describe('create inputs (#575)', () => {
       await refused(() => client.v2.reservations.create({ region: 'r', idempotencyKey: key }), message)
       await refused(() => client.v2.reservations.renew('res', { idempotencyKey: key }), message)
       expect(api.requests).toEqual([])
+    } finally {
+      await client.close()
+      await api.close()
+    }
+  })
+
+  it('sends the env it checked, not a later change to the caller object', async () => {
+    const api = await startFakeApi([{ status: 200, body: { id: 'sbx', class: 'linux', status: 'running', region_id: 'region-a' } }])
+    const client = clientAt(api.url)
+    try {
+      const env: Record<string, string> = { A: 'x' }
+      // A non-ASCII name: its idempotency key is hashed asynchronously.
+      const pending = client.v2.create('img', { name: 'm\u00e9t\u00e9o', env, waitSeconds: 0 })
+      env.A = 'y\0'
+      await pending
+      expect(JSON.parse(api.requests[0].body).env).toEqual({ A: 'x' })
     } finally {
       await client.close()
       await api.close()
@@ -226,7 +245,11 @@ describe('shared messages (#571)', () => {
     [5, 'states must be a sandbox state or a list of sandbox states'],
     [[], 'states must name at least one sandbox state'],
     ['unknown', 'states entries must be known sandbox states, got "unknown"'],
-    [['started', 3], 'states entries must be known sandbox states, got 3'],
+    [['started', 3], 'states entries must be strings'],
+    [[true], 'states entries must be strings'],
+    [[null], 'states entries must be strings'],
+    [[Object.create(null)], 'states entries must be strings'],
+    ['météo', 'states entries must be known sandbox states, got "météo"'],
   ])('search states %j', (states, message) => {
     expect(() => searchQueryParams({ states: states as never })).toThrow(new BadRequestError(message))
   })
@@ -274,7 +297,7 @@ describe('shared messages (#571)', () => {
       expect(listed).toBeInstanceOf(PayloadTooLargeError)
       expect(read).toBeInstanceOf(PayloadTooLargeError)
       expect((listed as Error).message).toBe(`the response body is larger than the ${cap}-byte maxResponseBytes limit; raise the client's maxResponseBytes (0 = no limit)`)
-      expect((read as Error).message).toBe(`the response body is larger than the ${cap}-byte maxResponseBytes limit; pass a higher maxResponseBytes for this call (0 = no limit), or use downloadFile() for large files`)
+      expect((read as Error).message).toBe(`the response body is larger than the ${cap}-byte maxResponseBytes limit; pass a higher maxResponseBytes for this call (0 = no limit), or use downloadFile() (Node.js) or presignedDownloadUrl() for large files`)
       for (const error of [listed, read]) expect(error).toMatchObject({ statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK' })
     } finally {
       await client.close()

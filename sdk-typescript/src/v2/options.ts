@@ -135,12 +135,14 @@ export function envKey(key: string): string {
   if (key.length === 0 || key.includes('=') || key.includes('\0') || key.includes('\n') || key.includes('\r')) {
     throw badRequest('env key is not a valid variable name')
   }
+  if (hasLoneSurrogate(key)) throw badRequest('env keys must not contain a lone surrogate')
   return key
 }
 
 /** A sandbox environment variable value: no NUL. @internal */
 export function envValue(value: string): string {
   if (value.includes('\0')) throw badRequest('env values must not contain NUL')
+  if (hasLoneSurrogate(value)) throw badRequest('env values must not contain a lone surrogate')
   return value
 }
 

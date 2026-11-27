@@ -303,7 +303,8 @@ with 400. The SDKs do not list regions or CPU types: use the CLI
 (`daytona region list`, `daytona cpu-type list --region <region>`).
 
 Every `create*()` sends an idempotency key, as the `Idempotency-Key` header:
-the one you pass as `idempotency_key` (printable ASCII, at most 256 bytes),
+the one you pass as `idempotency_key` (printable ASCII with no leading or
+trailing space, at most 256 bytes),
 else one derived from `name` (next section), else a random UUID per
 invocation. If the create request times out or loses its connection,
 `SandboxCreateRequestTimeoutError` / `SandboxCreateConnectionError` exposes
@@ -1373,9 +1374,9 @@ Some environment variable names are reserved for the platform, among them
 every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
 and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
 that sets a reserved name fails the create with `BadRequestError` (400) naming
-the key. A name no environment can hold (empty, or with `=`, NUL, CR or LF) and
-a value with NUL are refused by the SDK before any request, in `create*(env=...)`
-and `update_env()` alike. `update_env()` refuses reserved `DAYTONA_*` names in the keys it sets or
+the key. The SDK itself refuses, before any request, a name that is empty or
+contains `=`, NUL, CR or LF and a value that contains NUL, in
+`create*(env=...)` and `update_env()` alike. `update_env()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 

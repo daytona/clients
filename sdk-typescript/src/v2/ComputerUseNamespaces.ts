@@ -257,14 +257,16 @@ export class ScreenService {
 }
 
 /**
- * `screenshot({ region })`'s query: four safe integers, `width` and `height`
- * above zero, refused before any request otherwise (Python checks the same).
+ * `screenshot({ region })`'s query: four integers within 2**53 - 1, `width`
+ * and `height` above zero, refused before any request otherwise (Python and Go
+ * check the same).
  */
 function screenshotRegion(region: ComputerUseRegion): { readonly x: string; readonly y: string; readonly width: string; readonly height: string } {
   assertKnownOptions('ComputerUseRegion', region, REGION_KEYS)
   const field = (name: keyof ComputerUseRegion): string => {
     const value: unknown = region[name]
-    if (typeof value !== 'number' || !Number.isSafeInteger(value)) throw badRequest(`region.${name} must be an integer`)
+    if (typeof value !== 'number' || !Number.isInteger(value)) throw badRequest(`region.${name} must be an integer`)
+    if (!Number.isSafeInteger(value)) throw badRequest(`region.${name} must be between -${Number.MAX_SAFE_INTEGER} and ${Number.MAX_SAFE_INTEGER}`)
     if ((name === 'width' || name === 'height') && value <= 0) throw badRequest(`region.${name} must be greater than 0`)
     return String(value)
   }

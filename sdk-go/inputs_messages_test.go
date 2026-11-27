@@ -83,6 +83,7 @@ func TestScreenshot_whenRegionIsEmpty(t *testing.T) {
 	}{
 		{ComputerUseRegion{Width: 0, Height: 1}, "Region.Width must be greater than 0"},
 		{ComputerUseRegion{Width: 1, Height: -2}, "Region.Height must be greater than 0"},
+		{ComputerUseRegion{X: 1 << 53, Width: 1, Height: 1}, "Region.X must be between -9007199254740991 and 9007199254740991"},
 	} {
 		// Given
 		sandbox, fake := computerUseTestSandbox(t, jsonHandler(t, JSONValue(`{"screenshot":"AA==","sizeBytes":1}`)))
@@ -118,6 +119,7 @@ func TestSearch_whenStatesAreEmptyOrUnknown(t *testing.T) {
 		{[]SandboxState{}, "states must name at least one sandbox state"},
 		{[]SandboxState{SandboxStateUnknown}, `states entries must be known sandbox states, got "unknown"`},
 		{[]SandboxState{SandboxStateStarted, "running"}, `states entries must be known sandbox states, got "running"`},
+		{[]SandboxState{"m\u00e9t\u00e9o\t<x>"}, `states entries must be known sandbox states, got "météo\t<x>"`},
 	} {
 		// Given
 		fake := newFakeServer(t, nil)

@@ -3,7 +3,10 @@
 
 package daytona
 
-import "strconv"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // SandboxState is the normalized lifecycle state; RawState keeps the wire value.
 type SandboxState string
@@ -91,6 +94,18 @@ func stateWire(state SandboxState) ([]string, error) {
 	case SandboxStateUnknown:
 		return nil, badRequest(`states entries must be known sandbox states, got "unknown"`)
 	default:
-		return nil, badRequest("states entries must be known sandbox states, got " + strconv.Quote(string(state)))
+		return nil, badRequest("states entries must be known sandbox states, got " + jsonQuote(string(state)))
 	}
+}
+
+// jsonQuote quotes text as JSON.stringify and Python's json.dumps(...,
+// ensure_ascii=False) do, so a message that shows it reads the same in every SDK.
+func jsonQuote(text string) string {
+	var out strings.Builder
+	encoder := json.NewEncoder(&out)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(text); err != nil {
+		return `"` + text + `"`
+	}
+	return strings.TrimSuffix(out.String(), "\n")
 }

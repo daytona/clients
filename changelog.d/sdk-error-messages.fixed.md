@@ -8,8 +8,9 @@ message in Python, TypeScript and Go, modulo parameter naming:
 - `search(states=...)`: a value that is neither a state nor a list is a type
   error (`states must be a sandbox state or a list of sandbox states`; a number
   used to read as an empty list), an empty list says `states must name at
-  least one sandbox state`, and an unknown state says `states entries must be
-  known sandbox states, got "unknown"`;
+  least one sandbox state`, an entry that is not a string says `states entries
+  must be strings`, and an unknown state says `states entries must be known
+  sandbox states, got "unknown"`;
 - a malformed response field reads `x must be an integer` / `logs is
   required` in Python too, instead of the validation library's
   `Input should be a valid integer` / `Field required`;

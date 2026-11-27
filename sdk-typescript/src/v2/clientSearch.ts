@@ -177,8 +177,9 @@ function searchStates(states: SandboxState | readonly SandboxState[]): string {
   if (values.length === 0) throw badRequest('states must name at least one sandbox state')
   const wire = new Set<string>()
   for (const state of values) {
-    if (typeof state !== 'string' || state === 'unknown' || !Object.prototype.hasOwnProperty.call(SEARCH_STATES, state)) {
-      throw badRequest(`states entries must be known sandbox states, got ${typeof state === 'string' ? JSON.stringify(state) : String(state)}`)
+    if (typeof state !== 'string') throw badRequest('states entries must be strings')
+    if (state === 'unknown' || !Object.prototype.hasOwnProperty.call(SEARCH_STATES, state)) {
+      throw badRequest(`states entries must be known sandbox states, got ${JSON.stringify(state)}`)
     }
     for (const value of SEARCH_STATES[state as SandboxState]) wire.add(value)
   }

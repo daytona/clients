@@ -2063,6 +2063,8 @@ describe('V2 model', () => {
     await expect(sandbox.updateEnv({ 'BAD\0KEY': 'x' })).rejects.toBeInstanceOf(BadRequestError)
     await expect(sandbox.updateEnv({ GOOD: 'bad\0value' })).rejects.toBeInstanceOf(BadRequestError)
     await expect(sandbox.updateEnv({}, { unset: ['BAD\0KEY'] })).rejects.toBeInstanceOf(BadRequestError)
+    // A Map has no own entries: refused, never sent as {}.
+    await expect(sandbox.updateEnv(new Map([['A', 'x']]) as never)).rejects.toThrow('updateEnv requires env to be a Record<string, string>')
     expect(post).not.toHaveBeenCalled()
   })
 

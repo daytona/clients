@@ -152,6 +152,10 @@ async def test_uploading_a_local_directory_is_refused_before_any_request(tmp_pat
         (ComputerUseRegion(x=0, y=0, width="1", height=1), "region.width must be an integer"),  # type: ignore[arg-type]
         (ComputerUseRegion(x=0, y=0, width=0, height=1), "region.width must be greater than 0"),
         (ComputerUseRegion(x=0, y=0, width=1, height=-2), "region.height must be greater than 0"),
+        (
+            ComputerUseRegion(x=2**53, y=0, width=1, height=1),
+            "region.x must be between -9007199254740991 and 9007199254740991",
+        ),
     ],
 )
 async def test_screenshot_region_is_checked_before_any_request(region: object, message: str) -> None:
@@ -175,6 +179,8 @@ async def test_a_valid_screenshot_region_is_sent_as_integers() -> None:
 @pytest.mark.parametrize(
     ("env", "message"),
     [
+        ({"A\ud800": "x"}, "env keys must not contain a lone surrogate"),
+        ({"A": "x\udc00"}, "env values must not contain a lone surrogate"),
         ({"A=B": "x"}, "env key is not a valid variable name"),
         ({"": "x"}, "env key is not a valid variable name"),
         ({"A\nB": "x"}, "env key is not a valid variable name"),
@@ -286,7 +292,10 @@ async def test_missing_and_conflicting_credentials_name_the_config_and_the_varia
         (5, "states must be a sandbox state or a list of sandbox states"),
         ([], "states must name at least one sandbox state"),
         ("unknown", 'states entries must be known sandbox states, got "unknown"'),
-        (["started", 3], "states entries must be known sandbox states, got 3"),
+        (["started", 3], "states entries must be strings"),
+        ([True], "states entries must be strings"),
+        ([None], "states entries must be strings"),
+        ("météo", 'states entries must be known sandbox states, got "météo"'),
     ],
 )
 def test_search_states_messages(states: object, message: str) -> None:
