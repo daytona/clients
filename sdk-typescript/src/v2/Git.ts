@@ -114,16 +114,14 @@ export class GitService {
   public async clone(url: string, options: CloneOptions): Promise<void> {
     assertKnownOptions('CloneOptions', options, CLONE_OPTION_KEYS)
     const depth = validateCloneDepth(options.depth)
-    if (options.insecureSkipTls !== undefined && typeof options.insecureSkipTls !== 'boolean') {
-      throw new BadRequestError('insecureSkipTls must be a boolean', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-    }
+    const insecureSkipTls = optionalBoolean(options.insecureSkipTls, 'insecureSkipTls')
     const body: toolbox.CloneRequest = {
       url,
       path: options.path,
       branch: options.branch,
       commit_id: options.commitId,
       depth,
-      insecureSkipTls: options.insecureSkipTls === true ? true : undefined,
+      insecureSkipTls: insecureSkipTls === true ? true : undefined,
       username: options.username,
       password: options.password,
     }
@@ -134,7 +132,7 @@ export class GitService {
     assertKnownOptions('InitOptions', options, INIT_OPTION_KEYS)
     await this.transport.post<void>('/git/init', {
       path,
-      bare: options.bare ?? false,
+      bare: optionalBoolean(options.bare, 'bare') ?? false,
       initial_branch: options.initialBranch,
     })
   }
@@ -164,8 +162,8 @@ export class GitService {
     await this.transport.post<void>('/git/restore', {
       path,
       files: pathSequence('files', files),
-      staged: options.staged,
-      worktree: options.worktree,
+      staged: optionalBoolean(options.staged, 'staged'),
+      worktree: optionalBoolean(options.worktree, 'worktree'),
       source: options.source,
     })
   }
@@ -198,7 +196,7 @@ export class GitService {
       message,
       author,
       email,
-      allow_empty: options.allowEmpty === true ? true : undefined,
+      allow_empty: optionalBoolean(options.allowEmpty, 'allowEmpty') === true ? true : undefined,
     }
     return gitCommitResponseFromWire(await this.transport.post<toolbox.CommitResponse>('/git/commit', body))
   }
@@ -225,7 +223,7 @@ export class GitService {
       password: options.password,
       branch: options.branch,
       remote: options.remote,
-      setUpstream: options.setUpstream === true ? true : undefined,
+      setUpstream: optionalBoolean(options.setUpstream, 'setUpstream') === true ? true : undefined,
     }
     await this.transport.post<void>('/git/push', body, timeoutConfig(options.timeoutSeconds))
   }
@@ -278,9 +276,9 @@ export class GitService {
    */
   public async deleteBranch(path: string, name: string, options: DeleteBranchOptions = {}): Promise<void> {
     assertKnownOptions('DeleteBranchOptions', options, DELETE_BRANCH_OPTION_KEYS)
-    if (options.force !== undefined && typeof options.force !== 'boolean') throw badRequest('force must be a boolean')
+    const force = optionalBoolean(options.force, 'force')
     const body: toolbox.BranchRequest & { force?: true } = { path, name }
-    if (options.force === true) body.force = true
+    if (force === true) body.force = true
     await this.transport.delete<void>('/git/branches', { data: body })
   }
 
@@ -294,6 +292,12 @@ export class GitService {
     const data = await this.transport.get<toolbox.CommitInfo[] | ListResult<toolbox.CommitInfo>>('/git/history', { params: { path } })
     return listItems(data, 'items', 'git history response', gitCommitFromWire)
   }
+}
+
+/** A boolean option, never truth-tested: `'false'` is refused, not read as true. */
+function optionalBoolean(value: boolean | undefined, name: string): boolean | undefined {
+  if (value !== undefined && typeof value !== 'boolean') throw badRequest(`${name} must be a boolean`)
+  return value
 }
 
 function configScope(scope: GitConfigScope | undefined): GitConfigScope {

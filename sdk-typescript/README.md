@@ -878,10 +878,11 @@ last event's cursor. Every duration is in seconds: `timeoutSeconds` is the calle
 budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
 deadline for server-managed runs that support one (omitted or `0`: no
 deadline), and
-`kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
-(`'TERM'`), in `kill()` and in what `wait()` and `get()` report. `kill()` sends
-`TERM` by default, which an interactive shell (a pty's default shell, from
-`pty.start()` with no command) ignores: stop one with `{ signal: 'HUP' }` or `{ signal: 'KILL' }`, or pass
+`kill({ escalateAfterSeconds })` the escalation delay (at most 600; `escalateTo`
+needs it). Signals are bare names (`'TERM'`, not `'SIGTERM'`; `kill()` matches
+them case-insensitively), in `kill()` and in what `wait()` and `get()` report.
+`kill()` sends `TERM` by default, which an interactive shell (a pty's default
+shell, from `pty.start()` with no command) ignores: stop one with `{ signal: 'HUP' }` or `{ signal: 'KILL' }`, or pass
 `escalateAfterSeconds` to follow `TERM` with `KILL`. Reconnected
 `kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
 `kill()`), not a way to recover a parsed `InterpreterResult` on another worker.

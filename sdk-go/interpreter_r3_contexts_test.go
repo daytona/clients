@@ -33,9 +33,10 @@ func TestInterpreterR3CreateContext_whenBindingFails_preservesNamedUncertainty(t
 }
 
 func TestInterpreterR3CreateContext_whenLanguageUnsupported_preservesServerError(t *testing.T) {
-	for _, language := range []string{"", "future-language"} {
+	// An empty language is refused locally (TestCreateContextRefusesAnEmptyLanguageBeforeAnyRequest).
+	for _, language := range []string{"future-language"} {
 		t.Run(language, func(t *testing.T) {
-			// Given the server owns kernel support, including an empty kernel.
+			// Given the server owns kernel support.
 			fake := newFakeServer(t, map[string]http.HandlerFunc{
 				"POST /sessions": func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "application/json")

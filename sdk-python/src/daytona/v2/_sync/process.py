@@ -87,9 +87,16 @@ class ProcessHandle:
         *,
         signal: ProcessSignal = "TERM",
         escalate_after: Optional[float] = None,
-        escalate_to: ProcessSignal = "KILL",
+        escalate_to: Optional[ProcessSignal] = None,
     ) -> None:
-        """Send a signal and optional escalation signal."""
+        """Send a signal, optionally escalating to ``escalate_to`` (default
+        ``KILL``) after ``escalate_after`` seconds.
+
+        Signals are bare names (``TERM``, not ``SIGTERM``; case-insensitive).
+        ``escalate_after`` is at most 600 seconds, and ``escalate_to`` needs
+        ``escalate_after``; anything else raises ``BadRequestError`` before
+        any request.
+        """
         return self._bridge.call(
             lambda: self._impl.kill(signal=signal, escalate_after=escalate_after, escalate_to=escalate_to)
         )
