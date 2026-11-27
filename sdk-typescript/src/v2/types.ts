@@ -632,10 +632,12 @@ export interface SandboxConnectOptions {
    * The SDK sends this sandbox's toolbox credential there (the API key, a
    * project token, or a minted sandbox token), so pass only a URL you trust —
    * never one read from stored or user-supplied data. Omit it to use the URL
-   * the API returns. It must be an absolute `http` / `https` URL with a host
-   * and no query or fragment (a `{sandboxId}` or `{sandbox_id}` placeholder only
-   * in its path),
-   * checked before any request.
+   * the API returns. It must be an absolute `http` / `https` URL with a host,
+   * an optional port up to 65535 and no query or fragment; a `{sandboxId}` or
+   * `{sandbox_id}` placeholder may appear only in its path. Whitespace and
+   * control characters are refused anywhere, and the host must be an IPv6
+   * literal or a name of ASCII letters, digits, `-._~!$&'()*+,;=` and
+   * non-ASCII characters. The URL is checked before any request.
    */
   readonly toolboxUrl?: string
   /**
