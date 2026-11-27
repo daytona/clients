@@ -1,0 +1,19 @@
+sdk-go/create_prepare.go
+  s_cdd0f68a8f776a::t_ee3d7b2812a4cf 70-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f9408c0dda7c2b1c74f217d08691e9c7c76c61a",
+  "prompts": {},
+  "sessions": {
+    "s_cdd0f68a8f776a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de231bf37ffehrrSh4v7IOEgN3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
