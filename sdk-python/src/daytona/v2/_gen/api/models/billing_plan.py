@@ -39,12 +39,12 @@ class BillingPlan(BaseModel):
     BillingPlan
     """ # noqa: E501
     currency: StrictStr = Field(description="The lowercase ISO 4217 currency code.")
-    current_period: Optional[BillingPeriod] = None
+    current_period: Optional[BillingPeriod] = Field(default=None, description="The current billing period, or `null` when unavailable.")
     entitlements: List[StrictStr] = Field(description="The entitlement keys included in the plan.")
     fee_cents: StrictInt = Field(description="The recurring plan fee in cents.")
     limits: PlanLimits
     monthly_credit_cents: StrictInt = Field(description="The monthly included credit in cents.")
-    pending: Optional[PendingPlanChange] = None
+    pending: Optional[PendingPlanChange] = Field(default=None, description="The scheduled plan change, or `null` when none is pending.")
     plan: PlanName
     self_serve: StrictBool = Field(description="Whether members can change this plan through the API.")
     additional_properties: Dict[str, Any] = {}

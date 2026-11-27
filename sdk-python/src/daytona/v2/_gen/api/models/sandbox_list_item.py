@@ -52,13 +52,13 @@ class SandboxListItem(BaseModel):
     error: Optional[StrictStr] = Field(default=None, description="Failure detail, or null when no failure is recorded.")
     forked_from: Optional[StrictStr] = Field(default=None, description="Source sandbox ID when this sandbox is a fork.")
     id: StrictStr = Field(description="The sandbox ID.")
-    image: Optional[ImageReference] = None
+    image: Optional[ImageReference] = Field(default=None, description="The image the sandbox was created from; absent when it was created from a snapshot.")
     image_build_id: Optional[StrictStr] = Field(default=None, description="Build ID associated with the sandbox image.")
     image_ref: Optional[StrictStr] = Field(default=None, description="The original image reference when no image resource is associated.")
     imported_from: Optional[ImportedFrom] = None
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="User-defined sandbox labels.")
     last_activity_at: Optional[datetime] = Field(default=None, description="When activity was last observed.")
-    lifecycle_policy: Optional[LifecyclePolicy] = None
+    lifecycle_policy: Optional[LifecyclePolicy] = Field(default=None, description="Automatic timeout and idle-expiry behavior.")
     mac_boot_mode: Optional[StrictStr] = Field(default=None, description="How a macOS sandbox resumed; absent when it has not resumed.")
     memory_max_mib: Optional[StrictInt] = Field(default=None, description="Maximum memory in MiB.")
     memory_mib: StrictInt = Field(description="Reserved memory in MiB.")
@@ -67,7 +67,7 @@ class SandboxListItem(BaseModel):
     port_map: List[PortAssignment] = Field(description="Port assignments reported for the sandbox.")
     region_id: StrictStr = Field(description="The region the sandbox runs in.")
     reservation_id: Optional[StrictStr] = Field(default=None, description="The Mac reservation that the macOS sandbox runs on, or ran on last. Null before the sandbox first reaches a Mac; absent for other sandbox classes.")
-    snapshot: Optional[SnapshotReference] = None
+    snapshot: Optional[SnapshotReference] = Field(default=None, description="The snapshot the sandbox was created from; absent when it was created from an image.")
     spot: Optional[StrictBool] = Field(default=None, description="Whether discounted interruptible capacity was requested.")
     spot_evicted_at: Optional[datetime] = Field(default=None, description="When discounted capacity reclaimed the sandbox; absent when it has not been reclaimed.")
     ssh_gateway_host: Optional[StrictStr] = Field(default=None, description="SSH gateway host for the sandbox region.")
@@ -174,6 +174,11 @@ class SandboxListItem(BaseModel):
         if self.forked_from is None and "forked_from" in self.model_fields_set:
             _dict['forked_from'] = None
 
+        # set to None if image (nullable) is None
+        # and model_fields_set contains the field
+        if self.image is None and "image" in self.model_fields_set:
+            _dict['image'] = None
+
         # set to None if image_build_id (nullable) is None
         # and model_fields_set contains the field
         if self.image_build_id is None and "image_build_id" in self.model_fields_set:
@@ -194,6 +199,11 @@ class SandboxListItem(BaseModel):
         if self.last_activity_at is None and "last_activity_at" in self.model_fields_set:
             _dict['last_activity_at'] = None
 
+        # set to None if lifecycle_policy (nullable) is None
+        # and model_fields_set contains the field
+        if self.lifecycle_policy is None and "lifecycle_policy" in self.model_fields_set:
+            _dict['lifecycle_policy'] = None
+
         # set to None if mac_boot_mode (nullable) is None
         # and model_fields_set contains the field
         if self.mac_boot_mode is None and "mac_boot_mode" in self.model_fields_set:
@@ -213,6 +223,11 @@ class SandboxListItem(BaseModel):
         # and model_fields_set contains the field
         if self.reservation_id is None and "reservation_id" in self.model_fields_set:
             _dict['reservation_id'] = None
+
+        # set to None if snapshot (nullable) is None
+        # and model_fields_set contains the field
+        if self.snapshot is None and "snapshot" in self.model_fields_set:
+            _dict['snapshot'] = None
 
         # set to None if spot (nullable) is None
         # and model_fields_set contains the field

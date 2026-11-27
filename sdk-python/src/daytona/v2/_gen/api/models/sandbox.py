@@ -52,13 +52,13 @@ class Sandbox(BaseModel):
     error: Optional[StrictStr] = Field(default=None, description="Failure detail, or null when no failure is recorded.")
     forked_from: Optional[StrictStr] = Field(default=None, description="Source sandbox ID when this sandbox is a fork.")
     id: StrictStr = Field(description="The sandbox ID.")
-    image: Optional[ImageReference] = None
+    image: Optional[ImageReference] = Field(default=None, description="The image the sandbox was created from; absent when it was created from a snapshot.")
     image_build_id: Optional[StrictStr] = Field(default=None, description="Build ID associated with the sandbox image.")
     image_ref: Optional[StrictStr] = Field(default=None, description="The original image reference when no image resource is associated.")
     imported_from: Optional[ImportedFrom] = None
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="User-defined sandbox labels.")
     last_activity_at: Optional[datetime] = Field(default=None, description="When activity was last observed.")
-    lifecycle_policy: Optional[LifecyclePolicy] = None
+    lifecycle_policy: Optional[LifecyclePolicy] = Field(default=None, description="Automatic timeout and idle-expiry behavior.")
     mac_boot_mode: Optional[StrictStr] = Field(default=None, description="How a macOS sandbox resumed; absent when it has not resumed.")
     memory_max_mib: Optional[StrictInt] = Field(default=None, description="Maximum memory in MiB.")
     memory_mib: StrictInt = Field(description="Reserved memory in MiB.")
@@ -67,7 +67,7 @@ class Sandbox(BaseModel):
     port_map: List[PortAssignment] = Field(description="Port assignments reported for the sandbox.")
     region_id: StrictStr = Field(description="The region the sandbox runs in.")
     reservation_id: Optional[StrictStr] = Field(default=None, description="The Mac reservation that the macOS sandbox runs on, or ran on last. Null before the sandbox first reaches a Mac; absent for other sandbox classes.")
-    snapshot: Optional[SnapshotReference] = None
+    snapshot: Optional[SnapshotReference] = Field(default=None, description="The snapshot the sandbox was created from; absent when it was created from an image.")
     spot: Optional[StrictBool] = Field(default=None, description="Whether discounted interruptible capacity was requested.")
     spot_evicted_at: Optional[datetime] = Field(default=None, description="When discounted capacity reclaimed the sandbox; absent when it has not been reclaimed.")
     ssh_gateway_host: Optional[StrictStr] = Field(default=None, description="SSH gateway host for the sandbox region.")

@@ -38,7 +38,7 @@ class SandboxUsageHistory(BaseModel):
     """ # noqa: E501
     available: StrictBool = Field(description="Whether usage history is available. When `false`, `periods` is empty and `resolution` is absent.")
     periods: List[UsagePeriod] = Field(description="Usage buckets in chronological order.")
-    resolution: Optional[UsageHistoryResolution] = None
+    resolution: Optional[UsageHistoryResolution] = Field(default=None, description="Effective bucket size. Omitted when usage history is unavailable.")
     sandbox_id: StrictStr = Field(description="The sandbox ID.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["available", "periods", "resolution", "sandbox_id"]
