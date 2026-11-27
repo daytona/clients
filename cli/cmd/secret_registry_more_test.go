@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -250,4 +251,32 @@ func TestSecretInputValue_stripsExactlyOneTrailingNewlineFromStdin(t *testing.T)
 	value, err := secretInputValue("", "", false, true)
 	require.NoError(t, err)
 	require.Equal(t, "v\n", value)
+}
+
+// A create is conditional (If-None-Match: *), so a secret another caller
+// created after the read is reported, not overwritten; an update is not.
+func TestSecretSet_createIsConditionalAndUpdateIsNot(t *testing.T) {
+	api := newFakeAPI(t)
+	var createHeader string
+	api.handle("PUT", "/secrets/NEW_KEY", func(w http.ResponseWriter, r *http.Request) {
+		createHeader = r.Header.Get("If-None-Match")
+		w.WriteHeader(http.StatusPreconditionFailed)
+		_, _ = w.Write([]byte(`{"code":"SECRET_ALREADY_EXISTS","message":"the secret already exists","source":"DAYTONA_API"}`))
+	})
+	_, stderr, code := runMgmt(t, api, cfgDir(t), "--project", "proj-1", "secret", "set", "NEW_KEY", "--value", "v", "--allowed-domain", "*")
+	require.NotEqual(t, 0, code)
+	require.Contains(t, stderr, "SECRET_ALREADY_EXISTS")
+	require.Equal(t, "*", createHeader)
+
+	api2 := newFakeAPI(t)
+	existing := map[string]any{"name": "EXISTING", "allowed_domains": []any{"example.com"}, "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z"}
+	api2.on("GET", "/secrets/EXISTING", 200, existing)
+	updateHeader := "unset"
+	api2.handle("PUT", "/secrets/EXISTING", func(w http.ResponseWriter, r *http.Request) {
+		updateHeader = r.Header.Get("If-None-Match")
+		_ = json.NewEncoder(w).Encode(existing)
+	})
+	_, stderr, code = runMgmt(t, api2, cfgDir(t), "--project", "proj-1", "secret", "set", "EXISTING", "--value", "v")
+	require.Equal(t, 0, code, stderr)
+	require.Empty(t, updateHeader)
 }
