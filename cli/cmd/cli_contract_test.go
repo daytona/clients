@@ -580,7 +580,7 @@ func TestJSONOutputIsTheAPIsRepresentation(t *testing.T) {
 		f.handle(http.MethodGet, "/orgs", func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"organizations":[{"id":"11111111-1111-1111-1111-111111111111","name":"a","personal":true,"brand_new_field":"x"}]}`))
 		})
-		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "org", "list")
+		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", testLoginBearer, "org", "list")
 		require.Equal(t, 0, code, stderr)
 		item := mustJSON(t, stdout)["items"].([]any)[0].(map[string]any)
 		require.Equal(t, "x", item["brand_new_field"])
@@ -593,7 +593,7 @@ func TestJSONOutputIsTheAPIsRepresentation(t *testing.T) {
 		f.handle(http.MethodGet, "/orgs/11111111-1111-1111-1111-111111111111", func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"id":"11111111-1111-1111-1111-111111111111","name":"a","brand_new_field":{"n":12345678901234567890}}`))
 		})
-		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", "k", "org", "get", "11111111-1111-1111-1111-111111111111")
+		stdout, stderr, code := runReported(t, cfgDir(t), map[string]string{"DAYTONA_TEST_SKIP_CONTRACT": "1"}, "--api-url", f.srv.URL, "--api-key", testLoginBearer, "org", "get", "11111111-1111-1111-1111-111111111111")
 		require.Equal(t, 0, code, stderr)
 		require.Contains(t, stdout, "12345678901234567890", "numbers keep their precision")
 		out := mustJSON(t, stdout)

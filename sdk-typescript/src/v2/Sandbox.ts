@@ -7,9 +7,9 @@ import { withoutNullOptions } from './clientOptionKeys.js'
 import { acknowledgedId, checkResponse } from './responseFields.js'
 import { pathSegment, usablePathId } from './pathSegment.js'
 import type { ResponseFields } from './responseFields.js'
-import { isBlank } from './pyText.js'
+import { hasLoneSurrogate, isBlank } from './pyText.js'
 import type { AxiosInstance, AxiosRequestConfig } from 'axios'
-import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 import { INTERNAL, assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { followBuildLogs, readBuildLogs } from './BuildLogs.js'
@@ -30,6 +30,7 @@ import { ProcessService, PtyService, WAIT_READ_SLACK_MS } from './Process.js'
 import { systemMetricsFromWire } from './toolboxModels.js'
 import { isRfc3339 } from './rfc3339.js'
 import type * as api from './gen/api-types.js'
+import { retrySandboxTransition } from './sandboxTransitionRetry.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import {
   assertLifecycleClassSupport,
@@ -362,12 +363,8 @@ export class Sandbox {
   public get macBootMode(): MacBootMode | undefined {
     return this.observed.macBootMode
   }
-  /**
-   * Whether the sandbox is persistent, which stop, pause, resume and fork
-   * require (fork also refuses a sandbox with attached volumes, and the class
-   * decides what each supports); a stop keeps its disk. Undefined until a read reports it (a create handle
-   * can still be undefined; `refreshData()` fills it in).
-   */
+  /** Whether the sandbox keeps writable state across stop/start and memory
+   * across pause/resume; undefined until known. */
   public get persistent(): boolean | undefined { return this.observed.persistent }
   public get spot(): boolean | undefined { return this.observed.spot }
   public get spotEvictedAt(): string | undefined { return this.observed.spotEvictedAt }
@@ -433,6 +430,7 @@ export class Sandbox {
       ? scopedToolboxUrl(sandboxToolboxUrl, this.id, this.explicitToolboxUrl)
       : serializedScopedToolboxUrl ?? scopedToolboxUrl(sandboxToolboxUrl, this.id, undefined)
     if (this.toolboxProxyUrl) this.toolboxTransport = this.createToolboxTransport(this.toolboxProxyUrl)
+    concealFields(this, ['apiKey'])
     credentialSafeDiagnostics(this, () => ({ type: 'Sandbox', id: this.id }))
   }
 
@@ -589,7 +587,9 @@ export class Sandbox {
     try {
       const sandbox = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(this.id)}`, requestConfig).then((response) => response.data)
       assertSandboxResponse(sandbox)
-      this.observed = metadataFromSandbox(sandbox)
+      const observed = metadataFromSandbox(sandbox)
+      // Persistence is immutable; an omitted optional field does not erase it.
+      this.observed = { ...observed, persistent: observed.persistent ?? this.observed.persistent }
       this.refreshToolbox(sandbox)
     } catch (error) {
       // An earlier slice/transport timer and an API HTTP 408 remain request
@@ -768,12 +768,11 @@ export class Sandbox {
   }
 
   /**
-   * Stop the sandbox and wait until it is stopped. Only a persistent sandbox
-   * can stop: one that is not (`persistent` on the handle) is refused with
-   * `ConflictError` (409). The SDK's Linux creates do not ask for
-   * persistence; `createMacos()` takes `persistent: true`. While it is stopped, toolbox
+   * Stop the sandbox and wait until it is stopped. While it is stopped, toolbox
    * calls (process, files, git, …) and its preview URLs answer
    * `SandboxNotRunningError` (409, `SANDBOX_NOT_RUNNING`); `start()` it first.
+   * Stop requires persistence and is unavailable on GPU. Disk survives
+   * stop/start; memory and running processes do not. The API decides support.
    */
   public async stop(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -789,9 +788,8 @@ export class Sandbox {
    * A return to started means the pause failed. A paused macOS sandbox keeps
    * its memory on its Mac. With auto-renew on, it keeps its reservation
    * renewing; otherwise the sandbox is stopped, with its disk, before the
-   * reservation ends. Only a persistent sandbox can pause: one that is not
-   * (`persistent` on the handle) is refused with `ConflictError` (409). The SDK's Linux creates do not ask for
-   * persistence; `createMacos()` takes `persistent: true`.
+   * reservation ends. Only a persistent sandbox can pause (`persistent: true`
+   * on create); on one that is not, the API throws `ConflictError` (409).
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -818,11 +816,8 @@ export class Sandbox {
 
   /**
    * Fork this sandbox and return the fork handle. Only a persistent sandbox
-   * can be forked: one that is not (`persistent` on the handle), or one with
-   * an attached volume, is refused with `ConflictError` (409). The SDK's Linux
-   * creates do not ask for persistence, so a Linux sandbox is persistent only
-   * where the platform created it that way; `createMacos()` takes
-   * `persistent: true`.
+   * (`persistent: true` on create) without attached volumes can be forked;
+   * otherwise the API throws `ConflictError` (409).
    *
    * By default the fork continues from the source's memory (running processes
    * included). `memory: false` copies only the disk, after which the fork boots
@@ -846,6 +841,10 @@ export class Sandbox {
    * Like `create()`, the wait returns the handle when its budget expires or
    * the fork fails: even the default 60 seconds may return a not-yet-started
    * handle. Check the returned handle's `state`.
+   *
+   * While the source is still starting, stopping or pausing, submission retries
+   * `SANDBOX_TRANSITION_IN_PROGRESS` (409) for up to 30 seconds. Other conflicts
+   * are raised immediately; the readiness budget starts after acceptance.
    */
   public async fork(options: ForkOptions = {}): Promise<Sandbox> {
     assertKnownOptions('ForkOptions', options, FORK_KEYS, { ...RENAMED_OPTIONS, timeout: 'waitSeconds' })
@@ -858,6 +857,7 @@ export class Sandbox {
     const body: api.ForkRequest = {}
     if (options.name !== undefined) {
       if (typeof options.name !== 'string' || isBlank(options.name)) throw badRequest('fork name must be a non-empty string when given')
+      if (hasLoneSurrogate(options.name)) throw badRequest('fork name must not contain a lone surrogate')
       body.name = options.name
     }
     if (options.memory !== undefined) {
@@ -865,6 +865,7 @@ export class Sandbox {
       body.memory = options.memory
     }
     if (options.autoDelete !== undefined && typeof options.autoDelete !== 'boolean') throw badRequest('autoDelete must be a boolean')
+    const sourcePersistent = this.persistent
     // waitSeconds 0 is one request, as for create: the route is the same for
     // every class, so an unknown class is not read first; the fork then carries
     // the source's class only when this handle knows it.
@@ -880,8 +881,17 @@ export class Sandbox {
     }
     const sandboxClass = this.sandboxClass
     const rawSandboxClass = this.rawSandboxClass
-    const sourceState = this.state
-    const response = await this.api.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
+    let persistent = this.persistent ?? sourcePersistent
+    let sourceState = this.state
+    let attempts = 0
+    const http = this.api
+    const response = await retrySandboxTransition(
+      () => {
+        attempts++
+        return http.post<api.ForkResponse>(`/sandboxes/${strictUriEncode(this.id)}/fork`, body)
+      },
+      { ensureOpen: this.httpOptions?.ensureOpen },
+    )
     this.learnEventDestination(eventDestinationFromHeaders(response.headers))
     // Checked before the fork handle or any further request, as for a create.
     const forked = checkResponse<api.ForkResponse>(response.data, FORK_RESPONSE, 'sandbox fork')
@@ -907,6 +917,7 @@ export class Sandbox {
         // A fork has its source's class; it names its source.
         sandboxClass,
         rawSandboxClass,
+        persistent,
         forkedFrom,
         toolboxProxyUrl: scopedProxyToolboxUrl(forkToolbox, forked.id),
       },
@@ -925,20 +936,29 @@ export class Sandbox {
       // With no deadline the detail read is an ordinary request, bounded by the request timeout.
       const timeout = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
       if (timeout === undefined) return fork
-      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout }).then((r) => r.data)
+      if (attempts > 1) {
+        // A transition refusal invalidates the source's pre-submission state.
+        await this.refreshDataWithin(timeout)
+        sourceState = this.state
+        persistent = this.persistent ?? persistent
+      }
+      const remaining = deadline === undefined ? this.api.defaults.timeout : boundedRequestTimeout(deadline, this.api.defaults.timeout)
+      if (remaining === undefined) return fork
+      const detail = await this.api.get<api.Sandbox>(`/sandboxes/${strictUriEncode(forked.id)}`, { timeout: remaining }).then((r) => r.data)
       assertSandboxResponse(detail)
       // A detail without `forked_from` keeps the source's id the fork already names.
       const observed = metadataFromSandbox(detail)
-      fork.observed = observed.forkedFrom === undefined || observed.forkedFrom === '' ? { ...observed, forkedFrom } : observed
+      fork.observed = {
+        ...observed,
+        forkedFrom: observed.forkedFrom === undefined || observed.forkedFrom === '' ? forkedFrom : observed.forkedFrom,
+        persistent: observed.persistent ?? persistent,
+      }
       fork.refreshToolbox({ ...detail, toolbox_proxy_url: forkToolbox ?? detail.toolbox_proxy_url })
     } catch (error) {
       if (error instanceof DaytonaError && !(error instanceof TransferCancelledError)) return fork
       throw error
     }
-    // The target comes from the source state read before the POST. If the
-    // source stops between that read and the POST, a macOS fork rests
-    // `stopped` while this waits for `started`: the call then returns the
-    // handle at the end of the budget, not at once. Callers check `fork.state`.
+    // Use the refreshed source state after a retried submission.
     const states: readonly SandboxWaitState[] = sourceState === 'started' ? ['started']
       : sandboxClass === 'linux' && sourceState === 'paused' && options.memory !== false ? ['paused'] : ['stopped']
     // `timeoutSeconds: 0` is the state wait's no deadline.
@@ -1052,13 +1072,18 @@ export class Sandbox {
     const body = lifecycleBody(options)
     if (!body) throw createDaytonaError('updateLifecyclePolicy requires at least one lifecycle field', 400, 'BAD_REQUEST', 'SDK')
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    const sandboxClass = await this.requireSandboxClass()
-    if (sandboxClass === 'macos' && this.persistent === undefined) await this.refreshData()
-    assertLifecycleClassSupport(options, {
-      sandboxClass,
-      persistent: this.persistent === true,
-      action: 'updateLifecyclePolicy',
-    })
+    const needsPersistence = options.onTimeout === 'stop' || options.onTimeout === 'pause' ||
+      options.onIdleTimeout === 'stop' || options.onIdleTimeout === 'pause'
+    if (this.sandboxClass === undefined ||
+      (needsPersistence && this.persistent === undefined)) await this.refreshData()
+    const sandboxClass = this.rawSandboxClass ?? this.sandboxClass
+    if (sandboxClass !== undefined) {
+      assertLifecycleClassSupport(options, {
+        sandboxClass,
+        persistent: this.persistent,
+        action: 'updateLifecyclePolicy',
+      })
+    }
     const resp = await this.api
       .patch<{ lifecycle_policy: SandboxLifecycleDto; id: string }>(`/sandboxes/${strictUriEncode(this.id)}/lifecycle-policy`, body)
     this.learnEventDestination(eventDestinationFromHeaders(resp.headers))
@@ -1145,12 +1170,19 @@ export class Sandbox {
    * stopped; the capture answers `DISK_NOT_READY` while its disk is not ready
    * yet (retry later). The credential needs `write:sandboxes` in addition to
    * `write:images`; without it the capture throws `ForbiddenError` (403).
+   * While the sandbox is still starting (Linux, Windows) or stopping (macOS),
+   * submission retries `SANDBOX_TRANSITION_IN_PROGRESS` (409) for up to
+   * 30 seconds; other conflicts are raised immediately.
    */
   public async captureImage(options: CaptureImageOptions = {}): Promise<Image> {
     assertKnownOptions('CaptureImageOptions', options, CAPTURE_KEYS)
     const body: api.CreateImageCaptureRequest = imageOptionsBody({ name: options.name, idleExpirySeconds: options.idleExpirySeconds })
     if (!this.api) throw createDaytonaError('API is not available for this sandbox', 400, 'UNSUPPORTED_OPERATION', 'SDK')
-    const { data } = await this.api.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body)
+    const http = this.api
+    const { data } = await retrySandboxTransition(
+      () => http.post<api.AsyncOperation>(`/sandboxes/${strictUriEncode(this.id)}/images`, body),
+      { ensureOpen: this.httpOptions?.ensureOpen },
+    )
     const operationId = acknowledgedId(data, 'image capture')
     const image = await this.api.get<api.ImageListItem>(`/images/${pathSegment(operationId, 'image id')}`).then((response) => response.data)
     return new Image(INTERNAL, image)
@@ -1169,6 +1201,9 @@ export class Sandbox {
    * The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).
+   * While the sandbox is still starting, submission retries
+   * `SANDBOX_TRANSITION_IN_PROGRESS` (409) for up to 30 seconds;
+   * other conflicts are raised immediately.
    */
   public async createSnapshot(name: string): Promise<Snapshot> {
     const snapshotName: unknown = name
@@ -1177,7 +1212,10 @@ export class Sandbox {
     // The snapshot response carries its class.
     const http = this.api
     const encodedId = strictUriEncode(this.id)
-    const response = await http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name })
+    const response = await retrySandboxTransition(
+      () => http.post<api.CreateSnapshotResponse>(`/sandboxes/${encodedId}/snapshots`, { name }),
+      { ensureOpen: this.httpOptions?.ensureOpen },
+    )
     const operationId = acknowledgedId(response.data, 'snapshot create')
     const snapshot = await http.get<api.Snapshot>(`/snapshots/${pathSegment(operationId, 'snapshot id')}`).then((result) => result.data)
     return new Snapshot(INTERNAL, snapshot)

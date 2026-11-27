@@ -94,38 +94,6 @@ func newSandboxResumeCommand() *cobra.Command {
 	})
 }
 
-func newSandboxForkCommand() *cobra.Command {
-	name := ""
-	cmd := newSandboxActionCommand("fork", func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error) {
-		macos := resolved.Detail.Class == workload.ClassMacOS
-		if resolved.Detail.Class != workload.ClassLinux && !macos {
-			return nil, "", "", cerr.New(cerr.ExitConflict, "cannot fork sandbox %s with unknown class %s", resolved.Detail.Id, resolved.Detail.Class)
-		}
-		body := (*gen.ForkSandboxRequest)(nil)
-		if cmd.Flags().Changed("name") {
-			body = &gen.ForkSandboxRequest{Name: &name}
-		}
-		var resp api.Raw[gen.ForkSandboxOperation]
-		if err := resolved.Client.Do(cmd.Context(), http.MethodPost, fmt.Sprintf("/sandboxes/%s/fork", url.PathEscape(resolved.Detail.Id)), nil, body, &resp); err != nil {
-			return nil, "", "", err
-		}
-		// A macOS fork of a running source starts after its disk is ready;
-		// paused and stopped sources produce a stopped fork. The target comes
-		// from the status resolved before the POST: if the source stops in
-		// between, a macOS fork stays stopped while the wait looks for running,
-		// and the wait ends at --timeout with a timeout error, not at once.
-		waitFor := "paused"
-		if resolved.Detail.Status == "running" {
-			waitFor = "running"
-		} else if macos {
-			waitFor = "stopped"
-		}
-		return resp, resp.V.Id, waitFor, nil
-	})
-	cmd.Flags().StringVar(&name, "name", "", "fork name")
-	return cmd
-}
-
 func newSandboxDeleteCommand() *cobra.Command {
 	return newSandboxActionCommand("delete", func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error) {
 		a := FromContext(cmd.Context())
@@ -230,11 +198,11 @@ func newSandboxUpdateCommand() *cobra.Command {
 	f.StringArrayVar(&flags.labels, "label", nil, "replacement label KEY=VALUE (repeatable)")
 	f.BoolVar(&flags.clearLabels, "clear-labels", false, "remove every label except the name label")
 	addSecondsFlag(f, &flags.lifecycleTTL, "lifecycle-timeout", "", "wall-clock lifetime (Go duration, e.g. 2h) until --on-lifecycle-timeout fires; restarts the countdown from now")
-	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop on a persistent macOS sandbox")
+	f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, stop on persistent non-GPU, or pause on persistent Linux")
 	flags.idleTimeout.keywords = map[string]int64{"off": -1}
 	flags.idleTimeout.min = minIdleSeconds
 	addSecondsFlag(f, &flags.idleTimeout, "idle-timeout", "", "idle time (Go duration, at least 1m) until --on-idle-timeout fires; off clears the idle expiry")
-	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, or stop on a persistent macOS sandbox")
+	f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, stop on persistent non-GPU, or pause on persistent Linux")
 	flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
 	flagPlaceholder(f, "on-idle-timeout", "ACTION")
 	addFileFlag(cmd, `JSON body {"labels": {...}, "lifecycle_policy": {...}} from a file (or - for stdin); explicit flags override its fields`)
@@ -244,8 +212,8 @@ func newSandboxUpdateCommand() *cobra.Command {
 func sandboxActionPersistenceNote(verb string) string {
 	switch verb {
 	case "stop", "start", "pause", "resume", "fork":
-		return "\nOnly a persistent sandbox can stop, start again, pause, resume or fork; on one that is not, the API answers 409 (exit code 6).\n" +
-			"`sandbox create` makes Linux sandboxes that are not persistent; `sandbox create-macos --persistent` makes a persistent one."
+		return "\nOnly a persistent sandbox can stop, start again, pause, resume or fork (its class decides which of these it supports); on one that is not, the API answers 409 (exit code 6).\n" +
+			"Create a persistent sandbox with `sandbox create --persistent` or `sandbox create-macos --persistent`."
 	default:
 		return ""
 	}

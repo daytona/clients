@@ -71,7 +71,8 @@ export async function runChecks(sdk, options) {
       await client.get('does-not-exist')
       result.notFoundError = 'get() of an unknown id resolved'
     } catch (error) {
-      result.notFoundOk = error instanceof sdk.DaytonaNotFoundError && error.statusCode === 404 && error.code === 'NOT_FOUND'
+      // `name` too: production bundles (vite, Next.js) minify class names.
+      result.notFoundOk = error instanceof sdk.DaytonaNotFoundError && error.name === 'NotFoundError' && error.statusCode === 404 && error.code === 'NOT_FOUND'
       if (!result.notFoundOk) result.notFoundError = describe(error)
     }
 

@@ -74,6 +74,9 @@ class Sandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
+        While a sandbox is still starting (Linux, Windows) or stopping (macOS), this submission
+        retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
+        other conflicts are raised immediately.
         The credential needs ``write:sandboxes`` in addition to ``write:images``;
         without it the capture raises :class:`ForbiddenError` (403).
 
@@ -141,6 +144,11 @@ class Sandbox:
         refuses with :class:`ConflictError` (409) a sandbox that is not
         running, one whose saved state is unavailable, one with an attached
         volume, and a snapshot name that already exists.
+
+        While the sandbox is still starting, this submission
+        retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
+        other conflicts are raised immediately.
+
         The credential needs ``write:sandboxes`` in addition to
         ``write:snapshots``; without it the capture raises
         :class:`ForbiddenError` (403).
@@ -268,13 +276,12 @@ class Sandbox:
     ) -> Sandbox:
         """Fork this sandbox and return the fork's handle.
 
-        Only a persistent sandbox can be forked: one that is not
-        (``persistent`` on the handle), or one with an attached volume, is
-        refused with :class:`ConflictError` (409). The SDK's Linux creates do
-        not ask for persistence, so a Linux sandbox is persistent only where
-        the platform created it that way; :meth:`Daytona.create_macos`
-        takes ``persistent=True``.
-
+        Fork requires a persistent sandbox (``persistent=True`` on create);
+        on one that is not, the API raises :class:`ConflictError` (409).
+        Sandboxes with attached volumes cannot fork.
+        While the source is still starting, stopping or pausing, the API may report
+        ``SANDBOX_TRANSITION_IN_PROGRESS``. This submission retries that code
+        for up to 30 seconds; other conflicts are raised immediately.
         By default the fork continues from the source's memory (running
         processes included). ``memory=False`` copies only the disk, and the
         fork boots fresh. A macOS fork copies the disk only: omit ``memory``
@@ -319,16 +326,14 @@ class Sandbox:
     def pause(self, *, timeout: float = 60) -> None:
         """Pause the sandbox with its memory and wait until it is ``paused``.
 
+        Persistence is required; sandboxes with volumes cannot pause. Memory
+        and processes survive pause/resume, unlike stop/start, which keeps disk.
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
         then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
         keeps its memory on its Mac. With auto-renew on, it keeps its
         reservation renewing; otherwise the sandbox is stopped, with its disk,
-        before the reservation ends. Only a persistent sandbox can pause:
-        a sandbox that is not persistent (``persistent`` on the handle) is
-        refused with :class:`ConflictError` (409). The SDK's Linux creates do
-        not ask for persistence; :meth:`Daytona.create_macos` takes
-        ``persistent=True``.
+        before the reservation ends.
         """
         return self._bridge.call(lambda: self._impl.pause(timeout=timeout))
 
@@ -467,11 +472,9 @@ class Sandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
-        terminal state raises :class:`SandboxTerminalStateError`. Only a
-        persistent sandbox can stop: one that is not (``persistent`` on the
-        handle) is refused with :class:`ConflictError` (409). The SDK's Linux creates do
-        not ask for persistence; :meth:`Daytona.create_macos` takes
-        ``persistent=True``. While it is stopped,
+        terminal state raises :class:`SandboxTerminalStateError`. Which
+        sandboxes can stop (persistent non-GPU sandboxes, including macOS) is the API's
+        decision; a refusal surfaces as its typed error. While it is stopped,
         toolbox calls (process, files, git, …) and its preview URLs answer
         :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
         :meth:`start` it first.
@@ -675,10 +678,8 @@ class Sandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """Whether the sandbox is persistent, which stop, pause, resume and fork
-        require (fork also refuses a sandbox with attached volumes, and the
-        class decides what each supports); a stop keeps its disk. ``None`` until a read reports it (a
-        create handle can still be ``None``; :meth:`refresh_data` fills it in).
+        """Whether writable state survives stop/start and memory survives
+        pause/resume; ``None`` until known.
         """
         return self._impl.persistent
 

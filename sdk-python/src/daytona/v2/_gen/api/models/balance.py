@@ -37,7 +37,7 @@ class Balance(BaseModel):
     """
     Balance
     """ # noqa: E501
-    applicable_to: Optional[BalanceApplicableTo] = None
+    applicable_to: Optional[BalanceApplicableTo] = Field(default=None, description="Product restrictions, or `null` when unrestricted.")
     balance_cents: StrictInt = Field(description="The remaining balance in cents.")
     created_at: datetime = Field(description="When the balance was created.")
     currency: StrictStr = Field(description="The lowercase ISO 4217 currency code.")

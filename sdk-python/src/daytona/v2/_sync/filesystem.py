@@ -47,9 +47,20 @@ class FileSystemService:
         mode: Optional[str] = None,
         owner: Optional[str] = None,
         group: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> None:
-        """Set file permissions and ownership."""
-        return self._bridge.call(lambda: self._impl.chmod(path, mode=mode, owner=owner, group=group))
+        """Set file permissions and ownership.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        as a total deadline in seconds (a slow sandbox file system can outlast
+        it). ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
+        """
+        return self._bridge.call(
+            lambda: self._impl.chmod(path, mode=mode, owner=owner, group=group, timeout=timeout)
+        )
 
     def download_file(
         self,
@@ -66,14 +77,18 @@ class FileSystemService:
         renames it over ``local_path`` on success; on an error or a
         cancellation that temporary file is removed. ``on_progress(bytes,
         total)`` reports progress (``total`` from ``Content-Length`` when the
-        sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
-        between chunks, and raises ``TransferCancelledError``.
+        sandbox sends it); ``cancel`` is any object with ``is_set()`` and
+        raises ``TransferCancelledError``: a ``threading.Event`` stops a
+        stalled transfer as soon as it is set, from any thread (on CPython
+        3.10 to 3.15; elsewhere, and for subclasses, within 50 ms). Any other
+        object, an ``asyncio.Event`` included, is checked every 50 ms while
+        the transfer waits on the network.
         """
         return self._bridge.call(
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
         )
 
-    def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
+    def glob(self, path: str, pattern: str, /, *, timeout: Optional[float] = None) -> FileSearchResult[str]:
         """Return the absolute paths under ``path`` whose base name matches the glob ``pattern``.
 
         The walk is recursive and matches every entry it visits: files,
@@ -84,10 +99,20 @@ class FileSystemService:
         searched; ``skipped`` lists their absolute paths (at most 1000). Only an
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
-        """
-        return self._bridge.call(lambda: self._impl.glob(path, pattern))
 
-    def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
+        """
+        return self._bridge.call(lambda: self._impl.glob(path, pattern, timeout=timeout))
+
+    def grep(
+        self, path: str, pattern: str, /, *, timeout: Optional[float] = None
+    ) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
         Returns matches with one-based line numbers, as the sandbox user sees
@@ -95,8 +120,16 @@ class FileSystemService:
         read are not searched; ``skipped`` lists their absolute paths (at most
         1000). Only an unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
+
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
-        return self._bridge.call(lambda: self._impl.grep(path, pattern))
+        return self._bridge.call(lambda: self._impl.grep(path, pattern, timeout=timeout))
 
     def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
         """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``).
@@ -175,13 +208,33 @@ class FileSystemService:
         """
         return self._bridge.call(lambda: self._impl.read_text(path, max_response_bytes=max_response_bytes))
 
-    def remove(self, path: str, /, *, recursive: bool = False) -> None:
-        """Remove a file, or a directory with ``recursive=True``."""
-        return self._bridge.call(lambda: self._impl.remove(path, recursive=recursive))
+    def remove(self, path: str, /, *, recursive: bool = False, timeout: Optional[float] = None) -> None:
+        """Remove a file, or a directory with ``recursive=True``.
 
-    def replace(self, files: Sequence[str], pattern: str, new_value: str, /) -> ListResult[ReplaceResult]:
-        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
-        return self._bridge.call(lambda: self._impl.replace(files, pattern, new_value))
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
+        """
+        return self._bridge.call(lambda: self._impl.remove(path, recursive=recursive, timeout=timeout))
+
+    def replace(
+        self, files: Sequence[str], pattern: str, new_value: str, /, *, timeout: Optional[float] = None
+    ) -> ListResult[ReplaceResult]:
+        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``.
+
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
+        """
+        return self._bridge.call(lambda: self._impl.replace(files, pattern, new_value, timeout=timeout))
 
     def stat(self, path: str, /) -> FileInfo:
         """Return file metadata."""
@@ -197,7 +250,11 @@ class FileSystemService:
         cancel: TransferCancelSignal | None = None,
         atomic: bool = False,
     ) -> None:
-        """Stream a local file into the sandbox without buffering it whole in memory."""
+        """Stream a local file into the sandbox without buffering it whole in memory.
+
+        ``cancel`` is any object with ``is_set()`` and raises
+        ``TransferCancelledError``, as for :meth:`download_file`.
+        """
         return self._bridge.call(
             lambda: self._impl.upload_file(
                 local_path, remote_path, on_progress=on_progress, cancel=cancel, atomic=atomic

@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.data_policy import DataPolicy
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -37,13 +38,14 @@ class Project(BaseModel):
     """ # noqa: E501
     created_at: datetime = Field(description="When the project was created.")
     created_by: Optional[StrictStr] = Field(default=None, description="The user who created the project, when visible.")
+    data_policy: Optional[DataPolicy] = None
     default: StrictBool = Field(description="Whether this is the organization's default project.")
     id: StrictStr = Field(description="The project ID.")
     name: StrictStr = Field(description="The project name.")
     org_id: StrictStr = Field(description="The organization ID.")
     updated_at: datetime = Field(description="When the project was last updated.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["created_at", "created_by", "default", "id", "name", "org_id", "updated_at"]
+    __properties: ClassVar[List[str]] = ["created_at", "created_by", "data_policy", "default", "id", "name", "org_id", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -112,6 +114,7 @@ class Project(BaseModel):
         _obj = cls.model_validate({
             "created_at": obj.get("created_at"),
             **({"created_by": obj["created_by"]} if "created_by" in obj else {}),
+            **({"data_policy": obj["data_policy"]} if "data_policy" in obj else {}),
             "default": obj.get("default"),
             "id": obj.get("id"),
             "name": obj.get("name"),

@@ -28,6 +28,8 @@ type sandboxSearchFlags struct {
 	labelPairs          []string
 	spot                bool
 	spotSet             bool
+	persistent          bool
+	persistentSet       bool
 	forkedFrom          string
 	minCores            float64
 	minCoresSet         bool
@@ -107,6 +109,7 @@ func newSandboxSearchCommand() *cobra.Command {
 				q = args[0]
 			}
 			flags.spotSet = cmd.Flags().Changed("spot")
+			flags.persistentSet = cmd.Flags().Changed("persistent")
 			flags.minCoresSet = cmd.Flags().Changed("min-cores")
 			flags.maxCoresSet = cmd.Flags().Changed("max-cores")
 			flags.minMemorySet = cmd.Flags().Changed("min-memory")
@@ -159,6 +162,7 @@ func newSandboxSearchCommand() *cobra.Command {
 	cmd.Flags().StringVar(&flags.labels, "labels", "", "filter by labels JSON object")
 	cmd.Flags().StringArrayVar(&flags.labelPairs, "label", nil, "filter by KEY=VALUE label (repeatable; commas preserved; merged with --labels, conflicting values refused)")
 	cmd.Flags().BoolVar(&flags.spot, "spot", false, "filter by spot tier: --spot for spot sandboxes, --spot=false for on-demand ones")
+	cmd.Flags().BoolVar(&flags.persistent, "persistent", false, "filter by persistence: --persistent for persistent sandboxes, --persistent=false for the others")
 	cmd.Flags().StringVar(&flags.forkedFrom, "forked-from", "", "filter by source sandbox id")
 	cmd.Flags().Float64Var(&flags.minCores, "min-cores", 0, "minimum CPU limit in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)")
 	cmd.Flags().Float64Var(&flags.maxCores, "max-cores", 0, "maximum CPU limit in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)")

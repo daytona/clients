@@ -15,8 +15,8 @@ func prepareCreateIdentity(body *createBody, opts CreateFromSnapshotOptions) err
 		return badRequest("name must be non-blank valid UTF-8 when given")
 	}
 	labels := maps.Clone(opts.Labels)
-	if _, exists := labels[""]; exists {
-		return badRequest("label keys must not be empty")
+	if err := checkLabels(labels); err != nil {
+		return err
 	}
 	if opts.Name != "" {
 		if name, exists := labels["name"]; exists && name != opts.Name {

@@ -159,7 +159,6 @@ func TestSandboxCreate_lifecycleActionsFollowTheClass(t *testing.T) {
 	for _, args := range [][]string{
 		{"sandbox", "create", "--on-lifecycle-timeout", "stop", "--lifecycle-timeout", "1h"},
 		{"sandbox", "create", "--on-idle-timeout", "pause", "--idle-timeout", "1h"},
-		{"sandbox", "create-from-snapshot", "snap_1", "--on-lifecycle-timeout", "pause", "--lifecycle-timeout", "1h"},
 		{"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--on-lifecycle-timeout", "stop", "--lifecycle-timeout", "1h"},
 		{"sandbox", "create-macos", "--image", "base-macos", "--reservation", "region-a:res-1", "--persistent", "--on-idle-timeout", "pause", "--idle-timeout", "1h"},
 	} {

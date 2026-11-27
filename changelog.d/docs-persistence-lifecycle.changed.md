@@ -1,5 +1,4 @@
-**Persistent sandboxes** — `stop`, `pause`, `resume` and `fork` need a
-persistent sandbox (fork also refuses attached volumes); the Python,
-TypeScript and Go docs and the CLI help now say so, and the `persistent`
-property (Go `Info().Persistent`) is no longer described as macOS-only. Only
-documentation and CLI help changed.
+**Fork, resume and lifecycle help** — the Python, TypeScript and Go `fork()`
+docs, the `resume()` docs and the `daytona sandbox stop|start|pause|resume|fork`
+help say these need a persistent sandbox (`persistent` on create; fork also
+refuses attached volumes). Only documentation and CLI help changed.

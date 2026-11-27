@@ -69,6 +69,12 @@ daytona login --token dtn_… # a project API key
 The CLI connects to the Daytona API (`https://api.daytona.com`), the same
 default as the SDKs.
 
+The 0.x CLI keeps its own configuration (`config.json`), which this CLI does
+not read: sign in again with `daytona login`, or keep using the 0.x CLI as
+`daytona-v0` (Homebrew `daytonaio/cli/daytona@0`). Until this CLI has a saved
+profile, its "not logged in" error and `whoami` mention it when they find the
+0.x file.
+
 A browser or device login selects your personal organization and its default
 project the first time and remembers your last choice afterwards. Switch with
 `daytona org use <name>` and `daytona project use <name>`; override for one
@@ -90,6 +96,7 @@ profile is active, and the CLI asks you to select one or log in.
 daytona image create py312 --ref python:3.12
 daytona sandbox create --image py312 --cpu 2 --memory 2048   # CPU in cores (1 core = 2 vCPUs)
 daytona sandbox create                   # no --image: boots the platform default image, where the deployment has one
+daytona sandbox create --persistent      # keep disk on stop/start, memory on pause/resume
 daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete
 daytona image list --platform true       # the platform images every project can boot
 daytona sandbox list
@@ -115,6 +122,26 @@ daytona billing plan list
 daytona billing portal-session --open
 daytona sandbox delete <id>
 ```
+
+### Persistent Linux sandboxes
+
+`sandbox create --persistent` keeps disk across stop/start and memory plus
+running processes across pause/resume. Linux stop, start, pause,
+resume and fork require persistence; an ephemeral sandbox can only be deleted.
+When neither a per-create policy nor a project lifecycle default overrides it,
+persistent Linux sandboxes pause after 300 seconds
+instead of being deleted. Persistent Linux creation accepts volumes, but
+attached volumes prevent pause and fork (409). A fork inherits persistence;
+`create-from-snapshot` inherits it from the snapshot's source and has no
+`--persistent` override.
+
+`sandbox fork` retries a sandbox still starting, stopping or pausing.
+`image capture` retries a Linux or Windows sandbox still starting, or a macOS
+sandbox still stopping. `snapshot create` retries a sandbox still starting.
+These submissions retry for up to 30 seconds before the POST is accepted.
+This window limits new retries; an admitted POST keeps its normal request timeout.
+Only `SANDBOX_TRANSITION_IN_PROGRESS` is retried, not other conflicts.
+The normal readiness wait starts after acceptance.
 
 `daytona --help` lists every command group; `daytona docs --full` prints the
 whole reference on one page. Use `daytona docs --dir DIR` for separate Markdown
@@ -283,7 +310,9 @@ existing reservation ID, a `sandbox start` that a live reservation in the
 region serves, or `reservation create --dry-run` does not prompt.
 `reservation update --auto-renew=false` needs no confirmation.
 
-Stop and pause need a persistent sandbox (`--persistent`), which keeps its
+For both Linux and macOS, stop and pause need a persistent sandbox
+(`sandbox create --persistent` or `sandbox create-macos --persistent`).
+A persistent macOS sandbox keeps its
 disk and machine across stop and start, and its memory across pause and
 resume. `sandbox start` can run it on any Mac of the organization; after a
 start on a different Mac, iCloud asks the user to sign in again. With no Mac
@@ -364,14 +393,18 @@ never prompts:
   `charges` and `invoices` 1 to 100, default 25; `billing payment-methods` 1
   to 100, default 20; `billing usage-periods` 1 to 60, default 12),
   `--cursor <token>` and `--all` page through it. Where the deployment serves
-  search, `sandbox list`, `image list` and `snapshot list` read it: one
-  request spans every region (for `sandbox list`, `--region` becomes its
+  search, `sandbox list`, `image list`, `snapshot list`, `secret list`, and
+  `volume list` read it. Secret and volume lists use their project-wide search
+  routes; the other lists use one request spanning every region (for
+  `sandbox list`, `--region` becomes its
   region filter; `image list` filters the results itself, keeping every image
   available in the region, not only those homed there), and the results are
   eventually consistent, so an item just created may
   be missing (`get` reads it at once). Where search is not served (`501
-  SEARCH_NOT_CONFIGURED`, or `404` from an older API) all three fall back to
-  their list endpoints: `snapshot list` reads `GET /snapshots`, and
+  SEARCH_NOT_CONFIGURED`, or `404` from an older API) all five fall back to
+  their list endpoints; `secret list` and `volume list` also fall back when an
+  older API answers their search path with the secret or volume named
+  `search` instead of a page: `snapshot list` reads `GET /snapshots`, and
   `sandbox list` and `image list` query each distinct API
   base URL in the region catalog once for fresh listings and regional cursors,
   unless `--region` narrows them. With `--region R` they ask every API that
@@ -415,6 +448,9 @@ never prompts:
   sizes are GiB everywhere (`volume create --size-gib`). Linux sandboxes take
   `--cpu` (cores, 1 core = 2 vCPUs); macOS sandboxes take `--cores` (one Mac
   CPU each).
+- Sandbox search accepts `--persistent` to select persistent sandboxes and
+  `--persistent=false` to select ephemeral sandboxes; omitting the flag leaves
+  both kinds.
 - Sandbox search accepts repeatable `--label KEY=VALUE`, merged with
   `--labels '{"key":"value"}'`; conflicting values across the two flags,
   or an empty label key, are a usage error (exit 2). `--region` is checked against the region
@@ -531,12 +567,14 @@ whole seconds where the API stores seconds:
 | `--escalate-after` | `sandbox process signal` | when to send `--escalate-to` |
 | `--expires` | `key mint`, `org-key mint` | key lifetime in whole seconds, or an RFC3339 timestamp |
 
-Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` only on
-a persistent macOS sandbox. A lifecycle or idle timeout is when the action
-becomes due, not an exact time: the platform runs it on its next check, so
-it can fire somewhat later than the configured duration. Pause a sandbox with `daytona sandbox pause`; a
-lifecycle policy never pauses. A refused action is a usage error before any
-request. While a sandbox is stopped, commands that work inside it
+Lifecycle actions follow the sandbox: `delete` on any sandbox, `stop` on a
+persistent non-GPU sandbox, and `pause` on a persistent Linux sandbox.
+A known unsupported action is a usage error before any write;
+`sandbox create-from-snapshot` checks action names locally but leaves its
+inherited persistence for the server to check.
+A lifecycle or idle timeout is when the action becomes due, not an exact
+time: the platform runs it on its next check, so it can fire somewhat later
+than the configured duration. While a sandbox is stopped, commands that work inside it
 (`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409
 `SANDBOX_NOT_RUNNING` (exit code `6`, with a hint to start it), not 404.
 
@@ -642,7 +680,7 @@ request. While a sandbox is stopped, commands that work inside it
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
 | `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
-| `3` | authentication: no credential, or HTTP 401 |
+| `3` | authentication: no credential, a static credential on a command that needs a `daytona login` session, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE`, or the configuration's `active_profile`, that names a profile that does not exist (on the commands that use the selected profile) |
 | `6` | conflict: HTTP 409, 412 and 501, and HTTP 429 `LIMIT_EXCEEDED` (an organization limit) |
@@ -677,7 +715,7 @@ fields:
 
 | Command | Body |
 |---|---|
-| `sandbox create` | `image`, `name`, `cpu`, `memory_mib`, `disk_mib`, `cores_max`, `memory_max_mib`, `disk_max_mib`, `cpu_arch`, `cpu_type`, `user`, `env`, `labels`, `ports`, `volumes`, `secrets`, `spot`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
+| `sandbox create` | `image`, `name`, `cpu`, `memory_mib`, `disk_mib`, `cores_max`, `memory_max_mib`, `disk_max_mib`, `cpu_arch`, `cpu_type`, `user`, `env`, `labels`, `ports`, `volumes`, `secrets`, `persistent`, `spot`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox create-from-snapshot` | `snapshot` (the positional argument wins), `name`, `labels`, `ports`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox create-macos` | `image`, `name`, `cores`, `memory_mib`, `disk_mib`, `persistent`, `reservation`, `auto_renew`, `env`, `labels`, `ports`, `volumes`, `secrets`, `network_policy`, `lifecycle_policy`, `region_id`, `wait_seconds`, `create_timeout_seconds`, `idempotency_key` |
 | `sandbox update` | `{"labels": {...}, "lifecycle_policy": {...}}` only: `labels` replaces the label set except the label `name`, which is kept unless the new set names it (then it must equal the sandbox name; `--clear-labels` keeps it too), `lifecycle_policy` takes `timeout_seconds`, `on_timeout`, `idle_expiry_seconds` (`-1` clears), `on_idle_timeout`. The CLI sends them as two requests (labels first) |
@@ -693,7 +731,16 @@ integer seconds, as the API stores them.
 ## Credentials
 
 The CLI sends whatever credential you give it and lets the server decide what
-it may do. Precedence: `--api-key` > `DAYTONA_API_KEY` > the active profile.
+it may do, with one exception: the commands whose API routes admit only a login
+session — `billing`, `invite`, `key`, `member`, `org-key`, `project`,
+`service-account`, and `org` except `org limits` — refuse a static credential
+(`--api-key`, `DAYTONA_API_KEY`, `login --token`) before choosing an
+organization or sending a request (exit 3; a credential saved for another API
+URL is refused first, exit 2, as below), because the server would answer
+every API key there, valid or not, with the same 401. A bearer shaped like a
+JWT (a login's access token) is still sent; a 401 on these commands says
+they need a `daytona login` session. Precedence: `--api-key` >
+`DAYTONA_API_KEY` > the active profile.
 An explicit credential is the only one used for that command — the CLI never
 falls back to your saved login, and an empty `--api-key` is a usage error.
 A static credential (`--api-key`, `DAYTONA_API_KEY`, `login --token`) is sent

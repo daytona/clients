@@ -5,6 +5,7 @@
 
 // allow: SIZE_OK — One resumable build-log state machine owns discovery, cursors, and cancellation.
 
+import { nameErrorClass } from '../errors.js'
 import { queryText } from './pageParams.js'
 import { ConnectionError, createDaytonaError, DaytonaError, errorFromEnvelopeBody, errorOptions, isRedirectStatus, redirectError, registerV2ErrorClass, ClientTimeoutError } from './errors/DaytonaError.js'
 import type { ErrorOptions } from './errors/DaytonaError.js'
@@ -71,7 +72,8 @@ export class BuildLogInterruptedError extends DaytonaError {
 
 class ProtocolError extends Error {}
 class Retry extends Error {
-  constructor(message: string, readonly retryAfter = 0) { super(message) }
+  /** `error` is the response's typed error, kept as the cause once retries end. */
+  constructor(message: string, readonly retryAfter = 0, readonly error?: DaytonaError) { super(message) }
 }
 /** The initial discovery request's HTTP error, raised to the caller unchanged. */
 class DiscoveryFailure extends Error {
@@ -83,6 +85,12 @@ class CallbackError extends Error {
 const MAX_EVENT = 128 * 1024
 // Bound one-shot responses client-side without trusting Content-Length.
 const MAX_ONE_SHOT_BYTES = 2 * 1024 * 1024
+/**
+ * How long an error response's diagnostic body may take when its request has
+ * no deadline (`requestTimeoutSeconds: 0`): past it the status alone is the
+ * error, so a 429 / 5xx that never finishes its body is still retried.
+ */
+const ERROR_BODY_MS = 30_000
 
 /** JSON-boundary scratch values never escape the validated DTO constructors. */
 function jsonObject(json: string): Record<string, unknown> {
@@ -464,14 +472,29 @@ async function httpError(response: Response, deadline: number | undefined): Prom
     return redirectError(response.status)
   }
   try {
-    const body = await finiteBody(response, deadline, 'error')
+    const body = await finiteBody(response, deadline ?? performance.now() + ERROR_BODY_MS, 'error')
     return errorFromEnvelopeBody(body, response.headers.get('content-type'), response.status, `build log HTTP ${response.status}`, true)
   } catch (error) {
     // A denied request stays denied even if its explanatory JSON stalls. Do
     // not turn a known 401/403/etc into an automatically retried timeout.
     if (error instanceof ClientTimeoutError || error instanceof ConnectionError) return createDaytonaError(`build log HTTP ${response.status}`, response.status)
+    // An oversized body keeps its status (so a 429 / 5xx stays retryable), as in Python.
+    if (error instanceof ProtocolError) return createDaytonaError('oversized build log error response', response.status, 'BUILD_LOG_PROTOCOL_ERROR')
     throw error
   }
+}
+/**
+ * Catalog codes a 429 / 503 response can carry that name a state a retry
+ * cannot change (a limit, or something the deployment does not configure). A
+ * response with one of them, or any 501 (not implemented), is the caller's
+ * answer; every other 429 / 5xx, `SERVICE_UNAVAILABLE` included, is retried
+ * within the reconnect budget.
+ * @internal
+ */
+export const PERMANENT_BUILD_LOG_CODES: ReadonlySet<string> = new Set(['LIMIT_EXCEEDED', 'V0_BACKUP_REGISTRY_UNCONFIGURED'])
+function retryableHttp(error: DaytonaError): boolean {
+  const status = error.statusCode
+  return status !== undefined && (status === 429 || (status >= 500 && status !== 501)) && !(error.code !== undefined && PERMANENT_BUILD_LOG_CODES.has(error.code))
 }
 function retryAfter(response: Response): number {
   const value = response.headers.get('retry-after') ?? ''
@@ -483,8 +506,12 @@ async function discovery(api: HttpTransport, path: string, signal?: AbortSignal,
   const deadline = requestDeadline(api.defaultTimeout)
   const response = await api.fetch(path, { signal, redirect: 'manual', credentials: 'omit' }, false)
   try {
-    if (retry && (response.status === 429 || response.status >= 500)) throw new Retry(`build log discovery HTTP ${response.status}`, retryAfter(response))
-    if (!response.ok) throw await httpError(response, deadline)
+    if (!response.ok) {
+      // Decoded first: the typed error decides the retry and survives it.
+      const error = await httpError(response, deadline)
+      if (retry && retryableHttp(error)) throw new Retry(`build log discovery HTTP ${response.status}`, retryAfter(response), error)
+      throw error
+    }
     const body = await finiteBody(response, deadline, 'discovery')
     try { return parseDiscovery(body) } catch (error) {
       if (error instanceof ProtocolError) throw error
@@ -601,8 +628,9 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
         const deadline = requestDeadline(target.defaultTimeout)
         response = await target.fetch(`?${query}`, { signal: controller.signal, redirect: 'manual', credentials: 'omit', headers: { Accept: 'text/event-stream' } }, false)
         if (!response.ok) {
-          if (response.status === 429 || response.status >= 500) throw new Retry(`build log HTTP ${response.status}`, retryAfter(response))
-          throw await httpError(response, deadline)
+          const error = await httpError(response, deadline)
+          if (retryableHttp(error)) throw new Retry(`build log HTTP ${response.status}`, retryAfter(response), error)
+          throw error
         }
         if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'text/event-stream') throw new ProtocolError('expected text/event-stream')
         started = performance.now()
@@ -620,7 +648,8 @@ export async function followBuildLogs(api: HttpTransport, path: string, options:
         remaining()
         if (!(error instanceof Retry || error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         if (healthy && performance.now() - started >= 10000) failures = 0
-        if (failures >= 5) throw new BuildLogInterruptedError('build log reconnect budget exhausted', { cursor: observer.cursor })
+        // The last response's typed error (status, code, message, trace ID) is the cause.
+        if (failures >= 5) throw new BuildLogInterruptedError('build log reconnect budget exhausted', { cursor: observer.cursor, cause: error instanceof Retry ? error.error ?? error : error })
         delay = [250, 500, 1000, 2000, 5000][failures++] * (0.8 + Math.random() * 0.2)
         if (error instanceof Retry) delay = Math.max(delay, error.retryAfter)
       } finally {
@@ -675,4 +704,5 @@ function interruptible(pending: Promise<void>, signal: AbortSignal): Promise<voi
   })
 }
 
+nameErrorClass(BuildLogInterruptedError, 'BuildLogInterruptedError')
 registerV2ErrorClass('BuildLogInterruptedError', BuildLogInterruptedError)

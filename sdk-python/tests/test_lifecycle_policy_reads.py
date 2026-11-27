@@ -1,9 +1,8 @@
 # Copyright Daytona Platforms Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-"""``update_lifecycle_policy()`` reads the sandbox first only when its class is
-unknown, or for a macOS sandbox whose persistence is unknown, as TypeScript
-does: a known Linux sandbox sends the PATCH alone. The TypeScript twin is
+"""``update_lifecycle_policy()`` reads unknown class, or persistence when an action needs it.
+The TypeScript twin is
 ``tests/lifecycle-policy-reads.test.ts``."""
 
 from __future__ import annotations
@@ -41,7 +40,7 @@ def _detail(sandbox_class: str, **extra: JsonValue) -> JsonObject:
     [
         ("linux", [], ["PATCH"]),
         (None, [_detail("linux")], ["GET", "PATCH"]),
-        ("macos", [_detail("macos", persistent=True)], ["GET", "PATCH"]),
+        ("macos", [], ["PATCH"]),
     ],
     ids=["known linux", "unknown class", "macos, persistence unknown"],
 )

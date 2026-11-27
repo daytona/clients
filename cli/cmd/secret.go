@@ -38,6 +38,9 @@ func newSecretSetCmd() *cobra.Command {
 	var description string
 	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Long: "Create or update a project secret and print it (never its value). The value is always required (--value, --from-file or --stdin): the API replaces the whole secret and never returns the stored value.\n" +
 		"Creating a secret also requires --allowed-domain. On an existing secret the command reads it first, so the metadata options you do not pass (--allowed-domain, --description) keep their stored values (an existing secret with no allowed domains needs --allowed-domain too): it needs read as well as write access to secrets.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := refuseResourceSearchName("secret", args[0]); err != nil {
+			return err
+		}
 		count := 0
 		if cmd.Flags().Changed("value") {
 			count++
@@ -106,6 +109,7 @@ func newSecretSetCmd() *cobra.Command {
 
 func newSecretListCmd() *cobra.Command {
 	var flags pageFlags
+	probe := &searchProbe{}
 	cmd := &cobra.Command{Use: "list", Short: "List project secrets (metadata only)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
@@ -114,7 +118,7 @@ func newSecretListCmd() *cobra.Command {
 			return err
 		}
 		fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.Secret]], error) {
-			return getRawList[gen.Secret](ctx, client, "/secrets", listQuery(flags, cursor), "secrets")
+			return getRawSearchOrListPage[gen.Secret](ctx, probe, client, "/secrets/search", "/secrets", listQuery(flags, cursor), "secrets")
 		}
 		var items output.List[api.Raw[gen.Secret]]
 		if flags.all {
@@ -139,6 +143,9 @@ func newSecretListCmd() *cobra.Command {
 
 func newSecretGetCmd() *cobra.Command {
 	return &cobra.Command{Use: "get <name>", Short: "Show one project's secret metadata", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := refuseResourceSearchName("secret", args[0]); err != nil {
+			return err
+		}
 		a := FromContext(cmd.Context())
 		ctx := cmd.Context()
 		client, _, err := a.WorkloadClient(ctx, pickProject(a))
@@ -156,6 +163,9 @@ func newSecretGetCmd() *cobra.Command {
 
 func newSecretDeleteCmd() *cobra.Command {
 	return &cobra.Command{Use: "delete <name>", Short: "Delete a project secret", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := refuseResourceSearchName("secret", args[0]); err != nil {
+			return err
+		}
 		a := FromContext(cmd.Context())
 		if err := a.Confirm("delete", "secret "+args[0]); err != nil {
 			return err

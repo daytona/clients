@@ -193,7 +193,7 @@ export interface FileSearchResult<T> extends ListResult<T> {
 }
 
 /**
- * One page of `GET /sandboxes/search` (`Daytona.search()`).
+ * One page returned by a resource `search()` method.
  *
  * `total` is exact when `totalRelation === 'eq'` and a lower bound when it is
  * `'gte'`.
@@ -336,8 +336,8 @@ export interface SandboxSecretsInfo {
 /**
  * The action a lifecycle trigger fires: `onTimeout` / `onIdleTimeout`.
  *
- * `delete` is available for every sandbox; `stop` requires a persistent macOS
- * sandbox. Pause a macOS sandbox with its explicit `pause()` operation.
+ * `delete` is available for every sandbox; `stop` requires persistence and
+ * is unavailable on GPU sandboxes. `pause` requires a persistent Linux sandbox.
  */
 export type LifecycleAction = 'stop' | 'pause' | 'delete'
 
@@ -499,6 +499,16 @@ export interface CreateRequestBaseOptions {
  * ceiling.
  */
 export interface CreateSandboxOptions extends CreateRequestBaseOptions {
+  /**
+   * Preserve disk across stop/start and memory and processes across pause/resume.
+   * Linux stop, start, pause, resume and fork require persistence.
+   * Persistent Linux creation accepts volumes, but attached volumes prevent
+   * pause and fork (409). Forks inherit persistence. When neither a per-create
+   * policy nor a project lifecycle default overrides it, the platform lifetime
+   * timeout pauses after 300 seconds instead of deleting.
+   * Omitted or null uses the server default (false).
+   */
+  readonly persistent?: boolean
   readonly volumes?: readonly VolumeMount[]
   readonly env?: Readonly<Record<string, string>>
   readonly resources?: Resources
@@ -658,7 +668,8 @@ export interface SandboxDto {
   mac_boot_mode?: string | null
   /** macOS only: the reservation selected for this sandbox. `GET /sandboxes/search` items omit it. */
   reservation_id?: string | null
-  /** macOS only; absent on `GET /sandboxes/batch-wait` items. */
+  /** Whether writable state survives stop/start and, on Linux, memory survives
+   * pause/resume; absent on `GET /sandboxes/batch-wait` items. */
   persistent?: boolean | null
   lifecycle_policy?: SandboxLifecycleDto | null
   /**
@@ -770,6 +781,8 @@ export interface SandboxSearchFilters {
   readonly imageRefPrefix?: string
   /** Containment: every listed label must match. */
   readonly labels?: Readonly<Record<string, string>>
+  /** Filter by persistence; omitted (or JavaScript null) leaves both kinds. */
+  readonly persistent?: boolean
   readonly spot?: boolean
   /** Sandboxes forked from this sandbox id. */
   readonly forkedFrom?: string
@@ -1221,6 +1234,15 @@ export interface FilePermissionsOptions {
   readonly mode?: string
   readonly owner?: string
   readonly group?: string
+  /**
+   * Total deadline of this call in seconds, replacing the client's
+   * `requestTimeoutSeconds` (a slow sandbox file system can outlast it); `0`, or a
+   * value above 2,147,483.647 (about 24.8 days), is no limit. Omitted, the
+   * client's request timeout applies. A negative or non-finite value (or one
+   * that is not a number) throws `BadRequestError` before any request. A
+   * timeout ends the call, not the work in the sandbox.
+   */
+  readonly timeoutSeconds?: number
 }
 
 export interface BulkWriteFile {
