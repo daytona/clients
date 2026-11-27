@@ -143,6 +143,9 @@ const (
 	V0SANDBOXNOTFOUND                   ApiErrorCode = "V0_SANDBOX_NOT_FOUND"
 	V0SANDBOXNOTIMPORTABLE              ApiErrorCode = "V0_SANDBOX_NOT_IMPORTABLE"
 	VOLUMENOTFOUND                      ApiErrorCode = "VOLUME_NOT_FOUND"
+	WEBHOOKSNOTCONFIGURED               ApiErrorCode = "WEBHOOKS_NOT_CONFIGURED"
+	WEBHOOKSNOTINITIALIZED              ApiErrorCode = "WEBHOOKS_NOT_INITIALIZED"
+	WEBHOOKSPROVIDERUNAVAILABLE         ApiErrorCode = "WEBHOOKS_PROVIDER_UNAVAILABLE"
 	WORKLOADPLANEELSEWHERE              ApiErrorCode = "WORKLOAD_PLANE_ELSEWHERE"
 )
 
@@ -408,6 +411,12 @@ func (e ApiErrorCode) Valid() bool {
 	case V0SANDBOXNOTIMPORTABLE:
 		return true
 	case VOLUMENOTFOUND:
+		return true
+	case WEBHOOKSNOTCONFIGURED:
+		return true
+	case WEBHOOKSNOTINITIALIZED:
+		return true
+	case WEBHOOKSPROVIDERUNAVAILABLE:
 		return true
 	case WORKLOADPLANEELSEWHERE:
 		return true
@@ -2982,8 +2991,11 @@ type CreateMacosSandboxRequest struct {
 	// Reservation Omitted uses any Mac reservation of the organization in the region that fits this size. "new" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
 	Reservation *string `json:"reservation,omitempty"`
 
-	// Secrets Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.
-	Secrets *[]string `json:"secrets,omitempty"`
+	// Secrets Project secrets to attach. Each is a secret name, injected under an
+	// environment variable of the same name, or an object that names the
+	// variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+	// Secret values are used only for requests to their allowed hosts.
+	Secrets *[]SandboxSecretAttachment `json:"secrets,omitempty"`
 
 	// Volumes Disk volumes to attach, as on Linux: at most 8, each read-write. Each
 	// volume uses its `size_gib` (100 GiB when omitted) of disk space on the
@@ -3254,7 +3266,9 @@ type CreateSandboxRequest struct {
 	// NetworkPolicy Outbound network rules applied to the sandbox.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
 
-	// Persistent Whether writable state persists across stops. Defaults to `false`.
+	// Persistent Whether the sandbox keeps its disk across stop and start and its memory
+	// across pause and resume. Linux stop, start, pause, resume and fork require
+	// a persistent sandbox. Defaults to `false`.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// Ports Ports exposed when the sandbox starts.
@@ -3265,8 +3279,10 @@ type CreateSandboxRequest struct {
 	// the organization's, then `earth`.
 	RegionId *string `json:"region_id,omitempty"`
 
-	// Secrets Secret names made available to the sandbox.
-	Secrets *[]string `json:"secrets,omitempty"`
+	// Secrets Project secrets to attach. Each is a secret name, injected under an
+	// environment variable of the same name, or an object that names the
+	// variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+	Secrets *[]SandboxSecretAttachment `json:"secrets,omitempty"`
 
 	// Spot Whether to use discounted interruptible capacity. Defaults to `false`.
 	Spot *bool `json:"spot,omitempty"`
@@ -6047,6 +6063,13 @@ type Sandbox struct {
 	// sandboxes created after it.
 	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
 
+	// DeletedAt When the sandbox was deleted. Present only on `GET /sandboxes/{id}`,
+	// and only when the status is `deleted`; omitted from batch-wait
+	// (`GET /sandboxes/batch-wait`) snapshots. A deleted sandbox stays
+	// readable for a while after its deletion; after that, reading it
+	// returns 404.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
 	// Desktop Desktop settings this sandbox was created with: the create request, or for
 	// a restored or forked sandbox the settings captured from its source. Not
 	// live state: a desktop restart can change them. GET /computeruse/display/info
@@ -6295,6 +6318,13 @@ type SandboxListItem struct {
 	// sandboxes created after it.
 	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
 
+	// DeletedAt When the sandbox was deleted. Present only on `GET /sandboxes/{id}`,
+	// and only when the status is `deleted`; omitted from batch-wait
+	// (`GET /sandboxes/batch-wait`) snapshots. A deleted sandbox stays
+	// readable for a while after its deletion; after that, reading it
+	// returns 404.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
 	// Desktop Desktop settings this sandbox was created with: the create request, or for
 	// a restored or forked sandbox the settings captured from its source. Not
 	// live state: a desktop restart can change them. GET /computeruse/display/info
@@ -6464,11 +6494,44 @@ type SandboxSearchPage struct {
 // SandboxSearchSort defines model for SandboxSearchSort.
 type SandboxSearchSort string
 
+// SandboxSecretAttachment One secret to attach: a secret name, injected under that name, or an
+// object that names the variable separately.
+type SandboxSecretAttachment struct {
+	union json.RawMessage
+}
+
+// SandboxSecretAttachment0 The secret name. The secret is injected under an environment variable
+// of the same name.
+type SandboxSecretAttachment0 = string
+
+// SandboxSecretAttachmentBinding A secret and the environment variable it is injected under.
+type SandboxSecretAttachmentBinding struct {
+	// Env The environment variable the secret is injected under. Defaults to the
+	// secret name.
+	Env *string `json:"env,omitempty"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+}
+
+// SandboxSecretBinding One attached secret as a sandbox reports it.
+type SandboxSecretBinding struct {
+	// Env The environment variable the secret is injected under.
+	Env string `json:"env"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+}
+
 // SandboxSecrets The secrets attached to a sandbox: the requested names and how far the
 // sandbox has applied them.
 type SandboxSecrets struct {
 	// AppliedRevision Revision the sandbox has applied, or null before the first one.
 	AppliedRevision *int64 `json:"applied_revision,omitempty"`
+
+	// Bindings The requested secrets and the environment variable each is injected
+	// under, in the order of `secrets`.
+	Bindings *[]SandboxSecretBinding `json:"bindings,omitempty"`
 
 	// CaptureStatus For a restored or forked sandbox, how much of the source's secrets the
 	// copy received: `complete`, `partial` or an unknown status.
@@ -6760,9 +6823,12 @@ type SetSandboxPortRequest struct {
 
 // SetSandboxSecretsRequest defines model for SetSandboxSecretsRequest.
 type SetSandboxSecretsRequest struct {
-	// Secrets The complete desired set of project secret names. Required; send `[]`
-	// to detach every secret.
-	Secrets []string `json:"secrets"`
+	// Secrets The complete desired set of project secrets. Each is a secret name or
+	// an object that names the variable. A secret already attached keeps its
+	// variable unless the item sets `env`; a newly attached one is injected
+	// under its own name unless the item sets `env`. Required; send `[]` to
+	// detach every secret.
+	Secrets []SandboxSecretAttachment `json:"secrets"`
 }
 
 // SetSecretRequest A secret value and its metadata. Values are encrypted at rest and are
@@ -7223,6 +7289,25 @@ type UpdateSandboxLifecyclePolicyRequest struct {
 	TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
 }
 
+// UpdateSecretRequest A partial update of an existing secret. Every field is optional; an
+// absent field keeps its stored value. Without `value`, `allowed_domains`
+// can only remove hosts from the stored scope.
+type UpdateSecretRequest struct {
+	// AllowedDomains The replacement egress scope, in the same form as on create. Without
+	// `value`, every entry must already be covered by the stored scope: a
+	// request can remove hosts the value reaches, never add them. To add
+	// hosts, send `value` too. Omit it to keep the stored scope.
+	AllowedDomains *[]string `json:"allowed_domains,omitempty"`
+
+	// Description The replacement description; `null` clears it. Omit it to keep the
+	// stored description.
+	Description *string `json:"description,omitempty"`
+
+	// Value The replacement value (max 64 KiB). Write-only — never echoed back.
+	// Omit it to keep the stored value.
+	Value *string `json:"value,omitempty"`
+}
+
 // UpdateServiceAccountRequest defines model for UpdateServiceAccountRequest.
 type UpdateServiceAccountRequest struct {
 	// Description The replacement description; `null` clears it.
@@ -7678,6 +7763,40 @@ type Wallet struct {
 
 	// TotalSpentThisMonthCents The amount spent in the current month, in cents.
 	TotalSpentThisMonthCents int64 `json:"total_spent_this_month_cents"`
+}
+
+// WebhookPortalAccess A short-lived webhook portal session.
+type WebhookPortalAccess struct {
+	// Token The portal session token, a short-lived bearer credential scoped to
+	// the organization's webhook application.
+	Token string `json:"token"`
+
+	// Url The portal URL to embed, carrying the token.
+	Url string `json:"url"`
+}
+
+// WebhooksStatus An organization's webhook state, as the management routes answer it.
+type WebhooksStatus struct {
+	// CreatedAt When the organization's webhook state was first recorded.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// HasEndpoints Whether the application has at least one endpoint, as last checked.
+	HasEndpoints bool `json:"has_endpoints"`
+
+	// Initialized Whether the organization has a webhook application.
+	Initialized bool `json:"initialized"`
+
+	// LastError The last initialization error code, or `null` after a success.
+	LastError *string `json:"last_error,omitempty"`
+
+	// OrganizationId The organization ID.
+	OrganizationId openapi_types.UUID `json:"organization_id"`
+
+	// SvixApplicationId The webhook provider's application ID, when initialized.
+	SvixApplicationId *string `json:"svix_application_id,omitempty"`
+
+	// UpdatedAt When the organization's webhook state last changed.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 // ApiKeyId defines model for ApiKeyId.
@@ -8775,11 +8894,50 @@ type SetSandboxSecretsJSONRequestBody = SetSandboxSecretsRequest
 // CreateSandboxSnapshotJSONRequestBody defines body for CreateSandboxSnapshot for application/json ContentType.
 type CreateSandboxSnapshotJSONRequestBody = CreateSandboxSnapshotRequest
 
+// UpdateSecretJSONRequestBody defines body for UpdateSecret for application/json ContentType.
+type UpdateSecretJSONRequestBody = UpdateSecretRequest
+
 // SetSecretJSONRequestBody defines body for SetSecret for application/json ContentType.
 type SetSecretJSONRequestBody = SetSecretRequest
 
 // CreateVolumeJSONRequestBody defines body for CreateVolume for application/json ContentType.
 type CreateVolumeJSONRequestBody = CreateVolumeRequest
+
+// V2ImageCreatedJSONRequestBody defines body for V2ImageCreated for application/json ContentType.
+type V2ImageCreatedJSONRequestBody = V2ImageCreatedWebhook
+
+// V2ImageDeletedJSONRequestBody defines body for V2ImageDeleted for application/json ContentType.
+type V2ImageDeletedJSONRequestBody = V2ImageDeletedWebhook
+
+// V2ImageStatusChangedJSONRequestBody defines body for V2ImageStatusChanged for application/json ContentType.
+type V2ImageStatusChangedJSONRequestBody = V2ImageStatusChangedWebhook
+
+// V2SandboxCreatedJSONRequestBody defines body for V2SandboxCreated for application/json ContentType.
+type V2SandboxCreatedJSONRequestBody = V2SandboxCreatedWebhook
+
+// V2SandboxStatusChangedJSONRequestBody defines body for V2SandboxStatusChanged for application/json ContentType.
+type V2SandboxStatusChangedJSONRequestBody = V2SandboxStatusChangedWebhook
+
+// V2SnapshotCreatedJSONRequestBody defines body for V2SnapshotCreated for application/json ContentType.
+type V2SnapshotCreatedJSONRequestBody = V2SnapshotCreatedWebhook
+
+// V2SnapshotDeletedJSONRequestBody defines body for V2SnapshotDeleted for application/json ContentType.
+type V2SnapshotDeletedJSONRequestBody = V2SnapshotDeletedWebhook
+
+// V2SnapshotStatusChangedJSONRequestBody defines body for V2SnapshotStatusChanged for application/json ContentType.
+type V2SnapshotStatusChangedJSONRequestBody = V2SnapshotStatusChangedWebhook
+
+// V2VolumeCreatedJSONRequestBody defines body for V2VolumeCreated for application/json ContentType.
+type V2VolumeCreatedJSONRequestBody = V2VolumeCreatedWebhook
+
+// V2VolumeStatusChangedJSONRequestBody defines body for V2VolumeStatusChanged for application/json ContentType.
+type V2VolumeStatusChangedJSONRequestBody = V2VolumeStatusChangedWebhook
+
+// V2WalletDepletedJSONRequestBody defines body for V2WalletDepleted for application/json ContentType.
+type V2WalletDepletedJSONRequestBody = V2WalletDepletedWebhook
+
+// V2WalletLowBalanceJSONRequestBody defines body for V2WalletLowBalance for application/json ContentType.
+type V2WalletLowBalanceJSONRequestBody = V2WalletLowBalanceWebhook
 
 // AsDesktopEnvironment returns the union data inside the DesktopConfig_Environment as a DesktopEnvironment
 func (t DesktopConfig_Environment) AsDesktopEnvironment() (DesktopEnvironment, error) {
@@ -9025,6 +9183,68 @@ func (t PublicImageSource) MarshalJSON() ([]byte, error) {
 }
 
 func (t *PublicImageSource) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSandboxSecretAttachment0 returns the union data inside the SandboxSecretAttachment as a SandboxSecretAttachment0
+func (t SandboxSecretAttachment) AsSandboxSecretAttachment0() (SandboxSecretAttachment0, error) {
+	var body SandboxSecretAttachment0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSandboxSecretAttachment0 overwrites any union data inside the SandboxSecretAttachment as the provided SandboxSecretAttachment0
+func (t *SandboxSecretAttachment) FromSandboxSecretAttachment0(v SandboxSecretAttachment0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSandboxSecretAttachment0 performs a merge with any union data inside the SandboxSecretAttachment, using the provided SandboxSecretAttachment0
+func (t *SandboxSecretAttachment) MergeSandboxSecretAttachment0(v SandboxSecretAttachment0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSandboxSecretAttachmentBinding returns the union data inside the SandboxSecretAttachment as a SandboxSecretAttachmentBinding
+func (t SandboxSecretAttachment) AsSandboxSecretAttachmentBinding() (SandboxSecretAttachmentBinding, error) {
+	var body SandboxSecretAttachmentBinding
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSandboxSecretAttachmentBinding overwrites any union data inside the SandboxSecretAttachment as the provided SandboxSecretAttachmentBinding
+func (t *SandboxSecretAttachment) FromSandboxSecretAttachmentBinding(v SandboxSecretAttachmentBinding) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSandboxSecretAttachmentBinding performs a merge with any union data inside the SandboxSecretAttachment, using the provided SandboxSecretAttachmentBinding
+func (t *SandboxSecretAttachment) MergeSandboxSecretAttachmentBinding(v SandboxSecretAttachmentBinding) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SandboxSecretAttachment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SandboxSecretAttachment) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

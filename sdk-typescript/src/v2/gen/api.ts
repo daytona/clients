@@ -1716,6 +1716,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/orgs/{org_id}/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the organization's webhook status
+         * @description Returns whether webhooks are initialized for the organization and whether its webhook application has endpoints. An organization that already has a webhook application from Daytona v1 is reported as initialized.
+         */
+        get: operations["get_organization_webhooks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs/{org_id}/webhooks/initialize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create the organization's webhook application
+         * @description Creates the organization's webhook application, or finds the existing one. Idempotent.
+         */
+        post: operations["create_organization_webhooks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs/{org_id}/webhooks/portal-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a webhook portal session
+         * @description Returns a short-lived URL and token for the webhook portal, where endpoints, event-type filters, signing secrets and deliveries are managed.
+         */
+        post: operations["create_organization_webhook_portal_access"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orgs/{org_id}/webhooks/refresh-endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look up whether the organization has webhook endpoints
+         * @description Checks now whether the organization's webhook application has endpoints, so a newly added endpoint starts receiving events without waiting for the periodic check.
+         */
+        post: operations["lookup_organization_webhook_endpoints"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/permissions": {
         parameters: {
             query?: never;
@@ -2772,7 +2852,10 @@ export interface paths {
         get: operations["get_secret"];
         /**
          * Create or update a secret
-         * @description Values are encrypted at rest and are write-only.
+         * @description Values are encrypted at rest and are write-only. A name is 1 to 256
+         *     characters: a letter or underscore, then letters, digits, underscores or
+         *     hyphens. A name with a hyphen is attached to a sandbox under an explicit
+         *     `env`.
          */
         put: operations["set_secret"];
         post?: never;
@@ -2783,7 +2866,15 @@ export interface paths {
         delete: operations["delete_secret"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a secret
+         * @description Changes any subset of the value, the allowed domains and the description,
+         *     and keeps the rest. Without `value`, `allowed_domains` can only remove
+         *     hosts from the scope. Running Linux sandboxes receive a changed value or
+         *     scope without a restart; other sandboxes may receive it only when they
+         *     next start.
+         */
+        patch: operations["update_secret"];
         trace?: never;
     };
     "/snapshots": {
@@ -2942,7 +3033,512 @@ export interface paths {
         trace?: never;
     };
 }
-export type webhooks = Record<string, never>;
+export interface webhooks {
+    "v2.image.created": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * An image was created
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.image.created` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2ImageCreatedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.image.deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * An image was deleted
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.image.deleted` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2ImageDeletedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.image.status_changed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * An image changed status
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.image.status_changed` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2ImageStatusChangedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.sandbox.created": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A sandbox was created
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.sandbox.created` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2SandboxCreatedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.sandbox.status_changed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A sandbox changed status
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.sandbox.status_changed` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2SandboxStatusChangedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.snapshot.created": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A snapshot was created
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.snapshot.created` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2SnapshotCreatedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.snapshot.deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A snapshot was deleted
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.snapshot.deleted` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2SnapshotDeletedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.snapshot.status_changed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A snapshot changed status
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.snapshot.status_changed` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2SnapshotStatusChangedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.volume.created": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A volume was created
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.volume.created` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2VolumeCreatedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.volume.status_changed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A volume changed status
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.volume.status_changed` payload. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2VolumeStatusChangedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.wallet.depleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The wallet balance ran out
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.wallet.depleted` payload. Sent when the wallet balance has run out and the organization is being suspended: the same decision as the depleted-balance email. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2WalletDepletedWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "v2.wallet.low_balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The wallet balance is low
+         * @description Sent as an HTTP POST with a JSON body to each of the organization's webhook endpoints that subscribes to this event type. Every delivery carries three headers: `svix-id`, the message ID, which stays the same when a delivery is retried; `svix-timestamp`, the send time in seconds since the Unix epoch; and `svix-signature`, the signature. To verify a delivery, pass the raw request body, before parsing it, and the three headers to a Svix webhook verification library, with the endpoint's signing secret (`whsec_...`) from the dashboard's Webhooks page. Reject a delivery whose signature does not verify or whose timestamp is more than five minutes from the current time. Deduplicate deliveries on `svix-id`. Deliveries are not ordered; order the events of one resource (a sandbox, volume, image, snapshot, or the wallet) by their `occurred_at`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            /** @description The `v2.wallet.low_balance` payload. Sent when the wallet's free and paid credits, after the month's unbilled usage, are at or below the organization's low-balance notification threshold: the same decision as the low-balance email. `wallet.balance_cents` leaves that usage out and can be above `threshold_cents`. */
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["V2WalletLowBalanceWebhook"];
+                };
+            };
+            responses: {
+                /** @description The delivery was received. Any 2xx status acknowledges it; any other status, or no answer, is retried. */
+                "2XX": {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export interface components {
     schemas: {
         AcceptInvitationRequest: {
@@ -2982,7 +3578,7 @@ export interface components {
          * @description Stable machine-readable error codes, returned as `ErrorBody.code`
          *     when `source` is `DAYTONA_API`.
          */
-        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "DELETE_LOCK_TIMEOUT" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "SANDBOX_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "VOLUME_NOT_FOUND" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "BUCKET_ROLE_INVALID" | "BUCKET_ROLE_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
+        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "DELETE_LOCK_TIMEOUT" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "SANDBOX_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "WEBHOOKS_NOT_CONFIGURED" | "WEBHOOKS_NOT_INITIALIZED" | "WEBHOOKS_PROVIDER_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "VOLUME_NOT_FOUND" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "BUCKET_ROLE_INVALID" | "BUCKET_ROLE_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -3846,8 +4442,13 @@ export interface components {
              * @example new
              */
             reservation?: string | null;
-            /** @description Names of project secrets to attach. Secret values are used only for requests to their allowed hosts. */
-            secrets?: string[];
+            /**
+             * @description Project secrets to attach. Each is a secret name, injected under an
+             *     environment variable of the same name, or an object that names the
+             *     variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+             *     Secret values are used only for requests to their allowed hosts.
+             */
+            secrets?: components["schemas"]["SandboxSecretAttachment"][];
             /**
              * @description Disk volumes to attach, as on Linux: at most 8, each read-write. Each
              *     volume uses its `size_gib` (100 GiB when omitted) of disk space on the
@@ -4147,7 +4748,11 @@ export interface components {
             name?: string | null;
             /** @description Outbound network rules applied to the sandbox. */
             network_policy?: null | components["schemas"]["SetSandboxNetworkPolicyRequest"];
-            /** @description Whether writable state persists across stops. Defaults to `false`. */
+            /**
+             * @description Whether the sandbox keeps its disk across stop and start and its memory
+             *     across pause and resume. Linux stop, start, pause, resume and fork require
+             *     a persistent sandbox. Defaults to `false`.
+             */
             persistent?: boolean;
             /** @description Ports exposed when the sandbox starts. */
             ports?: components["schemas"]["PortMapping"][];
@@ -4157,8 +4762,12 @@ export interface components {
              *     the organization's, then `earth`.
              */
             region_id?: string | null;
-            /** @description Secret names made available to the sandbox. */
-            secrets?: string[];
+            /**
+             * @description Project secrets to attach. Each is a secret name, injected under an
+             *     environment variable of the same name, or an object that names the
+             *     variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+             */
+            secrets?: components["schemas"]["SandboxSecretAttachment"][];
             /** @description Whether to use discounted interruptible capacity. Defaults to `false`. */
             spot?: boolean;
             /** @description Default operating-system user. */
@@ -6819,6 +7428,15 @@ export interface components {
              */
             data_policy?: components["schemas"]["DataPolicy"];
             /**
+             * Format: date-time
+             * @description When the sandbox was deleted. Present only on `GET /sandboxes/{id}`,
+             *     and only when the status is `deleted`; omitted from batch-wait
+             *     (`GET /sandboxes/batch-wait`) snapshots. A deleted sandbox stays
+             *     readable for a while after its deletion; after that, reading it
+             *     returns 404.
+             */
+            deleted_at?: string;
+            /**
              * @description Desktop settings this sandbox was created with: the create request, or for
              *     a restored or forked sandbox the settings captured from its source. Not
              *     live state: a desktop restart can change them. GET /computeruse/display/info
@@ -7131,6 +7749,32 @@ export interface components {
         };
         SandboxSearchSort: ("created_at" | "updated_at" | "last_activity_at" | "name" | "cores" | "memory_mib" | "disk_mib") | (string & {});
         /**
+         * @description One secret to attach: a secret name, injected under that name, or an
+         *     object that names the variable separately.
+         */
+        SandboxSecretAttachment: string | components["schemas"]["SandboxSecretAttachmentBinding"];
+        /** @description A secret and the environment variable it is injected under. */
+        SandboxSecretAttachmentBinding: {
+            /**
+             * @description The environment variable the secret is injected under. Defaults to the
+             *     secret name.
+             * @example OPENAI_API_KEY
+             */
+            env?: string | null;
+            /**
+             * @description The secret name.
+             * @example tenant-a-openai
+             */
+            name: string;
+        };
+        /** @description One attached secret as a sandbox reports it. */
+        SandboxSecretBinding: {
+            /** @description The environment variable the secret is injected under. */
+            env: string;
+            /** @description The secret name. */
+            name: string;
+        };
+        /**
          * @description The secrets attached to a sandbox: the requested names and how far the
          *     sandbox has applied them.
          */
@@ -7140,6 +7784,11 @@ export interface components {
              * @description Revision the sandbox has applied, or null before the first one.
              */
             applied_revision?: number | null;
+            /**
+             * @description The requested secrets and the environment variable each is injected
+             *     under, in the order of `secrets`.
+             */
+            bindings?: components["schemas"]["SandboxSecretBinding"][];
             /**
              * @description For a restored or forked sandbox, how much of the source's secrets the
              *     copy received: `complete`, `partial` or an unknown status.
@@ -7445,10 +8094,13 @@ export interface components {
         };
         SetSandboxSecretsRequest: {
             /**
-             * @description The complete desired set of project secret names. Required; send `[]`
-             *     to detach every secret.
+             * @description The complete desired set of project secrets. Each is a secret name or
+             *     an object that names the variable. A secret already attached keeps its
+             *     variable unless the item sets `env`; a newly attached one is injected
+             *     under its own name unless the item sets `env`. Required; send `[]` to
+             *     detach every secret.
              */
-            secrets: string[];
+            secrets: components["schemas"]["SandboxSecretAttachment"][];
         };
         /**
          * @description A secret value and its metadata. Values are encrypted at rest and are
@@ -7881,6 +8533,30 @@ export interface components {
              */
             timeout_seconds: number | null;
         };
+        /**
+         * @description A partial update of an existing secret. Every field is optional; an
+         *     absent field keeps its stored value. Without `value`, `allowed_domains`
+         *     can only remove hosts from the stored scope.
+         */
+        UpdateSecretRequest: {
+            /**
+             * @description The replacement egress scope, in the same form as on create. Without
+             *     `value`, every entry must already be covered by the stored scope: a
+             *     request can remove hosts the value reaches, never add them. To add
+             *     hosts, send `value` too. Omit it to keep the stored scope.
+             */
+            allowed_domains?: string[];
+            /**
+             * @description The replacement description; `null` clears it. Omit it to keep the
+             *     stored description.
+             */
+            description?: string | null;
+            /**
+             * @description The replacement value (max 64 KiB). Write-only — never echoed back.
+             *     Omit it to keep the stored value.
+             */
+            value?: string;
+        };
         UpdateServiceAccountRequest: {
             /** @description The replacement description; `null` clears it. */
             description?: string | null;
@@ -8216,6 +8892,335 @@ export interface components {
             /** @description The Daytona v0 sandboxes in this page. */
             sandboxes: components["schemas"]["V0Sandbox"][];
         };
+        /** @description The `v2.image.created` webhook payload. */
+        V2ImageCreatedWebhook: {
+            /** @description The image. */
+            image: components["schemas"]["WebhookImage"];
+            /**
+             * Format: date-time
+             * @description When the image was created on the platform, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order an image's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the image.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the image.
+             */
+            project_id: string;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.image.created`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.image.deleted` webhook payload. */
+        V2ImageDeletedWebhook: {
+            /** @description The image as it was when it was deleted. */
+            image: components["schemas"]["WebhookImage"];
+            /**
+             * Format: date-time
+             * @description When the image was deleted, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order an image's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owned the image.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owned the image.
+             */
+            project_id: string;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.image.deleted`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.image.status_changed` webhook payload. */
+        V2ImageStatusChangedWebhook: {
+            /** @description The status before the change. */
+            from_status: components["schemas"]["ImageStatus"];
+            /** @description The image, with its status after the change. */
+            image: components["schemas"]["WebhookImage"];
+            /**
+             * Format: date-time
+             * @description When the status changed, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order an image's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the image.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the image.
+             */
+            project_id: string;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.image.status_changed`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.sandbox.created` webhook payload. */
+        V2SandboxCreatedWebhook: {
+            /**
+             * Format: date-time
+             * @description When the sandbox was created on the platform, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a sandbox's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the sandbox.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the sandbox.
+             */
+            project_id: string;
+            /** @description The sandbox. */
+            sandbox: components["schemas"]["WebhookSandbox"];
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.sandbox.created`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.sandbox.status_changed` webhook payload. */
+        V2SandboxStatusChangedWebhook: {
+            /** @description The status before the change. */
+            from_status: components["schemas"]["SandboxStatus"];
+            /**
+             * Format: date-time
+             * @description When the status changed, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a sandbox's events by this field. Two steps of one change can, rarely, carry the same value.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the sandbox.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the sandbox.
+             */
+            project_id: string;
+            /** @description The sandbox, with its status after the change. */
+            sandbox: components["schemas"]["WebhookSandbox"];
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.sandbox.status_changed`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.snapshot.created` webhook payload. */
+        V2SnapshotCreatedWebhook: {
+            /**
+             * Format: date-time
+             * @description When the snapshot was created on the platform, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a snapshot's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the snapshot.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the snapshot.
+             */
+            project_id: string;
+            /** @description The snapshot. */
+            snapshot: components["schemas"]["WebhookSnapshot"];
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.snapshot.created`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.snapshot.deleted` webhook payload. */
+        V2SnapshotDeletedWebhook: {
+            /**
+             * Format: date-time
+             * @description When the snapshot was deleted, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a snapshot's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owned the snapshot.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owned the snapshot.
+             */
+            project_id: string;
+            /** @description The snapshot as it was when it was deleted. */
+            snapshot: components["schemas"]["WebhookSnapshot"];
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.snapshot.deleted`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.snapshot.status_changed` webhook payload. */
+        V2SnapshotStatusChangedWebhook: {
+            /** @description The status before the change. */
+            from_status: components["schemas"]["SnapshotStatus"];
+            /**
+             * Format: date-time
+             * @description When the status changed, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a snapshot's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the snapshot.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the snapshot.
+             */
+            project_id: string;
+            /** @description The snapshot, with its status after the change. */
+            snapshot: components["schemas"]["WebhookSnapshot"];
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.snapshot.status_changed`. */
+            type: components["schemas"]["WebhookEventType"];
+        };
+        /** @description The `v2.volume.created` webhook payload. */
+        V2VolumeCreatedWebhook: {
+            /**
+             * Format: date-time
+             * @description When the volume was created on the platform, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a volume's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the volume.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the volume.
+             */
+            project_id: string;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.volume.created`. */
+            type: components["schemas"]["WebhookEventType"];
+            /** @description The volume. */
+            volume: components["schemas"]["WebhookVolume"];
+        };
+        /** @description The `v2.volume.status_changed` webhook payload. */
+        V2VolumeStatusChangedWebhook: {
+            /** @description The status before the change. */
+            from_status: components["schemas"]["VolumeStatus"];
+            /**
+             * Format: date-time
+             * @description When the status changed, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a volume's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the volume.
+             */
+            organization_id: string;
+            /**
+             * Format: uuid
+             * @description The ID of the project that owns the volume.
+             */
+            project_id: string;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.volume.status_changed`. */
+            type: components["schemas"]["WebhookEventType"];
+            /** @description The volume, with its status after the change. A deleted volume has the status `deleted`. */
+            volume: components["schemas"]["WebhookVolume"];
+        };
+        /** @description The `v2.wallet.depleted` webhook payload. */
+        V2WalletDepletedWebhook: {
+            /**
+             * Format: date-time
+             * @description When the platform found the wallet depleted and requested the organization's suspension, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a wallet's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the wallet.
+             */
+            organization_id: string;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.wallet.depleted`. */
+            type: components["schemas"]["WebhookEventType"];
+            /** @description The wallet. */
+            wallet: components["schemas"]["WebhookWallet"];
+        };
+        /** @description The `v2.wallet.low_balance` webhook payload. */
+        V2WalletLowBalanceWebhook: {
+            /** @description The lowercase ISO 4217 currency code of the threshold. */
+            currency: string;
+            /**
+             * Format: date-time
+             * @description When the platform found the balance at or below the threshold, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a wallet's events by this field.
+             */
+            occurred_at: string;
+            /**
+             * Format: uuid
+             * @description The ID of the organization that owns the wallet.
+             */
+            organization_id: string;
+            /**
+             * Format: int64
+             * @description The organization's low-balance notification threshold in cents. The event is sent when the wallet's promotional plus purchased credit balance is at or below it.
+             */
+            threshold_cents: number;
+            /**
+             * Format: date-time
+             * @description When the webhook was sent, as an RFC 3339 timestamp in UTC.
+             */
+            timestamp: string;
+            /** @description The event type, `v2.wallet.low_balance`. */
+            type: components["schemas"]["WebhookEventType"];
+            /** @description The wallet. */
+            wallet: components["schemas"]["WebhookWallet"];
+        };
         /** @description A volume available to the project. */
         Volume: {
             /**
@@ -8355,6 +9360,181 @@ export interface components {
              * @description The amount spent in the current month, in cents.
              */
             total_spent_this_month_cents: number;
+        };
+        /**
+         * @description The event type of a webhook delivery. Every v2 event type is
+         *     `v2.<resource>.<event>`. More event types may be added; receivers must
+         *     accept values they don't recognize.
+         */
+        WebhookEventType: ("v2.sandbox.created" | "v2.sandbox.status_changed" | "v2.volume.created" | "v2.volume.status_changed" | "v2.image.created" | "v2.image.status_changed" | "v2.image.deleted" | "v2.snapshot.created" | "v2.snapshot.status_changed" | "v2.snapshot.deleted" | "v2.wallet.low_balance" | "v2.wallet.depleted") | (string & {});
+        /**
+         * @description The image a webhook is about: a subset of the `Image` returned by
+         *     `GET /images/{image_id}`, with the same field names and values.
+         */
+        WebhookImage: {
+            /** @description The sandbox class supported by the image. */
+            class: string;
+            /**
+             * Format: date-time
+             * @description When the image was created, as an RFC 3339 timestamp in UTC.
+             */
+            created_at: string;
+            /** @description Build failure reason, or null when no failure is recorded. */
+            error?: string | null;
+            /** @description The image ID. */
+            id: string;
+            /** @description The image name. */
+            name: string;
+            /** @description How the image was created. */
+            origin: components["schemas"]["ImageOrigin"];
+            /** @description The home region. */
+            region_id: string;
+            /** @description The build status. */
+            status: components["schemas"]["ImageStatus"];
+        };
+        /** @description A short-lived webhook portal session. */
+        WebhookPortalAccess: {
+            /**
+             * @description The portal session token, a short-lived bearer credential scoped to
+             *     the organization's webhook application.
+             */
+            token: string;
+            /** @description The portal URL to embed, carrying the token. */
+            url: string;
+        };
+        /**
+         * @description The sandbox a webhook is about: a subset of the `Sandbox` returned by
+         *     `GET /sandboxes/{sandbox_id}`, with the same field names and values.
+         */
+        WebhookSandbox: {
+            /** @description The sandbox class. */
+            class: components["schemas"]["SandboxClass"];
+            /**
+             * Format: date-time
+             * @description When the sandbox was created, as an RFC 3339 timestamp in UTC.
+             */
+            created_at: string;
+            /** @description Failure detail, or null when no failure is recorded. */
+            error?: string | null;
+            /** @description The sandbox ID. */
+            id: string;
+            /** @description User-defined sandbox labels. */
+            labels: {
+                [key: string]: string;
+            };
+            /** @description The sandbox name. */
+            name: string;
+            /** @description The region the sandbox runs in. */
+            region_id: string;
+            /** @description The sandbox status. */
+            status: components["schemas"]["SandboxStatus"];
+        };
+        /**
+         * @description The memory snapshot a webhook is about: a subset of the `Snapshot`
+         *     returned by `GET /snapshots/{snapshot_id}`, with the same field names and
+         *     values.
+         */
+        WebhookSnapshot: {
+            /** @description The sandbox class. */
+            class: components["schemas"]["SnapshotClass"];
+            /**
+             * Format: date-time
+             * @description When the snapshot was created, as an RFC 3339 timestamp in UTC.
+             */
+            created_at: string;
+            /** @description The failure detail, or null when capture has not failed. */
+            error?: string | null;
+            /** @description The snapshot ID. */
+            id: string;
+            /** @description The snapshot kind. A `full` snapshot captures memory and disk. */
+            kind: components["schemas"]["SnapshotKind"];
+            /** @description The project-unique snapshot name. */
+            name: string;
+            /** @description The home region. */
+            region_id: string;
+            /** @description The ID of the sandbox the snapshot was captured from, or null when that sandbox no longer exists. */
+            sandbox_id?: string | null;
+            /** @description The snapshot status. */
+            status: components["schemas"]["SnapshotStatus"];
+        };
+        /**
+         * @description The volume a webhook is about: a subset of the `Volume` returned by
+         *     `GET /volumes/{volume_id}`, with the same field names and values.
+         */
+        WebhookVolume: {
+            /**
+             * Format: date-time
+             * @description When the volume was created, as an RFC 3339 timestamp in UTC.
+             */
+            created_at: string;
+            /** @description Failure detail, or null when no failure is recorded. */
+            error?: string | null;
+            /** @description The volume ID. */
+            id: string;
+            /** @description The project-unique volume name. */
+            name: string;
+            /**
+             * Format: int32
+             * @description Scratch capacity in GiB. Disk volumes only; null for a bucket volume.
+             */
+            size_gib?: number | null;
+            /** @description The volume status. */
+            status: components["schemas"]["VolumeStatus"];
+            /** @description The volume type. */
+            type: components["schemas"]["VolumeType"];
+        };
+        /**
+         * @description The organization's wallet, read when the event is sent: a subset
+         *     of the `Wallet` returned by `GET /orgs/{org_id}/billing/wallet`, with the
+         *     same field names and values. The event's condition is checked against
+         *     `free_credits_balance_cents` plus `paid_credits_balance_cents`, which
+         *     count the current month's unbilled usage; `balance_cents` does not, so it
+         *     can be higher.
+         */
+        WebhookWallet: {
+            /**
+             * Format: int64
+             * @description The total available balance in cents.
+             */
+            balance_cents: number;
+            /** @description The lowercase ISO 4217 currency code. */
+            currency: string;
+            /**
+             * Format: int64
+             * @description The promotional-credit balance in cents.
+             */
+            free_credits_balance_cents: number;
+            /**
+             * Format: int64
+             * @description The purchased-credit balance in cents.
+             */
+            paid_credits_balance_cents: number;
+        };
+        /** @description An organization's webhook state, as the management routes answer it. */
+        WebhooksStatus: {
+            /**
+             * Format: date-time
+             * @description When the organization's webhook state was first recorded.
+             */
+            created_at?: string | null;
+            /** @description Whether the application has at least one endpoint, as last checked. */
+            has_endpoints: boolean;
+            /** @description Whether the organization has a webhook application. */
+            initialized: boolean;
+            /** @description The last initialization error code, or `null` after a success. */
+            last_error?: string | null;
+            /**
+             * Format: uuid
+             * @description The organization ID.
+             */
+            organization_id: string;
+            /** @description The webhook provider's application ID, when initialized. */
+            svix_application_id?: string | null;
+            /**
+             * Format: date-time
+             * @description When the organization's webhook state last changed.
+             */
+            updated_at?: string | null;
         };
     };
     responses: {
@@ -15590,6 +16770,238 @@ export interface operations {
             };
         };
     };
+    get_organization_webhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                org_id: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The organization's webhook status */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhooksStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Organization not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Webhooks are not configured on this deployment (`WEBHOOKS_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_organization_webhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                org_id: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The organization's webhook status */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhooksStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Organization not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Webhooks are not configured on this deployment (`WEBHOOKS_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The webhook provider failed or timed out (`WEBHOOKS_PROVIDER_UNAVAILABLE`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    create_organization_webhook_portal_access: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                org_id: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The portal session */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookPortalAccess"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Organization not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Webhooks are not initialized for the organization (`WEBHOOKS_NOT_INITIALIZED`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Webhooks are not configured on this deployment (`WEBHOOKS_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The webhook provider failed or timed out (`WEBHOOKS_PROVIDER_UNAVAILABLE`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    lookup_organization_webhook_endpoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                org_id: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook endpoint status updated */
+            204: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Organization not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Webhooks are not initialized for the organization (`WEBHOOKS_NOT_INITIALIZED`) */
+            409: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Webhooks are not configured on this deployment (`WEBHOOKS_NOT_CONFIGURED`) */
+            501: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The webhook provider failed or timed out (`WEBHOOKS_PROVIDER_UNAVAILABLE`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_permissions: {
         parameters: {
             query?: {
@@ -18428,6 +19840,7 @@ export interface operations {
             /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox is still starting, stopping or pausing; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`). */
             409: {
                 headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -18500,6 +19913,7 @@ export interface operations {
             /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox is still starting (Linux, Windows) or stopping (macOS); retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`). */
             409: {
                 headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -19466,7 +20880,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        /** @description Full replacement of the secrets attached to the sandbox, by project secret name. Values are never sent or returned. */
+        /** @description Full replacement of the secrets attached to the sandbox, by project secret name and optionally the environment variable each is injected under. Values are never sent or returned. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SetSandboxSecretsRequest"];
@@ -19485,7 +20899,7 @@ export interface operations {
                     "application/json": components["schemas"]["SandboxSecrets"];
                 };
             };
-            /** @description The request is invalid, names an unknown secret, or the sandbox class is unsupported (`BAD_REQUEST`) */
+            /** @description The request is invalid, names an unknown secret, moves an attached secret to another variable, or the sandbox class is unsupported (`BAD_REQUEST`) */
             400: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -19530,6 +20944,27 @@ export interface operations {
             /** @description The If-Match header is missing (`IF_MATCH_REQUIRED`) */
             428: {
                 headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -19658,6 +21093,7 @@ export interface operations {
             /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox is still starting; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`) */
             409: {
                 headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -19926,6 +21362,37 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description This deployment serves secret lists from search; use the search route named in the error's replacement field (`GONE`) */
+            410: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     search_secrets: {
@@ -19994,7 +21461,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`) */
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search is temporarily unavailable (`SEARCH_UNAVAILABLE`). Secrets are temporarily unavailable (`SERVICE_UNAVAILABLE`) */
             503: {
                 headers: {
                     "Retry-After": components["headers"]["Retry-After"];
@@ -20034,6 +21511,27 @@ export interface operations {
             /** @description Secret not found */
             404: {
                 headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -20115,6 +21613,16 @@ export interface operations {
                 };
             };
             429: components["responses"]["TooManyRequests"];
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             /** @description Secrets are temporarily unavailable (`SERVICE_UNAVAILABLE`) */
             503: {
                 headers: {
@@ -20163,6 +21671,99 @@ export interface operations {
             /** @description A sandbox or bucket volume still references the secret, and the error names up to 20 of those the caller can read (`CONFLICT`) */
             409: {
                 headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_secret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The secret name */
+                name: components["parameters"]["SecretName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSecretRequest"];
+            };
+        };
+        responses: {
+            /** @description The secret */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Secret"];
+                };
+            };
+            /** @description The request body is invalid, or it adds hosts to the allowed domains without a new value (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Secret not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description Secrets are temporarily unavailable; try again (`BAD_GATEWAY`) */
+            502: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Secrets are temporarily unavailable; try again (`SERVICE_UNAVAILABLE`) */
+            503: {
+                headers: {
+                    "Retry-After": components["headers"]["Retry-After"];
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
                     [name: string]: unknown;
                 };
@@ -20537,6 +22138,16 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description This deployment serves volume lists from search; use the search route named in the error's replacement field (`GONE`) */
+            410: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
         };
     };
     create_volume: {

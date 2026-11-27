@@ -50,6 +50,7 @@ class SandboxListItem(BaseModel):
     create_timeout_at: Optional[datetime] = Field(default=None, description="Create deadline; absent after the sandbox reaches its target status.")
     created_at: Optional[datetime] = Field(default=None, description="When the sandbox was created.")
     data_policy: Optional[DataPolicy] = None
+    deleted_at: Optional[datetime] = Field(default=None, description="When the sandbox was deleted. Present only on `GET /sandboxes/{id}`, and only when the status is `deleted`; omitted from batch-wait (`GET /sandboxes/batch-wait`) snapshots. A deleted sandbox stays readable for a while after its deletion; after that, reading it returns 404.")
     desktop: Optional[DesktopSettings] = None
     disk_max_mib: Optional[StrictInt] = Field(default=None, description="Maximum writable disk size in MiB.")
     disk_mib: StrictInt = Field(description="Writable disk size in MiB.")
@@ -84,7 +85,7 @@ class SandboxListItem(BaseModel):
     user: Optional[StrictStr] = Field(default=None, description="Default operating-system user.")
     cursor: StrictStr = Field(description="Opaque token that resumes immediately after this sandbox.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["class", "cores_max", "cpu", "create_timeout_at", "created_at", "data_policy", "desktop", "disk_max_mib", "disk_mib", "error", "forked_from", "id", "image", "image_build_id", "image_ref", "imported_from", "labels", "last_activity_at", "lifecycle_policy", "mac_boot_mode", "memory_max_mib", "memory_mib", "name", "persistent", "port_map", "region_id", "reservation_id", "snapshot", "spot", "spot_evicted_at", "ssh_gateway_host", "ssh_gateway_port", "started_at", "status", "stopped_at", "toolbox_proxy_url", "updated_at", "user", "cursor"]
+    __properties: ClassVar[List[str]] = ["class", "cores_max", "cpu", "create_timeout_at", "created_at", "data_policy", "deleted_at", "desktop", "disk_max_mib", "disk_mib", "error", "forked_from", "id", "image", "image_build_id", "image_ref", "imported_from", "labels", "last_activity_at", "lifecycle_policy", "mac_boot_mode", "memory_max_mib", "memory_mib", "name", "persistent", "port_map", "region_id", "reservation_id", "snapshot", "spot", "spot_evicted_at", "ssh_gateway_host", "ssh_gateway_port", "started_at", "status", "stopped_at", "toolbox_proxy_url", "updated_at", "user", "cursor"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -299,6 +300,7 @@ class SandboxListItem(BaseModel):
             **({"create_timeout_at": obj["create_timeout_at"]} if "create_timeout_at" in obj else {}),
             **({"created_at": obj["created_at"]} if "created_at" in obj else {}),
             **({"data_policy": obj["data_policy"]} if "data_policy" in obj else {}),
+            **({"deleted_at": obj["deleted_at"]} if "deleted_at" in obj else {}),
             **({"desktop": DesktopSettings.from_dict(obj["desktop"]) if obj["desktop"] is not None else None} if "desktop" in obj else {}),
             **({"disk_max_mib": obj["disk_max_mib"]} if "disk_max_mib" in obj else {}),
             "disk_mib": obj.get("disk_mib"),
