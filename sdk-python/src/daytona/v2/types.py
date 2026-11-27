@@ -302,6 +302,10 @@ class LifecyclePolicyOptions(TypedDict, total=False):
     sending the request. ``delete`` is available everywhere; ``stop`` requires
     persistence and is unavailable on GPU sandboxes. ``pause`` requires a
     persistent Linux sandbox. Pause macOS explicitly with :meth:`daytona.v2.Sandbox.pause`.
+
+    A deadline is the earliest time its action runs, not an exact time: the
+    platform acts on it shortly after it passes, so a sandbox can still be
+    running for some seconds after ``timeout_at`` / ``idle_timeout_at``.
     """
 
     timeout_seconds: int

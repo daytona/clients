@@ -23,7 +23,7 @@ import type { Record, Scenario } from './test-support/fake-sdk.js'
 
 const EXAMPLES = dirname(dirname(fileURLToPath(import.meta.url)))
 
-function runExample(entry: string, scenario: Scenario = {}): { code: number | null; record: Record; output: string } {
+function runExample(entry: string, scenario: Scenario = {}, env: { readonly [name: string]: string } = {}): { code: number | null; record: Record; output: string } {
   const dir = mkdtempSync(join(tmpdir(), 'daytona-example-'))
   const recordPath = join(dir, 'record.json')
   try {
@@ -43,6 +43,8 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
           EXAMPLE_FAKE_RECORD: recordPath,
           EXAMPLE_SYNC_WAIT_SECONDS: '0',
           EXAMPLE_RETRY_DELAY_SECONDS: '0',
+          EXAMPLE_POLL_SECONDS: '0',
+          ...env,
         },
         timeout: 60_000,
       },
@@ -434,4 +436,50 @@ test('volumes_share reports a failed write at its source', () => {
   assert.match(output, /message\.txt.*failed \(exit=1\): read-only file system/)
   assertCleanedUp(record)
   assert.equal(record.deletedVolumes.length, 1)
+})
+
+const DESKTOP = { DAYTONA_DESKTOP_IMAGE: 'desktop-image' }
+const DESKTOP_IMAGES: Scenario['images'] = [['desktop-image', 'ready']]
+
+test('computer-use records the desktop, downloads a usable recording and deletes the sandbox', () => {
+  // Given a desktop image and a recording that completes.
+  const { code, record } = runExample(example('computer-use'), { images: DESKTOP_IMAGES }, DESKTOP)
+  // Then the example stops the recording, downloads it and cleans up.
+  assert.equal(code, 0)
+  assert.deepEqual(record.recordingsStopped, ['rec-1'])
+  assert.deepEqual(record.recordingDownloads, ['rec-1'])
+  assertCleanedUp(record)
+})
+
+for (const status of ['failed', 'interrupted', 'a-status-from-a-later-release']) {
+  test(`computer-use fails without downloading a recording that ended ${status}`, () => {
+    // Given a stop that returns a recording with no usable file.
+    const { code, record, output } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, recordingStatus: status }, DESKTOP)
+    // Then the example reports it, never downloads it, and still cleans up.
+    assert.equal(code, 1)
+    assert.match(output, new RegExp(`ended ${status}`))
+    assert.deepEqual(record.recordingDownloads, [])
+    assertCleanedUp(record)
+  })
+}
+
+test('computer-use reports unavailable desktop automation and deletes the sandbox', () => {
+  const { code, record, output } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, computerUseUnavailable: true }, DESKTOP)
+  assert.equal(code, 1)
+  assert.match(output, /desktop automation is not available/)
+  assert.deepEqual(record.recordingsStopped, [])
+  assertCleanedUp(record)
+})
+
+test('computer-use skips the desktop and cleans up when create returns a non-started sandbox', () => {
+  const { code, record } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, sandboxStates: ['creating'] }, DESKTOP)
+  assert.equal(code, 1)
+  assert.deepEqual(record.recordingsStopped, [])
+  assertCleanedUp(record)
+})
+
+test('computer-use needs DAYTONA_DESKTOP_IMAGE and creates nothing without it', () => {
+  const { code, record } = runExample(example('computer-use'), { images: DESKTOP_IMAGES }, { DAYTONA_DESKTOP_IMAGE: '' })
+  assert.equal(code, 2)
+  assert.deepEqual(record.sandboxes, [])
 })

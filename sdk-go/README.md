@@ -83,7 +83,8 @@ overrides it, persistent Linux sandboxes pause after a 300-second lifetime.
 - Linux stop, start, pause, resume and fork require persistence; the
   API checks support.
 - Lifecycle policies allow `delete` everywhere, `stop` on persistent non-GPU
-  sandboxes, and `pause` on persistent Linux.
+  sandboxes, and `pause` on persistent Linux. A policy deadline (`TimeoutAt`,
+  `IdleTimeoutAt`) is the earliest time its action runs, not an exact time.
 - Volumes are accepted on create, but sandboxes with attached volumes currently
   reject pause and fork with `ErrConflict`.
 - Snapshot restores inherit the source's persistence; there is no override.

@@ -384,6 +384,10 @@ export const DISABLED = -1
  *
  * Rejected before posting when inapplicable to the sandbox class: see
  * `LifecycleAction` for the supported actions.
+ *
+ * A deadline is the earliest time its action runs, not an exact time: the
+ * platform acts on it shortly after it passes, so a sandbox can still be
+ * running for some seconds after `timeoutAt` / `idleTimeoutAt`.
  */
 export interface LifecyclePolicyOptions {
   readonly timeoutSeconds?: number

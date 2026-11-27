@@ -394,6 +394,15 @@ class AsyncRecordingService:
         self._transport = _transport
 
     async def start(self, *, label: str | None = None) -> ComputerUseRecording:
+        """Start recording the desktop and return the new recording (``status`` ``recording``).
+
+        Raises ``DesktopNotReadyError`` (409, ``DESKTOP_NOT_READY``) while the
+        desktop is not ready, ``AddonUnavailableError`` (503,
+        ``ADDON_UNAVAILABLE``) when the sandbox cannot record, and
+        ``BadRequestError`` when the recording limits are reached. A recording
+        whose capture fails after it started is reported with ``status``
+        ``failed`` by ``stop()``, ``get()`` and ``list()``.
+        """
         return parse_computer_use_recording(
             expect_computer_use_recording(
                 await self._transport.send(
@@ -407,6 +416,23 @@ class AsyncRecordingService:
         )
 
     async def stop(self, *, id: str) -> ComputerUseRecording:
+        """Stop a recording and return its final metadata.
+
+        A successful return does not mean the file is usable: check
+        ``status`` first. ``completed`` (or ``duration_limit_reached`` /
+        ``size_limit_reached``, when a limit ended it) has a file at
+        ``file_path``; ``failed`` (the capture ended on its own or produced no
+        usable output) has none to use, and ``interrupted`` (the encoder had
+        to be killed) may leave a partial or unplayable file. The vocabulary
+        is open: treat any other value as not usable.
+
+        Example::
+
+            rec = await sandbox.computer_use.recording.stop(id=rec.id)
+            if rec.status not in ("completed", "duration_limit_reached", "size_limit_reached"):
+                raise RuntimeError(f"recording {rec.id} ended {rec.status}")
+            data = await sandbox.computer_use.recording.download(rec.id)
+        """
         return parse_computer_use_recording(
             expect_computer_use_recording(
                 await self._transport.send(
@@ -420,6 +446,11 @@ class AsyncRecordingService:
         )
 
     async def list(self) -> ComputerUseRecordingList:
+        """List the live and retained recordings (one response, not paginated).
+
+        Failed recordings stay in the list with ``status`` ``failed``; check
+        each recording's ``status`` as described on ``stop()``.
+        """
         return parse_computer_use_recording_list(
             expect_computer_use_recordings_response(
                 await self._transport.send(RequestSpec("GET", "/computeruse/recordings"))
@@ -427,6 +458,12 @@ class AsyncRecordingService:
         )
 
     async def get(self, id: str, /) -> ComputerUseRecording:
+        """Read one recording, a live one included (``recording``, ``stopping``).
+
+        A recording whose capture failed is still returned, with ``status``
+        ``failed``; check ``status`` as described on ``stop()`` before using
+        its file.
+        """
         return parse_computer_use_recording(
             expect_computer_use_recording(
                 await self._transport.send(

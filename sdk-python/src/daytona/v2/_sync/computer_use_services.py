@@ -253,15 +253,52 @@ class RecordingService:
         return self._bridge.call(lambda: self._impl.download(id, max_response_bytes=max_response_bytes))
 
     def get(self, id: str, /) -> ComputerUseRecording:
+        """Read one recording, a live one included (``recording``, ``stopping``).
+
+        A recording whose capture failed is still returned, with ``status``
+        ``failed``; check ``status`` as described on ``stop()`` before using
+        its file.
+        """
         return self._bridge.call(lambda: self._impl.get(id))
 
     def list(self) -> ComputerUseRecordingList:
+        """List the live and retained recordings (one response, not paginated).
+
+        Failed recordings stay in the list with ``status`` ``failed``; check
+        each recording's ``status`` as described on ``stop()``.
+        """
         return self._bridge.call(lambda: self._impl.list())
 
     def start(self, *, label: str | None = None) -> ComputerUseRecording:
+        """Start recording the desktop and return the new recording (``status`` ``recording``).
+
+        Raises ``DesktopNotReadyError`` (409, ``DESKTOP_NOT_READY``) while the
+        desktop is not ready, ``AddonUnavailableError`` (503,
+        ``ADDON_UNAVAILABLE``) when the sandbox cannot record, and
+        ``BadRequestError`` when the recording limits are reached. A recording
+        whose capture fails after it started is reported with ``status``
+        ``failed`` by ``stop()``, ``get()`` and ``list()``.
+        """
         return self._bridge.call(lambda: self._impl.start(label=label))
 
     def stop(self, *, id: str) -> ComputerUseRecording:
+        """Stop a recording and return its final metadata.
+
+        A successful return does not mean the file is usable: check
+        ``status`` first. ``completed`` (or ``duration_limit_reached`` /
+        ``size_limit_reached``, when a limit ended it) has a file at
+        ``file_path``; ``failed`` (the capture ended on its own or produced no
+        usable output) has none to use, and ``interrupted`` (the encoder had
+        to be killed) may leave a partial or unplayable file. The vocabulary
+        is open: treat any other value as not usable.
+
+        Example::
+
+            rec = sandbox.computer_use.recording.stop(id=rec.id)
+            if rec.status not in ("completed", "duration_limit_reached", "size_limit_reached"):
+                raise RuntimeError(f"recording {rec.id} ended {rec.status}")
+            data = sandbox.computer_use.recording.download(rec.id)
+        """
         return self._bridge.call(lambda: self._impl.stop(id=id))
 
 

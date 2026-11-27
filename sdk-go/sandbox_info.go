@@ -126,14 +126,16 @@ type LifecyclePolicy struct {
 	Timeout *time.Duration
 	// OnTimeout is the action taken at the lifetime deadline.
 	OnTimeout LifecycleAction
-	// TimeoutAt is the effective lifetime deadline.
+	// TimeoutAt is the effective lifetime deadline: the earliest time
+	// OnTimeout runs, not an exact time (the platform acts shortly after it).
 	TimeoutAt     time.Time
 	timeoutAtWire string
 	// IdleExpiry is the idle budget; nil is absent and zero disables expiry.
 	IdleExpiry *time.Duration
 	// OnIdleTimeout is the action taken at the idle deadline.
 	OnIdleTimeout LifecycleAction
-	// IdleTimeoutAt is the effective idle deadline.
+	// IdleTimeoutAt is the effective idle deadline: the earliest time
+	// OnIdleTimeout runs, not an exact time.
 	IdleTimeoutAt     time.Time
 	idleTimeoutAtWire string
 	// LastActivityAt is the activity observation timestamp.

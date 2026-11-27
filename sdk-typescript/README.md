@@ -197,6 +197,22 @@ use Node APIs (file transfers, `Image.addLocalDir`) need the same bundler
 setup the 0.x SDK needed in a browser (Node polyfills such as
 `vite-plugin-node-polyfills` for `Buffer`, `process` and `global`).
 
+**Other runtimes:**
+
+- **Deno** needs `--allow-env` without a list of names: a dependency reads the
+  whole environment when the package loads, so `--allow-env=DAYTONA_API_KEY`
+  fails with `NotCapable`. Add `--allow-net` for the API and sandbox hosts
+  (and `--allow-read` when the package comes from a local `node_modules`).
+- **Bun** cannot release the waits' WebSocket from its event loop, so after
+  the last wait the process stays alive until the socket's idle close (10 s by
+  default). `await daytona.close()` when you are done to exit at once.
+- **A Node.js ES module bundle** (esbuild `--platform=node --format=esm`)
+  needs a `require` for the CommonJS dependencies it inlines; without one it
+  fails at startup with `Dynamic require of "util" is not supported`. Add
+  this banner: `--banner:js="import { createRequire } from 'node:module'; const
+  require = createRequire(import.meta.url);"`. A CommonJS bundle
+  (`--format=cjs`) needs nothing.
+
 Exactly one of `apiKey` or `jwtToken` must be configured. `jwtToken` requires
 `projectId`; the SDK exchanges that OIDC JWT lazily for a short-lived,
 project-scoped platform token and reuses it for every request it makes.
@@ -532,6 +548,9 @@ update times with `createdStartAt` / `updatedStartAt` (inclusive) and
 `sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
 for ordering and paging. The returned `SearchResult` includes `total` and
 `totalRelation` (`'eq'` for an exact count, `'gte'` for a lower bound).
+Without `sort`, secrets come back by name, ascending; sandbox, image, snapshot
+and volume searches (and the `list()` calls that read them) default to newest
+first instead.
 
 Search is eventually consistent. Use `daytona.v2.secrets.get(name)` when a
 secret must be visible immediately after a write. `secrets.list()` now reads
@@ -1001,7 +1020,8 @@ await handle.kill() // Linux with process containment: also stops the server
 ### Files
 
 All sandbox filesystem paths are absolute strings starting with `/`; relative
-paths are refused locally with `BadRequestError`. Local upload/download paths
+paths are refused locally with `BadRequestError`, and so is `~` (paths are
+never expanded: write `/home/<user>/notes.txt`, not `~/notes.txt`). Local upload/download paths
 may be relative. Path lists must be arrays of strings, not a bare string.
 `writeText()` requires a string; `writeBytes()` and `writeMany()` accept
 `ArrayBuffer` and any `ArrayBuffer` view, using only the view's byte range.
@@ -1221,7 +1241,9 @@ send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (bot
 exported from `@daytona/sdk/v2`) with its requests.
 `computerUse` needs a sandbox where desktop automation is available (an image
 with a desktop, where the platform offers it); elsewhere its calls throw
-`AddonUnavailableError` (503, `ADDON_UNAVAILABLE`).
+`AddonUnavailableError` (503, `ADDON_UNAVAILABLE`). The
+[computer-use example](https://github.com/daytona/clients/blob/main/examples/typescript/computer-use/index.ts)
+starts a desktop, drives it and records it.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. An app that reaches the sandbox through its own
@@ -1233,6 +1255,25 @@ response text. `screen.screenshot()` captures the whole screen or a
 `a11y.tree({ scope: 'focused' })` returns at most 256 levels below the root (`maxDepth`, an
 integer from 0 to 256, default 256); a deeper UI comes back cut at that depth
 with `truncated` set.
+
+`recording.stop()`, `get()` and `list()` also return recordings that did not
+produce a usable file, so check `status` before using one: `completed`,
+`duration_limit_reached` and `size_limit_reached` have a file at `filePath`;
+`failed` (the capture ended on its own or produced no usable output) has none,
+and `interrupted` (the encoder had to be killed) may be partial. The vocabulary
+is open; treat any other value as not usable. `recording.start()` throws
+`DesktopNotReadyError` (409) while the desktop is not ready.
+
+```ts
+const rec = await sandbox.computerUse.recording.start({ label: 'demo' })
+// ... drive the desktop ...
+const done = await sandbox.computerUse.recording.stop({ id: rec.id })
+if (['completed', 'duration_limit_reached', 'size_limit_reached'].includes(done.status)) {
+  await sandbox.fs.downloadFile(done.filePath, 'demo.mp4')
+} else {
+  console.log(`recording ${done.id} ended ${done.status}`)
+}
+```
 
 ### Docker
 
@@ -1280,7 +1321,9 @@ a 300-second lifetime timeout (`timeoutSeconds: 300`) whose action is pause;
 this is not an idle timeout.
 
 Lifecycle policies accept `delete` everywhere, `stop` on persistent sandboxes
-except GPU, and `pause` on persistent Linux sandboxes. For example:
+except GPU, and `pause` on persistent Linux sandboxes. A policy deadline
+(`timeoutAt`, `idleTimeoutAt`) is the earliest time its action runs, not an
+exact time: the platform acts shortly after it passes. For example:
 
 ```ts
 const saved = await daytona.v2.create('python', {

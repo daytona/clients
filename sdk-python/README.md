@@ -601,6 +601,9 @@ times with `created_start_at` / `updated_start_at` (inclusive) and
 `sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
 for ordering and paging. The returned `SearchResult` includes `total` and
 `total_relation` (`"eq"` for an exact count, `"gte"` for a lower bound).
+Without `sort`, secrets come back by name, ascending; sandbox, image, snapshot
+and volume searches (and the `list()` calls that read them) default to newest
+first instead.
 
 Search is eventually consistent. Use `d.v2.secrets.get(name)` when a secret
 must be visible immediately after a write. `secrets.list()` now reads search
@@ -799,6 +802,8 @@ the platform lifetime timeout pauses persistent Linux sandboxes after 300 second
 this is not an idle timeout. Sandboxes with volumes cannot pause or fork (409).
 Lifecycle policies support `delete`
 everywhere, `stop` for persistent non-GPU sandboxes, and `pause` for persistent Linux.
+A policy deadline (`timeout_at`, `idle_timeout_at`) is the earliest time its
+action runs, not an exact time: the platform acts shortly after it passes.
 
 `create_from_snapshot()` inherits the snapshot's
 configuration and takes no resources, CPU selectors, environment, volumes,
@@ -1114,7 +1119,8 @@ immediately after `kill_all()`.
 ### Files
 
 All sandbox filesystem paths are absolute strings starting with `/`; relative
-paths are refused locally with `BadRequestError`. Local upload/download paths
+paths are refused locally with `BadRequestError`, and so is `~` (paths are
+never expanded: write `/home/<user>/notes.txt`, not `~/notes.txt`). Local upload/download paths
 may be relative. Path lists must be sequences of strings, not a bare string.
 `write_text()` requires a string; `write_bytes()` and `write_many()` accept
 bytes-like buffers, including `bytes`, `bytearray` and `memoryview`.
@@ -1329,7 +1335,9 @@ send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.
 `computer_use` needs a sandbox where desktop automation is available (an
 image with a desktop, where the platform offers it); elsewhere its calls raise
-`AddonUnavailableError` (503, `ADDON_UNAVAILABLE`).
+`AddonUnavailableError` (503, `ADDON_UNAVAILABLE`). The
+[computer-use example](https://github.com/daytona/clients/blob/main/examples/python/computer_use.py)
+starts a desktop, drives it and records it.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. An app that reaches the sandbox through its own
@@ -1341,6 +1349,24 @@ transport can decode a status response with
 returns a compressed image. `a11y.tree(scope="focused")` returns at most 256 levels below
 the root (`max_depth`, an integer from 0 to 256, default 256); a deeper UI
 comes back cut at that depth with `truncated` set.
+
+`recording.stop()`, `get()` and `list()` also return recordings that did not
+produce a usable file, so check `status` before using one: `completed`,
+`duration_limit_reached` and `size_limit_reached` have a file at `file_path`;
+`failed` (the capture ended on its own or produced no usable output) has none,
+and `interrupted` (the encoder had to be killed) may be partial. The vocabulary
+is open; treat any other value as not usable. `recording.start()` raises
+`DesktopNotReadyError` (409) while the desktop is not ready.
+
+```python
+rec = await sandbox.computer_use.recording.start(label="demo")
+# ... drive the desktop ...
+rec = await sandbox.computer_use.recording.stop(id=rec.id)
+if rec.status in ("completed", "duration_limit_reached", "size_limit_reached"):
+    await sandbox.fs.download_file(rec.file_path, "demo.mp4")
+else:
+    print(f"recording {rec.id} ended {rec.status}")
+```
 
 ### Docker
 

@@ -42,7 +42,8 @@ examples/
 │   ├── examples.test.ts      offline tests (fake client, see test-support/)
 │   ├── pagination/index.ts
 │   ├── volumes/index.ts
-│   └── secrets-env/index.ts
+│   ├── secrets-env/index.ts
+│   └── computer-use/index.ts  opt-in desktop + recording (needs a desktop image)
 ├── python/
 │   ├── _common.py            shared client/env helpers
 │   ├── exec_command.py
@@ -58,6 +59,7 @@ examples/
 │   ├── pagination.py
 │   ├── volumes.py
 │   ├── secrets_env.py
+│   ├── computer_use.py        opt-in desktop + recording (needs a desktop image)
 │   └── test_examples.py      offline tests (fake client)
 ├── volumes_share.{ts,py}     persistent-volume round-trip (see below)
 └── run-examples.sh           run all examples (or `check` them statically)
@@ -81,6 +83,7 @@ The examples exercise the V2 SDK surface in both languages.
 | pagination | `pagination` | ✅ `images.iter()` for lazy all-pages traversal plus manual `images.list(...)` cursor control. |
 | `secrets` (+ env) | `secrets-env` | ✅ `secrets.set/iter/delete` (a run-scoped name) + attach via `secrets: [name]`, alongside per-sandbox `env`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
 | volumes | `volumes` | `volumes.get(name, { create: true })` / `volumes.get(name, create=True)` and mounts at different paths, including a subpath. See also `volumes_share.*`. |
+| computer use | `computer-use` | Opt-in: set `DAYTONA_DESKTOP_IMAGE` to a project image with a desktop, in a region where the platform offers desktop automation (elsewhere the calls raise `AddonUnavailableError`, 503 `ADDON_UNAVAILABLE`). Starts the desktop, waits for it, records a mouse move, typing and a screenshot, then checks the recording's `status` before downloading it (`failed` and `interrupted` recordings have no usable file). |
 
 Not covered here: network settings.
 
@@ -90,6 +93,7 @@ Not covered here: network settings.
 |---|---|---|
 | `DAYTONA_V2_API_URL` | `https://api.daytona.com` | Daytona API (a regional endpoint or a test environment) |
 | `DAYTONA_API_KEY` | — (required) | `dtn_...` API key |
+| `DAYTONA_DESKTOP_IMAGE` | — (opt-in) | project image name or `img_…` id with a desktop; runs `computer-use` |
 | `DAYTONA_IMAGE` | `python:3.12-slim` | registry image the examples start from. A sandbox is created from a project image, so the examples that create one directly register it once as `examples-<image>-<digest>` and reuse that registration. The build and volume examples use the registry image itself as their base (`FROM` / `ImageBuilder.from_registry`) |
 
 

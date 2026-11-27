@@ -14,7 +14,8 @@ import (
 )
 
 // FileSystem accesses a sandbox's files. Obtain it from Sandbox.FS.
-// All remote paths must start with "/" and are sent without normalization.
+// All remote paths must start with "/" and are sent without normalization;
+// "~" is not expanded, so "~/notes.txt" returns ErrBadRequest.
 // Handles are safe for concurrent use; returned data belongs to the caller.
 type FileSystem struct{ sandbox *Sandbox }
 
