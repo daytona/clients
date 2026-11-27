@@ -28,6 +28,25 @@ for (const name of forcedDeps) {
   if (!rootDeps[name]) throw new Error(`${name} must be declared in the workspace root dependencies`)
 }
 pkg.dependencies = { ...Object.fromEntries(forcedDeps.map((n) => [n, rootDeps[n]])), ...generatedDeps }
+// utils/UntracedRequire loads OpenTelemetry where neither bundlers nor the dependency scan
+// see it. Declare each package with its workspace root range, or the installed version when
+// the root only has it transitively (as the generated deps do).
+const untracedDeps = [
+  '@opentelemetry/api',
+  '@opentelemetry/sdk-node',
+  '@opentelemetry/instrumentation-http',
+  '@opentelemetry/sdk-trace',
+  '@opentelemetry/exporter-trace-otlp-http',
+  '@opentelemetry/otlp-exporter-base',
+  '@opentelemetry/semantic-conventions',
+  '@opentelemetry/resources',
+]
+for (const name of untracedDeps) {
+  const installed = path.join(workspaceRoot, 'node_modules', name, 'package.json')
+  const version = rootDeps[name] ?? (fs.existsSync(installed) ? readJson(installed).version : undefined)
+  if (!version) throw new Error(`${name} must be declared in or installed at the workspace root`)
+  pkg.dependencies[name] = generatedDeps[name] ?? version
+}
 for (const name of ['api-client', 'toolbox-api-client', 'analytics-api-client']) {
   const distPkg = readJson(path.join(workspaceRoot, 'dist', name, 'package.json'))
   pkg.dependencies[`@daytona/${name}`] = distPkg.version
@@ -50,13 +69,11 @@ const jsFilesIn = (dir) =>
     return entry.name.endsWith('.js') ? [entryPath] : []
   })
 
-// utils/NodeLoaders.js holds the literal requires of the Node-only modules. In ESM it is
-// published behind the `#node-loaders` import (resolved through esm/package.json below):
-// the "node" condition gets the loaders on `createRequire(import.meta.url)`, which
-// bundlers and output tracing follow (they do not follow the shim below), and every other
-// condition gets an empty stub. The call is made inside each loader, not once at module
-// scope, so an ESM build re-bundled to CommonJS, where `import.meta.url` is empty, fails
-// in the loader (and falls back) instead of failing the whole import.
+// utils/NodeLoaders.js imports the Node-only modules with static imports and literal
+// import() calls, which bundlers and output tracing follow (they do not follow the shim
+// below). In ESM it is published behind the `#node-loaders` import (resolved through
+// esm/package.json below): the "node" condition gets the loaders, and every other condition
+// gets an empty stub, so browser, edge and Workers bundles never reference a Node module.
 const nodeLoadersJs = path.join('utils', 'NodeLoaders.js')
 const nodeLoadersStubJs = path.join('utils', 'NodeLoaders.stub.js')
 const nodeLoadersImport = '#node-loaders'
@@ -69,12 +86,9 @@ if (
   throw new Error(`post-build: the ESM build has no ${nodeLoadersJs}; the Node loaders would not be published`)
 }
 if (fs.existsSync(nodeLoadersPath)) {
-  const original = fs.readFileSync(nodeLoadersPath, 'utf8')
-  const rewritten = original.replace(/\brequire\s*\(/g, 'createRequire(import.meta.url)(')
-  if (rewritten === original) {
-    throw new Error(`post-build: ${nodeLoadersJs} has no require() call to rewrite`)
+  if (/\brequire\s*\(/.test(fs.readFileSync(nodeLoadersPath, 'utf8'))) {
+    throw new Error(`post-build: ${nodeLoadersJs} calls require(); use static imports or a literal import()`)
   }
-  fs.writeFileSync(nodeLoadersPath, `import { createRequire } from 'node:module';\n` + rewritten)
   fs.writeFileSync(path.join(esmDir, nodeLoadersStubJs), 'export const nodeLoaders = {};\n')
 
   const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -100,6 +114,19 @@ if (fs.existsSync(nodeLoadersPath)) {
       default: `./${nodeLoadersStubJs.split(path.sep).join('/')}`,
     },
   }
+}
+
+// utils/UntracedRequire.js resolves OpenTelemetry from its own location first; ESM has no
+// __filename, so point it at import.meta.url.
+const untracedRequireJs = path.join('utils', 'UntracedRequire.js')
+const untracedRequirePath = path.join(esmDir, untracedRequireJs)
+if (fs.existsSync(untracedRequirePath)) {
+  const original = fs.readFileSync(untracedRequirePath, 'utf8')
+  const rewritten = original.replace(/\b__filename\b/g, 'import.meta.url')
+  if (rewritten === original) {
+    throw new Error(`post-build: ${untracedRequireJs} has no __filename to point at import.meta.url`)
+  }
+  fs.writeFileSync(untracedRequirePath, rewritten)
 }
 
 writeJson(path.join(esmDir, 'package.json'), esmPackageJson)

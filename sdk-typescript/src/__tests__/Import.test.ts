@@ -7,6 +7,10 @@ const mockNodeLoaders: Partial<Record<string, () => unknown>> = {}
 
 jest.mock('../utils/NodeLoaders', () => ({ nodeLoaders: mockNodeLoaders }))
 
+const mockRequireUntraced = jest.fn()
+jest.mock('../utils/UntracedRequire', () => ({ requireUntraced: (id: string) => mockRequireUntraced(id) }))
+
+import { DaytonaError } from '../errors/DaytonaError'
 import { dynamicImport, dynamicRequire } from '../utils/Import'
 
 describe('Import with Node loaders', () => {
@@ -88,4 +92,17 @@ describe('Import with Node loaders', () => {
       mockNodeLoaders.tar = () => Promise.reject(unusableModuleUrlError())
       await expect(dynamicImport('tar')).rejects.toThrow(/Cannot find module 'tar'$/)
     }))
+
+  it('passes an OpenTelemetry load error through with only the caller prefix', () => {
+    mockRequireUntraced.mockImplementationOnce(() => {
+      throw new DaytonaError('The "@opentelemetry/sdk-node" package could not be loaded at runtime (...).')
+    })
+
+    expect(() => dynamicRequire('@opentelemetry/sdk-node', 'OpenTelemetry instrumentation is not supported: ')).toThrow(
+      new DaytonaError(
+        'OpenTelemetry instrumentation is not supported: The "@opentelemetry/sdk-node" package could not be loaded at runtime (...).',
+      ),
+    )
+    expect(mockRequireUntraced).toHaveBeenCalledWith('@opentelemetry/sdk-node')
+  })
 })

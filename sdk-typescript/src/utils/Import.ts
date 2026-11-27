@@ -9,6 +9,7 @@
 import { DaytonaError } from '../errors/DaytonaError'
 import { nodeLoaders } from './NodeLoaders'
 import { RUNTIME } from './Runtime'
+import { requireUntraced } from './UntracedRequire'
 
 const loaderMap = {
   tinyglobby: async () => require('tinyglobby'),
@@ -16,12 +17,9 @@ const loaderMap = {
   stream: async () => require('stream'),
   tar: async () => require('tar'),
   'expand-tilde': async () => require('expand-tilde'),
-  // Fallback only: Node loads ObjectStorage through NodeLoaders. Stored in a variable +
-  // /* @vite-ignore */ so Vite/Rollup don't statically chunk this and pull @aws-sdk into
-  // non-Node bundles.
-  ObjectStorage: () => {
-    const path = '../ObjectStorage.js'
-    return import(/* @vite-ignore */ path)
+  // Node loads ObjectStorage through NodeLoaders; other runtimes have no object storage.
+  ObjectStorage: async (): Promise<typeof import('../ObjectStorage')> => {
+    throw new Error('object storage needs Node.js')
   },
   fs: async () => require('fs'),
   'form-data': async () => require('form-data'),
@@ -38,14 +36,14 @@ const requireMap = {
   'form-data': () => require('form-data'),
   buffer: () => require('buffer'),
   busboy: () => require('busboy'),
-  '@opentelemetry/api': () => require('@opentelemetry/api'),
-  '@opentelemetry/sdk-node': () => require('@opentelemetry/sdk-node'),
-  '@opentelemetry/instrumentation-http': () => require('@opentelemetry/instrumentation-http'),
-  '@opentelemetry/sdk-trace': () => require('@opentelemetry/sdk-trace'),
-  '@opentelemetry/exporter-trace-otlp-http': () => require('@opentelemetry/exporter-trace-otlp-http'),
-  '@opentelemetry/otlp-exporter-base': () => require('@opentelemetry/otlp-exporter-base'),
-  '@opentelemetry/semantic-conventions': () => require('@opentelemetry/semantic-conventions'),
-  '@opentelemetry/resources': () => require('@opentelemetry/resources'),
+  '@opentelemetry/api': (): any => requireUntraced('@opentelemetry/api'),
+  '@opentelemetry/sdk-node': (): any => requireUntraced('@opentelemetry/sdk-node'),
+  '@opentelemetry/instrumentation-http': (): any => requireUntraced('@opentelemetry/instrumentation-http'),
+  '@opentelemetry/sdk-trace': (): any => requireUntraced('@opentelemetry/sdk-trace'),
+  '@opentelemetry/exporter-trace-otlp-http': (): any => requireUntraced('@opentelemetry/exporter-trace-otlp-http'),
+  '@opentelemetry/otlp-exporter-base': (): any => requireUntraced('@opentelemetry/otlp-exporter-base'),
+  '@opentelemetry/semantic-conventions': (): any => requireUntraced('@opentelemetry/semantic-conventions'),
+  '@opentelemetry/resources': (): any => requireUntraced('@opentelemetry/resources'),
 }
 
 const validateMap: Record<string, (mod: any) => boolean> = {
@@ -61,10 +59,11 @@ const validateMap: Record<string, (mod: any) => boolean> = {
 
 type ModuleMap = typeof loaderMap
 
-// Codes Node's createRequire throws when the module URL it is given is unusable, e.g. an
-// empty `import.meta.url` in an ESM build re-bundled to CommonJS. The Node loader then never
-// tried to resolve the module, so its error says nothing about the module itself.
+// Codes of Node loader errors that say nothing about the module itself, because the loader
+// never tried to resolve it: Node's createRequire rejecting an unusable module URL (e.g. an
+// empty `import.meta.url` in an ESM build re-bundled to CommonJS), or a module not loaded yet.
 const UNUSABLE_MODULE_URL_CODES = new Set([
+  'ERR_DAYTONA_NODE_LOADER_NOT_READY',
   'ERR_INVALID_ARG_VALUE',
   'ERR_INVALID_ARG_TYPE',
   'ERR_INVALID_URL',
@@ -165,6 +164,7 @@ export function dynamicRequire<K extends keyof RequireMap>(name: K, errorPrefix?
     mod = loadWithNodeLoader(name, loader)
     mod = unwrapInterop(mod)
   } catch (err) {
+    if (err instanceof DaytonaError) throw new DaytonaError(`${errorPrefix || ''}${err.message}`)
     const msg = err instanceof Error ? err.message : String(err)
     throw new DaytonaError(`${errorPrefix || ''} Module "${name}" is not available in the "${RUNTIME}" runtime: ${msg}`)
   }

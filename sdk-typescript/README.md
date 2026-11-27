@@ -239,3 +239,27 @@ const sandboxes = await Array.fromAsync(daytona.list()) // Node.js 22+
 ```
 
 `daytona.list()` returns `Promise<PaginatedSandboxes>` up to SDK 0.179.0 and an async iterator from 0.180.0. Code that does `(await daytona.list()).items` needs to iterate or collect instead.
+
+## OpenTelemetry and bundled apps
+
+`new Daytona({ otelEnabled: true })` (or `DAYTONA_OTEL_ENABLED=true`) loads the OpenTelemetry packages when the client is created, not when the SDK is imported. Bundlers do not see these packages, so they stay out of your bundle and must be present at runtime: they are installed with `@daytona/sdk`, so this works whenever the app runs next to its `node_modules`.
+
+With Next.js `output: 'standalone'`, the build output only contains the files Next.js traces, so add the OpenTelemetry packages and their dependencies to it in `next.config.js`:
+
+```js
+module.exports = {
+  output: 'standalone',
+  outputFileTracingIncludes: {
+    '/**': [
+      './node_modules/{@grpc,@js-sdsl,@opentelemetry,@protobufjs}/**/*',
+      './node_modules/{acorn,acorn-import-attributes,cjs-module-lexer,es-module-lexer,forwarded-parse}/**/*',
+      './node_modules/{import-in-the-middle,module-details-from-path,require-in-the-middle,lodash.camelcase}/**/*',
+      './node_modules/{debug,ms,long,protobufjs,yaml,yargs,yargs-parser,y18n,cliui,escalade}/**/*',
+      './node_modules/{get-caller-file,require-directory,string-width,strip-ansi,wrap-ansi}/**/*',
+      './node_modules/{ansi-regex,ansi-styles,color-convert,color-name,emoji-regex,is-fullwidth-code-point}/**/*',
+    ],
+  },
+}
+```
+
+Without it, creating the client with `otelEnabled` throws a `DaytonaError` that names the missing package and shows this snippet. Apps that do not enable OpenTelemetry need no configuration. The other Node-only modules the SDK loads lazily (local files for `Image`, context uploads) are bundled and traced as usual.

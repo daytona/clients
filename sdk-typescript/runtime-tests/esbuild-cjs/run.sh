@@ -10,7 +10,7 @@ npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALY
 npm install --silent expand-tilde
 npm run build >/dev/null
 node dist/test.js
-# The bundle must also report a missing module correctly with no node_modules in reach.
+# The bundle must also run with no node_modules in reach, and explain the missing OpenTelemetry packages.
 isolated="$(mktemp -d)"
 trap 'rm -rf "$isolated"' EXIT
 cp dist/isolated.js "$isolated/"

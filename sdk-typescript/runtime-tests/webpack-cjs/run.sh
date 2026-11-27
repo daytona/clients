@@ -7,11 +7,21 @@ rm -rf node_modules package-lock.json dist
 npm install --silent
 npm install --silent "$API_CLIENT_TARBALL" "$TOOLBOX_API_CLIENT_TARBALL" "$ANALYTICS_API_CLIENT_TARBALL" "$SDK_TARBALL"
 npm run build:cjs
-npm run build:esm
+npm run build:esm 2>&1 | tee esm-build.log
+# The ESM build must bundle without warnings: the SDK keeps OpenTelemetry (and the
+# require-in-the-middle it pulls in) out of the bundle and uses only literal imports.
+if grep -q 'WARNING' esm-build.log; then
+  echo "FAIL: webpack reported warnings for the ESM build"
+  exit 1
+fi
+echo "ESM bundle: $(du -sb dist/esm | cut -f1) bytes"
 node dist/cjs/main.js
 node dist/esm/main.js
-# The CommonJS bundle is self-contained: it must also run with no node_modules in reach.
+# Both bundles are self-contained: they must also run with no node_modules in reach.
 isolated="$(mktemp -d)"
 trap 'rm -rf "$isolated"' EXIT
-cp -r dist/cjs/. "$isolated/"
-(cd "$isolated" && env -u NODE_PATH node main.js)
+for build in cjs esm; do
+  mkdir -p "$isolated/$build"
+  cp -r "dist/$build/." "$isolated/$build/"
+  (cd "$isolated/$build" && env -u NODE_PATH node main.js)
+done

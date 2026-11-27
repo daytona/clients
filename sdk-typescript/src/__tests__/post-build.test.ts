@@ -12,6 +12,17 @@ const SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'post-build.js')
 
 const createdRoots: string[] = []
 
+const UNTRACED_DEPS = [
+  '@opentelemetry/api',
+  '@opentelemetry/sdk-node',
+  '@opentelemetry/instrumentation-http',
+  '@opentelemetry/sdk-trace',
+  '@opentelemetry/exporter-trace-otlp-http',
+  '@opentelemetry/otlp-exporter-base',
+  '@opentelemetry/semantic-conventions',
+  '@opentelemetry/resources',
+]
+
 afterEach(() => {
   while (createdRoots.length) fs.rmSync(createdRoots.pop() as string, { recursive: true, force: true })
 })
@@ -27,6 +38,7 @@ function runPostBuild(
   esmFiles: Record<string, string>,
   rootDeps: Record<string, string | undefined> = {},
   sourceFiles: Record<string, string> = {},
+  rootFiles: Record<string, string> = {},
 ): {
   read: (file: string) => string
   esmDir: string
@@ -59,9 +71,15 @@ function runPostBuild(
   const dependencies: Record<string, string | undefined> = {
     tslib: '^2.0.0',
     ws: '^8.0.0',
+    ...Object.fromEntries(UNTRACED_DEPS.map((name) => [name, '^1.0.0'])),
     ...rootDeps,
   }
   for (const [name, version] of Object.entries(dependencies)) if (version === undefined) delete dependencies[name]
+  for (const [relative, contents] of Object.entries(rootFiles)) {
+    const target = path.join(root, relative)
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, contents)
+  }
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ dependencies }))
   for (const name of ['api-client', 'toolbox-api-client', 'analytics-api-client']) {
     const dir = path.join(root, 'dist', name)
@@ -161,21 +179,49 @@ describe('post-build published dependencies', () => {
   it('fails the build when a forced dependency is absent from the workspace root', () => {
     expect(() => runPostBuild(withRequire, { ws: undefined })).toThrow()
   })
+
+  // OpenTelemetry is loaded where the dependency scan cannot see it.
+  it('declares every OpenTelemetry package the SDK loads at runtime', () => {
+    const { published } = runPostBuild(withRequire)
+
+    for (const name of UNTRACED_DEPS) expect(published.dependencies[name]).toBe('^1.0.0')
+  })
+
+  it('declares an OpenTelemetry package the root only has transitively at its installed version', () => {
+    const { published } = runPostBuild(
+      withRequire,
+      { '@opentelemetry/resources': undefined },
+      {},
+      {
+        'node_modules/@opentelemetry/resources/package.json': JSON.stringify({ version: '3.1.1' }),
+      },
+    )
+
+    expect(published.dependencies['@opentelemetry/resources']).toBe('3.1.1')
+  })
+
+  it('fails the build when an OpenTelemetry package is neither declared nor installed', () => {
+    expect(() => runPostBuild(withRequire, { '@opentelemetry/resources': undefined })).toThrow()
+  })
 })
 
 describe('post-build ESM Node loaders', () => {
-  const nodeLoaders = `export const nodeLoaders = {\n    fs: () => require('fs'),\n    'expand-tilde': () => require('expand-tilde'),\n};\n`
+  const nodeLoaders = `import * as fs from 'fs';\nimport * as expandTilde from 'expand-tilde';\nexport const nodeLoaders = {\n    fs: () => fs,\n    'expand-tilde': () => expandTilde,\n    tar: () => import('tar'),\n};\n`
   const importer = `import { nodeLoaders } from './NodeLoaders.js';\nexport const l = () => require('stream')\n`
 
-  it('loads every Node module through createRequire(import.meta.url) with a literal specifier', () => {
+  it('publishes the loaders unchanged, with their static imports and literal import() calls', () => {
     const { read } = runPostBuild({ 'utils/NodeLoaders.js': nodeLoaders, 'utils/Import.js': importer })
 
-    const output = read('utils/NodeLoaders.js')
-    expect(output.startsWith(`import { createRequire } from 'node:module';\n`)).toBe(true)
-    expect(output).toContain(`fs: () => createRequire(import.meta.url)('fs')`)
-    expect(output).toContain(`'expand-tilde': () => createRequire(import.meta.url)('expand-tilde')`)
-    expect(output).not.toContain('__esmRequire')
-    expect(output).not.toMatch(/\brequire\s*\(/)
+    expect(read('utils/NodeLoaders.js')).toBe(nodeLoaders)
+  })
+
+  it('fails the build when the loaders call require, which Next.js webpack builds do not trace', () => {
+    expect(() =>
+      runPostBuild({
+        'utils/NodeLoaders.js': `export const nodeLoaders = { fs: () => require('fs') };\n`,
+        'utils/Import.js': importer,
+      }),
+    ).toThrow()
   })
 
   it('publishes the loaders behind #node-loaders, with an empty stub outside Node', () => {
@@ -210,12 +256,6 @@ describe('post-build ESM Node loaders', () => {
     ).toThrow()
   })
 
-  it('fails the build when the loaders have no require call to rewrite', () => {
-    expect(() =>
-      runPostBuild({ 'utils/NodeLoaders.js': `export const nodeLoaders = {};\n`, 'utils/Import.js': importer }),
-    ).toThrow()
-  })
-
   it('keeps a plain esm/package.json when the build has no Node loaders', () => {
     const { esmDir } = runPostBuild({ 'utils/Import.js': `export const l = () => require('fs')\n` })
 
@@ -231,6 +271,27 @@ describe('post-build ESM Node loaders source guard', () => {
         {},
         { 'src/utils/NodeLoaders.ts': `export const nodeLoaders = {}\n` },
       ),
+    ).toThrow()
+  })
+})
+
+describe('post-build ESM untraced require', () => {
+  const withRequire = { 'utils/Import.js': `export const l = () => require('fs')\n` }
+
+  it('resolves from import.meta.url in ESM', () => {
+    const { read } = runPostBuild({
+      ...withRequire,
+      'utils/UntracedRequire.js': "const own = () => (typeof __filename === 'string' ? __filename : undefined)\n",
+    })
+
+    expect(read('utils/UntracedRequire.js')).toBe(
+      "const own = () => (typeof import.meta.url === 'string' ? import.meta.url : undefined)\n",
+    )
+  })
+
+  it('fails the build when the file no longer names __filename', () => {
+    expect(() =>
+      runPostBuild({ ...withRequire, 'utils/UntracedRequire.js': 'export const own = () => undefined\n' }),
     ).toThrow()
   })
 })
