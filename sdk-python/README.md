@@ -921,6 +921,13 @@ back from the process log, so its `keep_logs=` takes `"on_exit_ttl"` (default)
 or `"until_cleanup"`, not `"none"`. It returns no handle to write to, so it
 refuses `stdin="open"`: use `start()` for a process that reads stdin.
 
+`run()`, `session.run()` and `ProcessHandle.wait()` wait in rounds: the
+sandbox holds each request for at most 30 seconds (its read is bounded at 35
+seconds), however long the `timeout=` (or with none), so a network path that
+drops long, quiet connections costs one round, which the wait retries, not the
+whole wait. The request that starts the process is never
+retried: when it fails, the process may already be running.
+
 `process.start()` (and `session.start()`) sends `keep_logs="on_exit_ttl"`
 unless you pass another value: the sandbox keeps the record and log for a while
 after the process exits; `"until_cleanup"` keeps them until the process is
@@ -1064,6 +1071,16 @@ as the sandbox user and return a `FileSearchResult`, a `ListResult` whose
 (not searched; at most 1000); only an unreadable root raises
 `FileAccessDeniedError`. `read_text()`
 decodes strictly as UTF-8 and keeps a leading byte-order mark.
+
+`move(source, destination, timeout=None)` moves or renames a file or
+directory. `timeout=` **(seconds; `0`, or a value above 2,147,483.647 (about
+24.8 days), means no limit)** replaces `request_timeout` for that call, which
+a move to another file system (a copy in the sandbox) can outlast; a negative,
+non-finite or boolean value raises `BadRequestError` before any request. The
+SDK does not retry a move that timed out or failed (only a 401, which the
+sandbox refuses before moving anything, is re-sent once with a fresh token),
+and a timeout ends the call, not the move: it may still be running, or have finished, so check the
+destination before moving again.
 
 `watch_dir(path, on_event, *, recursive=False, on_overflow=None, on_exit=None)`
 calls `on_event` for each change (a `FilesystemEvent`; `timestamp_ms` is Unix

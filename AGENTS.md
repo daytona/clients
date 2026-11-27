@@ -622,11 +622,15 @@ skipping exist only in the TypeScript tool).
   browser, the in-memory reads (under their cap) and a pre-signed download
   URL (`presignedDownloadUrl`), which the browser fetches directly, are the
   options.
-  A per-call timeout (a wait's budget plus its slack; a create POST that
-  asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
-  healthy hold is never cut, with no bound when the request timeout is `0`
-  or the hold is above the timer maximum, while a create with no hold stays
-  an ordinary request; a git remote call, the
+  A per-call timeout (a wait's budget plus its slack, for a process wait
+  its round's hold plus the slack, the `run()` / `session.run()` create
+  hold included; a sandbox create POST that asks the server to hold,
+  bounded by max(request timeout, hold + 5 s) so a healthy hold is never
+  cut, with no bound when the request timeout is `0` or the hold is above
+  the timer maximum, while a create with no hold stays
+  an ordinary request; a git remote call, `fs.move()`'s `timeout` /
+  `timeoutSeconds` (Go `MoveOptions.Timeout`, where zero keeps the request
+  timeout and `NoTimeout` is no limit), the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same
@@ -782,6 +786,19 @@ skipping exist only in the TypeScript tool).
   `SDK`, no HTTP status) for every new request through it or its handles, in
   Python sync, async and TypeScript; `root.v2` after `root.close()` builds a
   fresh client. A shared events hub is not closed by one of its clients.
+- **Process waits hold at most 30 s per request** (the server hold; reads
+  are bounded at the round's hold plus 5 s, at most 35 s). Go runs with
+  `Stdout` / `Stderr` writers are the exception: they follow one log stream
+  for the whole run. The create hold of
+  `run()` / `session.run()` (`waitMs`) and every `/wait` round (`timeoutMs`)
+  are capped at one round (Python `PROCESS_WAIT_ROUND_SECONDS`, TS
+  `PROCESS_WAIT_ROUND_MS`, Go `processWaitRound`), each read bounded by its
+  hold plus the wait slack; a longer or unlimited caller budget is waited out
+  in rounds, and a dropped round is retried within the wait's transport retry
+  limit. The process-record read after a `timed_out` round is bounded the same
+  way (one round plus slack, never the whole budget or the client's request
+  timeout) and also follows the round that spends the budget, so a process
+  that ended with it is reported. The create request is never retried.
 - **Blocking runs refuse `stdin="open"`**; `start()` / `session.start()` send
   `keep_logs` `on_exit_ttl` when none is given; an execution timeout of `0` is
   omitted (no deadline); PTYs get `TERM=xterm-256color` unless `env` sets it.

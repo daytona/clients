@@ -24,6 +24,7 @@ export type {
   FilesystemEvent,
   ListFilesOptions,
   MkdirOptions,
+  MoveOptions,
   PresignedUrlOptions,
   ReadFileOptions,
   ReadManyOptions,
