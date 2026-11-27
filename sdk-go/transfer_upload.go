@@ -45,7 +45,7 @@ func (f *FileSystem) UploadFile(ctx context.Context, localPath, remotePath strin
 		return wrapError(err, "stat upload source")
 	}
 	if !info.Mode().IsRegular() {
-		return badRequest("upload source must be a regular file")
+		return badRequest("localPath must be a regular file")
 	}
 	size := info.Size()
 	source := fileUploadSource{

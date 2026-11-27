@@ -493,7 +493,7 @@ it('bounds the build request by timeoutSeconds instead of the request timeout (a
 it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '30', null])('refuses timeoutSeconds %p before any request', async (timeoutSeconds) => {
   // SAFETY: deliberately invalid values, as plain JavaScript can pass.
   const pending = service().buildFromContext(archive(), { timeoutSeconds } as never)
-  await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'timeoutSeconds must be a non-negative number of seconds' })
+  await expect(pending).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'timeoutSeconds must be a non-negative finite number of seconds' })
   expect(seen).toEqual([])
 })
 

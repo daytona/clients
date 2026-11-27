@@ -3,6 +3,11 @@
 
 package daytona
 
+import (
+	"encoding/json"
+	"strings"
+)
+
 // SandboxState is the normalized lifecycle state; RawState keeps the wire value.
 type SandboxState string
 
@@ -87,8 +92,21 @@ func stateWire(state SandboxState) ([]string, error) {
 	case SandboxStateError:
 		return []string{"failed", "lost"}, nil
 	case SandboxStateUnknown:
-		return nil, badRequest("unknown is not a searchable sandbox state")
+		return nil, badRequest(`states entries must be known sandbox states, got "unknown"`)
 	default:
-		return nil, badRequest("invalid sandbox state " + string(state))
+		return nil, badRequest("states entries must be known sandbox states, got " + jsonQuote(string(state)))
 	}
+}
+
+// jsonQuote quotes text as JSON, without HTML escaping, as the Python and
+// TypeScript SDKs quote it in the same message (encoding/json also escapes
+// U+2028 and U+2029, which they leave literal).
+func jsonQuote(text string) string {
+	var out strings.Builder
+	encoder := json.NewEncoder(&out)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(text); err != nil {
+		return `"` + text + `"`
+	}
+	return strings.TrimSuffix(out.String(), "\n")
 }

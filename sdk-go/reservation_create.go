@@ -5,7 +5,6 @@ package daytona
 
 import (
 	"context"
-	"crypto/rand"
 	"math"
 	"net/http"
 	"unicode/utf8"
@@ -90,9 +89,9 @@ func checkReservationPurchase(body reservationPurchase) error {
 
 func reservationKey(key string) (string, error) {
 	if key == "" {
-		return rand.Text(), nil
+		return randomIdempotencyKey(), nil
 	}
-	if err := headerText(key, "IdempotencyKey"); err != nil {
+	if err := idempotencyKeyText(key); err != nil {
 		return "", err
 	}
 	return key, nil

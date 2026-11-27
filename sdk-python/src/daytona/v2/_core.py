@@ -440,14 +440,72 @@ def enum_str(member: Enum) -> str:
     return str(member.value)
 
 
+# The SDK's own wording for the pydantic error types a malformed response
+# raises, the same as TypeScript's mappers ("x must be an integer", "logs is
+# required"), so no validation-library text reaches an error message.
+_VALIDATION_TYPE_TEXT: Final[Mapping[str, str]] = {
+    "missing": "is required",
+    "string_type": "must be a string",
+    "int_type": "must be an integer",
+    "int_parsing": "must be an integer",
+    "int_from_float": "must be an integer",
+    "bool_type": "must be a boolean",
+    "bool_parsing": "must be a boolean",
+    "float_type": "must be a number",
+    "float_parsing": "must be a number",
+    "finite_number": "must be a finite number",
+    "list_type": "must be a list",
+    "tuple_type": "must be a list",
+    "set_type": "must be a list",
+    "dict_type": "must be an object",
+    "model_type": "must be an object",
+    "model_attributes_type": "must be an object",
+    "datetime_type": "must be an RFC 3339 timestamp",
+    "datetime_parsing": "must be an RFC 3339 timestamp",
+    "datetime_from_date_parsing": "must be an RFC 3339 timestamp",
+}
+_VALIDATION_BOUND_TEXT: Final[Mapping[str, tuple[str, str]]] = {
+    "greater_than_equal": ("ge", "must be at least {}"),
+    "greater_than": ("gt", "must be greater than {}"),
+    "less_than_equal": ("le", "must be at most {}"),
+    "less_than": ("lt", "must be less than {}"),
+    "string_too_short": ("min_length", "must be at least {} characters long"),
+    "string_too_long": ("max_length", "must be at most {} characters long"),
+    "too_short": ("min_length", "must have at least {} items"),
+    "too_long": ("max_length", "must have at most {} items"),
+    "literal_error": ("expected", "must be {}"),
+    "enum": ("expected", "must be {}"),
+}
+
+
+def _validation_error_text(error_type: str, ctx: Mapping[str, object]) -> str:
+    text = _VALIDATION_TYPE_TEXT.get(error_type)
+    if text is not None:
+        return text
+    bound = _VALIDATION_BOUND_TEXT.get(error_type)
+    if bound is not None and bound[0] in ctx:
+        return bound[1].format(ctx[bound[0]])
+    if error_type == "value_error" and "error" in ctx:
+        return str(ctx["error"])
+    return "is invalid"
+
+
 def _first_validation_error_line(error: ValidationError) -> str:
     details = error.errors(include_url=False)
     if not details:
-        return str(error).splitlines()[0]
+        return "is invalid"
     first = details[0]
     path = ".".join(str(part) for part in first["loc"])
-    message = first["msg"]
-    return f"{path}: {message}" if path else message
+    # As TypeScript's mappers: an absent or null field "is required"; a null
+    # list item is a wrong-typed value, not a missing one.
+    field_is_null = (
+        bool(first["loc"]) and isinstance(first["loc"][-1], str) and first.get("input", ...) is None
+    )
+    if first["type"] == "missing" or (first["type"] in _VALIDATION_TYPE_TEXT and field_is_null):
+        text = "is required"
+    else:
+        text = _validation_error_text(first["type"], first.get("ctx") or {})
+    return f"{path} {text}" if path else text
 
 
 def _missing_required_key(value: JsonValue, model_type: object, path: str) -> Optional[str]:
@@ -576,9 +634,7 @@ def _expect_model_from_dict(
         missing = _missing_required_key(value, model_type, "")
         if missing is not None:
             # A list item's path keeps its index; a nested key reads `a.b`.
-            raise create_error(
-                f"expected {description}: {missing}: Field required", 400, "BAD_REQUEST", "SDK"
-            )
+            raise create_error(f"expected {description}: {missing} is required", 400, "BAD_REQUEST", "SDK")
         violation = field_violation(value, model_type)
         if violation is not None:
             raise create_error(f"{description} {violation}", 400, "BAD_REQUEST", "SDK")
@@ -1379,6 +1435,36 @@ def process_list_spec(
     return RequestSpec("GET", "/processes", params=params)
 
 
+INVALID_ENV_KEY_REASON: Final = "env key is not a valid variable name"
+
+
+def check_env_key(key: object) -> str:
+    """A sandbox environment variable name (``create(env=...)``,
+    ``update_env``): a non-empty string without ``=``, NUL, CR, LF or a
+    surrogate code point (no UTF-8 form). Which
+    names the platform reserves is checked by the API, which answers with a
+    400 naming the key."""
+    if not isinstance(key, str):
+        raise create_error("env keys must be strings", 400, "BAD_REQUEST", "SDK")
+    if not key or any(invalid in key for invalid in ("=", "\0", "\n", "\r")):
+        raise create_error(INVALID_ENV_KEY_REASON, 400, "BAD_REQUEST", "SDK")
+    if has_surrogate(key):
+        raise create_error("env keys must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+    return key
+
+
+def check_env_value(value: object) -> str:
+    """A sandbox environment variable value: a string without NUL or a
+    surrogate code point (no UTF-8 form)."""
+    if not isinstance(value, str):
+        raise create_error("env values must be strings", 400, "BAD_REQUEST", "SDK")
+    if "\0" in value:
+        raise create_error("env values must not contain NUL", 400, "BAD_REQUEST", "SDK")
+    if has_surrogate(value):
+        raise create_error("env values must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
 def _process_env(env: object) -> Dict[str, str]:
     """A process ``env``: a mapping of strings (anything else is refused, not mangled)."""
     if not isinstance(env, Mapping) or not all(
@@ -1492,10 +1578,14 @@ def checked_seconds(value: object, name: str = "timeout") -> float | int:
     ``OverflowError``.
     """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+        raise create_error(
+            f"{name} must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
+        )
     # Narrowed to int | float from here on.
     if (isinstance(value, float) and not math.isfinite(value)) or value < 0:
-        raise create_error(f"{name} must be a non-negative finite number", 400, "BAD_REQUEST", "SDK")
+        raise create_error(
+            f"{name} must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
+        )
     return value
 
 
@@ -2254,15 +2344,27 @@ _STATE_WIRE_STATUSES: Dict[str, Tuple[str, ...]] = {
 
 def _wire_statuses(states: object) -> str:
     """The search ``status`` filter for SDK states: each state's API status names, comma-joined."""
-    items = [states] if isinstance(states, str) else list(states) if isinstance(states, Sequence) else None
+    if isinstance(states, str):
+        items: list[object] = [states]
+    elif isinstance(states, Sequence) and not isinstance(states, (bytes, bytearray)):
+        items = list(states)
+    else:
+        raise create_error(
+            "states must be a sandbox state or a list of sandbox states", 400, "BAD_REQUEST", "SDK"
+        )
     if not items:
         raise create_error("states must name at least one sandbox state", 400, "BAD_REQUEST", "SDK")
     wire: list[str] = []
     for state in items:
         statuses = _STATE_WIRE_STATUSES.get(state) if isinstance(state, str) else None
         if statuses is None:
+            if not isinstance(state, str):
+                raise create_error("states entries must be strings", 400, "BAD_REQUEST", "SDK")
+            # As JSON.stringify: non-ASCII literal, a lone surrogate escaped
+            # (it has no UTF-8 form, so printing the message would fail).
+            shown = json.dumps(state, ensure_ascii=False).encode("utf-8", "backslashreplace").decode("utf-8")
             raise create_error(
-                f"states entries must be known sandbox states, got {state!r}", 400, "BAD_REQUEST", "SDK"
+                f"states entries must be known sandbox states, got {shown}", 400, "BAD_REQUEST", "SDK"
             )
         wire.extend(status for status in statuses if status not in wire)
     return ",".join(wire)
@@ -2365,6 +2467,26 @@ def header_text(value: str, name: str) -> str:
         raise create_error(f"{name} must be printable ASCII", 400, "BAD_REQUEST", "SDK")
     if value[0] == " " or value[-1] == " ":
         raise create_error(f"{name} must have no leading or trailing whitespace", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
+#: The longest idempotency key the API accepts, in bytes (a key is printable
+#: ASCII, so also in characters).
+MAX_IDEMPOTENCY_KEY_BYTES: Final = 256
+
+
+def idempotency_key_text(value: object, name: str = "idempotency_key") -> str:
+    """An explicit idempotency key (sandbox creates, reservations): a string
+    that follows :func:`header_text`'s rule and is at most 256 bytes, else
+    :class:`BadRequestError` naming ``name``, before any request. TypeScript
+    and Go apply the same rule."""
+    if not isinstance(value, str):
+        raise create_error(f"{name} must be a string", 400, "BAD_REQUEST", "SDK")
+    header_text(value, name)
+    if len(value) > MAX_IDEMPOTENCY_KEY_BYTES:
+        raise create_error(
+            f"{name} must be at most {MAX_IDEMPOTENCY_KEY_BYTES} bytes", 400, "BAD_REQUEST", "SDK"
+        )
     return value
 
 

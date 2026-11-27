@@ -46,7 +46,7 @@ interface NodeFileHandle {
 }
 
 interface NodeFsPromisesModule {
-  stat(path: string): Promise<{ readonly size: number; readonly mode: number }>
+  stat(path: string): Promise<{ readonly size: number; readonly mode: number; isFile(): boolean }>
   open(path: string, flags: string, mode?: number): Promise<NodeFileHandle>
   rename(oldPath: string, newPath: string): Promise<void>
   unlink(path: string): Promise<void>
@@ -338,6 +338,7 @@ export async function uploadFile(
   assertNotCancelled(options.signal)
   const modules = await nodeTransfers('uploadFile')
   const stat = await modules.fsPromises.stat(localPath)
+  if (!stat.isFile()) throw badRequest('localPath must be a regular file')
   const boundary = `daytona-${runtimeUniqueId('upload')}`
   let furthestReported = -1
   const bodyFactory = (): ReadableStream<Uint8Array> => {

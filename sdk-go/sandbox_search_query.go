@@ -109,7 +109,7 @@ func searchSequences(query url.Values, options SearchSandboxesOptions) error {
 
 func stateFilter(states []SandboxState) (string, error) {
 	if len(states) == 0 {
-		return "", badRequest("states must name at least one value")
+		return "", badRequest("states must name at least one sandbox state")
 	}
 	var wire []string
 	for _, state := range states {

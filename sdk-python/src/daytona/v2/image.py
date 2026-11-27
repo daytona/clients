@@ -59,7 +59,17 @@ class ImageBuilder:
 
     @classmethod
     def from_registry(cls, ref: str, /) -> Self:
-        return cls(_registry_ref=cls._line_text(ref, "ImageBuilder.from_registry ref"))
+        label = "ImageBuilder.from_registry ref"
+        text = cls._line_text(ref, label)
+        # An image reference has no whitespace: `FROM python 3` is no image.
+        if any(char.isspace() for char in text):
+            raise create_error(
+                f"{label} {json.dumps(text, ensure_ascii=False)} must not contain whitespace",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        return cls(_registry_ref=text)
 
     @classmethod
     def from_dockerfile(cls, content: str, /) -> Self:

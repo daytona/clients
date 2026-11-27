@@ -377,14 +377,14 @@ async def test_get_limits_looks_up_the_key_organization_without_the_key_sync_fla
 @pytest.mark.anyio
 async def test_current_api_key_still_checks_the_fields_it_returns() -> None:
     for broken, message in (
-        ({"name": None}, "expected current API key response: name: Input should be a valid string"),
+        ({"name": None}, "expected current API key response: name is required"),
         (
             {"created_at": "2026-01-01"},
             "current API key response has a created_at that is not an RFC 3339 timestamp",
         ),
         (
             {"context": {"org_id": "o", "org_name": "o"}},
-            "expected current API key response: context.project_name: Field required",
+            "expected current API key response: context.project_name is required",
         ),
     ):
         client, _ = _client([{**_CURRENT_API_KEY_PAYLOAD, **broken}])

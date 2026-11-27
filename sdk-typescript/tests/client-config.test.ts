@@ -218,7 +218,7 @@ describe('environment', () => {
   it('treats a blank ambient project as unset', () => {
     delete process.env.DAYTONA_API_KEY
     process.env.DAYTONA_PROJECT_ID = '   '
-    expectBadRequest(() => new DaytonaV2({ jwtToken: 'jwt-token' }), 'projectId is required')
+    expectBadRequest(() => new DaytonaV2({ jwtToken: 'jwt-token' }), 'jwtToken requires projectId')
   })
 
   // Values no HTTP header can carry, refused before any request with a
@@ -351,12 +351,12 @@ describe('request timeout', () => {
 
   it.each(['reconcileIntervalSeconds', 'idleCloseSeconds'])('rejects an invalid events.%s', (field) => {
     for (const bad of [-1, Number.POSITIVE_INFINITY, Number.NaN, '5']) {
-      expectBadRequest(() => new Daytona({ apiKey: 'k', events: { [field]: bad } as never }).v2, `events.${field} must be a non-negative number of seconds`)
+      expectBadRequest(() => new Daytona({ apiKey: 'k', events: { [field]: bad } as never }).v2, `events.${field} must be a non-negative finite number of seconds`)
     }
   })
 
   it.each([-1, Number.POSITIVE_INFINITY, Number.NaN, '60'])('rejects %p', (bad) => {
-    expectBadRequest(() => new Daytona({ apiKey: 'k', requestTimeoutSeconds: bad as number }).v2, 'requestTimeoutSeconds must be a non-negative number of seconds')
+    expectBadRequest(() => new Daytona({ apiKey: 'k', requestTimeoutSeconds: bad as number }).v2, 'requestTimeoutSeconds must be a non-negative finite number of seconds')
   })
 })
 

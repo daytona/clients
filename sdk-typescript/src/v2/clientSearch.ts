@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BadRequestError, createDaytonaError } from './errors/DaytonaError.js'
+import { createDaytonaError } from './errors/DaytonaError.js'
 import type { SandboxDto, SandboxState, SearchSandboxesOptions, SearchTimestamp } from './types.js'
 import { assertLabels, badRequest } from './options.js'
 import { optionalQueryText, pageParams, queryText } from './pageParams.js'
@@ -171,14 +171,17 @@ const SEARCH_STATES: Readonly<Record<SandboxState, readonly string[]>> = {
 }
 
 function searchStates(states: SandboxState | readonly SandboxState[]): string {
-  const values: readonly SandboxState[] = typeof states === 'string' ? [states] : Array.isArray(states) ? states : []
-  if (values.length === 0) throw new BadRequestError('states must name at least one value', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  const given: unknown = states
+  if (typeof given !== 'string' && !Array.isArray(given)) throw badRequest('states must be a sandbox state or a list of sandbox states')
+  const values: readonly unknown[] = typeof given === 'string' ? [given] : given
+  if (values.length === 0) throw badRequest('states must name at least one sandbox state')
   const wire = new Set<string>()
   for (const state of values) {
+    if (typeof state !== 'string') throw badRequest('states entries must be strings')
     if (state === 'unknown' || !Object.prototype.hasOwnProperty.call(SEARCH_STATES, state)) {
-      throw new BadRequestError(`unknown sandbox state ${String(state)}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+      throw badRequest(`states entries must be known sandbox states, got ${JSON.stringify(state)}`)
     }
-    for (const value of SEARCH_STATES[state]) wire.add(value)
+    for (const value of SEARCH_STATES[state as SandboxState]) wire.add(value)
   }
   return [...wire].join(',')
 }

@@ -232,8 +232,9 @@ with 400. The SDKs do not list regions or CPU types: use the CLI
 (`daytona region list`, `daytona cpu-type list --region <region>`).
 
 Every `create*()` sends an idempotency key: the one you pass as
-`idempotencyKey`, else one derived from `name` (next section), else a random
-one per invocation. If the create request times out or loses its connection,
+`idempotencyKey` (printable ASCII with no leading or trailing space, at most
+256 bytes), else one derived from `name` (next section), else a random UUID
+per invocation. If the create request times out or loses its connection,
 `SandboxCreateRequestTimeoutError` / `SandboxCreateConnectionError` exposes
 `idempotencyKey`. Retry with that key and **the identical create options**; do
 not start a fresh-key create to recover a lost response. A changed request
@@ -1096,6 +1097,10 @@ options.
 `downloadFile(remotePath, localPath, { onProgress, signal })` stream directly
 between disk and the sandbox instead of buffering the whole file in memory.
 They are Node.js-only and throw `NotSupportedError` in browser builds.
+An existing `localPath` that is not a regular file (a directory, say) and a
+`signal` that is not an `AbortSignal` are a `BadRequestError` before the
+transfer starts; a missing or unreadable `localPath` raises the file system's
+own error.
 Downloads write to an exclusive random temp file in the destination directory
 and rename it over the destination on success; cancellation or failure removes
 that exact temp file. `signal` aborts the transfer with
@@ -1263,7 +1268,10 @@ Some environment variable names are reserved for the platform, among them
 every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
 and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
 that sets a reserved name fails the create with `BadRequestError` (400) naming
-the key. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
+the key. The SDK itself refuses, before any request, a name that is empty or
+contains `=`, NUL, CR, LF or a lone surrogate and a value that contains NUL or
+a lone surrogate, in
+`create*({ env })` and `updateEnv()` alike. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 

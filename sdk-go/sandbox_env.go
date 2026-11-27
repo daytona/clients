@@ -31,8 +31,8 @@ func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, opts *Up
 		if err := sandboxEnvKey(key); err != nil {
 			return err
 		}
-		if strings.ContainsRune(value, '\x00') {
-			return badRequest("environment values must not contain NUL")
+		if err := sandboxEnvValue(value); err != nil {
+			return err
 		}
 	}
 	for _, key := range unset {
@@ -47,6 +47,13 @@ func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, opts *Up
 			Unset []string          `json:"unset"`
 		}{values, unset},
 	})
+}
+
+func sandboxEnvValue(value string) error {
+	if strings.ContainsRune(value, '\x00') {
+		return badRequest("env values must not contain NUL")
+	}
+	return nil
 }
 
 func sandboxEnvKey(key string) error {

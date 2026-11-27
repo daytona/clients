@@ -19,12 +19,12 @@ import type {
 import { bulkReadHttpError, copyArrayBuffer, parseBulkReadResult, toUint8Array } from './filesystemWire.js'
 import { downloadFile, type DownloadFileOptions, type TransferProgressCallback, uploadFile, type UploadFileOptions } from './filesystemTransfers.js'
 import { encodeQuery, HttpTransport, isAbortError, maxContentLengthFor, sseMessages, streamEventTooLarge, strictUriEncode, transferRequest } from './http.js'
-import { maxResponseBytesOption } from './bodyLimit.js'
+import { FILE_READ_HINT, maxResponseBytesOption, withPerCallHint } from './bodyLimit.js'
 import { BadRequestError, ConnectionError, DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, badRequest, optionKeys } from './options.js'
-import { binaryBytes, pathSequence, sandboxPath } from './filesystemInputs.js'
+import { binaryBytes, optionalBoolean, pathSequence, sandboxPath, transferOptions } from './filesystemInputs.js'
 import type { OptionKeys } from './options.js'
 import { bulkWriteResultFromWire, envelopeList, fileInfoFromWire, fileMatchFromWire, listItems, malformedResponse, record, replaceResultFromWire, searchSkipped, strList } from './toolboxModels.js'
 import { deepFrozen } from './frozen.js'
@@ -353,7 +353,7 @@ export class FileSystemService {
       params: { path },
       responseType: 'arraybuffer',
       ...limit,
-    }))
+    })).catch((error: unknown) => { throw withPerCallHint(error, FILE_READ_HINT) })
     return new Uint8Array(data)
   }
 
@@ -370,6 +370,7 @@ export class FileSystemService {
   public async writeBytes(path: string, data: Uint8Array | ArrayBuffer | ArrayBufferView, options: WriteFileOptions = {}): Promise<void> {
     sandboxPath('path', path)
     assertKnownOptions('WriteFileOptions', options, WRITE_FILE_OPTION_KEYS)
+    optionalBoolean('atomic', options.atomic)
     // JavaScript callers migrating from the old write(path, string) get a pointer to writeText().
     if (typeof data === 'string') throw badRequest('data must be an ArrayBuffer or an ArrayBuffer view; use writeText() for strings')
     const bytes = binaryBytes('data', data)
@@ -391,6 +392,8 @@ export class FileSystemService {
     if (typeof localPath !== 'string') throw badRequest('localPath must be a path to a local file; use writeBytes() or writeText() for in-memory content')
     sandboxPath('remotePath', remotePath)
     assertKnownOptions('UploadFileOptions', options, UPLOAD_FILE_OPTION_KEYS)
+    transferOptions(options.signal, options.onProgress)
+    optionalBoolean('atomic', options.atomic)
     await uploadFile(this.transport, localPath, remotePath, options)
   }
 
@@ -398,6 +401,7 @@ export class FileSystemService {
   public async downloadFile(remotePath: string, localPath: string, options: DownloadFileOptions = {}): Promise<void> {
     sandboxPath('remotePath', remotePath)
     assertKnownOptions('DownloadFileOptions', options, DOWNLOAD_FILE_OPTION_KEYS)
+    transferOptions(options.signal, options.onProgress)
     await downloadFile(this.transport, remotePath, localPath, options)
   }
 
@@ -424,6 +428,7 @@ export class FileSystemService {
   /** Write absolute paths mapped to buffers or views in one request. */
   public async writeMany(files: Readonly<Record<string, Uint8Array | ArrayBuffer | ArrayBufferView>>, options: WriteManyOptions = {}): Promise<BulkWriteResult> {
     assertKnownOptions('WriteManyOptions', options, WRITE_MANY_OPTION_KEYS)
+    optionalBoolean('atomic', options.atomic)
     if (typeof files !== 'object' || files === null || (Object.getPrototypeOf(files) !== Object.prototype && Object.getPrototypeOf(files) !== null)) {
       throw badRequest('files must be a record of paths to buffers or views')
     }
@@ -460,7 +465,7 @@ export class FileSystemService {
     const response = await this.transport.postRaw<ArrayBuffer | Uint8Array>('/files/bulk-download', { paths: checkedPaths }, transferRequest({
       responseType: 'arraybuffer',
       ...limit,
-    }))
+    })).catch((error: unknown) => { throw withPerCallHint(error, FILE_READ_HINT) })
     const body = toUint8Array(response.data)
     if (response.status !== 200) throw bulkReadHttpError(response.status, body, contentTypeHeader(response.headers))
     return parseBulkReadResult(body, contentTypeHeader(response.headers))

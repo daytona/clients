@@ -388,7 +388,7 @@ async def test_upload_file_stays_cancellable_after_the_body_is_exhausted(tmp_pat
         cancel.set()
 
     canceller = asyncio.create_task(cancel_once_drained())
-    with pytest.raises(TransferCancelledError, match="upload transfer cancelled") as raised:
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled") as raised:
         await asyncio.wait_for(fs.upload_file(local_path, "/remote.bin", cancel=cancel), timeout=5)
     await canceller
     assert transport.cancelled, "the in-flight request must be torn down when cancellation wins"
@@ -414,7 +414,7 @@ async def test_empty_upload_reports_progress_before_the_closing_boundary(tmp_pat
         seen.append((sent, total))
         cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="upload transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await fs.upload_file(local_path, "/remote.bin", on_progress=on_progress, cancel=cancel)
     assert seen == [(0, 0)]
     # Only the preamble went out; the `--<boundary>--` terminator was never yielded.
@@ -431,7 +431,7 @@ async def test_upload_file_checks_cancellation_before_touching_the_local_path(tm
     fs = AsyncFileSystemService(transport)
     cancel = asyncio.Event()
     cancel.set()
-    with pytest.raises(TransferCancelledError, match="upload transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await fs.upload_file(tmp_path / "does-not-exist.bin", "/remote.bin", cancel=cancel)
     assert transport.calls == []
 
@@ -452,7 +452,7 @@ async def test_upload_file_cancel_mid_stream_raises_typed_error(
         progress.append((sent, total))
         cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="upload transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await fs.upload_file(local_path, "/remote/payload.bin", on_progress=on_progress, cancel=cancel)
 
     assert progress == [(3, 9)]
@@ -670,7 +670,7 @@ async def test_download_file_cancel_removes_partial_file(tmp_path: Path) -> None
     def on_progress(_sent: int, _total: int | None) -> None:
         cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await fs.download_file("/remote.bin", destination, on_progress=on_progress, cancel=cancel)
 
     assert not destination.exists()
@@ -689,7 +689,7 @@ async def test_download_file_cancel_on_final_progress_tick_does_not_commit(tmp_p
     def on_progress(_sent: int, _total: int | None) -> None:
         cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await fs.download_file("/remote.bin", destination, on_progress=on_progress, cancel=cancel)
 
     assert not destination.exists()
@@ -709,7 +709,7 @@ async def test_download_file_cancel_beats_stalled_stream_and_removes_temp(tmp_pa
     await asyncio.wait_for(stream.started.wait(), timeout=1)
     cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await asyncio.wait_for(task, timeout=1)
 
     assert not destination.exists()
@@ -730,7 +730,7 @@ async def test_download_file_cancel_beats_stalled_header_read_and_creates_no_tem
     await asyncio.wait_for(transport.started.wait(), timeout=1)
     cancel.set()
 
-    with pytest.raises(TransferCancelledError, match="download transfer cancelled"):
+    with pytest.raises(TransferCancelledError, match="file transfer cancelled"):
         await asyncio.wait_for(task, timeout=1)
 
     await asyncio.wait_for(transport.cancelled.wait(), timeout=1)
@@ -765,7 +765,7 @@ async def test_cancellable_step_propagates_task_timeout_error() -> None:
 
     with pytest.raises(asyncio.TimeoutError, match="task timed out"):
         async with TransferCancelWatch(asyncio.Event()) as watch:
-            await asyncio.wait_for(watch.run(raise_timeout(), operation="download"), timeout=1)
+            await asyncio.wait_for(watch.run(raise_timeout()), timeout=1)
 
 
 @pytest.mark.anyio
@@ -778,7 +778,7 @@ async def test_cancellable_chunk_read_propagates_iterator_timeout_error() -> Non
 
     with pytest.raises(asyncio.TimeoutError, match="iterator timed out"):
         async with TransferCancelWatch(asyncio.Event()) as watch:
-            await asyncio.wait_for(watch.run(anext(chunks().__aiter__()), operation="download"), timeout=1)
+            await asyncio.wait_for(watch.run(anext(chunks().__aiter__())), timeout=1)
 
 
 @pytest.mark.anyio

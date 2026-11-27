@@ -113,6 +113,7 @@ export interface ErrorOptions {
  */
 export function nonOptionsDescription(value: unknown): string | undefined {
   if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
   if (Array.isArray(value)) return 'an array'
   if (typeof value !== 'object') return `a ${typeof value}`
   const tag = Object.prototype.toString.call(value).slice(8, -1)

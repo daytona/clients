@@ -7,7 +7,7 @@ import type * as api from './gen/api-types.js'
 import type { CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions } from './types.js'
 import { assertLifecycleClassSupport, lifecycleBody } from './http.js'
 import { assertKnownOptions, badRequest } from './options.js'
-import { assertCreateNestedOptions, withoutNullOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
+import { assertCreateNestedOptions, createEnv, withoutNullOptions, CREATE_KEYS, SNAPSHOT_CREATE_KEYS, MACOS_CREATE_KEYS, RESOURCES_KEYS, MACOS_RESOURCES_KEYS } from './clientOptionKeys.js'
 import { createRegion, rejectV0Target, createWaitSeconds, wireWaitSeconds, createTimeoutSeconds, linuxMib, imageSourceString, linuxCreateArguments, macosCores, macosMib, resolveIdempotencyKey, snapshotSourceString } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
 import { createNetworkPolicyCreateField } from './NetworkPolicy.js'
@@ -25,8 +25,9 @@ export interface PreparedSandboxCreate {
     readonly name?: string | null
     readonly wait_seconds?: number | null
     readonly region_id?: string | null
-    // Submission fills the generated key when the caller omitted it.
-    idempotency_key?: string | null
+    // The caller's key; submission sends it (or a generated one) as the
+    // `Idempotency-Key` header and drops it from the body.
+    readonly idempotency_key?: string | null
   }
   readonly metadata: {
     readonly autoDelete: boolean
@@ -65,7 +66,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
   const body: LinuxCreateRequest = {
     name: options.name,
     ...(source !== undefined ? { image: source } : {}),
-    env: options.env,
+    env: createEnv(options.env),
     region_id: createRegion(options),
     cpu: options.resources?.cpu,
     cores_max: options.resources?.cpuMax,
@@ -134,7 +135,7 @@ export function macosCreateRequest(image: string, options: CreateMacosSandboxOpt
   const body: api.CreateMacosSandboxRequest = {
     name: options.name,
     image: source,
-    env: options.env,
+    env: createEnv(options.env),
     secrets: options.secrets === undefined ? undefined : [...options.secrets],
     region_id: createRegion(options),
     ports: options.ports?.map((port) => ({ port: port.port, proto: port.proto ?? 'tcp' })),

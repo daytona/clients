@@ -1391,7 +1391,7 @@ async def test_display_windows_rejects_an_id_above_the_contract_maximum() -> Non
     window = {"id": 9007199254740992, "title": "t", "x": 0, "y": 0, "width": 1, "height": 1, "isActive": True}
     cu = AsyncComputerUseService(Transport([{"windows": [window]}]))  # type: ignore[arg-type]
 
-    with pytest.raises(BadRequestError, match="less than or equal to 9007199254740991"):
+    with pytest.raises(BadRequestError, match="must be at most 9007199254740991"):
         await cu.display.windows()
 
 
@@ -1566,7 +1566,7 @@ async def test_stream_logs_stops_reading_after_eof() -> None:
 @pytest.mark.parametrize(
     ("payload", "field"),
     [
-        ('{"cursor":"c","reason":"exited","exitCode":0}', "id"),
+        ('{"cursor":"c","reason":"exited","exitCode":0}', "createdAt is required"),
         (
             '{"id":"proc","kind":"exec","state":"terminal","cwd":"/","stdin":"closed","keepLogs":"on_exit_ttl","createdAt":"yesterday","truncatedHead":false,"reason":"exited","exitCode":7}',
             "createdAt",
@@ -2745,7 +2745,7 @@ async def test_a_process_record_terminal_is_read_only_within_the_contract_range(
         assert info.terminal is not None and info.terminal.cols == cols
     else:
         # The generated wire model checks the contract's maximum first.
-        with pytest.raises(BadRequestError, match=r"^expected process response: cols: .*65535"):
+        with pytest.raises(BadRequestError, match=r"^expected process response: cols must be at most 65535$"):
             await call
 
 

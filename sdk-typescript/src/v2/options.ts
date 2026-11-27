@@ -93,6 +93,22 @@ export function headerText(value: string, name: string): string {
   return value
 }
 
+/** The longest idempotency key the API accepts, in bytes (a key is printable ASCII). @internal */
+export const MAX_IDEMPOTENCY_KEY_BYTES = 256
+
+/**
+ * An explicit idempotency key (sandbox creates, reservations): a string that
+ * follows {@link headerText} and is at most 256 bytes, refused before any
+ * request otherwise. Python and Go apply the same rule.
+ * @internal
+ */
+export function idempotencyKeyText(value: unknown, name = 'idempotencyKey'): string {
+  if (typeof value !== 'string') throw badRequest(`${name} must be a string`)
+  headerText(value, name)
+  if (value.length > MAX_IDEMPOTENCY_KEY_BYTES) throw badRequest(`${name} must be at most ${MAX_IDEMPOTENCY_KEY_BYTES} bytes`)
+  return value
+}
+
 export interface IfMatchOptions {
   readonly ifMatch: string
 }
@@ -107,6 +123,28 @@ export function assertIfMatchOptions(options: IfMatchOptions | undefined): void 
   }
   // It is sent as the If-Match header.
   headerText(options.ifMatch, 'ifMatch')
+}
+
+/**
+ * A sandbox environment variable name (`create({ env })`, `updateEnv`): not
+ * empty, without `=`, NUL, CR or LF, and without a lone surrogate (no UTF-8
+ * form). Which names the platform reserves is checked by the API, which
+ * answers with a 400 naming the key.
+ * @internal
+ */
+export function envKey(key: string): string {
+  if (key.length === 0 || key.includes('=') || key.includes('\0') || key.includes('\n') || key.includes('\r')) {
+    throw badRequest('env key is not a valid variable name')
+  }
+  if (hasLoneSurrogate(key)) throw badRequest('env keys must not contain a lone surrogate')
+  return key
+}
+
+/** A sandbox environment variable value: no NUL and no lone surrogate (no UTF-8 form). @internal */
+export function envValue(value: string): string {
+  if (value.includes('\0')) throw badRequest('env values must not contain NUL')
+  if (hasLoneSurrogate(value)) throw badRequest('env values must not contain a lone surrogate')
+  return value
 }
 
 /**
@@ -241,7 +279,7 @@ export function snapshotOptions<T>(typeName: string, options: T | undefined, kno
 export function optionalSeconds(name: string, value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw badRequest(`${name} must be a non-negative number of seconds`)
+    throw badRequest(`${name} must be a non-negative finite number of seconds`)
   }
   return value
 }

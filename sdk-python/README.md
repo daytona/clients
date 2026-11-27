@@ -303,8 +303,9 @@ with 400. The SDKs do not list regions or CPU types: use the CLI
 (`daytona region list`, `daytona cpu-type list --region <region>`).
 
 Every `create*()` sends an idempotency key: the one you pass as
-`idempotency_key`, else one derived from `name` (next section), else a random
-one per invocation. If the create request times out or loses its connection,
+`idempotency_key` (printable ASCII with no leading or trailing space, at most
+256 bytes), else one derived from `name` (next section), else a random UUID
+per invocation. If the create request times out or loses its connection,
 `SandboxCreateRequestTimeoutError` / `SandboxCreateConnectionError` exposes
 `idempotency_key`. Retry with that key and **the identical source and create
 arguments**; do not start a fresh-key create to recover a lost response. A
@@ -1197,8 +1198,10 @@ boolean or a string included, is a `BadRequestError`). For large files, or conte
 with progress and cancellation (for a recording, pass its `file_path`, not its
 id).
 
-`upload_file()` streams a local file in chunks, reports `on_progress(bytes,
-total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
+`upload_file()` streams a local regular file in chunks (a directory raises
+`BadRequestError`), reports `on_progress(bytes,
+total)`, accepts `cancel=` via any event-like object with `is_set()` (anything
+else raises `BadRequestError` before the transfer starts), and can
 set `atomic=True` to write through a temp file + rename. Without `atomic=True`
 the upload writes the destination in place, so a cancelled or failed upload
 can leave it truncated; use `atomic=True` when readers must see either the old
@@ -1370,7 +1373,10 @@ Some environment variable names are reserved for the platform, among them
 every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
 and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
 that sets a reserved name fails the create with `BadRequestError` (400) naming
-the key. `update_env()` refuses reserved `DAYTONA_*` names in the keys it sets or
+the key. The SDK itself refuses, before any request, a name that is empty or
+contains `=`, NUL, CR, LF or a lone surrogate and a value that contains NUL or
+a lone surrogate, in
+`create*(env=...)` and `update_env()` alike. `update_env()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
 

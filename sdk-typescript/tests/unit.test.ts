@@ -878,10 +878,10 @@ describe('V2 model', () => {
     })
 
     // JSON drops undefined properties, matching the request sent over HTTP.
+    expect(JSON.parse(JSON.stringify(post.mock.calls[0]?.[1]))).not.toHaveProperty('idempotency_key')
     expect(JSON.parse(JSON.stringify(post.mock.calls[0]?.[1]))).toMatchObject({
       image: 'python:3.12',
       wait_seconds: 60,
-      idempotency_key: expect.any(String),
       volumes: [
         { volume: 'bucket-vol', mount_path: '/mnt/models', subpath: 'v1/', read_only: true },
         { volume: 'disk-vol', mount_path: '/data' },
@@ -1006,13 +1006,13 @@ describe('V2 model', () => {
     jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
 
     await client.create('python:3.12')
-    expect(post.mock.calls[0]?.[1]).toMatchObject({ image: 'python:3.12', wait_seconds: 60, idempotency_key: expect.any(String) })
+    expect(post.mock.calls[0]?.[1]).toMatchObject({ image: 'python:3.12', wait_seconds: 60 })
 
     await client.create('node:20')
-    expect(post.mock.calls[1]?.[1]).toMatchObject({ image: 'node:20', wait_seconds: 60, idempotency_key: expect.any(String) })
+    expect(post.mock.calls[1]?.[1]).toMatchObject({ image: 'node:20', wait_seconds: 60 })
 
     await client.createFromSnapshot('snap')
-    expect(post.mock.calls[2]?.[1]).toMatchObject({ snapshot: 'snap', wait_seconds: 60, idempotency_key: expect.any(String) })
+    expect(post.mock.calls[2]?.[1]).toMatchObject({ snapshot: 'snap', wait_seconds: 60 })
   })
 
   it('discovers sandbox build logs before reading text', async () => {
@@ -2063,7 +2063,26 @@ describe('V2 model', () => {
     await expect(sandbox.updateEnv({ 'BAD\0KEY': 'x' })).rejects.toBeInstanceOf(BadRequestError)
     await expect(sandbox.updateEnv({ GOOD: 'bad\0value' })).rejects.toBeInstanceOf(BadRequestError)
     await expect(sandbox.updateEnv({}, { unset: ['BAD\0KEY'] })).rejects.toBeInstanceOf(BadRequestError)
+    // A Map has no own entries: refused, never sent as {}.
+    await expect(sandbox.updateEnv(new Map([['A', 'x']]) as never)).rejects.toThrow('updateEnv requires env to be a Record<string, string>')
     expect(post).not.toHaveBeenCalled()
+  })
+
+  it('sends the own string entries of any object as updateEnv env, process.env and class instances included', async () => {
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const post = jest.spyOn(toolboxInstance(sandbox), 'post').mockResolvedValue({ data: undefined })
+    class Env { A = 'x' }
+    await sandbox.updateEnv(new Env() as never)
+    const saved = process.env.DAYTONA_UPDATE_ENV_PROBE
+    process.env.DAYTONA_UPDATE_ENV_PROBE = 'p'
+    try {
+      await sandbox.updateEnv(process.env as Record<string, string>)
+    } finally {
+      if (saved === undefined) delete process.env.DAYTONA_UPDATE_ENV_PROBE
+      else process.env.DAYTONA_UPDATE_ENV_PROBE = saved
+    }
+    expect(post.mock.calls[0]?.[1]).toEqual({ env: { A: 'x' }, unset: [] })
+    expect((post.mock.calls[1]?.[1] as { env: Record<string, string> }).env.DAYTONA_UPDATE_ENV_PROBE).toBe('p')
   })
 
   it.each([
@@ -3732,7 +3751,7 @@ describe('creation shape', () => {
     const client = newClient()
     const post = jest.spyOn(clientInstance(client), 'post').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
     await client.create({ name })
-    expect(post).toHaveBeenCalledWith('/sandboxes', expect.objectContaining({ idempotency_key: expected }), expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expected }) }))
+    expect(post).toHaveBeenCalledWith('/sandboxes', expect.not.objectContaining({ idempotency_key: expect.anything() }), expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expected }) }))
   })
 
   it('a named create stamps the name label and derives the key', async () => {
@@ -3745,7 +3764,7 @@ describe('creation shape', () => {
     expect(path).toBe('/sandboxes')
     expect(body.name).toBe('example-user')
     expect(body.labels).toEqual({ team: 'cli', name: 'example-user' })
-    expect(body.idempotency_key).toBe('name:example-user')
+    expect(body).not.toHaveProperty('idempotency_key')
     expect(config.headers['Idempotency-Key']).toBe('name:example-user')
   })
 
@@ -7487,7 +7506,7 @@ describe('toolbox service request shaping', () => {
   it('matches Python auth validation: missing credentials auth error, both supplied validation error, jwt without project validation error', () => {
     expect(() => new Daytona()).toThrow(AuthenticationError)
     expect(() => new Daytona({ apiKey: 'key', jwtToken: 'jwt', projectId: 'project-1' })).toThrow('exactly one of apiKey or jwtToken')
-    expect(() => new Daytona({ jwtToken: 'jwt' })).toThrow('projectId is required when jwtToken is set')
+    expect(() => new Daytona({ jwtToken: 'jwt' })).toThrow('jwtToken requires projectId')
   })
 
   it('lets an explicit credential win over the other credential in the environment', () => {
@@ -9023,7 +9042,7 @@ describe('toolbox service request shaping', () => {
     await createFixture(client, { image: Image.base('python:3.12') })
 
     expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': 'run-42/attempt-1' } })
-    expect(post.mock.calls[0]?.[1]).toMatchObject({ idempotency_key: 'run-42/attempt-1' })
+    expect(post.mock.calls[0]?.[1]).not.toHaveProperty('idempotency_key')
     const minted = post.mock.calls.slice(1).map(([, , config]) => config?.headers?.['Idempotency-Key'])
     expect(minted[0]).toEqual(expect.any(String))
     expect(minted[0]).not.toBe(minted[1])
@@ -9037,11 +9056,13 @@ describe('toolbox service request shaping', () => {
     await expect(createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 42 as unknown as string })).rejects.toMatchObject({ code: 'BAD_REQUEST', source: 'SDK' })
     expect(post).not.toHaveBeenCalled()
 
-    // Length rules are the server's (400), not the SDK's: the key is the
-    // create's identity and goes out exactly as given (the SDK refuses only a
-    // header value no client sends as-is: padded, blank or not printable ASCII).
-    await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'k  k'.repeat(100) })
-    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': 'k  k'.repeat(100) } })
+    // The key is the create's identity and goes out exactly as given; the SDK
+    // refuses a header value no client sends as-is (padded, blank or not
+    // printable ASCII) and a key over the API's 256 bytes.
+    await createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: 'k  k'.repeat(64) })
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ headers: { 'Idempotency-Key': 'k  k'.repeat(64) } })
+    await expect(createFixture(client, { image: Image.base('python:3.12'), idempotencyKey: `${'k  k'.repeat(64)}k` })).rejects.toThrow('idempotencyKey must be at most 256 bytes')
+    expect(post).toHaveBeenCalledTimes(1)
   })
 
   // The create POST timing out is driven through a real server in
@@ -9995,7 +10016,7 @@ describe('sandbox search', () => {
     expect(() => searchQueryParams({ region: ['a,b'] })).toThrow(BadRequestError)
     // An empty list / object is not "no filter": the server would
     // read the empty parameter as absent and answer an unfiltered search.
-    expect(() => searchQueryParams({ states: [] })).toThrow('states must name at least one value')
+    expect(() => searchQueryParams({ states: [] })).toThrow('states must name at least one sandbox state')
     expect(() => searchQueryParams({ labels: {} })).toThrow('labels must name at least one pair')
     // JS `null` is absent, like Python's `None` — never a raw TypeError.
     expect(() => searchQueryParams({ states: null as unknown as undefined, spot: true })).not.toThrow()
@@ -10162,11 +10183,12 @@ describe('sandbox search', () => {
     }
     // JS `null` is absent (Python's `None`): no parameter, no request-time error.
     expect(searchQueryParams({ labels: null as unknown as Record<string, string> })).toEqual({})
+    // The first bad entry is reported: 'running' (not a state) before 7 (not a string).
     for (const status of [['running', 7], ['running', ''], ['a,b'], ['started', 'unknown'], ['unknown', 'started']]) {
       // Deliberately invalid entries a JS caller could pass; the cast only exists to reach the runtime guard.
       const options = { states: status as unknown as readonly Exclude<import('../src/v2/types').SandboxState, 'unknown'>[] }
       expect(() => searchQueryParams(options)).toThrow(BadRequestError)
-      expect(() => searchQueryParams(options)).toThrow('unknown sandbox state')
+      expect(() => searchQueryParams(options)).toThrow('states entries must be known sandbox states, got ')
       await expect(client.search(options)).rejects.toBeInstanceOf(BadRequestError)
     }
     expect(get).not.toHaveBeenCalled()

@@ -25,6 +25,28 @@ def path_sequence(value: Sequence[str], name: str) -> list[str]:
     return result
 
 
+def boolean_option(value: object, name: str) -> bool:
+    """A boolean option, refused (never truth-tested) otherwise."""
+    if not isinstance(value, bool):
+        raise create_error(f"{name} must be a boolean", 400, "BAD_REQUEST", "SDK")
+    return value
+
+
+def transfer_options(cancel: object, on_progress: object) -> None:
+    """A file transfer's ``cancel`` and ``on_progress``, checked before any I/O:
+    ``cancel`` is any object with a callable ``is_set()`` (``threading.Event``,
+    ``asyncio.Event``, ...), ``on_progress`` a callable; ``None`` omits either."""
+    if cancel is not None and not callable(getattr(cancel, "is_set", None)):
+        raise create_error(
+            "cancel must have an is_set() method, such as a threading.Event or an asyncio.Event",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    if on_progress is not None and not callable(on_progress):
+        raise create_error("on_progress must be callable", 400, "BAD_REQUEST", "SDK")
+
+
 def buffer_bytes(value: Buffer, name: str) -> bytes:
     """Copy the bytes exposed by any buffer, including non-contiguous views."""
     try:

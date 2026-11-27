@@ -17,6 +17,7 @@
  */
 
 import { badRequest } from './options.js'
+import { PayloadTooLargeError } from './errors/DaytonaError.js'
 import { BodyBuffer } from './bodyBuffer.js'
 
 /** The default cap on a buffered response body: 1 GiB. */
@@ -34,10 +35,35 @@ export function maxResponseBytesOption(name: string, value: unknown): number | u
   return value
 }
 
+/**
+ * How a refused success response says to read it: most calls take the
+ * client's cap only. The calls with a per-call `maxResponseBytes` replace this
+ * hint through {@link withPerCallHint}.
+ */
+export const CLIENT_CAP_HINT = "; raise the client's maxResponseBytes (0 = no limit)"
+/**
+ * The hint of the in-memory file reads, which take a per-call cap and have a
+ * streaming alternative (`downloadFile()` in Node.js; elsewhere a pre-signed URL).
+ */
+export const FILE_READ_HINT = '; pass a higher maxResponseBytes for this call (0 = no limit), '
+  + 'or use downloadFile() (Node.js) or presignedDownloadUrl() for large files'
+/** The hint of the recording download, which takes a per-call cap. */
+export const PER_CALL_HINT = '; pass a higher maxResponseBytes for this call (0 = no limit)'
+
 /** The message of a refused success response (`PayloadTooLargeError`). */
 export function tooLargeMessage(limit: number): string {
-  return `the response body is larger than the ${limit}-byte maxResponseBytes limit; pass a higher maxResponseBytes `
-    + 'for this call (0 = no limit), or use downloadFile() for large files'
+  return `the response body is larger than the ${limit}-byte maxResponseBytes limit${CLIENT_CAP_HINT}`
+}
+
+/**
+ * `error` with `hint` in place of {@link CLIENT_CAP_HINT} when it is the cap's
+ * own refusal of a success response, else `error` itself.
+ */
+export function withPerCallHint(error: unknown, hint: string): unknown {
+  if (!(error instanceof PayloadTooLargeError) || error.source !== 'SDK' || !error.message.endsWith(CLIENT_CAP_HINT)) return error
+  return new PayloadTooLargeError(error.message.slice(0, -CLIENT_CAP_HINT.length) + hint, {
+    statusCode: 413, code: 'PAYLOAD_TOO_LARGE', source: 'SDK', ...(error.cause === undefined ? {} : { cause: error.cause }),
+  })
 }
 
 /** The message of a refused error response, which keeps its status's error. */

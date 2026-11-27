@@ -75,7 +75,7 @@ func TestCreateFromBuild_whenImageBecomesReady(t *testing.T) {
 	require.Positive(t, hold)
 	require.LessOrEqual(t, hold, 11000)
 	require.JSONEq(t, `{"image":"img-build","name":"build-and-boot","labels":{"name":"build-and-boot"},
-		"region_id":"us","cpu_arch":"arm64","wait_seconds":73,"idempotency_key":"name:build-and-boot",
+		"region_id":"us","cpu_arch":"arm64","wait_seconds":73,
 		"env":{"APP":"demo"},"cpu":2,"memory_mib":1024,"user":"app","cpu_type":"shared","persistent":true}`, string(requests[3].Body))
 	require.Equal(t, "us", requests[3].Header.Get("X-Daytona-Region"))
 	require.Equal(t, "name:build-and-boot", requests[3].Header.Get("Idempotency-Key"))

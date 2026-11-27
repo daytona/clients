@@ -783,7 +783,7 @@ async def test_a_signed_preview_link_without_expires_at_is_a_contract_error() ->
     with FakeApi([PlannedResponse(200, body)]) as api:
         os.environ["DAYTONA_V2_API_URL"] = api.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            with _sdk_bad_request("expires_at: Field required"):
+            with _sdk_bad_request("expires_at is required"):
                 await lazy_sandbox(root.v2, "src").ports.signed_preview_link(8080)
 
 

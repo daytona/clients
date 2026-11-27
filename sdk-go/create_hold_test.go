@@ -32,7 +32,7 @@ func TestCreateHoldWireBudgets(t *testing.T) {
 			_, err := client.Create(t.Context(), "", &CreateOptions{Wait: tc.wait, IdempotencyKey: "hold"})
 			// Then
 			require.NoError(t, err)
-			require.JSONEq(t, `{"idempotency_key":"hold","wait_seconds":`+tc.wire+`}`, string(fake.requests()[0].Body))
+			require.JSONEq(t, `{"wait_seconds":`+tc.wire+`}`, string(fake.requests()[0].Body))
 		})
 	}
 }

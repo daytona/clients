@@ -10395,7 +10395,7 @@ def test_search_states_are_sent_as_the_api_status_names(states: object, wire: st
     ["unknown", ["started", "unknown"], ["unknown", "started"], ["started", "running"], [7], "future-state"],
 )
 def test_search_refuses_states_the_sdk_does_not_define(states: object) -> None:
-    with pytest.raises(BadRequestError, match="known sandbox states"):
+    with pytest.raises(BadRequestError, match="known sandbox states|entries must be strings"):
         search_params(SearchSandboxesOptions(states=states))  # type: ignore[arg-type]
 
 
@@ -10865,11 +10865,14 @@ async def test_daytona_create_forwards_the_idempotency_key_verbatim_and_only_typ
     assert exc_info.value.source == "SDK"
     assert api.specs == []
 
-    # Length rules are the server's (400), not the SDK's: the key is the
-    # create's identity and goes out exactly as given (the SDK refuses only a
-    # header value no client sends as-is: padded, blank or not printable ASCII).
-    await client.create(Image.base("python:3.12"), idempotency_key="k  k" * 100)
-    assert api.specs[0].headers == {"Idempotency-Key": "k  k" * 100}
+    # The key is the create's identity and goes out exactly as given; the SDK
+    # refuses a header value no client sends as-is (padded, blank or not
+    # printable ASCII) and a key over the API's 256 bytes.
+    await client.create(Image.base("python:3.12"), idempotency_key="k  k" * 64)
+    assert api.specs[0].headers == {"Idempotency-Key": "k  k" * 64}
+    with pytest.raises(BadRequestError, match="idempotency_key must be at most 256 bytes"):
+        await client.create(Image.base("python:3.12"), idempotency_key="k  k" * 64 + "k")
+    assert len(api.specs) == 1
 
 
 @pytest.mark.anyio
@@ -11281,7 +11284,7 @@ def test_daytona_config_rejects_api_key_and_jwt_together() -> None:
 def test_daytona_config_requires_api_key_or_jwt_token(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in ("DAYTONA_API_KEY", "DAYTONA_JWT_TOKEN", "DAYTONA_PROJECT_ID"):
         monkeypatch.delenv(name, raising=False)
-    with pytest.raises(AuthenticationError, match="api_key or jwt_token is required"):
+    with pytest.raises(AuthenticationError, match="configure api_key or jwt_token"):
         AsyncDaytona(DaytonaConfig())
 
 

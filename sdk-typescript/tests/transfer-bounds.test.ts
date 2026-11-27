@@ -361,7 +361,6 @@ function expectTooLarge(error: unknown, limit: number): void {
   const message = (error as Error).message
   expect(message).toContain(`${limit}-byte`)
   expect(message).toContain('maxResponseBytes')
-  expect(message).toContain('downloadFile')
 }
 
 async function rejection(call: () => Promise<unknown>): Promise<unknown> {
