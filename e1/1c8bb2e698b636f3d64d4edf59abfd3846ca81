@@ -1,0 +1,37 @@
+sdk-go/errors_categories.go
+  s_2e6e2943dda8a6::t_35cd97b13441cb 36-38
+examples/typescript/test-support/fake-sdk.ts
+  s_2e6e2943dda8a6::t_35cd97b13441cb 278-279,281,305
+changelog.d/docs-if-match.changed.md
+  s_2e6e2943dda8a6::t_35cd97b13441cb 5-6
+examples/python/test_examples.py
+  s_2e6e2943dda8a6::t_35cd97b13441cb 478-479,486,493
+sdk-python/src/daytona/v2/computer_use_services.py
+  s_2e6e2943dda8a6::t_35cd97b13441cb 432-433,470-471
+sdk-python/src/daytona/v2/errors.py
+  s_2e6e2943dda8a6::t_35cd97b13441cb 238-241
+sdk-typescript/src/v2/ComputerUseNamespaces.ts
+  s_2e6e2943dda8a6::t_35cd97b13441cb 368-369,397-398
+sdk-python/src/daytona/v2/_sync/computer_use_services.py
+  s_2e6e2943dda8a6::t_7348a25aae5c0f 258-259,305-306
+sdk-typescript/src/v2/errors/DaytonaError.ts
+  s_2e6e2943dda8a6::t_35cd97b13441cb 376-380
+sdk-go/computer_use_recording.go
+  s_2e6e2943dda8a6::t_35cd97b13441cb 28-29,31,81-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e11c8bb2e698b636f3d64d4edf59abfd3846ca81",
+  "prompts": {},
+  "sessions": {
+    "s_2e6e2943dda8a6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2317133ffesN7OkQuJ2ux67k",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
