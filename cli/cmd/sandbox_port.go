@@ -68,13 +68,13 @@ func newSandboxPortSubcommand() *cobra.Command {
 func newSandboxPortInUseCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "in-use <sandbox-id> <port>",
-		Short: "Check whether a port from 3000 to 9999 is in use inside a sandbox",
-		Long:  "Check whether a TCP port from 3000 to 9999 is in use inside a sandbox, for example before starting a server on it.\nExample:\n  daytona sandbox port in-use <sandbox-id> 3000",
+		Short: "Check whether a port is in use inside a sandbox",
+		Long:  "Check whether a TCP port is in use inside a sandbox, for example before starting a server on it. The sandbox decides which ports it checks (currently 3000 to 9999) and answers BAD_REQUEST for the others.\nExample:\n  daytona sandbox port in-use <sandbox-id> 3000",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			port, err := strconv.Atoi(args[1])
-			if err != nil || port < 3000 || port > 9999 {
-				return cerr.Usage("invalid port %q: the in-use check takes 3000-9999", args[1])
+			port, err := parsePortArg(args[1])
+			if err != nil {
+				return err
 			}
 			a := FromContext(cmd.Context())
 			toolClient, _, _, err := sandboxToolboxClient(cmd.Context(), a, args[0])

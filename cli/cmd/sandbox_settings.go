@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -103,6 +104,9 @@ func newSandboxAccessTokenCommand() *cobra.Command {
 			if err := resolved.Client.Do(cmd.Context(), http.MethodPost, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/access-token", nil, body, &token); err != nil {
 				return err
 			}
+			if err := checkAccessTokenResponse(token); err != nil {
+				return err
+			}
 			portCell := "all"
 			if token.V.Ports != nil {
 				cells := make([]string, 0, len(*token.V.Ports))
@@ -126,8 +130,43 @@ func newSandboxAccessTokenCommand() *cobra.Command {
 	return cmd
 }
 
+// checkAccessTokenResponse refuses a mint response that breaks the contract
+// (a required field missing or empty, a port below zero) instead of printing
+// a token that cannot be used. The message names the field, never the token.
+func checkAccessTokenResponse(token api.Raw[gen.SandboxAccessToken]) error {
+	malformed := func(detail string) error {
+		return cerr.New(cerr.ExitFailure, "the access token response %s", detail)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(token.JSON, &fields); err != nil || fields == nil {
+		return malformed("is not a JSON object")
+	}
+	for _, name := range []string{"access_token", "token_type", "expires_at", "operations"} {
+		if v, ok := fields[name]; !ok || string(v) == "null" {
+			return malformed("has no " + name)
+		}
+	}
+	switch {
+	case token.V.AccessToken == "":
+		return malformed("has an empty access_token")
+	case token.V.TokenType == "":
+		return malformed("has an empty token_type")
+	case token.V.ExpiresAt.IsZero():
+		return malformed("has no valid expires_at")
+	}
+	if token.V.Ports != nil {
+		for _, port := range *token.V.Ports {
+			if port < 0 {
+				return malformed(fmt.Sprintf("grants port %d, below zero", port))
+			}
+		}
+	}
+	return nil
+}
+
 // withETag is a response body with the ETag the next conditional update
-// sends as If-Match.
+// sends as If-Match. The ETag header is the value If-Match needs, so it
+// takes the "etag" key even if a later API adds a body field of that name.
 func withETag(raw json.RawMessage, etag string) (map[string]json.RawMessage, error) {
 	out := map[string]json.RawMessage{}
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -164,7 +203,7 @@ func conditionalPut(ctx context.Context, client *api.Client, path, ifMatch strin
 }
 
 func addIfMatchFlag(cmd *cobra.Command, target *string, what string) {
-	cmd.Flags().StringVar(target, "if-match", "", "the etag of the "+what+" you read (from `get`): the update is refused with 412 if it changed since; omitted, the current etag is read first")
+	cmd.Flags().StringVar(target, "if-match", "", "the etag of the "+what+" you read (from `get`): the update is refused with 412 if it changed since; omitted, the current etag is read just before the write, so the command replaces whatever is current")
 }
 
 func checkIfMatch(cmd *cobra.Command, ifMatch string) error {
@@ -252,14 +291,13 @@ func newSandboxSecretsSetCommand() *cobra.Command {
 			if err := mustOneOf(btoi(cmd.Flags().Changed("secret"))+btoi(clear), "--secret", "--clear"); err != nil {
 				return err
 			}
+			body := gen.SetSandboxSecretsRequest{Secrets: []string{}}
 			for _, name := range names {
-				if strings.TrimSpace(name) == "" {
+				name = strings.TrimSpace(name)
+				if name == "" {
 					return cerr.Usage("--secret is empty").WithHint("pass a project secret name, or --clear to detach every secret")
 				}
-			}
-			body := gen.SetSandboxSecretsRequest{Secrets: []string{}}
-			if !clear {
-				body.Secrets = names
+				body.Secrets = append(body.Secrets, name)
 			}
 			a := FromContext(cmd.Context())
 			resolved, err := resolveSandboxArg(cmd.Context(), a, args[0])

@@ -48,7 +48,8 @@ func TestSandboxSettingsRefuseBadInputBeforeAnyRequest(t *testing.T) {
 		{"sandbox", "network-policy", "set", settingsSandboxID},
 		{"sandbox", "network-policy", "set", settingsSandboxID, "--allow-domain", "pypi.org", "--block-all=false"},
 		{"sandbox", "network-policy", "set", settingsSandboxID, "--allow-cidr", "10.0.0.0/8"},
-		{"sandbox", "port", "in-use", "sbx", "80"},
+		{"sandbox", "port", "in-use", "sbx", "0"},
+		{"sandbox", "port", "in-use", "sbx", "65536"},
 		{"sandbox", "port", "in-use", "sbx", "abc"},
 	} {
 		_, _, err := runCLI(t, args, nil)
@@ -160,4 +161,49 @@ func TestSandboxPortInUse(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, true, requireJSONStdout(t, stdout)["is_in_use"])
+}
+
+// A port outside the sandbox's current range is left for the sandbox to
+// refuse, as in the SDKs.
+func TestSandboxPortInUseLeavesTheRangeToTheSandbox(t *testing.T) {
+	_, _, err := runToolboxCLI(t, []string{"sandbox", "port", "in-use", "sbx", "80"}, []toolboxExpectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
+		{method: http.MethodGet, path: "/test-tools/sbx/port/80/in-use", status: 400, auth: true, response: `{"code":"BAD_REQUEST","message":"port must be from 3000 to 9999","source":"TOOLBOX"}`},
+	})
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%v", err)
+}
+
+// A mint response without a usable token is an error, never printed as a
+// success; the message never carries the token.
+func TestSandboxAccessTokenRefusesAMalformedResponse(t *testing.T) {
+	for name, response := range map[string]string{
+		"empty token":     `{"access_token":"","token_type":"Bearer","expires_at":"2026-09-13T00:10:00Z","operations":[]}`,
+		"no expiry":       `{"access_token":"tok-secret","token_type":"Bearer","operations":[]}`,
+		"no operations":   `{"access_token":"tok-secret","token_type":"Bearer","expires_at":"2026-09-13T00:10:00Z"}`,
+		"negative port":   `{"access_token":"tok-secret","token_type":"Bearer","expires_at":"2026-09-13T00:10:00Z","operations":[],"ports":[-1]}`,
+		"no token type":   `{"access_token":"tok-secret","expires_at":"2026-09-13T00:10:00Z","operations":[]}`,
+		"null token type": `{"access_token":"tok-secret","token_type":null,"expires_at":"2026-09-13T00:10:00Z","operations":[]}`,
+	} {
+		stdout, _, err := runCLI(t, []string{"sandbox", "access-token", settingsSandboxID}, []expectedRequest{
+			{method: http.MethodGet, path: "/sandboxes/" + settingsSandboxID, status: 200, response: sandboxDetailFixture(settingsSandboxID, "linux", "running")},
+			{method: http.MethodPost, path: "/sandboxes/" + settingsSandboxID + "/access-token", status: 201, bodyJSON: `{}`, response: response, skipResponseContract: true},
+		})
+		require.Equal(t, cerr.ExitFailure, cerr.ExitCode(err), "%s: %v", name, err)
+		require.NotContains(t, err.Error(), "tok-secret", name)
+		require.Empty(t, stdout, name)
+	}
+}
+
+// Secret names are sent trimmed.
+func TestSandboxSecretsSetTrimsNames(t *testing.T) {
+	f := newFakeAPI(t)
+	f.handle(http.MethodGet, "/sandboxes/"+settingsSandboxID, sandboxDetailHandler)
+	f.handle(http.MethodPut, "/sandboxes/"+settingsSandboxID+"/secrets", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("ETag", `"rev-4"`)
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = io.WriteString(w, sandboxSecretsBody)
+	})
+	_, stderr, code := runReported(t, cfgDir(t), nil, "--api-url", f.srv.URL, "--api-key", "k", "-o", "json", "sandbox", "secrets", "set", settingsSandboxID, "--secret", " GITHUB_TOKEN ", "--if-match", `"rev-3"`)
+	require.Equal(t, 0, code, stderr)
+	require.Equal(t, []any{"GITHUB_TOKEN"}, findRequest(t, f, http.MethodPut, "/sandboxes/"+settingsSandboxID+"/secrets").Body["secrets"])
 }
