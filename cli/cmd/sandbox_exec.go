@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -52,6 +53,9 @@ func newSandboxCommand() *cobra.Command {
 		newSandboxDockerSubcommand(),
 		newSandboxProcessSubcommand(),
 		newSandboxPortSubcommand(),
+		newSandboxAccessTokenCommand(),
+		newSandboxSecretsSubcommand(),
+		newSandboxNetworkPolicySubcommand(),
 	)
 	return cmd
 }
@@ -60,7 +64,7 @@ func newSandboxExecSubcommand() *cobra.Command {
 	var cwd string
 	var envPairs []string
 	var tty bool
-	var user string
+	var user, name, tag string
 	var executionTimeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "exec <sandbox-id> -- <command> [args...]",
@@ -73,6 +77,14 @@ func newSandboxExecSubcommand() *cobra.Command {
 			}
 			if cmd.Flags().Changed("execution-timeout") && executionTimeout <= 0 {
 				return cerr.Usage("--execution-timeout must be greater than zero")
+			}
+			if cmd.Flags().Changed("tag") {
+				if err := checkProcessTag(tag); err != nil {
+					return err
+				}
+			}
+			if cmd.Flags().Changed("name") && strings.TrimSpace(name) == "" {
+				return cerr.Usage("--name is empty").WithHint("pass a process name, or omit --name")
 			}
 			a := FromContext(cmd.Context())
 			env, err := input.KV(envPairs, "--env")
@@ -113,6 +125,12 @@ func newSandboxExecSubcommand() *cobra.Command {
 			if user != "" {
 				request.User = &user
 			}
+			if name != "" {
+				request.Name = &name
+			}
+			if tag != "" {
+				request.Tag = &tag
+			}
 			var result toolboxclient.ProcessResult
 			if tty {
 				if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
@@ -144,6 +162,8 @@ func newSandboxExecSubcommand() *cobra.Command {
 	cmd.Flags().StringArrayVar(&envPairs, "env", nil, "environment variable to set (KEY=VALUE, repeatable)")
 	cmd.Flags().BoolVar(&tty, "tty", false, "run the command in a PTY sized to this terminal and attach interactively (1-65535 columns and rows; a Windows sandbox refuses more than 32767)")
 	cmd.Flags().StringVar(&user, "user", "", "sandbox OS user to run the command as")
+	cmd.Flags().StringVar(&name, "name", "", "live name of the process while it runs (a safe identifier); other process commands accept it in place of the id")
+	cmd.Flags().StringVar(&tag, "tag", "", "tag the process ([A-Za-z0-9._-], 1-128 characters) so `sandbox process list --tag` finds it and `sandbox process kill-all --tag` kills it with everything it started")
 	cmd.Flags().DurationVar(&executionTimeout, "execution-timeout", 0, "server-side execution deadline (positive Go duration, rounded up to milliseconds)")
 	addTimeoutFlag(cmd, defaultWaitTimeout, "how long the command may run before the CLI stops waiting (Go duration; exit 8)")
 	return cmd

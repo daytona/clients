@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -23,14 +24,14 @@ func newSandboxProcessSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "process",
 		Short: "Inspect and control sandbox processes",
-		Long:  "Lists, gets, waits for, signals, kills, logs, and attaches to sandbox processes.",
+		Long:  "Lists, gets, waits for, signals, kills, logs, and attaches to sandbox processes; kill-all kills every process started with a tag.",
 	}
-	cmd.AddCommand(newSandboxProcessListCommand(), newSandboxProcessGetCommand(), newSandboxProcessLogsCommand(), newSandboxProcessWaitCommand(), newSandboxProcessSignalCommand(), newSandboxProcessKillCommand(), newSandboxProcessAttachCommand())
+	cmd.AddCommand(newSandboxProcessListCommand(), newSandboxProcessGetCommand(), newSandboxProcessLogsCommand(), newSandboxProcessWaitCommand(), newSandboxProcessSignalCommand(), newSandboxProcessKillCommand(), newSandboxProcessKillAllCommand(), newSandboxProcessAttachCommand())
 	return cmd
 }
 
 func newSandboxProcessListCommand() *cobra.Command {
-	var state, kind, name, sessionID string
+	var state, kind, name, sessionID, tag string
 	var pid int
 	cmd := &cobra.Command{
 		Use:   "list <sandbox-id>",
@@ -38,6 +39,11 @@ func newSandboxProcessListCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			if cmd.Flags().Changed("tag") {
+				if err := checkProcessTag(tag); err != nil {
+					return err
+				}
+			}
 			toolClient, _, _, err := sandboxToolboxClient(cmd.Context(), a, args[0])
 			if err != nil {
 				return err
@@ -57,6 +63,9 @@ func newSandboxProcessListCommand() *cobra.Command {
 			}
 			if pid > 0 {
 				query.Set("pid", strconv.Itoa(pid))
+			}
+			if tag != "" {
+				query.Set("tag", tag)
 			}
 			items, err := toolClient.ListProcesses(cmd.Context(), query)
 			if err != nil {
@@ -80,6 +89,7 @@ func newSandboxProcessListCommand() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "filter by live name")
 	cmd.Flags().StringVar(&sessionID, "session-id", "", "filter by session id")
 	cmd.Flags().IntVar(&pid, "pid", 0, "filter by OS pid")
+	cmd.Flags().StringVar(&tag, "tag", "", "filter by the tag the processes were started with")
 	return cmd
 }
 
@@ -204,6 +214,70 @@ func newSandboxProcessKillCommand() *cobra.Command {
 			return a.Printer().Object(map[string]any{"id": args[1], "signal": "KILL"}, [][2]string{{"id", args[1]}, {"signal", "KILL"}})
 		},
 	}
+}
+
+func newSandboxProcessKillAllCommand() *cobra.Command {
+	var tag string
+	var timeout time.Duration
+	cmd := &cobra.Command{
+		Use:   "kill-all <sandbox-id>",
+		Short: "Kill every process started with a tag",
+		Long: "Kill every process started with --tag (sandbox exec --tag), and everything those processes started, then\n" +
+			"print the ids of the tagged processes that were still running. It returns once none of them runs; records and\n" +
+			"logs are kept, and the tag can be used again right away. Processes whose records expired are killed too but\n" +
+			"not listed, so an empty list does not mean nothing was stopped. A sandbox that cannot contain its processes\n" +
+			"(macOS, or a Linux guest without the kernel support) answers UNSUPPORTED_OPERATION; a kill that did not finish\n" +
+			"within --timeout answers PROCESS_KILL_INCOMPLETE (run it again).\n" +
+			"Example:\n  daytona sandbox process kill-all <sandbox-id> --tag build",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := checkProcessTag(tag); err != nil {
+				return err
+			}
+			if cmd.Flags().Changed("timeout") && (timeout <= 0 || timeout > time.Minute) {
+				return cerr.Usage("--timeout must be greater than zero and at most 1m, got %s", timeout)
+			}
+			a := FromContext(cmd.Context())
+			toolClient, _, _, err := sandboxToolboxClient(cmd.Context(), a, args[0])
+			if err != nil {
+				return err
+			}
+			// The toolbox holds the request until the kill ends (10s by
+			// default, at most --timeout); leave room for the round trip.
+			wait := 10 * time.Second
+			if timeout > 0 {
+				wait = timeout
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), wait+30*time.Second)
+			defer cancel()
+			killed, err := toolClient.KillTagged(ctx, tag, timeout)
+			if err != nil {
+				return err
+			}
+			kv := [][2]string{{"tag", tag}, {"process_ids", strings.Join(killed.V.ProcessIds, ",")}}
+			return printToolboxObject(a, killed, kv)
+		},
+	}
+	cmd.Flags().StringVar(&tag, "tag", "", "the tag whose processes to kill (required)")
+	_ = cmd.MarkFlagRequired("tag")
+	cmd.Flags().DurationVar(&timeout, "timeout", 0, "how long the sandbox waits for the killed processes to exit (Go duration, at most 1m; default 10s)")
+	flagPlaceholder(cmd.Flags(), "timeout", "DURATION")
+	return cmd
+}
+
+// checkProcessTag refuses a process tag the toolbox would refuse: a safe
+// identifier ([A-Za-z0-9._-], 1-128 characters, not . or ..), as the SDKs
+// check it.
+func checkProcessTag(tag string) error {
+	if tag == "" || len(tag) > 128 || tag == "." || tag == ".." {
+		return cerr.Usage("--tag must be 1-128 characters of [A-Za-z0-9._-], not . or .., got %q", tag)
+	}
+	for _, r := range tag {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-') {
+			return cerr.Usage("--tag must be 1-128 characters of [A-Za-z0-9._-], not . or .., got %q", tag)
+		}
+	}
+	return nil
 }
 
 func newSandboxProcessAttachCommand() *cobra.Command {
