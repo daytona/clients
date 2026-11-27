@@ -287,6 +287,31 @@ export interface NetworkPolicyInput {
   readonly blockAll?: boolean | null
   readonly allowCidrs?: readonly string[]
   readonly allowDomains?: readonly string[] | null
+  /**
+   * Sends the sandbox's web egress through this HTTP or HTTPS forward proxy.
+   * Omitted or `null` means egress is not proxied. It combines with the other
+   * rules; destinations inside `allowCidrs` are still reached directly. Not
+   * available on macOS sandboxes (`BadRequestError`).
+   */
+  readonly upstreamProxy?: UpstreamProxyInput | null
+}
+
+/** The forward proxy a network policy sends egress through, as requested. */
+export interface UpstreamProxyInput {
+  /**
+   * `http://` or `https://`, a host and an optional port (default 80 for
+   * `http`, 443 for `https`). No credentials, path, query or fragment; a host
+   * that is a private or reserved IP address is refused. `https` is required
+   * when `credentialsSecret` is set.
+   */
+  readonly url: string
+  /**
+   * Name of a project secret whose value is `username:password`, sent to the
+   * proxy as basic proxy authorization; the value never enters the sandbox.
+   * The secret's allowed domains must include the proxy host. Omitted or
+   * `null` uses the proxy without credentials.
+   */
+  readonly credentialsSecret?: string | null
 }
 
 export interface VolumeMount {
@@ -311,6 +336,16 @@ export interface NetworkPolicy {
   readonly blockAll: boolean
   readonly allowCidrs: readonly string[]
   readonly allowDomains?: readonly string[]
+  /** The forward proxy egress is sent through; absent when egress is not proxied. */
+  readonly upstreamProxy?: UpstreamProxy
+}
+
+/** The forward proxy a network policy sends egress through. */
+export interface UpstreamProxy {
+  /** The proxy URL in normalized form: `<scheme>://<host>:<port>`. */
+  readonly url: string
+  /** Name of the project secret holding the proxy credentials; absent without credentials. */
+  readonly credentialsSecret?: string
 }
 
 export interface NetworkPolicyInfo {

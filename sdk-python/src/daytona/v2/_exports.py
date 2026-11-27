@@ -239,6 +239,8 @@ ROOT_EXPORTS = [
     "NetworkPolicy",
     "NetworkPolicyInfo",
     "NetworkPolicyInput",
+    "UpstreamProxy",
+    "UpstreamProxyInput",
     "SandboxSecretsInfo",
     "NotFoundError",
     "NotSupportedError",

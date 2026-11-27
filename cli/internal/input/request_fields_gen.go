@@ -47,6 +47,10 @@ var requestFields = map[string]*Fields{
 			"allow_cidrs":   &Fields{IsList: true, List: nil},
 			"allow_domains": &Fields{IsList: true, List: nil},
 			"block_all":     nil,
+			"upstream_proxy": &Fields{Object: map[string]*Fields{
+				"credentials_secret": nil,
+				"url":                nil,
+			}},
 		}},
 		"persistent": nil,
 		"ports": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{
@@ -131,6 +135,10 @@ var requestFields = map[string]*Fields{
 			"allow_cidrs":   &Fields{IsList: true, List: nil},
 			"allow_domains": &Fields{IsList: true, List: nil},
 			"block_all":     nil,
+			"upstream_proxy": &Fields{Object: map[string]*Fields{
+				"credentials_secret": nil,
+				"url":                nil,
+			}},
 		}},
 		"persistent": nil,
 		"ports": &Fields{IsList: true, List: &Fields{Object: map[string]*Fields{

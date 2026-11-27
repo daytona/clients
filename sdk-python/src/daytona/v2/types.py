@@ -491,10 +491,50 @@ class VolumeMount:
     read_only: Optional[bool] = None
 
 
+class UpstreamProxyInput(TypedDict):
+    """The forward proxy a network policy sends egress through, as requested.
+
+    ``url`` is ``http://`` or ``https://``, a host and an optional port (default
+    80 for ``http``, 443 for ``https``), with no credentials, path, query or
+    fragment; a host that is a private or reserved IP address is refused.
+    ``https`` is required when ``credentials_secret`` is set.
+
+    ``credentials_secret`` names a project secret whose value is
+    ``username:password``, sent to the proxy as basic proxy authorization; the
+    value never enters the sandbox. The secret's allowed domains must include
+    the proxy host. Omitted or ``None`` uses the proxy without credentials.
+    """
+
+    url: str
+    credentials_secret: NotRequired[Optional[str]]
+
+
 class NetworkPolicyInput(TypedDict, total=False):
+    """A network policy, as requested.
+
+    ``upstream_proxy`` sends the sandbox's web egress through an HTTP or HTTPS
+    forward proxy; omitted or ``None`` means egress is not proxied. It combines
+    with the other rules; destinations inside ``allow_cidrs`` are still reached
+    directly. Not available on macOS sandboxes (``BadRequestError``).
+    """
+
     block_all: bool | None
     allow_cidrs: Sequence[str]
     allow_domains: Optional[Sequence[str]]
+    upstream_proxy: Optional[UpstreamProxyInput]
+
+
+@dataclass(frozen=True, kw_only=True)
+class UpstreamProxy:
+    """The forward proxy a network policy sends egress through.
+
+    ``url`` is in normalized form, ``<scheme>://<host>:<port>``;
+    ``credentials_secret`` names the project secret holding the proxy
+    credentials, or is ``None`` without credentials.
+    """
+
+    url: str
+    credentials_secret: Optional[str] = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -503,6 +543,7 @@ class NetworkPolicy:
     block_all: bool = False
     allow_cidrs: tuple[str, ...] = ()
     allow_domains: Optional[tuple[str, ...]] = None
+    upstream_proxy: Optional[UpstreamProxy] = None
 
 
 @dataclass(frozen=True, kw_only=True)

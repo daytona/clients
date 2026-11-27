@@ -179,6 +179,9 @@ func bootSourceSet(value any) bool {
 // API answers with NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL.
 func setNetworkPolicy(cmd *cobra.Command, body input.Body, flags sandboxCreateFlags) error {
 	changed := cmd.Flags().Changed
+	if err := setUpstreamProxy(cmd, body, flags); err != nil {
+		return err
+	}
 	if !changed("allow-domain") && !changed("allow-cidr") && !changed("block-all") {
 		return nil
 	}
@@ -203,6 +206,49 @@ func setNetworkPolicy(cmd *cobra.Command, body input.Body, flags sandboxCreateFl
 		return cerr.Usage("--allow-cidr restricts egress only with --block-all or --allow-domain; without them the policy is open")
 	}
 	return nil
+}
+
+// setUpstreamProxy maps --upstream-proxy and
+// --upstream-proxy-credentials-secret onto `network_policy.upstream_proxy`,
+// field by field over --file. A credentials secret needs a proxy URL, from the
+// flag or the file; the API judges the URL itself.
+func setUpstreamProxy(cmd *cobra.Command, body input.Body, flags sandboxCreateFlags) error {
+	changed := cmd.Flags().Changed
+	if !changed("upstream-proxy") && !changed("upstream-proxy-credentials-secret") {
+		return nil
+	}
+	if changed("upstream-proxy") && strings.TrimSpace(flags.upstreamProxy) == "" {
+		return cerr.Usage("--upstream-proxy must not be blank; omit it to leave egress unproxied")
+	}
+	if changed("upstream-proxy-credentials-secret") && strings.TrimSpace(flags.proxySecret) == "" {
+		return cerr.Usage("--upstream-proxy-credentials-secret must not be blank; omit it to use the proxy without credentials")
+	}
+	policy := workload.NestedBody(body, "network_policy")
+	if !changed("upstream-proxy") && !hasProxyURL(policy["upstream_proxy"]) {
+		return cerr.Usage("--upstream-proxy-credentials-secret needs --upstream-proxy")
+	}
+	proxy := workload.NestedBody(policy, "upstream_proxy")
+	if changed("upstream-proxy") {
+		proxy.Set("url", flags.upstreamProxy)
+	}
+	if changed("upstream-proxy-credentials-secret") {
+		proxy.Set("credentials_secret", flags.proxySecret)
+	}
+	return nil
+}
+
+// hasProxyURL reports whether an `upstream_proxy` value from --file names a URL.
+func hasProxyURL(value any) bool {
+	var proxy map[string]any
+	switch current := value.(type) {
+	case input.Body:
+		proxy = current
+	case map[string]any:
+		proxy = current
+	default:
+		return false
+	}
+	return proxy["url"] != nil
 }
 
 // checkCPUMax refuses a CPU limit that is not a positive multiple of 0.5

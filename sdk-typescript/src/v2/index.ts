@@ -242,6 +242,8 @@ export type {
   NetworkPolicyInput,
   NetworkPolicy,
   NetworkPolicyInfo,
+  UpstreamProxy,
+  UpstreamProxyInput,
   SandboxSecretsInfo,
   CpuArch,
   AuditActionList,

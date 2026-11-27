@@ -50,6 +50,8 @@ func TestSandboxCreateMacos_refusesFlagsOfOtherSurfaces(t *testing.T) {
 		{"--cpu-arch", "arm64"},
 		{"--cpu-type", "m4"},
 		{"--user", "admin"},
+		{"--upstream-proxy", "http://proxy.example.com"},
+		{"--upstream-proxy-credentials-secret", "PROXY_AUTH"},
 	} {
 		args := append([]string{"sandbox", "create-macos", "--image", "base-macos", "--no-wait"}, flag...)
 		_, _, err := runCLI(t, args, nil)

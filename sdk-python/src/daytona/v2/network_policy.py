@@ -10,9 +10,12 @@ import httpx
 from . import _codes as codes
 from ._core import finite_number, parse_json_response
 from .errors import create_error
-from .types import JsonObject, JsonValue, NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput
+from .types import JsonObject, JsonValue, NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput, UpstreamProxy
 
-_INPUT_FIELDS: Final[frozenset[str]] = frozenset({"block_all", "allow_cidrs", "allow_domains"})
+_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
+    {"block_all", "allow_cidrs", "allow_domains", "upstream_proxy"}
+)
+_UPSTREAM_PROXY_FIELDS: Final[frozenset[str]] = frozenset({"url", "credentials_secret"})
 
 
 def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
@@ -73,6 +76,37 @@ def serialize_network_policy_input(value: NetworkPolicyInput) -> JsonObject:
         )
     if block_all is not None:
         body["block_all"] = block_all
+    if "upstream_proxy" in value:
+        raw_proxy = value["upstream_proxy"]
+        body["upstream_proxy"] = None if raw_proxy is None else _serialize_upstream_proxy_input(raw_proxy)
+    return body
+
+
+def _serialize_upstream_proxy_input(value: object) -> JsonObject:
+    if not isinstance(value, dict):
+        raise create_error("network_policy.upstream_proxy must be an object", 400, "BAD_REQUEST", "SDK")
+    unknown = [str(name) for name in value if name not in _UPSTREAM_PROXY_FIELDS]
+    if unknown:
+        raise create_error(
+            f"network_policy.upstream_proxy contains unknown fields: {', '.join(unknown)}",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    url = value.get("url")
+    if not isinstance(url, str):
+        raise create_error("network_policy.upstream_proxy.url must be a string", 400, "BAD_REQUEST", "SDK")
+    body: JsonObject = {"url": url}
+    if "credentials_secret" in value:
+        credentials_secret = value["credentials_secret"]
+        if credentials_secret is not None and not isinstance(credentials_secret, str):
+            raise create_error(
+                "network_policy.upstream_proxy.credentials_secret must be a string",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
+        body["credentials_secret"] = credentials_secret
     return body
 
 
@@ -116,7 +150,24 @@ def _optional_policy(value: JsonValue, *, field_name: str) -> NetworkPolicy | No
                 field_name=f"{field_name}.allow_domains",
             )
         ),
+        upstream_proxy=_optional_upstream_proxy(
+            payload.get("upstream_proxy"),
+            field_name=f"{field_name}.upstream_proxy",
+        ),
     )
+
+
+def _optional_upstream_proxy(value: JsonValue, *, field_name: str) -> UpstreamProxy | None:
+    if value is None:
+        return None
+    payload = _expect_response_object(value, field_name=field_name)
+    url = payload.get("url")
+    if not isinstance(url, str):
+        raise create_error(f"{field_name}.url must be a string", 400, "BAD_REQUEST", "SDK")
+    credentials_secret = payload.get("credentials_secret")
+    if credentials_secret is not None and not isinstance(credentials_secret, str):
+        raise create_error(f"{field_name}.credentials_secret must be a string", 400, "BAD_REQUEST", "SDK")
+    return UpstreamProxy(url=url, credentials_secret=credentials_secret)
 
 
 def _tuple_or_none(values: list[str] | None) -> tuple[str, ...] | None:

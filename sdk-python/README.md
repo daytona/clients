@@ -503,7 +503,12 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   `allow_domains` — `allow_domains=[]` resolves no tenant name (a domain list,
   even an empty one, also denies TCP 80/443 to `allow_cidrs` unless the name is
   listed); `block_all=True` with no allow list refuses every lookup except
-  platform-managed names.
+  platform-managed names. `upstream_proxy={"url": ..., "credentials_secret": ...}`
+  sends the sandbox's web egress through your HTTP or HTTPS forward proxy,
+  beside any other rule (destinations inside `allow_cidrs` are still reached
+  directly); `credentials_secret` names a project secret whose value is
+  `username:password` and needs an `https://` URL. The value never enters the
+  sandbox. macOS sandboxes do not support an upstream proxy.
 - **Runtime-managed sandbox secrets** (supported Linux sandbox configurations)
   — `sandbox.get_secrets()` and `sandbox.replace_secrets(secrets=[...], if_match=...)`
   over `GET|PUT /sandboxes/{id}/secrets`.

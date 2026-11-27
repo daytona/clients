@@ -58,6 +58,7 @@ func parseNetworkPolicy(raw JSONValue, name string) (*NetworkPolicy, error) {
 	object = jsonObject{
 		name + ".version": object["version"], name + ".block_all": object["block_all"],
 		name + ".allow_cidrs": object["allow_cidrs"], name + ".allow_domains": object["allow_domains"],
+		name + ".upstream_proxy": object["upstream_proxy"],
 	}
 	policy := &NetworkPolicy{}
 	policy.Version, err = integerField(object, name+".version", true)
@@ -79,7 +80,31 @@ func parseNetworkPolicy(raw JSONValue, name string) (*NetworkPolicy, error) {
 	if err != nil {
 		return nil, err
 	}
+	if present(object[name+".upstream_proxy"]) {
+		policy.UpstreamProxy, err = parseUpstreamProxy(object[name+".upstream_proxy"], name+".upstream_proxy")
+		if err != nil {
+			return nil, err
+		}
+	}
 	return policy, nil
+}
+
+func parseUpstreamProxy(raw JSONValue, name string) (*UpstreamProxy, error) {
+	object, err := parseObject(raw, name)
+	if err != nil {
+		return nil, err
+	}
+	object = jsonObject{name + ".url": object["url"], name + ".credentials_secret": object["credentials_secret"]}
+	proxy := &UpstreamProxy{}
+	proxy.URL, err = field[string](object, name+".url", true)
+	if err != nil {
+		return nil, err
+	}
+	proxy.CredentialsSecret, err = field[string](object, name+".credentials_secret", false)
+	if err != nil {
+		return nil, err
+	}
+	return proxy, nil
 }
 
 // Parse elements individually: encoding/json otherwise accepts null as "".

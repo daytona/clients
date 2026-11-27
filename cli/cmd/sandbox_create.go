@@ -40,6 +40,8 @@ type sandboxCreateFlags struct {
 	allowDomains   []string
 	allowCIDRs     []string
 	blockAll       bool
+	upstreamProxy  string
+	proxySecret    string
 	lifecycleTTL   secondsFlag
 	onLifecycleTTL string
 	idleTimeout    secondsFlag
@@ -218,6 +220,10 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		f.StringArrayVar(&flags.allowDomains, "allow-domain", nil, "network policy: allowed hostname or *.wildcard (repeatable; implies --block-all)")
 		f.StringArrayVar(&flags.allowCIDRs, "allow-cidr", nil, "network policy: allowed IPv4 address or CIDR, any port (repeatable; needs --block-all or --allow-domain)")
 		f.BoolVar(&flags.blockAll, "block-all", false, "network policy: deny all egress not explicitly allowed")
+	}
+	if sf.networkPolicy && !sf.macos {
+		f.StringVar(&flags.upstreamProxy, "upstream-proxy", "", "network policy: send web egress through this http:// or https:// forward proxy URL (destinations inside --allow-cidr are still reached directly)")
+		f.StringVar(&flags.proxySecret, "upstream-proxy-credentials-secret", "", "network policy: project secret whose value is the proxy's username:password (needs an https:// --upstream-proxy)")
 	}
 	addRegionFlag(cmd, "region to create the sandbox in (default: the project's, then the organization's, then earth)")
 	addFileFlag(cmd, "")

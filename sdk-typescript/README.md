@@ -419,8 +419,13 @@ make asynchronous callback work cancellation-aware when needed.
   `allowDomains` — `allowDomains: []` resolves no tenant name (a domain list,
   even an empty one, also denies TCP 80/443 to `allowCidrs` unless the name is
   listed); `blockAll: true` with no allow list refuses every lookup except
-  platform-reserved names. Unsupported sandbox configurations return
-  `UNSUPPORTED_OPERATION`.
+  platform-reserved names. `upstreamProxy: { url, credentialsSecret }` sends
+  the sandbox's web egress through your HTTP or HTTPS forward proxy, beside any
+  other rule (destinations inside `allowCidrs` are still reached directly);
+  `credentialsSecret` names a project secret whose value is
+  `username:password` and needs an `https://` URL. The value never enters the
+  sandbox. macOS sandboxes do not support an upstream proxy. Unsupported
+  sandbox configurations return `UNSUPPORTED_OPERATION`.
 - **Runtime-managed sandbox secrets** (supported Linux sandbox configurations)
   — `sandbox.getSecrets()` and `sandbox.replaceSecrets([...], { ifMatch })` over
   `GET|PUT /sandboxes/{id}/secrets`.

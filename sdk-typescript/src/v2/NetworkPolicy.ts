@@ -5,11 +5,12 @@
 
 import type { AxiosResponse } from 'axios'
 import { BadRequestError } from './errors/DaytonaError.js'
-import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput } from './types.js'
+import type { NetworkPolicy, NetworkPolicyInfo, NetworkPolicyInput, UpstreamProxy } from './types.js'
 import { badRequest } from './options.js'
 import { deepFrozen } from './frozen.js'
 
-const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains'])
+const INPUT_FIELDS = new Set(['blockAll', 'allowCidrs', 'allowDomains', 'upstreamProxy'])
+const UPSTREAM_PROXY_FIELDS = new Set(['url', 'credentialsSecret'])
 
 export function createNetworkPolicyCreateField(options: { readonly networkPolicy?: NetworkPolicyInput | null }): Record<string, unknown> | null | undefined {
   if (!Object.prototype.hasOwnProperty.call(options, 'networkPolicy')) return undefined
@@ -62,6 +63,30 @@ export function serializeNetworkPolicyInput(input: unknown): Record<string, unkn
   if (blockAll !== undefined) {
     body.block_all = blockAll
   }
+  if (input.upstreamProxy !== undefined) {
+    body.upstream_proxy = input.upstreamProxy === null ? null : serializeUpstreamProxyInput(input.upstreamProxy)
+  }
+  return body
+}
+
+function serializeUpstreamProxyInput(input: unknown): Record<string, unknown> {
+  if (!isRecord(input)) {
+    throw new BadRequestError('networkPolicy.upstreamProxy must be an object', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  const unknownFields = Object.keys(input).filter((field) => !UPSTREAM_PROXY_FIELDS.has(field))
+  if (unknownFields.length > 0) {
+    throw new BadRequestError(`networkPolicy.upstreamProxy contains unknown fields: ${unknownFields.join(', ')}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  if (typeof input.url !== 'string') {
+    throw new BadRequestError('networkPolicy.upstreamProxy.url must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+  }
+  const body: Record<string, unknown> = { url: input.url }
+  if (input.credentialsSecret !== undefined) {
+    if (input.credentialsSecret !== null && typeof input.credentialsSecret !== 'string') {
+      throw new BadRequestError('networkPolicy.upstreamProxy.credentialsSecret must be a string', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    body.credentials_secret = input.credentialsSecret
+  }
   return body
 }
 
@@ -91,6 +116,23 @@ function optionalNetworkPolicy(value: unknown, fieldName: string): NetworkPolicy
     blockAll: requiredBoolean(data.block_all, `${fieldName}.block_all`),
     allowCidrs: responseStringArray(data.allow_cidrs, `${fieldName}.allow_cidrs`),
     allowDomains: optionalResponseStringArray(data.allow_domains, `${fieldName}.allow_domains`),
+    upstreamProxy: optionalUpstreamProxy(data.upstream_proxy, `${fieldName}.upstream_proxy`),
+  }
+}
+
+function optionalUpstreamProxy(value: unknown, fieldName: string): UpstreamProxy | undefined {
+  if (value === undefined || value === null) return undefined
+  const data = recordValue(value, fieldName)
+  if (typeof data.url !== 'string') {
+    throw badRequest(`${fieldName}.url must be a string`)
+  }
+  const credentialsSecret = data.credentials_secret
+  if (credentialsSecret !== undefined && credentialsSecret !== null && typeof credentialsSecret !== 'string') {
+    throw badRequest(`${fieldName}.credentials_secret must be a string`)
+  }
+  return {
+    url: data.url,
+    credentialsSecret: credentialsSecret ?? undefined,
   }
 }
 

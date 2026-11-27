@@ -17,6 +17,36 @@ type NetworkPolicySpec struct {
 	// to a nil slice sends null; a pointer to an empty slice sends [].
 	// A non-null domain list cannot be combined with BlockAll=false.
 	AllowDomains *[]string
+	// UpstreamProxy sends the sandbox's web egress through this HTTP or HTTPS
+	// forward proxy; nil omits the field, so egress is not proxied. It
+	// combines with the other rules; destinations inside AllowCIDRs are still
+	// reached directly. Not available on macOS sandboxes (ErrBadRequest).
+	UpstreamProxy *UpstreamProxySpec
+}
+
+// UpstreamProxySpec is the forward proxy a network-policy request sends egress
+// through.
+type UpstreamProxySpec struct {
+	// URL is http:// or https://, a host and an optional port (default 80 for
+	// http, 443 for https), with no credentials, path, query or fragment; a
+	// host that is a private or reserved IP address is refused. https is
+	// required when CredentialsSecret is set.
+	URL string
+	// CredentialsSecret names a project secret whose value is
+	// username:password, sent to the proxy as basic proxy authorization; the
+	// value never enters the sandbox. The secret's allowed domains must include
+	// the proxy host. Empty uses the proxy without credentials.
+	CredentialsSecret string
+}
+
+// UpstreamProxy is the forward proxy a policy reported by the API sends egress
+// through.
+type UpstreamProxy struct {
+	// URL is the proxy URL in normalized form, <scheme>://<host>:<port>.
+	URL string
+	// CredentialsSecret names the project secret holding the proxy
+	// credentials; empty when the proxy is used without credentials.
+	CredentialsSecret string
 }
 
 // NetworkPolicy is a versioned policy reported by the API.
@@ -29,6 +59,8 @@ type NetworkPolicy struct {
 	AllowCIDRs []string
 	// AllowDomains is nil when the domain allow-list is absent.
 	AllowDomains []string
+	// UpstreamProxy is nil when egress is not proxied.
+	UpstreamProxy *UpstreamProxy
 }
 
 // NetworkPolicyInfo contains desired and applied policy state. Updates apply
@@ -60,9 +92,15 @@ type IfMatchOptions struct {
 }
 
 type networkPolicyWire struct {
-	BlockAll     *bool     `json:"block_all,omitempty"`
-	AllowCIDRs   *[]string `json:"allow_cidrs,omitempty"`
-	AllowDomains *[]string `json:"allow_domains,omitempty"`
+	BlockAll      *bool              `json:"block_all,omitempty"`
+	AllowCIDRs    *[]string          `json:"allow_cidrs,omitempty"`
+	AllowDomains  *[]string          `json:"allow_domains,omitempty"`
+	UpstreamProxy *upstreamProxyWire `json:"upstream_proxy,omitempty"`
+}
+
+type upstreamProxyWire struct {
+	URL               string `json:"url"`
+	CredentialsSecret string `json:"credentials_secret,omitempty"`
 }
 
 func networkPolicyBody(spec NetworkPolicySpec) (networkPolicyWire, error) {
@@ -83,6 +121,11 @@ func networkPolicyBody(spec NetworkPolicySpec) (networkPolicyWire, error) {
 	if spec.AllowDomains != nil {
 		domains := slices.Clone(*spec.AllowDomains)
 		body.AllowDomains = &domains
+	}
+	if spec.UpstreamProxy != nil {
+		body.UpstreamProxy = &upstreamProxyWire{
+			URL: spec.UpstreamProxy.URL, CredentialsSecret: spec.UpstreamProxy.CredentialsSecret,
+		}
 	}
 	return body, nil
 }

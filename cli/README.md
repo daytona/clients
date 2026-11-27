@@ -552,6 +552,15 @@ never prompts:
   blocks all outbound traffic and DNS lookups to user-specified domains.
   `--allow-cidr` without `--block-all` or `--allow-domain` is a
   usage error, because the resulting policy would be open.
+- `sandbox create --upstream-proxy https://proxy.example.com:8443
+  --upstream-proxy-credentials-secret PROXY_AUTH` sends the sandbox's web
+  egress through your HTTP or HTTPS forward proxy, alone or beside the other
+  network-policy flags; destinations inside `--allow-cidr` are still reached
+  directly. The credentials secret names a project secret whose value is
+  `username:password`; the value never enters the sandbox, the secret's allowed
+  domains must include the proxy host, and it needs an `https://` proxy URL.
+  macOS sandboxes do not support an upstream proxy, so `sandbox create-macos`
+  has no such flags.
 
 ### Durations
 
