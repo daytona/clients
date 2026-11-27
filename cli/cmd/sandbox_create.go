@@ -75,7 +75,7 @@ type createSurface struct {
 func newSandboxCreateCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create", short: "Create a sandbox from an image",
-		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --image py312\n  daytona sandbox create --image py312 --name example-user --server-wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
+		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nUse --persistent for stop/start, pause/resume and fork: disk survives stop/start; memory and processes survive pause/resume. Attached volumes prevent pause and fork, not persistent creation. Unless a per-create policy or project lifecycle default overrides it, the platform lifecycle pauses a persistent sandbox after 300s instead of deleting it.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --persistent\n  daytona sandbox create --image py312 --name example-user --server-wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
 		path: "/sandboxes", imageOptional: true, resources: true, burst: true, cpuConstraints: true, user: true, volumes: true, secrets: true, spot: true, networkPolicy: true,
 		decode: decodeAndCreate[gen.CreateSandboxRequest],
 		keys:   input.CheckKeysFor[gen.CreateSandboxRequest],
@@ -145,7 +145,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 			if err := sf.keys(body); err != nil {
 				return err
 			}
-			if err := validateLifecycleBody(sf.macos, body); err != nil {
+			if err := validateLifecycleBody(sf, body); err != nil {
 				return err
 			}
 			headers, err := sandboxCreateHeaders(*flags, cmd, a.Globals.Region, body)
@@ -171,8 +171,8 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	if sf.macos {
 		macosCreateLifecycleFlags(f, flags)
 	} else {
-		f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete")
-		f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete")
+		f.StringVar(&flags.onLifecycleTTL, "on-lifecycle-timeout", "", "action when --lifecycle-timeout elapses: delete, or stop/pause on persistent Linux")
+		f.StringVar(&flags.onIdleTimeout, "on-idle-timeout", "", "action when --idle-timeout elapses: delete, or stop/pause on persistent Linux")
 		flagPlaceholder(f, "on-lifecycle-timeout", "ACTION")
 		flagPlaceholder(f, "on-idle-timeout", "ACTION")
 	}
@@ -182,6 +182,8 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	addSecondsFlag(f, &flags.createTTL, "create-ttl", "", "deadline (Go duration) for the sandbox to reach running, queued or booting, before the server deletes it; max = the server's maximum (server default 1h)")
 	if sf.macos {
 		macosCreateFlags(f, flags)
+	} else if !sf.snapshot {
+		f.BoolVar(&flags.persistent, "persistent", false, "keep disk across stop/start and memory/processes across pause/resume; required for Linux stop/start, pause/resume and fork; volumes prevent pause and fork; platform lifecycle pauses after 300s unless a per-create policy or project lifecycle default overrides it")
 	}
 	if sf.resources {
 		f.Float64Var(&flags.cpu, "cpu", 0, "guaranteed CPU in cores (1 core = 2 vCPUs)")

@@ -38,15 +38,15 @@ class Config(BaseModel):
     """
     The `/config` response body.
     """ # noqa: E501
-    analytics: Optional[AnalyticsConfig]
+    analytics: Optional[AnalyticsConfig] = Field(description="Browser analytics configuration. `null` when analytics is disabled.")
     analytics_url: Optional[StrictStr] = Field(default=None, description="Public base URL for spending analytics. `null` when unavailable.")
     api_url: Optional[StrictStr] = Field(default=None, description="Public base URL of this API when the deployment advertises one.")
     billing_enabled: StrictBool = Field(description="Whether billing features are available.")
     build_sha: StrictStr = Field(description="API build identifier; `unknown` when unavailable.")
     built_at: Optional[datetime] = Field(default=None, description="API build time; `null` when unavailable.")
     docs_url: Optional[StrictStr] = Field(default=None, description="Public documentation site URL for this deployment.")
-    oidc: Optional[OidcPublicConfig]
-    ssh_gateway: Optional[SshGatewayConfig]
+    oidc: Optional[OidcPublicConfig] = Field(description="Login settings. `null` when login is unavailable.")
+    ssh_gateway: Optional[SshGatewayConfig] = Field(description="SSH gateway endpoint clients should use. `null` when the deployment does not publish one.")
     toolbox_url: Optional[StrictStr] = Field(default=None, description="Base URL for sandbox tools that the browser should use.")
     version: StrictStr = Field(description="Platform version, or `0.0.0-dev` when unavailable.")
     additional_properties: Dict[str, Any] = {}

@@ -75,6 +75,27 @@ finish — teardown drops the sockets. In a long-lived process, prefer one
 you drop without closing keeps its idle keep-alive connections open until
 interpreter exit.
 
+Closing a client releases its connections; it does not delete or stop the
+sandboxes it created. Clean up sandboxes while the program still runs, for
+example in a `try`/`finally` around the code that uses them:
+
+```python
+with Daytona() as d:
+    sandbox = d.v2.create()
+    try:
+        sandbox.process.run("echo hello")
+    finally:
+        sandbox.delete()
+```
+
+Cleanup registered with `atexit` (or run by a finalizer at interpreter
+shutdown) never works: the SDK refuses a request made from an `atexit` handler with
+`ClientClosedError` before sending it, with the sync or the async client. A
+request or file transfer from another thread still running after the program
+ended (or while Python stops its thread pools at exit) raises the same error
+when it needs a thread pool Python has already stopped, such as for a DNS
+lookup or for writing a downloaded file.
+
 `d.v2` on the sync `Daytona` runs the async implementation on a private
 background event loop and blocks the calling thread. Calling it from inside a
 running event loop raises immediately instead of silently stalling that loop —
@@ -144,7 +165,13 @@ environment when the fields are omitted. Both credentials serve `d.v0` and
 `d.v2`. Environment values are trimmed, and a blank one counts as unset;
 values you pass in `DaytonaConfig` are used as given, and an empty one
 (`api_key=""`, …) raises `BadRequestError` instead of falling back to the
-environment. `Daytona(config)` copies the config when it is built: changing
+environment. The API key or JWT is the exception to "as given": surrounding
+spaces, tabs and line breaks are trimmed from it too, so a key read from a
+file with a trailing newline is sent without it. A key or JWT you pass that
+is blank after trimming, or one from either source that contains a character
+other than printable ASCII, makes `d.v2` raise `BadRequestError` before any
+request; the message never contains the value. `d.v0` keeps the 0.x SDK's own handling of the
+credential. `Daytona(config)` copies the config when it is built: changing
 the object afterwards has no effect on the client. Additional env vars:
 
 - `DAYTONA_ORGANIZATION_ID` — scopes a JWT for the v0 namespace.
@@ -307,9 +334,10 @@ permanent behavior of `name=`. The exact semantics, all server-side:
 
 `find_by_name(name, region=…)` returns **all** sandboxes carrying that exact `name`
 label, newest first, as a tuple (names are not unique); `destroyed`/`destroying`
-ones are left out. It is the one list method that is not a single page. It reads sandbox search with an exact `name` label match,
-in the region a create with the same `region` lands in (`region` defaults to
-none, i.e., the server's default, exactly as on `create*()`). A new sandbox
+ones are left out. It is the one list method that is not a single page. It reads sandbox search with an exact `name` label match.
+A named `region` returns only the sandboxes in that region (the region a create
+with the same `region` lands in); omitting it, or `"local"`, searches every
+region. A new sandbox
 appears in search shortly after its create, so a lookup right after a
 create can miss it — the get-or-create below stays safe, because the repeat
 create derives the same key and returns the same sandbox. A deployment
@@ -412,8 +440,10 @@ keyboard interrupt is surfaced as `BuildLogInterruptedError` with
   where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
   older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. `d.v2.search(...)` queries
   the eventually consistent, all-region search API (`GET /sandboxes/search`)
-  and carries every filter: `states`, `sandbox_class`, `region`, `labels`,
+  and carries every filter: `states`, `sandbox_class`, `region`, `labels`, `persistent`,
   `name_prefix` / `id_prefix`, resource/timestamp bounds, `sort`, `order`, ...
+  `persistent=True` selects persistent sandboxes; `False` selects ephemeral
+  sandboxes, and omitting it (or `None`) leaves both kinds.
   `states` takes the SDK's sandbox states (`states=["started", "paused"]`);
   `"unknown"` is not searchable. `region` takes region IDs; a region that
   contains other regions (a geo group, or `earth`) matches every region inside
@@ -512,6 +542,20 @@ inherited by processes, PTYs and sessions started afterwards. Running processes
 keep their current environment, and `unset` removes only values previously set
 through `update_env()`, not image-level environment entries.
 
+### Secret search
+
+`d.v2.secrets.search(...)` searches secret metadata (never values). Filter with
+`q`, `name`, `name_prefix`, or `allowed_domain`; bound creation and update
+times with `created_start_at` / `updated_start_at` (inclusive) and
+`created_end_at` / `updated_end_at` (exclusive). Use
+`sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
+for ordering and paging. The returned `SearchResult` includes `total` and
+`total_relation` (`"eq"` for an exact count, `"gte"` for a lower bound).
+
+Search is eventually consistent. Use `d.v2.secrets.get(name)` when a secret
+must be visible immediately after a write. `secrets.list()` now reads search
+first and falls back to the list route only where search is not served.
+
 ### Volumes
 
 Manage volumes with `d.v2.volumes.list()`, `iter()`, `get()`, `create()` and
@@ -521,6 +565,20 @@ choose the volume's type. Only `create()` takes `type` and `size_gib`: pass
 `id_only=True` on `get()` or `delete(name_or_id)`
 disables name fallback. Deletion returns when the API accepts the request,
 not when deletion finishes.
+
+`d.v2.volumes.search(...)` filters with `q`, `name`, and `name_prefix`;
+`types` accepts `"disk"`, `"bucket"`, or a sequence of them (any match),
+and `statuses` accepts `"ready"`, `"deleting"`, `"error"`, or a sequence.
+`imported` filters imported volumes. Bound creation, update and last-use times
+with `created_start_at` / `updated_start_at` / `last_used_start_at` (inclusive)
+and `created_end_at` / `updated_end_at` / `last_used_end_at` (exclusive). Use
+`sort`
+(`created_at`, `updated_at`, `name`, `used_bytes`, `last_used_at`, or `size_gib`), `order`,
+`limit`, and `cursor` for ordering and paging. The `SearchResult` carries
+`total` and `total_relation` (`"eq"` for an exact count, `"gte"` for a lower
+bound). Search is eventually consistent, so use
+`volumes.get(name_or_id)` for read-your-writes. `volumes.list()` now reads
+search first and falls back to the list route only where search is not served.
 
 ```python
 from daytona.v2 import VolumeMount
@@ -557,7 +615,7 @@ result = sandbox.volumes.pull(
     "volume-id",
     request_id="refresh-42",
     timeout=5,
-)  # server wait in seconds, 0–30; default 30
+)  # wait in seconds; default 30
 ```
 
 On `AsyncDaytona` use `await sandbox.volumes.pull(...)`.
@@ -571,9 +629,13 @@ status string.
 Fractional seconds round down to whole milliseconds, but any positive timeout
 waits at least 1 ms. Zero timeout submits a new request, or returns a known
 request's last outcome without retrying it; expiry does not cancel accepted
-work. Retry a `pending` result, or a caught `ServiceUnavailableError` /
+work. A timeout up to 30 seconds is one request the sandbox holds for that
+long. A longer one is waited out in rounds of at most 30 seconds with the same
+`request_id` while the result is `pending` (a value above 2,147,483.647, about
+24.8 days, has no deadline), so no request stays open for the whole wait.
+Retry a `pending` result, or a caught `ServiceUnavailableError` /
 `RateLimitError`, with the **same request_id** and a timeout above zero. The
-SDK never retries automatically or generates an identity. Rate-limit errors
+SDK never retries an error automatically or generates an identity. Rate-limit errors
 expose `request_id` and `retry_after_ms` when supplied by the server.
 
 Availability depends on server support: a server may return
@@ -660,9 +722,22 @@ to apply its maximum.
 Linux sizing uses one `resources=Resources(cpu=, cpu_max=, memory=, memory_max=,
 disk=, disk_max=)` entry: CPU in cores, memory and disk in GiB that must
 convert to a whole number of MiB (`value * 1024`), else `BadRequestError`.
-Sizes read back exactly. `create_from_snapshot()` inherits the snapshot's
+Sizes read back exactly.
+
+Pass `persistent=True` to Linux `create()` or `create_from_build()` to keep disk
+across stop/start and memory and processes across pause/resume. Omitted or
+`None` leaves the server default (`False`); an explicit `False` is sent as such.
+Linux stop/start, pause/resume and fork require persistence; forks
+inherit it. Delete erases the writable state.
+When neither a per-create policy nor a project lifecycle default overrides it,
+the platform lifetime timeout pauses persistent Linux sandboxes after 300 seconds;
+this is not an idle timeout. Sandboxes with volumes cannot pause or fork (409).
+Lifecycle policies support `delete`
+everywhere, `stop` for persistent non-GPU sandboxes, and `pause` for persistent Linux.
+
+`create_from_snapshot()` inherits the snapshot's
 configuration and takes no resources, CPU selectors, environment, volumes,
-secrets or network policy.
+secrets, network policy or persistence override.
 
 `images.get(id, wait="ready", timeout=120)` and
 `snapshots.get(id, wait="ready", timeout=120)` wait for the artifact to
@@ -955,6 +1030,14 @@ may be relative. Path lists must be sequences of strings, not a bare string.
 `write_text()` requires a string; `write_bytes()` and `write_many()` accept
 bytes-like buffers, including `bytes`, `bytearray` and `memoryview`.
 
+A recursive remove or a search over a large tree can take longer than
+`request_timeout`. `remove()`, `grep()`, `glob()`, `replace()` and `chmod()`
+therefore take a keyword `timeout=` that replaces `request_timeout` for that
+call. It is in seconds; `0`, or a value above 2,147,483.647 (about 24.8 days),
+means no limit. A negative, non-finite or boolean value raises
+`BadRequestError` before any request. A timeout ends the call, not the work in
+the sandbox.
+
 `read_text` / `write_text`, `read_bytes` / `write_bytes`, `upload_file()` /
 `download_file()`, bulk `read_many` / `write_many`, `remove()`, `grep()` (file
 contents) / `glob()` (file names), `watch_dir()` for directory watches, and
@@ -1013,7 +1096,11 @@ id).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
-set `atomic=True` to write through a temp file + rename. `download_file()`
+set `atomic=True` to write through a temp file + rename. A `threading.Event`
+stops an upload or download as soon as it is set, from any thread, even while
+the transfer waits on the network (on CPython 3.10 to 3.15; elsewhere, and for
+`Event` subclasses, it is checked every 50 ms). Any other object, an
+`asyncio.Event` included, is checked every 50 ms while the transfer waits. `download_file()`
 streams to a unique temp file in the destination directory, renames it on
 success, reports progress with `Content-Length` when the server sends it, and
 removes that temp file on error or cancellation. `write_bytes()`,
@@ -1089,7 +1176,11 @@ send `{PREVIEW_WARNING_SKIP_HEADER: PREVIEW_WARNING_SKIP_HEADER_VALUE}` (both
 exported from `daytona.v2`) with its requests.
 `computer_use` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
-`a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
+`a11y` and `recording`. An app that reaches the sandbox through its own
+transport can decode a status response with
+`parse_computer_use_status(body)` (from `daytona.v2`), which returns what
+`status()` returns for the same body. `body` is the decoded JSON object
+(`response.json()`), not the raw bytes or text. `screen.screenshot()` captures the whole screen or a
 `region=ComputerUseRegion(...)`; any of `format=`, `quality=` or `scale=`
 returns a compressed image. `a11y.tree(scope="focused")` returns at most 256 levels below
 the root (`max_depth`, an integer from 0 to 256, default 256); a deeper UI
@@ -1161,6 +1252,16 @@ ends. A running Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
+
+`fork()`, `capture_image()` and `create_snapshot()` retry only
+`SANDBOX_TRANSITION_IN_PROGRESS`, for up to 30 seconds from their first submission.
+This window limits new retries; an admitted POST keeps its normal request timeout.
+This applies to a fork's source still starting, stopping or pausing; image capture
+still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
+still starting.
+The server's `retry_after_seconds` hint is clamped to 1–5 seconds (1 when absent).
+On expiry the last error is raised unchanged. Other conflicts are not retried;
+fork's readiness budget starts after submission succeeds.
 
 `sandbox.delete()` and `d.v2.delete(sandbox)` wait until the sandbox is
 `destroyed` (a 404 while waiting counts as destroyed). A sandbox with volumes

@@ -8,18 +8,64 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 )
+
+// FileSearchOptions controls Grep and Glob.
+type FileSearchOptions struct {
+	// Timeout replaces the client's request timeout for this call as its total
+	// deadline (work over a large tree can outlast it); zero keeps the request
+	// timeout, NoTimeout (or a duration above 2,147,483.647 seconds) disables
+	// it, and any other negative value returns ErrBadRequest before a request.
+	// The context always bounds the call. A timeout ends the call, not the
+	// work in the sandbox.
+	Timeout time.Duration
+}
+
+// ReplaceOptions controls Replace.
+type ReplaceOptions struct {
+	// Timeout replaces the client's request timeout for this call as its total
+	// deadline (work over a large tree can outlast it); zero keeps the request
+	// timeout, NoTimeout (or a duration above 2,147,483.647 seconds) disables
+	// it, and any other negative value returns ErrBadRequest before a request.
+	// The context always bounds the call. A timeout ends the call, not the
+	// work in the sandbox.
+	Timeout time.Duration
+}
+
+// checkCallTimeout refuses a negative per-call timeout other than NoTimeout.
+func checkCallTimeout(timeout time.Duration) error {
+	return checkDuration("Timeout", timeout, NoTimeout)
+}
+
+// searchTimeout is the per-call timeout of at most one options value.
+func searchTimeout(name string, opts []*FileSearchOptions) (time.Duration, error) {
+	if len(opts) > 1 {
+		return 0, badRequest(name + " takes at most one FileSearchOptions")
+	}
+	if len(opts) == 0 || opts[0] == nil {
+		return 0, nil
+	}
+	return opts[0].Timeout, checkCallTimeout(opts[0].Timeout)
+}
 
 // Grep searches contents for a literal substring, not a regular expression.
 // Unreadable descendants are reported in Skipped; an unreadable root returns ErrFileAccessDenied.
-func (f *FileSystem) Grep(ctx context.Context, path, pattern string) (*FileSearchResult[FileMatch], error) {
+// Pass at most one options value.
+func (f *FileSystem) Grep(ctx context.Context, path, pattern string, opts ...*FileSearchOptions) (
+	*FileSearchResult[FileMatch], error,
+) {
 	query, err := filePath(path)
+	if err != nil {
+		return nil, err
+	}
+	timeout, err := searchTimeout("Grep", opts)
 	if err != nil {
 		return nil, err
 	}
 	query.Set("pattern", pattern)
 	var raw json.RawMessage
-	spec := toolboxRequest{Path: "/files/find", Query: query, Result: &raw}
+	spec := toolboxRequest{Path: "/files/find", Query: query, Result: &raw, Timeout: timeout}
 	if requestErr := f.sandbox.toolbox().do(ctx, spec); requestErr != nil {
 		return nil, requestErr
 	}
@@ -44,14 +90,21 @@ func (f *FileSystem) Grep(ctx context.Context, path, pattern string) (*FileSearc
 }
 
 // Glob finds paths whose base names match pattern. It does not search contents.
-func (f *FileSystem) Glob(ctx context.Context, path, pattern string) (*FileSearchResult[string], error) {
+// Pass at most one options value.
+func (f *FileSystem) Glob(ctx context.Context, path, pattern string, opts ...*FileSearchOptions) (
+	*FileSearchResult[string], error,
+) {
 	query, err := filePath(path)
+	if err != nil {
+		return nil, err
+	}
+	timeout, err := searchTimeout("Glob", opts)
 	if err != nil {
 		return nil, err
 	}
 	query.Set("pattern", pattern)
 	var raw json.RawMessage
-	spec := toolboxRequest{Path: "/files/search", Query: query, Result: &raw}
+	spec := toolboxRequest{Path: "/files/search", Query: query, Result: &raw, Timeout: timeout}
 	if requestErr := f.sandbox.toolbox().do(ctx, spec); requestErr != nil {
 		return nil, requestErr
 	}
@@ -79,12 +132,23 @@ func fileSkipped(object jsonObject) ([]string, error) {
 
 // Replace substitutes a literal substring in each requested file.
 // Per-file failures are returned as FileReplaceResult values.
-func (f *FileSystem) Replace(ctx context.Context, files []string, pattern, replacement string) (
-	*Page[FileReplaceResult], error,
-) {
+// Pass at most one options value.
+func (f *FileSystem) Replace(ctx context.Context, files []string, pattern, replacement string,
+	opts ...*ReplaceOptions,
+) (*Page[FileReplaceResult], error) {
 	paths, err := filePaths(files)
 	if err != nil {
 		return nil, err
+	}
+	if len(opts) > 1 {
+		return nil, badRequest("Replace takes at most one ReplaceOptions")
+	}
+	var timeout time.Duration
+	if len(opts) == 1 && opts[0] != nil {
+		timeout = opts[0].Timeout
+		if timeoutErr := checkCallTimeout(timeout); timeoutErr != nil {
+			return nil, timeoutErr
+		}
 	}
 	body := struct {
 		Files    []string `json:"files"`
@@ -93,7 +157,7 @@ func (f *FileSystem) Replace(ctx context.Context, files []string, pattern, repla
 	}{paths, pattern, replacement}
 	var raw json.RawMessage
 	if requestErr := f.sandbox.toolbox().do(ctx, toolboxRequest{
-		Method: http.MethodPost, Path: "/files/replace", Body: body, Result: &raw,
+		Method: http.MethodPost, Path: "/files/replace", Body: body, Result: &raw, Timeout: timeout,
 	}); requestErr != nil {
 		return nil, requestErr
 	}

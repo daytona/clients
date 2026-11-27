@@ -48,6 +48,8 @@ from ._core import (
     parse_json_bytes,
 )
 from ._otel import OpenTelemetrySupport
+from ._shutdown import refuse_during_interpreter_shutdown, refusing_stopped_pools
+from ._transport_errors import bearer, connection_error
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
 
@@ -164,7 +166,7 @@ class SyncResponseStream:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
 
     def close(self) -> None:
         if self._closed:
@@ -292,7 +294,7 @@ class SyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         if spec.on_headers is not None and response.status_code < 300:
             spec.on_headers(response.headers)
         return _decode_response(response)
@@ -324,7 +326,7 @@ class SyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         if response.status_code >= 300:
             try:
                 body = read_body_sync(
@@ -333,7 +335,7 @@ class SyncTransport:
             except httpx.TimeoutException as exc:
                 raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
-                raise ConnectionError(str(exc)) from exc
+                raise connection_error(exc) from exc
             finally:
                 stream.__exit__(None, None, None)
             raise error_from_response(
@@ -361,7 +363,7 @@ class SyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         if response.status_code >= 300:
             raise error_from_response(
                 response.status_code, response.content, content_type=response.headers.get("content-type")
@@ -430,7 +432,7 @@ class AsyncResponseStream:
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
-            error = ConnectionError(str(exc))
+            error = connection_error(exc)
             self._finish_span_error(error)
             raise error from exc
         except GeneratorExit:
@@ -455,7 +457,7 @@ class AsyncResponseStream:
             self._finish_span_error(error)
             raise error from exc
         except httpx.HTTPError as exc:
-            error = ConnectionError(str(exc))
+            error = connection_error(exc)
             self._finish_span_error(error)
             raise error from exc
         except GeneratorExit:
@@ -716,7 +718,7 @@ class AsyncTransport:
     async def send(self, spec: RequestSpec) -> Union[JsonValue, bytes]:
         # One total deadline for the whole call: resolving the bearer (a token
         # exchange), the request, a 401 refresh and its retry share it.
-        with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
+        with refusing_stopped_pools(), _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
             with self._credential_deadline(spec.transfer, spec.timeout):
                 token = await self._request_token()
             try:
@@ -754,7 +756,7 @@ class AsyncTransport:
         except httpx.TimeoutException as exc:
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
-            raise ConnectionError(str(exc)) from exc
+            raise connection_error(exc) from exc
         # Every public client runs on THIS transport (the sync surface bridges
         # onto it), so this is where the events hub learns a sandbox's service endpoint
         # from the response's endpoint header.
@@ -778,6 +780,7 @@ class AsyncTransport:
 
     async def _request_token(self) -> Optional[str]:
         self._stream_owners.ensure_open()
+        refuse_during_interpreter_shutdown()
         if self.auth_provider is not None:
             return await self.auth_provider.bearer()
         if self._auth is not None:
@@ -839,7 +842,10 @@ class AsyncTransport:
         # opening the stream (the bearer, the request, a 401 refresh and its
         # retry, until the response headers arrive), never the stream itself;
         # a transfer has no total bound (it is idle-bounded per phase).
-        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+        with (
+            refusing_stopped_pools(),
+            _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)),
+        ):
             with self._credential_deadline(spec.transfer, spec.timeout):
                 token = await self._request_token()
             try:
@@ -871,9 +877,10 @@ class AsyncTransport:
                 span.finish(error=exc)
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
+            error = connection_error(exc)
             if span is not None:
                 span.finish(error=exc)
-            raise ConnectionError(str(exc)) from exc
+            raise error from exc
         except BaseException as exc:
             if span is not None:
                 span.finish(error=exc)
@@ -889,9 +896,10 @@ class AsyncTransport:
                     span.finish(status_code=response.status_code, error=ClientTimeoutError())
                 raise ClientTimeoutError() from exc
             except httpx.HTTPError as exc:
+                error = connection_error(exc)
                 if span is not None:
-                    span.finish(status_code=response.status_code, error=ConnectionError(str(exc)))
-                raise ConnectionError(str(exc)) from exc
+                    span.finish(status_code=response.status_code, error=error)
+                raise error from exc
             except BaseException as exc:
                 if span is not None:
                     span.finish(status_code=response.status_code, error=exc)
@@ -926,7 +934,10 @@ class AsyncTransport:
         self._stream_owners.ensure_open()
         # One deadline for opening it, as for ``open_stream``: the bearer, the
         # request, a 401 refresh and its retry, until the response headers.
-        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+        with (
+            refusing_stopped_pools(),
+            _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)),
+        ):
             token = await self._request_token()
             stream = await self._open_exclusive_once(spec, token)
             if stream.status_code != 401:
@@ -979,7 +990,7 @@ class AsyncTransport:
             if isinstance(exc, httpx.TimeoutException):
                 raise ClientTimeoutError() from exc
             if isinstance(exc, httpx.HTTPError):
-                raise ConnectionError(str(exc)) from exc
+                raise connection_error(exc) from exc
             raise
         if 200 <= response.status_code < 300 and (spec.unbounded_read or spec.timeout is None):
             timeouts: object = response.request.extensions.get("timeout")
@@ -1051,7 +1062,7 @@ class AsyncTransport:
         if content_factory is not None:
             kwargs["content"] = content_factory(0)
         # One total deadline for the bearer, the request, a 401 refresh and its retry.
-        with _request_deadline(total):
+        with refusing_stopped_pools(), _request_deadline(total):
             with self._credential_deadline(transfer, transfer_timeout):
                 token = await self._request_token()
             try:
@@ -1094,9 +1105,10 @@ class AsyncTransport:
                 span.finish(error=exc)
             raise ClientTimeoutError() from exc
         except httpx.HTTPError as exc:
+            error = connection_error(exc)
             if span is not None:
                 span.finish(error=exc)
-            raise ConnectionError(str(exc)) from exc
+            raise error from exc
         except BaseException as error:
             if span is not None:
                 span.finish(error=error)
@@ -1308,7 +1320,7 @@ def _request_headers(
     # Only the encodings the capped readers decode in bounded steps.
     request_headers["Accept-Encoding"] = ACCEPT_ENCODING
     if token:
-        request_headers["Authorization"] = f"Bearer {token}"
+        request_headers["Authorization"] = bearer(token)
     if headers:
         request_headers.update(headers)
     return request_headers

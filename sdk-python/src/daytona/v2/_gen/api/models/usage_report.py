@@ -40,7 +40,7 @@ class UsageReport(BaseModel):
     available: StrictBool = Field(description="Whether usage reporting is available.")
     end_at: Optional[datetime] = Field(default=None, description="End of the reported time range, exclusive.")
     items: List[UsageReportEntry] = Field(description="Usage grouped by sandbox and interval.")
-    resolution: Optional[UsageReportResolution] = None
+    resolution: Optional[UsageReportResolution] = Field(default=None, description="Effective bucket size. Omitted when usage reporting is unavailable.")
     start_at: Optional[datetime] = Field(default=None, description="Start of the reported time range, inclusive.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["available", "end_at", "items", "resolution", "start_at"]

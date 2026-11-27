@@ -463,9 +463,10 @@ func limitsOrgID(ctx context.Context, a *app.App, mc *mgmtClient, args []string)
 // staticProjectKey describes the static credential (--api-key,
 // DAYTONA_API_KEY, or a token saved with `daytona login --token`) when the
 // server knows it as a project API key, and returns nil otherwise. The CLI
-// never inspects a static credential: GET /api-keys/current
-// answers 401/403 for anything that is not a project key. A saved login is
-// never sent here.
+// does not parse a static credential to tell its kind (login-only commands
+// check only its shape, see login_only.go): GET /api-keys/current answers
+// 401/403 for anything that is not a project key. A saved login is never
+// sent here.
 func staticProjectKey(ctx context.Context, a *app.App, mc *mgmtClient) (*gen.ProjectApiKeyWithContext, error) {
 	if !a.HasExplicitCredential() && a.CredentialSource != "profile-token" {
 		return nil, nil

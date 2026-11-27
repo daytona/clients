@@ -41,9 +41,9 @@ class MacReservation(BaseModel):
     """ # noqa: E501
     activated_at: Optional[datetime] = Field(default=None, description="When the reservation became active.")
     auto_renew: StrictBool = Field(description="The reservation renews itself shortly before `period_end` (an hour by default) while a macOS sandbox is active on it; an idle reservation lapses instead.")
-    capacity: Optional[MacResources] = None
+    capacity: Optional[MacResources] = Field(default=None, description="The cores, memory and disk space for sandboxes of this reservation's Mac, set at purchase. Null when unknown; such a reservation accepts no new sandbox.")
     created_at: datetime = Field(description="When the reservation was created.")
-    end_reason: Optional[MacReservationEndReason] = None
+    end_reason: Optional[MacReservationEndReason] = Field(default=None, description="Why the reservation ended, or `null` while it is live.")
     ended_at: Optional[datetime] = Field(default=None, description="When the reservation ended.")
     id: StrictStr = Field(description="The reservation ID.")
     model: Optional[StrictStr] = Field(default=None, description="The reserved Mac model, fixed at purchase, including renewal and replacement. Null when model information is unavailable; such a reservation accepts no new sandbox.")

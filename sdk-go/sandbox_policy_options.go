@@ -13,7 +13,8 @@ type LifecyclePolicyOptions struct {
 	// the lifetime timeout cannot be disabled.
 	Timeout time.Duration
 	// OnTimeout is the lifetime action. Delete works for every class; Stop
-	// requires persistent macOS. Pause is not a supported policy action.
+	// requires persistence and is unavailable for GPU sandboxes. Pause requires
+	// persistent Linux. Unknown inherited persistence is checked by the API.
 	OnTimeout LifecycleAction
 	// IdleExpiry is the inactivity budget. NoTimeout clears the idle pair.
 	// The server raises positive budgets below one minute to one minute.
@@ -81,11 +82,13 @@ func lifecyclePolicyClassSupport(opts *LifecyclePolicyOptions, info SandboxInfo)
 		switch action {
 		case "", LifecycleActionDelete:
 		case LifecycleActionStop:
-			if info.Class != SandboxClassMacOS || info.Persistent == nil || !*info.Persistent {
-				return badRequest("lifecycle policy stop requires a persistent macOS sandbox")
+			if info.RawClass == "gpu" || (info.Persistent != nil && !*info.Persistent) {
+				return badRequest("lifecycle policy stop requires a persistent, non-GPU sandbox")
 			}
 		case LifecycleActionPause:
-			return badRequest("lifecycle policy pause is unsupported; use Pause instead")
+			if info.Class != SandboxClassLinux || (info.Persistent != nil && !*info.Persistent) {
+				return badRequest("lifecycle policy pause requires a persistent Linux sandbox")
+			}
 		default:
 			return badRequest("lifecycle policy action must be stop, pause or delete")
 		}

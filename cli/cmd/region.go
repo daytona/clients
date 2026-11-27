@@ -76,8 +76,9 @@ func newRegionCommand() *cobra.Command {
 var regionMultiplierTimeout = 5 * time.Second
 
 // regionMultipliers reads the selected organization's region price
-// multipliers, or nil when they cannot be read. The route admits only a
-// login session holding read:billing, so a static credential, a missing
+// multipliers, or nil when they cannot be read. The route admits a login
+// session or an organization API key holding read:billing; the CLI reads it
+// only with a login session, so a static credential, a missing
 // organization, a refusal or a timeout leaves the column empty instead of
 // failing the list.
 func regionMultipliers(ctx context.Context, a *app.App) map[string]float64 {

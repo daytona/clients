@@ -74,6 +74,9 @@ class Sandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
+        While a sandbox is still starting (Linux, Windows) or stopping (macOS), this submission
+        retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
+        other conflicts are raised immediately.
         The credential needs ``write:sandboxes`` in addition to ``write:images``;
         without it the capture raises :class:`ForbiddenError` (403).
 
@@ -132,6 +135,10 @@ class Sandbox:
     def create_snapshot(self, name: str, /) -> Snapshot:
         """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
         (``POST /sandboxes/{id}/snapshots``).
+
+        While the sandbox is still starting, this submission
+        retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
+        other conflicts are raised immediately.
 
         The credential needs ``write:sandboxes`` in addition to
         ``write:snapshots``; without it the capture raises
@@ -260,6 +267,10 @@ class Sandbox:
     ) -> Sandbox:
         """Fork this sandbox and return the fork's handle.
 
+        Sandboxes with attached volumes cannot fork.
+        While the source is still starting, stopping or pausing, the API may report
+        ``SANDBOX_TRANSITION_IN_PROGRESS``. This submission retries that code
+        for up to 30 seconds; other conflicts are raised immediately.
         By default the fork continues from the source's memory (running
         processes included). ``memory=False`` copies only the disk, and the
         fork boots fresh. A macOS fork copies the disk only: omit ``memory``
@@ -304,6 +315,8 @@ class Sandbox:
     def pause(self, *, timeout: float = 60) -> None:
         """Pause the sandbox with its memory and wait until it is ``paused``.
 
+        Persistence is required; sandboxes with volumes cannot pause. Memory
+        and processes survive pause/resume, unlike stop/start, which keeps disk.
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
         then raises :class:`SandboxTerminalStateError` once the wait's reads
@@ -470,7 +483,7 @@ class Sandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
-        sandboxes can stop (today: persistent macOS sandboxes) is the API's
+        sandboxes can stop (persistent non-GPU sandboxes, including macOS) is the API's
         decision; a refusal surfaces as its typed error. While it is stopped,
         toolbox calls (process, files, git, …) and its preview URLs answer
         :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
@@ -683,7 +696,9 @@ class Sandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """macOS only: whether a stop keeps the disk; ``None`` until known."""
+        """Whether writable state survives stop/start and memory survives
+        pause/resume; ``None`` until known.
+        """
         return self._impl.persistent
 
     @property

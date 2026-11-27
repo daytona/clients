@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.data_policy import DataPolicy
 from daytona.v2._gen.api.models.organization_membership import OrganizationMembership
 from typing import Optional, Set
 from typing_extensions import Self
@@ -38,6 +39,7 @@ class OrganizationListItem(BaseModel):
     """ # noqa: E501
     budget_stop_grace_seconds: StrictInt = Field(description="The delay before budget-held sandboxes are stopped or deleted; macOS sandboxes, which run on a prepaid Mac reservation, keep running.")
     created_at: datetime = Field(description="When the organization was created.")
+    data_policy: Optional[DataPolicy] = None
     from_v0: StrictBool = Field(description="Whether the organization was migrated from Daytona v0.")
     id: StrictStr = Field(description="The organization ID.")
     max_sandbox_timeout_seconds: Optional[StrictInt] = Field(description="The organization's own cap on sandbox timeouts, in seconds; null uses the plan maximum, or the platform maximum when there is no plan maximum. The plan maximum bounds this value; `GET /orgs/{id}/limits` reports the cap in effect.")
@@ -52,7 +54,7 @@ class OrganizationListItem(BaseModel):
     v0_membership_sync_enabled: StrictBool = Field(description="Whether membership changes sync with the Daytona v0 organization of the same ID. When true, removing a member also removes them from the Daytona v0 organization.")
     membership: OrganizationMembership
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["budget_stop_grace_seconds", "created_at", "from_v0", "id", "max_sandbox_timeout_seconds", "name", "personal", "preview_warning_disabled", "sso_linked", "sso_organization_id", "suspended", "suspended_reason", "updated_at", "v0_membership_sync_enabled", "membership"]
+    __properties: ClassVar[List[str]] = ["budget_stop_grace_seconds", "created_at", "data_policy", "from_v0", "id", "max_sandbox_timeout_seconds", "name", "personal", "preview_warning_disabled", "sso_linked", "sso_organization_id", "suspended", "suspended_reason", "updated_at", "v0_membership_sync_enabled", "membership"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -134,6 +136,7 @@ class OrganizationListItem(BaseModel):
         _obj = cls.model_validate({
             "budget_stop_grace_seconds": obj.get("budget_stop_grace_seconds"),
             "created_at": obj.get("created_at"),
+            **({"data_policy": obj["data_policy"]} if "data_policy" in obj else {}),
             "from_v0": obj.get("from_v0"),
             "id": obj.get("id"),
             "max_sandbox_timeout_seconds": obj.get("max_sandbox_timeout_seconds"),

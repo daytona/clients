@@ -9,6 +9,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Callable, Dict, Final, Optional, Protocol
 from urllib.parse import urlsplit
 
+from ._transport_errors import redact_header_text
 from .errors import create_error
 
 
@@ -70,6 +71,8 @@ class _ActiveRequestSpan:
             if status_code >= 300:
                 self._span.set_status(self._status_factory(self._error_status))
         if error is not None:
+            # The exception text reaches the telemetry backend.
+            redact_header_text(error)
             self._span.record_exception(error)
             self._span.set_status(self._status_factory(self._error_status))
         elif status_code is None or status_code < 300:

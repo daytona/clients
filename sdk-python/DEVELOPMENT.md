@@ -41,7 +41,9 @@ the generated contract models; unknown enum values remain available through
 `AsyncSandbox.volumes` lazily creates `AsyncSandboxVolumesService` against
 the sandbox's transport and clears the cached service when that transport
 changes. `sandbox_volumes.py` owns the shared pull request validation and
-response parser. Pull submits or checks once; callers retain the request ID
+response parser. A pull wait up to 30 seconds is one request; a longer one
+is spent in rounds of at most 30 seconds (`PULL_ROUND_SECONDS`) while the
+result is `pending`. Errors are never retried; callers retain the request ID
 and decide when to retry. Tests cover sync/async HTTP parity, wait budgets,
 validation, pending replay, error metadata and unknown statuses.
 

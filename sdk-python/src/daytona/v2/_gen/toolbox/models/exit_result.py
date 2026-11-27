@@ -36,7 +36,7 @@ class ExitResult(BaseModel):
     Terminal result returned by `GET /processes/{id}/wait` and SSE `state` events.
     """ # noqa: E501
     exit_code: Optional[StrictInt] = Field(default=None, description="Process exit code, when the platform has one.", alias="exitCode")
-    reason: Optional[Reason] = None
+    reason: Optional[Reason] = Field(default=None, description="Why the process became terminal.")
     signal: Optional[StrictStr] = Field(default=None, description="Signal name such as `SIGKILL`, omitted when none applies.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["exitCode", "reason", "signal"]

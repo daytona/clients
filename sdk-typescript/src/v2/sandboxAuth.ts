@@ -4,7 +4,7 @@
  */
 
 import type { AxiosInstance } from 'axios'
-import { credentialSafeInspection } from '../diagnostics.js'
+import { concealFields, credentialSafeInspection } from '../diagnostics.js'
 import { DaytonaError, createDaytonaError } from './errors/DaytonaError.js'
 import { strictUriEncode } from './http.js'
 import type { HttpClientOptions, TransportAuth } from './http.js'
@@ -96,6 +96,7 @@ export class SandboxAuth {
     const hasApiCredential = (apiKey !== undefined && apiKey.length > 0) || httpOptions?.authProvider !== undefined
     this.mintable = !callerSupplied && api !== undefined && hasApiCredential
     if (this.mintable) this.transportAuth = { bearer: () => this.bearer(), onUnauthorized: (failedToken) => this.remint(failedToken) }
+    concealFields(this, ['init', 'token', 'mint'])
   }
 
   public get accessToken(): string | undefined { return this.token }

@@ -21,6 +21,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing_extensions import Annotated
+from daytona.v2._gen.api.models.data_policy import DataPolicy
+from daytona.v2._gen.api.models.desktop_settings import DesktopSettings
 from daytona.v2._gen.api.models.image_reference import ImageReference
 from daytona.v2._gen.api.models.imported_from import ImportedFrom
 from daytona.v2._gen.api.models.lifecycle_policy import LifecyclePolicy
@@ -47,18 +49,20 @@ class Sandbox(BaseModel):
     cpu: Union[StrictFloat, StrictInt] = Field(description="Reserved CPU, in cores (1 core = 2 vCPUs).")
     create_timeout_at: Optional[datetime] = Field(default=None, description="Create deadline; absent after the sandbox reaches its target status.")
     created_at: Optional[datetime] = Field(default=None, description="When the sandbox was created.")
+    data_policy: Optional[DataPolicy] = None
+    desktop: Optional[DesktopSettings] = None
     disk_max_mib: Optional[StrictInt] = Field(default=None, description="Maximum writable disk size in MiB.")
     disk_mib: StrictInt = Field(description="Writable disk size in MiB.")
     error: Optional[StrictStr] = Field(default=None, description="Failure detail, or null when no failure is recorded.")
     forked_from: Optional[StrictStr] = Field(default=None, description="Source sandbox ID when this sandbox is a fork.")
     id: StrictStr = Field(description="The sandbox ID.")
-    image: Optional[ImageReference] = None
+    image: Optional[ImageReference] = Field(default=None, description="The image the sandbox was created from; absent when it was created from a snapshot.")
     image_build_id: Optional[StrictStr] = Field(default=None, description="Build ID associated with the sandbox image.")
     image_ref: Optional[StrictStr] = Field(default=None, description="The original image reference when no image resource is associated.")
     imported_from: Optional[ImportedFrom] = None
     labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="User-defined sandbox labels.")
     last_activity_at: Optional[datetime] = Field(default=None, description="When activity was last observed.")
-    lifecycle_policy: Optional[LifecyclePolicy] = None
+    lifecycle_policy: Optional[LifecyclePolicy] = Field(default=None, description="Automatic timeout and idle-expiry behavior.")
     mac_boot_mode: Optional[StrictStr] = Field(default=None, description="How a macOS sandbox resumed; absent when it has not resumed.")
     memory_max_mib: Optional[StrictInt] = Field(default=None, description="Maximum memory in MiB.")
     memory_mib: StrictInt = Field(description="Reserved memory in MiB.")
@@ -67,7 +71,7 @@ class Sandbox(BaseModel):
     port_map: List[PortAssignment] = Field(description="Port assignments reported for the sandbox.")
     region_id: StrictStr = Field(description="The region the sandbox runs in.")
     reservation_id: Optional[StrictStr] = Field(default=None, description="The Mac reservation that the macOS sandbox runs on, or ran on last. Null before the sandbox first reaches a Mac; absent for other sandbox classes.")
-    snapshot: Optional[SnapshotReference] = None
+    snapshot: Optional[SnapshotReference] = Field(default=None, description="The snapshot the sandbox was created from; absent when it was created from an image.")
     spot: Optional[StrictBool] = Field(default=None, description="Whether discounted interruptible capacity was requested.")
     spot_evicted_at: Optional[datetime] = Field(default=None, description="When discounted capacity reclaimed the sandbox; absent when it has not been reclaimed.")
     ssh_gateway_host: Optional[StrictStr] = Field(default=None, description="SSH gateway host for the sandbox region.")
@@ -79,7 +83,7 @@ class Sandbox(BaseModel):
     updated_at: Optional[datetime] = Field(default=None, description="When the sandbox was last updated.")
     user: Optional[StrictStr] = Field(default=None, description="Default operating-system user.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["class", "cores_max", "cpu", "create_timeout_at", "created_at", "disk_max_mib", "disk_mib", "error", "forked_from", "id", "image", "image_build_id", "image_ref", "imported_from", "labels", "last_activity_at", "lifecycle_policy", "mac_boot_mode", "memory_max_mib", "memory_mib", "name", "persistent", "port_map", "region_id", "reservation_id", "snapshot", "spot", "spot_evicted_at", "ssh_gateway_host", "ssh_gateway_port", "started_at", "status", "stopped_at", "toolbox_proxy_url", "updated_at", "user"]
+    __properties: ClassVar[List[str]] = ["class", "cores_max", "cpu", "create_timeout_at", "created_at", "data_policy", "desktop", "disk_max_mib", "disk_mib", "error", "forked_from", "id", "image", "image_build_id", "image_ref", "imported_from", "labels", "last_activity_at", "lifecycle_policy", "mac_boot_mode", "memory_max_mib", "memory_mib", "name", "persistent", "port_map", "region_id", "reservation_id", "snapshot", "spot", "spot_evicted_at", "ssh_gateway_host", "ssh_gateway_port", "started_at", "status", "stopped_at", "toolbox_proxy_url", "updated_at", "user"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -124,6 +128,9 @@ class Sandbox(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of desktop
+        if self.desktop:
+            _dict['desktop'] = self.desktop.to_dict()
         # override the default output from pydantic by calling `to_dict()` of image
         if self.image:
             _dict['image'] = self.image.to_dict()
@@ -290,6 +297,8 @@ class Sandbox(BaseModel):
             "cpu": obj.get("cpu"),
             **({"create_timeout_at": obj["create_timeout_at"]} if "create_timeout_at" in obj else {}),
             **({"created_at": obj["created_at"]} if "created_at" in obj else {}),
+            **({"data_policy": obj["data_policy"]} if "data_policy" in obj else {}),
+            **({"desktop": DesktopSettings.from_dict(obj["desktop"]) if obj["desktop"] is not None else None} if "desktop" in obj else {}),
             **({"disk_max_mib": obj["disk_max_mib"]} if "disk_max_mib" in obj else {}),
             "disk_mib": obj.get("disk_mib"),
             **({"error": obj["error"]} if "error" in obj else {}),

@@ -35,6 +35,9 @@ func (c *clientConfig) resolveEnvironment() error {
 	if c.projectID == nil {
 		c.projectID = nonBlankEnv("DAYTONA_PROJECT_ID")
 	}
+	if err := c.checkCredentials(explicitKey, explicitJWT); err != nil {
+		return err
+	}
 	switch {
 	case c.apiKey == nil && c.jwtToken == nil:
 		return newSDKError("UNAUTHORIZED", 401,
@@ -51,6 +54,40 @@ func (c *clientConfig) resolveEnvironment() error {
 	}
 	_, err := parseHTTPBase(c.baseURL)
 	return err
+}
+
+// checkCredentials trims surrounding HTTP whitespace (space, tab, CR, LF) from
+// an explicit credential, as nonBlankEnv trims an ambient one, so a key read
+// from a file with its trailing newline works. It then refuses a credential no
+// header can carry ("Authorization: Bearer <credential>"), before any request
+// and in a message without its value.
+func (c *clientConfig) checkCredentials(explicitKey, explicitJWT bool) error {
+	for _, credential := range []struct {
+		field       **string
+		explicit    bool
+		option, env string
+	}{
+		{&c.apiKey, explicitKey, "WithAPIKey", "DAYTONA_API_KEY"},
+		{&c.jwtToken, explicitJWT, "WithJWTToken", "DAYTONA_JWT_TOKEN"},
+	} {
+		if *credential.field == nil {
+			continue
+		}
+		value := **credential.field
+		name := credential.env
+		if credential.explicit {
+			name = credential.option
+			value = strings.Trim(value, " \t\r\n")
+			if value == "" {
+				return badRequest(name + " must not be blank")
+			}
+			*credential.field = &value
+		}
+		if err := headerText(value, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func nonBlankEnv(name string) *string {

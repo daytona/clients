@@ -110,3 +110,136 @@ func TestArtifactGet_searchIsRefusedAsAName(t *testing.T) {
 		})
 	}
 }
+
+func TestSecretAndVolumeDelete_searchIsRefusedBeforeConfirmation(t *testing.T) {
+	for _, kind := range []string{"secret", "volume"} {
+		t.Run(kind, func(t *testing.T) {
+			// Given / When: no --yes and no request are provided.
+			_, _, err := runCLI(t, []string{kind, "delete", "search"}, nil)
+			// Then: the reserved name wins before confirmation can run.
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+			require.Contains(t, err.Error(), "'search' cannot be used as a "+kind+" name")
+		})
+	}
+}
+
+func TestSecretAndVolumeLists_searchFirstFallbacks(t *testing.T) {
+	secret := `{"name":"TOKEN","allowed_domains":["example.com"],"created_at":"2026-09-01T00:00:00Z","updated_at":"2026-09-01T00:00:00Z","cursor":"sc"}`
+	volume := diskVolumeSearchFixture("vol_1")
+	for _, tc := range []struct {
+		name  string
+		field string
+		item  string
+	}{
+		{name: "secret", field: "secrets", item: secret},
+		{name: "volume", field: "volumes", item: volume},
+	} {
+		t.Run(tc.name+" search", func(t *testing.T) {
+			stdout, _, err := runCLI(t, []string{tc.name, "list", "--limit", "1"}, []expectedRequest{{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=1", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `],"total":1,"total_relation":"eq"}`}})
+			require.NoError(t, err)
+			require.Len(t, requireJSONStdout(t, stdout)["items"], 1)
+		})
+		t.Run(tc.name+" 501 fallback", func(t *testing.T) {
+			_, _, err := runCLI(t, []string{tc.name, "list"}, []expectedRequest{
+				searchNotConfiguredRequest("/" + tc.field + "/search"),
+				{method: http.MethodGet, path: "/" + tc.field, query: "limit=100", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `]}`},
+			})
+			require.NoError(t, err)
+		})
+		t.Run(tc.name+" 404 fallback", func(t *testing.T) {
+			_, _, err := runCLI(t, []string{tc.name, "list"}, []expectedRequest{
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusNotFound, response: `{"code":"NOT_FOUND","message":"not found","source":"DAYTONA_API"}`, skipResponseContract: true},
+				{method: http.MethodGet, path: "/" + tc.field, query: "limit=100", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `]}`},
+			})
+			require.NoError(t, err)
+		})
+		t.Run(tc.name+" old item fallback", func(t *testing.T) {
+			_, _, err := runCLI(t, []string{tc.name, "list"}, []expectedRequest{
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusOK, response: tc.item, skipResponseContract: true},
+				{method: http.MethodGet, path: "/" + tc.field, query: "limit=100", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `]}`},
+			})
+			require.NoError(t, err)
+		})
+		t.Run(tc.name+" 503", func(t *testing.T) {
+			_, _, err := runCLI(t, []string{tc.name, "list"}, []expectedRequest{{method: http.MethodGet, path: "/" + tc.field + "/search", query: "limit=100", status: http.StatusServiceUnavailable, response: `{"code":"SEARCH_UNAVAILABLE","message":"search unavailable","source":"DAYTONA_API"}`}})
+			require.Error(t, err)
+			require.Equal(t, cerr.ExitFailure, cerr.ExitCode(err))
+		})
+		t.Run(tc.name+" remembered list 410 retries search", func(t *testing.T) {
+			stdout, _, err := runCLI(t, []string{tc.name, "list", "--all", "--limit", "1"}, []expectedRequest{
+				searchNotConfiguredRequest("/" + tc.field + "/search"),
+				{method: http.MethodGet, path: "/" + tc.field, query: "limit=1", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `],"next_cursor":"p2"}`},
+				{method: http.MethodGet, path: "/" + tc.field, query: "cursor=p2&limit=1", status: http.StatusGone, response: `{"code":"GONE","message":"list retired","source":"DAYTONA_API","replacement":"/` + tc.field + `/search"}`},
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "cursor=p2&limit=1", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `],"total":1,"total_relation":"eq"}`},
+			})
+			require.NoError(t, err)
+			require.Len(t, requireJSONStdout(t, stdout)["items"], 2)
+		})
+		t.Run(tc.name+" remembered list 410 keeps the error when search is not served", func(t *testing.T) {
+			_, _, err := runCLI(t, []string{tc.name, "list", "--all", "--limit", "1"}, []expectedRequest{
+				searchNotConfiguredRequest("/" + tc.field + "/search"),
+				{method: http.MethodGet, path: "/" + tc.field, query: "limit=1", status: http.StatusOK, response: `{"` + tc.field + `":[` + tc.item + `],"next_cursor":"p2"}`},
+				{method: http.MethodGet, path: "/" + tc.field, query: "cursor=p2&limit=1", status: http.StatusGone, response: `{"code":"GONE","message":"list retired","source":"DAYTONA_API","replacement":"/` + tc.field + `/search"}`},
+				{method: http.MethodGet, path: "/" + tc.field + "/search", query: "cursor=p2&limit=1", status: http.StatusNotImplemented, response: `{"code":"SEARCH_NOT_CONFIGURED","message":"search is not configured","source":"DAYTONA_API"}`},
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "list retired")
+		})
+	}
+}
+
+func TestSandboxList_aSearchAnswerThatIsNotAPageDoesNotFallBack(t *testing.T) {
+	// Given a search route that answers a 200 without the sandboxes field.
+	// When
+	_, _, err := runCLI(t, []string{"sandbox", "list"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/search", query: "limit=100", status: http.StatusOK, response: `{"id":"x"}`, skipResponseContract: true},
+	})
+	// Then: only secret and volume lists treat such a body as "search not
+	// served"; the sandbox list reads no list route.
+	require.NoError(t, err)
+}
+
+func TestSecretAndVolume_searchNameIsRefusedBeforeARequest(t *testing.T) {
+	for _, args := range [][]string{
+		{"secret", "get", "search"},
+		{"secret", "set", "search", "--value", "value", "--allowed-domain", "example.com"},
+		{"volume", "get", "search"},
+		{"volume", "create", "search"},
+	} {
+		_, _, err := runCLI(t, args, nil)
+		require.Error(t, err)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+		require.Contains(t, err.Error(), "reserved for the search route")
+	}
+}
+
+func TestSecretAndVolume_anUppercaseSearchNameIsSent(t *testing.T) {
+	// Given secrets and volumes named SEARCH: only the exact lowercase name is reserved.
+	secret := map[string]any{"name": "SEARCH", "allowed_domains": []any{"*"}, "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z"}
+	volume := map[string]any{"id": "vol_1", "name": "SEARCH", "type": "disk", "status": "ready", "size_gib": 10, "created_at": "2026-09-01T00:00:00Z", "updated_at": "2026-09-01T00:00:00Z"}
+	for _, tc := range []struct {
+		args   []string
+		method string
+		path   string
+		status int
+		body   any
+	}{
+		{[]string{"secret", "get", "SEARCH"}, "GET", "/secrets/SEARCH", 200, secret},
+		{[]string{"secret", "set", "SEARCH", "--value", "v", "--allowed-domain", "*"}, "PUT", "/secrets/SEARCH", 200, secret},
+		{[]string{"secret", "delete", "SEARCH", "--yes"}, "DELETE", "/secrets/SEARCH", 204, nil},
+		{[]string{"volume", "get", "SEARCH"}, "GET", "/volumes/SEARCH", 200, volume},
+		{[]string{"volume", "create", "SEARCH"}, "POST", "/volumes", 201, volume},
+		{[]string{"volume", "delete", "SEARCH", "--yes"}, "DELETE", "/volumes/SEARCH", 202, map[string]any{"id": "op_1", "status": "pending"}},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			api := newFakeAPI(t)
+			api.on(tc.method, tc.path, tc.status, tc.body)
+			// When
+			_, stderr, code := runMgmt(t, api, cfgDir(t), append([]string{"--project", "proj-1"}, tc.args...)...)
+			// Then: the command reaches its route instead of being refused.
+			require.Equal(t, 0, code, stderr)
+			findRequest(t, api, tc.method, tc.path)
+		})
+	}
+}

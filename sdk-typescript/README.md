@@ -29,7 +29,9 @@ Type-checking the root `@daytona/sdk` declarations with `skipLibCheck: false`
 needs TypeScript 5.7 or later (and `esModuleInterop` under node10 / CommonJS
 resolution, as for the 0.x SDK): the root's `daytona.v0` type comes from the
 vendored v0 SDK, whose declarations use generic `Uint8Array<…>` and a default
-import of `isomorphic-ws`.
+import of `isomorphic-ws`. A Node-only project does not need the `dom` lib:
+`@types/node` declares the web types the declarations use from 20.16.3 on
+the 20.x line and from 22.5.2 on the 22.x line (every 24.x release works).
 
 ## Quickstart
 
@@ -37,9 +39,9 @@ import of `isomorphic-ws`.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona({
-  apiKey: 'dtn_…', // a project API key, minted in the dashboard
+  apiKey: 'dtn_...', // a project API key, minted in the dashboard
   requestTimeoutSeconds: 30, // total time per ordinary request (default 60)
-  // jwtToken: 'eyJ…',   // optional alternative to apiKey
+  // jwtToken: 'eyJ...',   // optional alternative to apiKey
   // projectId: '00000000-0000-0000-0000-000000000000',
   // organizationId: 'org-id', // v0 only
   // target: 'eu', // deprecated, v0 only: pass `target` per d.v0 create instead
@@ -100,7 +102,13 @@ The root client reads `DAYTONA_API_KEY`, `DAYTONA_JWT_TOKEN`,
 `DAYTONA_OTEL_ENABLED` from the environment when a field is omitted.
 Environment values are trimmed, and a blank one counts as unset; values you
 pass in the config are used as given, and an empty one (`apiKey: ''`, …)
-throws `BadRequestError` instead of falling back to the environment.
+throws `BadRequestError` instead of falling back to the environment. The API
+key or JWT is the exception to "as given": surrounding spaces, tabs and line
+breaks are trimmed from it too, so a key read from a file with a trailing
+newline is sent without it. A key or JWT you pass that is blank after trimming,
+or one from either source that contains a character other than printable
+ASCII, makes `daytona.v2` throw `BadRequestError` before any request; the
+message never contains the value. `daytona.v0` keeps the 0.x SDK's own handling of the credential.
 `DAYTONA_V2_API_URL` selects another v2 API endpoint (a regional endpoint, as
 `daytona region list` in the CLI shows them, or a test environment);
 when it is unset the SDK uses its built-in default API URL. `daytona.v0`
@@ -147,7 +155,7 @@ root client for shared credentials:
 ```ts
 import { Daytona } from '@daytona/sdk'
 
-const daytona = new Daytona({ apiKey: 'dtn_…' })
+const daytona = new Daytona({ apiKey: 'dtn_...' })
 for await (const sandbox of daytona.v0.list()) console.log(sandbox.id)
 await daytona.v2.images.pull('python:3.12', { name: 'py312' })
 await daytona.v2.create('py312')
@@ -249,8 +257,9 @@ is rejected. The get-or-create rules are:
 `findByName(name, { region })` returns **all** sandboxes carrying that exact
 `name` label, newest first, as an array (names are not unique);
 `destroyed`/`destroying` ones are left out. This is the explicit exception to
-the SDK's one-page pagination rule. It searches in the same region as a create
-with that `region`. A new sandbox becomes searchable shortly after its create, so a lookup right after a
+the SDK's one-page pagination rule. A named `region` returns only the
+sandboxes in that region (the region a create with that `region` lands in);
+omitting it, or `'local'`, searches every region. A new sandbox becomes searchable shortly after its create, so a lookup right after a
 create can miss it — the get-or-create below stays safe, because the repeat
 create derives the same key and returns the same sandbox. A deployment
 without search raises `SearchNotConfiguredError` (501). Together:
@@ -352,9 +361,11 @@ make asynchronous callback work cancellation-aware when needed.
   where search is not served (`501 SEARCH_NOT_CONFIGURED`, or `404` from an
   older API); a `503 SEARCH_UNAVAILABLE` is raised, never a fallback. Use `search()` for
   eventually consistent, all-region filtering by `states`, `sandboxClass`,
-  `region`, `labels`, resource/timestamp bounds, `sort`, `order`, and other
+  `region`, `labels`, `persistent`, resource/timestamp bounds, `sort`, `order`, and other
   search options. `states` accepts a public state or array, for example
   `{ states: ['started', 'paused'] }`; `unknown` is not searchable.
+  `persistent: true` selects persistent sandboxes; `false` selects ephemeral
+  sandboxes, and omitting it (or JavaScript `null`) leaves both kinds.
   `region` takes region IDs; a region that contains other regions (a geo
   group, or `earth`) matches every region inside it, and an unknown region is
   a `BadRequestError`. Timestamp filters are half-open:
@@ -463,6 +474,20 @@ environment inherited by processes, PTYs and sessions started afterwards.
 Running processes are unchanged; `unset` removes only values previously set
 through `updateEnv()`, not image-defined environment variables.
 
+### Secret search
+
+`daytona.v2.secrets.search(options)` searches secret metadata (never values).
+Filter with `q`, `name`, `namePrefix`, or `allowedDomain`; bound creation and
+update times with `createdStartAt` / `updatedStartAt` (inclusive) and
+`createdEndAt` / `updatedEndAt` (exclusive). Use
+`sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
+for ordering and paging. The returned `SearchResult` includes `total` and
+`totalRelation` (`'eq'` for an exact count, `'gte'` for a lower bound).
+
+Search is eventually consistent. Use `daytona.v2.secrets.get(name)` when a
+secret must be visible immediately after a write. `secrets.list()` now reads
+search first and falls back to the list route only where search is not served.
+
 ### Attach and pull volumes
 
 ```ts
@@ -473,7 +498,7 @@ const sandbox = await daytona.v2.create('py312', {
 if (sandbox.state !== 'started') await sandbox.wait()
 const result = await sandbox.volumes.pull(volume.id, {
   requestId: 'refresh-42', // retain this caller-owned ID for retries/checks
-  timeoutSeconds: 5, // 0–30 seconds; default 30; fractions are allowed
+  timeoutSeconds: 5, // seconds; default 30; fractions are allowed
 })
 ```
 
@@ -494,17 +519,34 @@ chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
 `await daytona.v2.volumes.delete(volume.id, { idOnly: true })`. `{ idOnly: true }`
 accepts an ID only and turns off the name lookup.
 
+`daytona.v2.volumes.search(options)` filters with `q`, `name`, and
+`namePrefix`; `types` accepts `'disk'`, `'bucket'`, or an array of them (any
+match), and `statuses` accepts `'ready'`, `'deleting'`, `'error'`, or an
+array. `imported` filters imported volumes. Bound creation, update and last-use
+times with `createdStartAt` / `updatedStartAt` / `lastUsedStartAt` (inclusive)
+and `createdEndAt` / `updatedEndAt` / `lastUsedEndAt` (exclusive). Use `sort`
+(`created_at`, `updated_at`, `name`, `used_bytes`, `last_used_at`, or `size_gib`), `order`,
+`limit`, and `cursor` for ordering and paging. The `SearchResult` carries
+`total` and `totalRelation` (`'eq'` for an exact count, `'gte'` for a lower
+bound). Search is eventually consistent, so use
+`volumes.get(nameOrId)` for read-your-writes. `volumes.list()` now reads search
+first and falls back to the list route only where search is not served.
+
 Pulling an attachment is separate from the `daytona.v2.volumes` management
 service. The volume ID is the attached volume's `vol_` ID or its UUID. IDs
 contain 1–128 ASCII letters, digits, underscores or hyphens. The result has `requestId`, `status` (`pulled`, `unchanged` or `pending`) and
 an optional `manifestId` (`undefined` when there is none). Unknown statuses map to `unknown` with the original
 value in `rawStatus`.
 
-Zero timeout submits a new request, or returns a known request's last
-outcome without retrying it; expiry does not cancel accepted work. Retry a
-`pending` result, or a caught `ServiceUnavailableError` / `RateLimitError`,
-with the **same requestId** and a timeout above zero. The SDK never retries
-automatically or generates an identity. Rate-limit errors expose `requestId`
+`timeoutSeconds` defaults to 30. Zero submits a new request, or returns a
+known request's last outcome without retrying it; expiry does not cancel
+accepted work. Up to 30 seconds is one request the sandbox holds for that long.
+A longer wait is spent in rounds of at most 30 seconds with the same
+`requestId` while the result is `pending` (a value above 2,147,483.647, about
+24.8 days, has no deadline), so no request stays open for the whole wait.
+Retry a `pending` result, or a caught `ServiceUnavailableError` /
+`RateLimitError`, with the **same requestId** and a timeout above zero. The SDK
+never retries an error automatically or generates an identity. Rate-limit errors expose `requestId`
 and `retryAfterMs` when supplied by the API.
 
 Availability depends on API support and may return
@@ -874,6 +916,14 @@ may be relative. Path lists must be arrays of strings, not a bare string.
 `writeText()` requires a string; `writeBytes()` and `writeMany()` accept
 `ArrayBuffer` and any `ArrayBuffer` view, using only the view's byte range.
 
+A recursive remove or a search over a large tree can take longer than
+`requestTimeoutSeconds`. `remove()`, `grep()`, `glob()`, `replace()` and
+`chmod()` therefore take a `timeoutSeconds` option that replaces
+`requestTimeoutSeconds` for that call. `0`, or a value above 2,147,483.647
+(about 24.8 days), means no limit. A negative or non-finite value throws
+`BadRequestError` before any request. A timeout ends the call, not the work in
+the sandbox.
+
 `readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,
 `remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches, and
 `presignedDownloadUrl` / `presignedUploadUrl` for direct transfers. The
@@ -1012,7 +1062,11 @@ send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (bot
 exported from `@daytona/sdk/v2`) with its requests.
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
-`a11y` and `recording`. `screen.screenshot()` captures the whole screen or a
+`a11y` and `recording`. An app that reaches the sandbox through its own
+transport can decode a status response with `parseComputerUseStatus(body)`
+(from `@daytona/sdk/v2`), which returns what `status()` returns for the same
+body. `body` is the decoded JSON value (`await response.json()`), not the
+response text. `screen.screenshot()` captures the whole screen or a
 `region`; any of `format`, `quality` or `scale` returns a compressed image.
 `a11y.tree({ scope: 'focused' })` returns at most 256 levels below the root (`maxDepth`, an
 integer from 0 to 256, default 256); a deeper UI comes back cut at that depth
@@ -1048,6 +1102,33 @@ that sets a reserved name fails the create with `BadRequestError` (400) naming
 the key. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.
+
+### Persistent Linux sandboxes
+
+Pass `persistent: true` to `daytona.v2.create()` or `createFromBuild()` to
+preserve a Linux sandbox. `stop()` / `start()` keep its disk but boot fresh
+processes; `pause()` / `resume()` also preserve memory and running processes.
+These verbs and Linux `fork()` require persistence.
+Sandboxes with attached volumes cannot pause or fork.
+When neither a per-create policy nor a project lifecycle default overrides it,
+a persistent Linux sandbox has
+a 300-second lifetime timeout (`timeoutSeconds: 300`) whose action is pause;
+this is not an idle timeout.
+
+Lifecycle policies accept `delete` everywhere, `stop` on persistent sandboxes
+except GPU, and `pause` on persistent Linux sandboxes. For example:
+
+```ts
+const saved = await daytona.v2.create('python', {
+  persistent: true,
+  lifecyclePolicy: { timeoutSeconds: 600, onTimeout: 'pause' },
+})
+await saved.pause()
+await saved.resume()
+```
+
+`createFromSnapshot()` inherits persistence from the snapshot; it does not
+accept a `persistent` option.
 
 ### Waiting for lifecycle states
 
@@ -1087,6 +1168,16 @@ the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
 
+`fork()`, `captureImage()` and `createSnapshot()` automatically retry
+`SANDBOX_TRANSITION_IN_PROGRESS` conflicts for up to 30 seconds from their
+first submission attempt. Delays use `retryAfterSeconds`, clamped to 1–5
+seconds. Other conflicts are not retried, and expiry throws the last conflict.
+The window limits new retries; an admitted POST keeps its normal request timeout.
+This applies to a fork's source still starting, stopping or pausing; image capture
+still starting (Linux, Windows) or stopping (macOS); and memory snapshot creation
+still starting.
+Fork's readiness wait budget starts after acceptance, independently of retries.
+
 `await sandbox.delete()` and `await daytona.v2.delete(sandbox)` wait until the
 sandbox is `destroyed` (a 404 while waiting counts as destroyed). A sandbox
 with volumes attached stays `destroying` until the platform has finished with
@@ -1115,7 +1206,10 @@ in the Python SDK: `BadRequestError`, `AuthenticationError` (401),
 `RequestTimeoutError` (408), `ClientTimeoutError` (the client's own request
 timeout), `ConnectionError`, … They also expose `traceId` (v0 errors carry
 none), and the status-level bases have code-specific subclasses so you can
-catch as broadly or narrowly as you need. A call into a sandbox that is not
+catch as broadly or narrowly as you need. The error name of a root or
+`@daytona/sdk/v2` class is its class name (`'NotFoundError'`), also in
+minified production bundles; your own subclasses keep theirs (errors from
+`daytona.v0` are the 0.x SDK's, named as in 0.x). A call into a sandbox that is not
 running (a stopped one), through `sandbox.process`, `sandbox.fs`, `sandbox.git`
 or the other in-sandbox namespaces, throws `SandboxNotRunningError` (409,
 `SANDBOX_NOT_RUNNING`), a `ConflictError`, not `NotFoundError`; its preview URLs
