@@ -85,6 +85,7 @@ from .errors import (
     ConnectionError,
     DaytonaError,
     ImageBuildFailedError,
+    ImageBuildTimeoutError,
     SandboxCreateConnectionError,
     SandboxCreateRequestTimeoutError,
     create_error,
@@ -659,9 +660,11 @@ class AsyncDaytona:
         24.8 days = no deadline). A failed
         build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
-        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
-        no sandbox exists. Then the sandbox is created exactly as by
-        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        ``build_timeout`` raises :class:`ImageBuildTimeoutError` (a
+        :class:`RequestTimeoutError`); both carry the image's ``image_id``, and
+        in both cases no sandbox exists (the timed-out build keeps running).
+        Then the sandbox is created exactly as by :meth:`create` with the same
+        keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
         ``persistent=True`` keeps disk across stop/start and memory and processes
@@ -712,8 +715,16 @@ class AsyncDaytona:
             build_timeout = wait_budget_seconds(build_timeout, name="build_timeout") or None
         build_region = region_selector(region if region is not None else self._target)
 
-        def build_timed_out(cause: Optional[BaseException] = None) -> DaytonaError:
-            error = create_error("image build did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK")
+        def build_timed_out(image_id: str, cause: Optional[BaseException] = None) -> DaytonaError:
+            # The server keeps building: the id lets the caller follow, wait on
+            # or delete the image.
+            error = ImageBuildTimeoutError(
+                "image build did not finish before timeout",
+                status_code=408,
+                code="REQUEST_TIMEOUT",
+                source="SDK",
+                image_id=image_id,
+            )
             error.__cause__ = cause
             return error
 
@@ -728,7 +739,7 @@ class AsyncDaytona:
         while image.status not in ("ready", "failed", "error"):
             remaining = None if deadline is None else deadline - _clock.monotonic()
             if remaining is not None and remaining <= 0:
-                raise build_timed_out()
+                raise build_timed_out(image.id)
             poll_started = _clock.monotonic()
             try:
                 # Without a build budget, holds repeat without a deadline (a
@@ -747,7 +758,7 @@ class AsyncDaytona:
                     deadline or 0
                 )
                 if own_timeout and deadline is not None and wait_ran_out:
-                    raise build_timed_out(error) from error
+                    raise build_timed_out(image.id, error) from error
                 raise
             if image.status not in ("ready", "failed", "error"):
                 # A server that answers the long poll early is not polled in a loop.

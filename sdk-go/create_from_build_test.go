@@ -126,6 +126,49 @@ func TestCreateFromBuild_whenBuildBudgetExpires(t *testing.T) {
 	require.ErrorAs(t, err, &detail)
 	require.Equal(t, "SDK", detail.Source)
 	require.Len(t, fake.requests(), 2)
+	// And it names the image the server keeps building.
+	var timeout *ImageBuildTimeoutError
+	require.ErrorAs(t, err, &timeout)
+	require.Equal(t, "img-build", timeout.ImageID)
+	require.Equal(t, "image build did not finish before timeout", timeout.SDKError.Message)
+}
+
+func TestBuildAndWait_whenCallerContextEnds(t *testing.T) {
+	// Given an accepted build whose readiness hold outlasts the caller's
+	// deadline, which is shorter than the build budget.
+	caller, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"POST /images": jsonHandler(t, map[string]string{"id": "img-build"}),
+		"GET /images/img-build": func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("wait") == "ready" {
+				// The hold is reached only after the submission was accepted;
+				// the caller's deadline then passes while it is held.
+				<-caller.Done()
+				<-r.Context().Done()
+				return
+			}
+			writeJSON(t, w, buildImageFixture("building"))
+		},
+	})
+	client := newTestClient(t, fake.Server)
+
+	// When the caller's context ends first.
+	_, err := client.Images().BuildAndWait(caller, NewImageBuilder("alpine"), &BuildImageWaitOptions{Timeout: time.Minute})
+
+	// Then it is the caller's deadline, reached during the readiness wait,
+	// not a build timeout.
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	var timeout *ImageBuildTimeoutError
+	require.NotErrorAs(t, err, &timeout)
+	requests := fake.requests()
+	require.Len(t, requests, 3)
+	require.Equal(t, http.MethodPost, requests[0].Method)
+	require.Equal(t, "/images", requests[0].Path)
+	require.Equal(t, "/images/img-build", requests[1].Path)
+	require.Empty(t, requests[1].Query.Get("wait"))
+	require.Equal(t, "/images/img-build", requests[2].Path)
+	require.Equal(t, "ready", requests[2].Query.Get("wait"))
 }
 
 func TestCreateFromBuild_whenCallerCancelsReadiness(t *testing.T) {
@@ -174,4 +217,33 @@ func TestCreateFromBuild_whenCreateWaitEndsInTerminalState(t *testing.T) {
 	require.Equal(t, SandboxStateError, sandbox.State())
 	require.Equal(t, "img-build", sandbox.Info().Image.ID)
 	require.Len(t, fake.requests(), 3)
+}
+
+func TestBuildTimeoutError_whenCallerCancelsAfterTheBudget(t *testing.T) {
+	// Given a build budget that has run out, then a caller cancellation.
+	caller, cancelCaller := context.WithCancel(t.Context())
+	waitCtx, cancel := artifactWaitContext(caller, time.Millisecond, buildTimeoutMessage)
+	defer cancel()
+	<-waitCtx.Done()
+	cancelCaller()
+	// When the wait reports the budget's timeout.
+	err := buildTimeoutError(waitCtx, artifactWaitError(waitCtx, transportError(waitCtx, waitCtx.Err())), "img-build")
+	// Then the image is still named: the budget, not the caller, ended the wait.
+	var timeout *ImageBuildTimeoutError
+	require.ErrorAs(t, err, &timeout)
+	require.Equal(t, "img-build", timeout.ImageID)
+	require.ErrorIs(t, err, ErrRequestTimeout)
+}
+
+func TestBuildTimeoutError_whenCallerEndsFirst(t *testing.T) {
+	// Given a caller context that ends before the build budget.
+	caller, cancelCaller := context.WithCancel(t.Context())
+	waitCtx, cancel := artifactWaitContext(caller, time.Hour, buildTimeoutMessage)
+	defer cancel()
+	cancelCaller()
+	// When the wait reports the cancellation.
+	err := buildTimeoutError(waitCtx, artifactWaitError(waitCtx, transportError(waitCtx, waitCtx.Err())), "img-build")
+	// Then it is not a build timeout.
+	var timeout *ImageBuildTimeoutError
+	require.NotErrorAs(t, err, &timeout)
 }

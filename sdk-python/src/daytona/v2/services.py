@@ -168,9 +168,15 @@ class AsyncImagesService:
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe a submitted image build. ``timeout`` is the observation budget
-        in seconds (not an execution TTL); omitted, ``0`` or a value above about
-        24.8 days adds no deadline."""
+        """Observe a submitted image build, by the image's ID or name.
+        ``timeout`` is the observation budget in seconds (not an execution
+        TTL); omitted, ``0`` or a value above about 24.8 days adds no deadline.
+
+        ``"search"`` cannot be followed by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        follow such an image by its ID.
+        """
+        _refuse_search_name(image_id, "image")
         return await follow_build_logs(
             self._transport,
             f"/images/{_path(image_id, 'image_id')}/build-logs-url",
@@ -394,12 +400,24 @@ class AsyncImagesService:
         that already exists raises :class:`ImageNameTakenError`; a reserved
         prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
         :class:`ImageNameReservedError`.
+
+        The image is then read again by the id the promotion answered with, so
+        the result reports the image's current state (its regions included),
+        as :meth:`get` does. The name is applied once the promotion succeeds;
+        a failed read afterwards raises its error.
         """
         path = f"/images/{_path(image_id, 'image_id')}"
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-        await self._transport.send(RequestSpec("PATCH", path, json_body={"name": name}))
-        return await self.get(image_id)
+        promoted = expect_image(
+            await self._transport.send(RequestSpec("PATCH", path, json_body={"name": name}))
+        )
+        # By id: the caller's value may be a name (even "search", which get() refuses).
+        return expect_image(
+            await self._transport.send(
+                RequestSpec("GET", f"/images/{_path(promoted.id, 'image response id')}")
+            )
+        )
 
     async def delete(self, image_id: str, /) -> None:
         await self._transport.send(RequestSpec("DELETE", f"/images/{_path(image_id, 'image_id')}"))

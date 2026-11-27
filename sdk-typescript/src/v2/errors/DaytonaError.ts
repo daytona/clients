@@ -545,6 +545,27 @@ export class ImageBuildFailedError extends ConflictError {
     this.buildError = buildError
   }
 }
+/** {@link ImageBuildTimeoutError}'s options: the common ones plus the still-building image. */
+export interface ImageBuildTimeoutErrorOptions extends ErrorOptions {
+  readonly imageId?: string
+}
+
+/**
+ * A build the server accepted did not finish within the caller's build budget
+ * (`createFromBuild()`'s `buildTimeoutSeconds`): 408, `REQUEST_TIMEOUT`, source
+ * `SDK`. The build keeps running on the server; `imageId` names the image, so
+ * it can be followed (`images.followBuildLogs`), waited on
+ * (`images.get(id, { wait: 'ready' })`) or deleted.
+ */
+export class ImageBuildTimeoutError extends RequestTimeoutError {
+  public readonly imageId?: string
+
+  constructor(message: string, options?: ImageBuildTimeoutErrorOptions) {
+    const { imageId, ...rest } = errorOptions(options, ['imageId']) ?? {}
+    super(message, rest)
+    this.imageId = imageId
+  }
+}
 export class ImageClassMismatchError extends ConflictError {}
 export class ImageNameTakenError extends ConflictError {}
 export class ImageNameReservedError extends BadRequestError {}
@@ -1170,6 +1191,7 @@ for (const [key, errorClass] of [
   ['ImageNotReadyError', ImageNotReadyError],
   ['ImageFormatOutdatedError', ImageFormatOutdatedError],
   ['ImageBuildFailedError', ImageBuildFailedError],
+  ['ImageBuildTimeoutError', ImageBuildTimeoutError],
   ['ImageClassMismatchError', ImageClassMismatchError],
   ['ImageNameTakenError', ImageNameTakenError],
   ['ImageNameReservedError', ImageNameReservedError],

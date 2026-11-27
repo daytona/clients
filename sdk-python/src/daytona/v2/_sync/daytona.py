@@ -273,9 +273,11 @@ class Daytona:
         24.8 days = no deadline). A failed
         build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
-        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
-        no sandbox exists. Then the sandbox is created exactly as by
-        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        ``build_timeout`` raises :class:`ImageBuildTimeoutError` (a
+        :class:`RequestTimeoutError`); both carry the image's ``image_id``, and
+        in both cases no sandbox exists (the timed-out build keeps running).
+        Then the sandbox is created exactly as by :meth:`create` with the same
+        keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
         ``persistent=True`` keeps disk across stop/start and memory and processes

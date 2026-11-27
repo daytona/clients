@@ -323,9 +323,12 @@ await (await daytona.v2.get('sandbox-id')).followBuildLogs({
 
 `onLogs` is required. Optional `onEvent` receives a discriminated `BuildLogEvent`
 union (`event.type` selects the variant), including states, gaps and source
-unavailability. Without it, these diagnostics appear as `[build logs: …]`
-messages in `onLogs`. Both callbacks may return promises and are awaited before
-checkpointing. Build failure is a result, not a connection error. An event
+unavailability. Without it, each of these diagnostics reaches `onLogs` as one
+`[build logs: <type>]` line carrying the event's fields, the same line in the
+Python SDK; it is meant for reading, so pass `onEvent` to handle the events in
+code. An image can be followed by its id or its name, except an image named
+`search` (the name of the search route), which is followed by its id. Both
+callbacks may return promises and are awaited before checkpointing. Build failure is a result, not a connection error. An event
 kind a later API adds is skipped (it does not move the cursor). An HTTP error of
 the first request, such as `NotFoundError` for an unknown image, is thrown as
 that typed error rather than as `BuildLogInterruptedError`.
@@ -631,7 +634,9 @@ pass (`$PATH` is not expanded); a blank value, or one with a control character
 `buildTimeoutSeconds` bounds only the build (omitted, `0` or a value above about
 24.8 days means no deadline);
 a failed build throws `ImageBuildFailedError`, and an expired build budget
-throws `RequestTimeoutError`. The sandbox then gets the full, independent
+throws `ImageBuildTimeoutError` (a `RequestTimeoutError`); both carry the
+image's `imageId`. A timed-out build keeps running: follow, wait on or delete
+it by that id. The sandbox then gets the full, independent
 `waitSeconds` budget.
 
 In Node.js, a builder can copy local files into the image. `addLocalFile`,

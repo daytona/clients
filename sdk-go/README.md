@@ -194,6 +194,8 @@ provides `CPUArchAMD64` and `CPUArchARM64` for both sandbox and image options.
 separately (zero or `WaitForever` means no SDK deadline); the sandbox then
 receives its full `Wait`.
 Build failures return `*ImageBuildFailedError` without creating a sandbox.
+An exhausted `BuildTimeout` returns `*ImageBuildTimeoutError` (it matches
+`ErrRequestTimeout`), whose `ImageID` names the image that keeps building.
 Anonymous images expire under their idle-retention policy.
 
 To keep the image for reuse, use `Images().BuildAndWait` instead. You can also

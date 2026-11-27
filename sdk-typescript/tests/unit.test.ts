@@ -115,6 +115,7 @@ import {
   errorOptionsFromEnvelope,
   InternalServerError,
   ImageBuildFailedError,
+  ImageBuildTimeoutError,
   ImageClassMismatchError,
   ImageNameReservedError,
   ImageNameTakenError,
@@ -3700,6 +3701,9 @@ describe('creation shape', () => {
     await settled
     await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
     await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'image build did not finish before timeout' })
+    // It names the image the server keeps building.
+    await expect(failure).rejects.toBeInstanceOf(ImageBuildTimeoutError)
+    await expect(failure).rejects.toMatchObject({ imageId: 'img_wait' })
 
     expect(post.mock.calls.filter(([path]) => path === '/sandboxes')).toHaveLength(0)
   })
@@ -3886,7 +3890,8 @@ describe('creation shape', () => {
       .mockResolvedValueOnce({ data: imageResponse({ anonymous: true, name: null, status: 'pending' }) })
       .mockResolvedValueOnce({ data: { images: [imageResponse()], next_cursor: 'next' } })
       .mockResolvedValueOnce({ data: imageResponse({ id: 'img_999', name: 'keep-this' }) })
-    const patch = jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ name: 'keep-this' }) })
+      .mockResolvedValueOnce({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: ['us', 'eu'] }) })
+    const patch = jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: [] }) })
     const del = jest.spyOn(clientInstance(client), 'delete').mockResolvedValue({ data: undefined })
 
     const built = await client.images.build(ImageBuilder.fromRegistry('python:3.12').pipInstall('numpy'))
@@ -3901,10 +3906,32 @@ describe('creation shape', () => {
     expect(get.mock.calls[1]).toEqual(['/images/search', { params: { cursor: undefined, limit: undefined, name: undefined, anonymous: true, sandbox_id: 'sbx' } }])
     expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(patch).toHaveBeenCalledWith('/images/img_123', { name: 'keep-this' })
+    // The promotion is read back: the result reports the regions the PATCH answer lacks.
+    expect(get.mock.calls[3]).toEqual(['/images/img_123'])
     expect(del).toHaveBeenCalledWith('/images/img_123')
     expect(listed.items[0]).toBeInstanceOf(ImageHandle)
     expect(got).toBeInstanceOf(ImageHandle)
     expect(promoted.name).toBe('keep-this')
+    expect(promoted.availableIn).toEqual(['us', 'eu'])
+  })
+
+  it('reads a promoted image back by the id the promotion answered with', async () => {
+    const client = newClient()
+    const patch = jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: [] }) })
+    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: ['us'] }) })
+    // 'search' is a name get() refuses; the read-back uses the id.
+    const promoted = await client.images.promote('search', 'keep-this')
+    expect(patch).toHaveBeenCalledWith('/images/search', { name: 'keep-this' })
+    expect(get.mock.calls).toEqual([['/images/img_123']])
+    expect(promoted.availableIn).toEqual(['us'])
+  })
+
+  it.each(['..', '\ud800'])('refuses a promotion answer whose id %j cannot be a path id, before any read-back', async (id) => {
+    const client = newClient()
+    jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id, name: 'keep-this' }) })
+    const get = jest.spyOn(clientInstance(client), 'get')
+    await expect(client.images.promote('img_123', 'keep-this')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('image response id') })
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('derives the build-log transport from the internal service factory', async () => {

@@ -39,6 +39,7 @@ from daytona.v2 import (
     FilesystemEventType,
     ImageBuilder,
     ImageBuildFailedError,
+    ImageBuildTimeoutError,
     ImageSource,
     MacReservation,
     ManifestImageSource,
@@ -7430,7 +7431,10 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
 async def test_image_service_promote_patches_the_name_and_rereads() -> None:
     # Parity with TypeScript `images.promote`: PATCH /images/{id} {name}, then GET.
     transport = RecordingTransport(
-        [{}, {**_image_page_payload("img-1"), "name": "keep-this", "anonymous": False}]
+        [
+            {**_image_page_payload("img-1"), "name": "keep-this", "region_ids": []},
+            {**_image_page_payload("img-1"), "name": "keep-this", "anonymous": False},
+        ]
     )
     service = AsyncImagesService(transport)  # type: ignore[arg-type]
 
@@ -7442,6 +7446,51 @@ async def test_image_service_promote_patches_the_name_and_rereads() -> None:
     ]
     assert transport.specs[0].json_body == {"name": "keep-this"}
     assert image.name == "keep-this"
+    # The read-back reports the regions the PATCH answer lacks.
+    assert image.available_in == ("region-b",)
+
+
+@pytest.mark.anyio
+async def test_image_service_promote_reads_back_by_the_answered_id() -> None:
+    # "search" is a name get() refuses; the read-back uses the id the PATCH answered with.
+    transport = RecordingTransport(
+        [
+            {**_image_page_payload("img-9"), "name": "keep-this"},
+            {**_image_page_payload("img-9"), "name": "keep-this"},
+        ]
+    )
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    image = await service.promote("search", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [
+        ("PATCH", "/images/search"),
+        ("GET", "/images/img-9"),
+    ]
+    assert image.id == "img-9"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("image_id", ["..", "\ud800"])
+async def test_image_service_promote_refuses_an_answered_id_that_cannot_be_a_path_id(image_id: str) -> None:
+    transport = RecordingTransport([{**_image_page_payload("img-1"), "id": image_id}])
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="image response id"):
+        await service.promote("img-1", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [("PATCH", "/images/img-1")]
+
+
+@pytest.mark.anyio
+async def test_image_service_promote_refuses_a_malformed_answer_before_reading_back() -> None:
+    transport = RecordingTransport([{}])
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError):
+        await service.promote("img-1", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [("PATCH", "/images/img-1")]
 
 
 @pytest.mark.anyio
@@ -7560,6 +7609,9 @@ async def test_create_from_build_raises_request_timeout_when_the_build_outlasts_
         "REQUEST_TIMEOUT",
         "SDK",
     )
+    # It names the image the server keeps building.
+    assert isinstance(raised.value, ImageBuildTimeoutError)
+    assert raised.value.image_id == "img-slow"
     assert all(spec.path != "/sandboxes" for spec in api.specs), "no sandbox is created"
 
 

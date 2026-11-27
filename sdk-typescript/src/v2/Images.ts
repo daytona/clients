@@ -126,7 +126,13 @@ export class ImagesService {
     return this.resolvedApiTransport
   }
 
+  /**
+   * Follow an image's build by its ID or name. `'search'` cannot be followed
+   * by name (`GET /images/search` is the search route): it throws a
+   * `BadRequestError` before any request; follow such an image by its ID.
+   */
   public async followBuildLogs(imageId: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
+    refuseSearchName(imageId, 'image')
     return followBuildLogs(this.getApiTransport(), `/images/${pathSegment(imageId, 'imageId')}/build-logs-url`, options)
   }
 
@@ -362,12 +368,23 @@ export class ImagesService {
    * would silently relabel every sandbox created from it). A name that already
    * exists throws `ImageNameTakenError`; a reserved prefix (`img_`, `snap_`,
    * `sbx_`, `vol_`, `fn_`) throws `ImageNameReservedError`.
+   *
+   * The image is then read again by the id the promotion answered with, so
+   * the result reports the image's current state (its regions included), as
+   * `get()` does. The name is applied once the promotion succeeds; a failed
+   * read afterwards throws its error.
    */
   public async promote(imageId: string, name: string): Promise<Image> {
     const path = `/images/${pathSegment(imageId, 'imageId')}`
-    const promoted: unknown = name
-    if (typeof promoted !== 'string' || isBlank(promoted)) throw badRequest('name must be a non-empty string')
-    const { data } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
+    const promotedName: unknown = name
+    if (typeof promotedName !== 'string' || isBlank(promotedName)) throw badRequest('name must be a non-empty string')
+    const { data: patched } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
+    // Checked before the read: the PATCH answer must be an image whose id can
+    // be a path id. By id: the caller's value may be a name (even 'search',
+    // which get() refuses).
+    acknowledgedId(patched, 'image')
+    const promoted = new Image(INTERNAL, patched)
+    const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(promoted.id)}`)
     return new Image(INTERNAL, data)
   }
 

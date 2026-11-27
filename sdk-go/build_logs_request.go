@@ -8,6 +8,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -15,6 +17,8 @@ const (
 	buildLogMaxEvent    = 128 * 1024
 	buildLogMaxSnapshot = 2 * 1024 * 1024
 )
+
+var buildLogImageRoute = regexp.MustCompile(`^/images/([^/]+)/build-logs-url$`)
 
 type buildLogTarget struct {
 	api  *apiClient
@@ -42,7 +46,42 @@ func discoverBuildLogs(ctx context.Context, api *apiClient, path string) (*build
 	if err != nil {
 		return nil, buildLogProtocol(err.Error())
 	}
-	return buildLogDestination(api, raw, path)
+	destination, err := buildLogDestination(api, raw, path, "")
+	// The discovery path's segment, already encoded.
+	route := buildLogImageRoute.FindStringSubmatch(path)
+	if err == nil || !errors.Is(err, errBuildLogIdentity) || route == nil {
+		return destination, err
+	}
+	segment := route[1]
+	// Discovery answers with the image's canonical ID, which a name never
+	// matches: resolve the value with the API (GET /images/{value}, as every
+	// image method resolves names) and hold the URL to that ID just as strictly.
+	var current JSONValue
+	if err = api.do(discoveryCtx, apiRequest{Path: "/images/" + segment, Result: &current}); err != nil {
+		return nil, err
+	}
+	canonical, err := imageLookupID(current)
+	if err != nil {
+		return nil, err
+	}
+	return buildLogDestination(api, raw, path, canonical)
+}
+
+// imageLookupID is the ID an image lookup answered with, checked as every
+// response ID a request path will carry is (the messages of the other SDKs).
+func imageLookupID(current JSONValue) (string, error) {
+	object, err := parseObject(current, "image")
+	if err != nil {
+		return "", badRequest("image response is not a JSON object")
+	}
+	canonical, err := field[string](object, "id", true)
+	if err != nil || strings.TrimSpace(canonical) == "" {
+		return "", badRequest("image response is missing its id")
+	}
+	if err = checkResponseID(canonical); err != nil {
+		return "", err
+	}
+	return canonical, nil
 }
 
 func (t buildLogTarget) readFinite(ctx context.Context, spec apiRequest, limit int64) (data []byte, failure error) {

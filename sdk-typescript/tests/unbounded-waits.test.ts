@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import type { Server } from 'node:http'
-import { DockerWaitTimeoutError, ImageBuilder, RequestTimeoutError } from '../src/v2/index'
+import { DockerWaitTimeoutError, ImageBuildTimeoutError, ImageBuilder, RequestTimeoutError } from '../src/v2/index'
 import { createHttpClient } from '../src/v2/http'
 import type { Daytona } from '../src/Daytona'
 import { imageWire } from './artifactFixtures'
@@ -66,7 +66,7 @@ const CASES: ReadonlyArray<readonly [string, readonly unknown[], Call, number, O
   ['images.pull', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'pending' }), imageWire({ id: 'img', status: 'ready' })], (client, _url, seconds) => client.v2.images.pull('alpine', { timeoutSeconds: seconds }), 1, RequestTimeoutError],
   ['images.get wait ready', [imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' })], (client, _url, seconds) => client.v2.images.get('img', { wait: 'ready', timeoutSeconds: seconds }), 1, RequestTimeoutError],
   ['docker.waitUntilReady', [{ owner: 'daemon', state: 'starting' }, { owner: 'daemon', state: 'starting' }, { owner: 'daemon', state: 'ready' }], (_client, url, seconds) => withToolbox(url).docker.waitUntilReady({ timeoutSeconds: seconds }), 1, DockerWaitTimeoutError],
-  ['createFromBuild buildTimeoutSeconds', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' }), { id: 'sbx', status: 'running' }], (client, _url, seconds) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { buildTimeoutSeconds: seconds, waitSeconds: 0 }), 3, RequestTimeoutError],
+  ['createFromBuild buildTimeoutSeconds', [{ id: 'img', status: 'pending' }, imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'building' }), imageWire({ id: 'img', status: 'ready' }), { id: 'sbx', status: 'running' }], (client, _url, seconds) => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { buildTimeoutSeconds: seconds, waitSeconds: 0 }), 3, ImageBuildTimeoutError],
   ['fork', [detail('running', 'src'), { id: 'f', status: 'pending', forked_from: 'src', toolbox_proxy_url: 'http://p' }, detail('booting', 'f'), detail('booting', 'f'), detail('running', 'f')], (_client, url, seconds) => createSandbox({ id: 'src', class: 'linux', status: 'running' }, createHttpClient(url, 'key')).fork({ waitSeconds: seconds }), 3, 'handle'],
 ]
 

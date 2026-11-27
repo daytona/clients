@@ -710,6 +710,29 @@ class ImageBuildFailedError(ConflictError):
         self.build_error = build_error
 
 
+class ImageBuildTimeoutError(RequestTimeoutError):
+    """A build the server accepted did not finish within the caller's build
+    budget (``create_from_build()``'s ``build_timeout``): 408,
+    ``REQUEST_TIMEOUT``, source ``SDK``. The build keeps running on the server;
+    ``image_id`` names the image, so it can be followed
+    (``images.follow_build_logs``), waited on (``images.get(..., wait="ready")``)
+    or deleted.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: Optional[int] = None,
+        code: Optional[str] = None,
+        source: Optional[str] = None,
+        image_id: Optional[str] = None,
+        **fields: Unpack[_ErrorFields],
+    ) -> None:
+        super().__init__(message, status_code=status_code, code=code, source=source, **fields)
+        self.image_id = image_id
+
+
 class ImageClassMismatchError(ConflictError):
     pass
 

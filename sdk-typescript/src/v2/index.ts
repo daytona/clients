@@ -180,6 +180,7 @@ export {
   ImageNotReadyError,
   ImageFormatOutdatedError,
   ImageBuildFailedError,
+  ImageBuildTimeoutError,
   ImageClassMismatchError,
   ImageNameTakenError,
   ImageNameReservedError,
@@ -191,7 +192,7 @@ export {
   TransferCancelledError,
 } from './errors/DaytonaError.js'
 export { DaytonaError as DaytonaErrorV2 } from './errors/DaytonaError.js'
-export type { ErrorOptions, ImageBuildFailedErrorOptions, SandboxTerminalStateErrorOptions } from './errors/DaytonaError.js'
+export type { ErrorOptions, ImageBuildFailedErrorOptions, ImageBuildTimeoutErrorOptions, SandboxTerminalStateErrorOptions } from './errors/DaytonaError.js'
 export type { UpdateEnvOptions } from './Sandbox.js'
 export type { IfMatchOptions } from './options.js'
 export type {
