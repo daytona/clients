@@ -13,9 +13,9 @@ import { nestedDeeperThan } from './jsonDepth.js'
 export { forceFetchAdapterForTests, maxContentLengthFor, transferRequest } from './boundedAdapter.js'
 import { BodyTooLarge, DEFAULT_MAX_RESPONSE_BYTES, declaresMoreThan, IdleWatchdog, isSmallRequestBody, readCappedBody, tooLargeMessage } from './bodyLimit.js'
 import { boundedAdapter } from './boundedAdapter.js'
-import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState, SandboxClass } from './types.js'
+import type { LifecycleAction, LifecyclePolicyOptions, SandboxLifecycle, SandboxLifecycleDto, SandboxState } from './types.js'
 import { SDK_VERSION } from '../version.js'
-import { credentialSafeDiagnostics } from '../diagnostics.js'
+import { concealFields, credentialSafeDiagnostics } from '../diagnostics.js'
 
 /** `X-Daytona-Source` value for TypeScript SDK requests. */
 export const SDK_SOURCE = 'sdk-typescript'
@@ -198,12 +198,17 @@ type HeaderGetter = {
   get(name: string): unknown
 }
 
+// Structural, with no DOM-only names (AddEventListenerOptions, BodyInit,
+// DOMException): these types reach the published declarations, which
+// Node-only consumers compile without the DOM lib.
 type AbortSignalLike = {
   readonly aborted: boolean
-  addEventListener?: (type: 'abort', listener: () => void, options?: boolean | AddEventListenerOptions) => void
-  removeEventListener?: (type: 'abort', listener: () => void, options?: boolean | EventListenerOptions) => void
+  addEventListener?: (type: 'abort', listener: () => void, options?: boolean | { readonly once?: boolean }) => void
+  removeEventListener?: (type: 'abort', listener: () => void) => void
   readonly reason?: unknown
 }
+
+type FetchBody = NonNullable<RequestInit['body']>
 
 export interface HttpAuthProvider {
   authorizationHeader(options?: {
@@ -247,7 +252,7 @@ export interface HttpTransportConfig {
 }
 
 export interface FetchRequestInit extends RequestInit {
-  readonly bodyFactory?: () => BodyInit | Promise<BodyInit>
+  readonly bodyFactory?: () => FetchBody | Promise<FetchBody>
   /**
    * A file transfer: no total deadline (only the caller's `signal` ends it),
    * but it fails with `ClientTimeoutError` once no bytes move for its
@@ -333,11 +338,11 @@ function timeoutErrorFromAbortSignal(signal: AbortSignalLike | undefined, error:
  * reject with their own `Error` subclass, and a `DOMException` from another
  * realm fails `instanceof` against this one.
  */
-export function isAbortError(error: unknown): error is DOMException | Error {
+export function isAbortError(error: unknown): error is Error {
   return errorName(error) === 'AbortError'
 }
 
-function abortErrorFromSignal(signal: AbortSignalLike | undefined): DOMException | Error | undefined {
+function abortErrorFromSignal(signal: AbortSignalLike | undefined): Error | undefined {
   return isAbortError(signal?.reason) ? signal.reason : undefined
 }
 
@@ -406,6 +411,14 @@ function getAxiosHeader(config: AxiosRequestConfig, name: string): string | unde
     if (key.toLowerCase() === name.toLowerCase()) return axiosHeaderValue(value)
   }
   return undefined
+}
+
+/** Whether the request names `name` at all: a `null` value removes the header and still counts. */
+function hasAxiosHeader(config: AxiosRequestConfig, name: string): boolean {
+  const headers = config.headers
+  if (headers !== undefined && typeof (headers as AxiosHeaders).has === 'function') return (headers as AxiosHeaders).has(name)
+  if (headers === undefined || typeof headers !== 'object') return false
+  return Object.entries(headers).some(([key, value]) => key.toLowerCase() === name.toLowerCase() && value !== undefined)
 }
 
 function sandboxIdFromPath(path: string | undefined, fallback: string | undefined): string | undefined {
@@ -928,6 +941,7 @@ class PlatformTokenProvider implements HttpAuthProvider {
     this.requestTimeout = options.requestTimeout
     this.otelEnabled = options.otelEnabled
     this.otelApi = options.otelApi
+    concealFields(this, ['jwtToken', 'cachedToken', 'inFlight'])
     credentialSafeDiagnostics(this, () => ({ type: 'PlatformTokenProvider', projectId: this.projectId }))
   }
 
@@ -1058,12 +1072,12 @@ class PlatformTokenProvider implements HttpAuthProvider {
       }
       const { accessToken, expiresIn } = exchange
       finalize(response.status)
-      return credentialSafeDiagnostics({
+      return credentialSafeDiagnostics(concealFields({
         accessToken,
         expiresAtMs: nowMs() + (expiresIn * 1000),
         // Short token lifetimes (<= 30 s) would otherwise re-exchange on every request.
         refreshWindowMs: Math.min(TOKEN_REFRESH_WINDOW_MS, (expiresIn * 1000) / 2),
-      }, () => ({ type: 'PlatformToken' }))
+      }, ['accessToken']), () => ({ type: 'PlatformToken' }))
     } catch (error) {
       if (error instanceof DaytonaError) {
         finalize(error.statusCode, error)
@@ -1274,7 +1288,9 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
   const instance = axios.create({
     baseURL: baseURL.replace(/\/$/, ''),
     timeout: boundedTimerDelay(requestTimeout ?? DEFAULT_REQUEST_TIMEOUT_MS),
-    headers: authHeaders(apiKey),
+    // The bearer is added per request (below), never stored in the instance
+    // defaults, where any walker of the instance would find it.
+    headers: authHeaders(undefined),
     fetchOptions: fetchCacheModeOptions(),
     // The SDK's buffered-body cap (axios' own field; -1 = none), enforced by
     // boundedAdapter before buffering in every runtime.
@@ -1297,6 +1313,9 @@ function createConfiguredHttpClient(baseURL: string, apiKey?: string, requestTim
   instance.interceptors.request.use(async (config) => {
     options?.ensureOpen?.()
     const daytonaConfig = config as DaytonaAxiosRequestConfig
+    if (apiKey && !hasAxiosHeader(daytonaConfig, 'Authorization')) {
+      setAxiosHeader(daytonaConfig, 'Authorization', `Bearer ${apiKey}`)
+    }
     // No responseType: the SDK reads the bytes and decodes them itself (kept
     // on a retry, whose config already says arraybuffer).
     if (daytonaConfig.responseType === undefined || daytonaConfig.daytonaDecodesBody === true) {
@@ -1550,6 +1569,7 @@ export class HttpTransport {
     this.requestTimeout = requestTimeout
     this.options = options
     this.http = createConfiguredHttpClient(this.baseUrl, apiKey, requestTimeout, options)
+    concealFields(this, ['apiKey'])
     credentialSafeDiagnostics(this, () => ({ type: 'HttpTransport' }))
   }
 
@@ -2303,12 +2323,13 @@ export function lifecycleBody(
 /**
  * Reject lifecycle actions the sandbox class and persistence forbid.
  *
- * `delete` is legal everywhere; `stop` requires a persistent macOS sandbox.
- * Use the explicit pause operation rather than a lifecycle-policy action.
+ * `delete` is legal everywhere; `stop` requires persistence and is unavailable on GPU.
+ * `pause` requires a persistent Linux sandbox.
+ * Unknown persistence defers only the persistence requirement to the API.
  */
 export function assertLifecycleClassSupport(
   lifecyclePolicy: LifecyclePolicyOptions | undefined,
-  options: { sandboxClass: SandboxClass; persistent: boolean; action?: string },
+  options: { sandboxClass: string; persistent: boolean | undefined; action?: string },
 ): void {
   if (!lifecyclePolicy) return
   const { sandboxClass, persistent, action = 'create' } = options
@@ -2318,19 +2339,19 @@ export function assertLifecycleClassSupport(
     if (typeof value === 'string' && !lifecycleActionAllowed(value, sandboxClass, persistent)) offending.push(`lifecyclePolicy.${field}=${value}`)
   }
   if (offending.length === 0) return
-  const label = sandboxClass === 'macos' && !persistent ? 'macos ephemeral' : sandboxClass
+  const label = sandboxClass === 'macos' && persistent === false ? 'macos ephemeral' : sandboxClass
   throw createDaytonaError(`${label} ${action} does not accept: ${offending.join(', ')}`, 400, 'BAD_REQUEST', 'SDK')
 }
 
 /** Whether a lifecycle policy can use this action. */
-function lifecycleActionAllowed(action: string, sandboxClass: SandboxClass, persistent: boolean): boolean {
+function lifecycleActionAllowed(action: string, sandboxClass: string, persistent: boolean | undefined): boolean {
   switch (action) {
     case 'delete':
       return true
     case 'stop':
-      return persistent && sandboxClass === 'macos'
+      return persistent !== false && sandboxClass !== 'gpu'
     case 'pause':
-      return false
+      return persistent !== false && sandboxClass === 'linux'
     default:
       // Unknown values never reach here — lifecycleBody rejects them.
       return true

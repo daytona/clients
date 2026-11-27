@@ -4,6 +4,18 @@
 
 package daytona
 
+// CodeBadRange is BAD_RANGE (API).
+const CodeBadRange = "BAD_RANGE"
+
+// ErrBadRange matches code BAD_RANGE, independently of its source.
+var ErrBadRange = codeSentinel{"BAD_RANGE", 400}
+
+// CodeBadResolution is BAD_RESOLUTION (API).
+const CodeBadResolution = "BAD_RESOLUTION"
+
+// ErrBadResolution matches code BAD_RESOLUTION, independently of its source.
+var ErrBadResolution = codeSentinel{"BAD_RESOLUTION", 400}
+
 // CodeBillingForbidden is BILLING_FORBIDDEN (API).
 const CodeBillingForbidden = "BILLING_FORBIDDEN"
 
@@ -51,6 +63,12 @@ const CodeNetworkPolicyTransitionInProgress = "NETWORK_POLICY_TRANSITION_IN_PROG
 
 // ErrNetworkPolicyTransitionInProgress matches code NETWORK_POLICY_TRANSITION_IN_PROGRESS, independently of its source.
 var ErrNetworkPolicyTransitionInProgress = codeSentinel{"NETWORK_POLICY_TRANSITION_IN_PROGRESS", 409}
+
+// CodeSandboxTransitionInProgress is SANDBOX_TRANSITION_IN_PROGRESS (API).
+const CodeSandboxTransitionInProgress = "SANDBOX_TRANSITION_IN_PROGRESS"
+
+// ErrSandboxTransitionInProgress matches code SANDBOX_TRANSITION_IN_PROGRESS, independently of its source.
+var ErrSandboxTransitionInProgress = codeSentinel{"SANDBOX_TRANSITION_IN_PROGRESS", 409}
 
 // CodeStaleNetworkPolicyRevision is STALE_NETWORK_POLICY_REVISION (API).
 const CodeStaleNetworkPolicyRevision = "STALE_NETWORK_POLICY_REVISION"
@@ -106,26 +124,16 @@ const CodeImageNameTaken = "IMAGE_NAME_TAKEN"
 // ErrImageNameTaken matches code IMAGE_NAME_TAKEN, independently of its source.
 var ErrImageNameTaken = codeSentinel{"IMAGE_NAME_TAKEN", 409}
 
-// CodeImageNameReserved is IMAGE_NAME_RESERVED (API).
-const CodeImageNameReserved = "IMAGE_NAME_RESERVED"
-
-// ErrImageNameReserved matches code IMAGE_NAME_RESERVED, independently of its source.
-var ErrImageNameReserved = codeSentinel{"IMAGE_NAME_RESERVED", 400}
-
-// CodeImageTooLarge is IMAGE_TOO_LARGE (API).
-const CodeImageTooLarge = "IMAGE_TOO_LARGE"
-
-// ErrImageTooLarge matches code IMAGE_TOO_LARGE, independently of its source.
-var ErrImageTooLarge = codeSentinel{"IMAGE_TOO_LARGE", 409}
-
-// CodeIdleOutOfRange is IDLE_OUT_OF_RANGE (API).
-const CodeIdleOutOfRange = "IDLE_OUT_OF_RANGE"
-
-// ErrIdleOutOfRange matches code IDLE_OUT_OF_RANGE, independently of its source.
-var ErrIdleOutOfRange = codeSentinel{"IDLE_OUT_OF_RANGE", 400}
-
 func catalogStatus4(source, code string) int {
 	switch code {
+	case "BAD_RANGE":
+		if source == "DAYTONA_API" {
+			return 400
+		}
+	case "BAD_RESOLUTION":
+		if source == "DAYTONA_API" {
+			return 400
+		}
 	case "BILLING_FORBIDDEN":
 		if source == "DAYTONA_API" {
 			return 502
@@ -155,6 +163,10 @@ func catalogStatus4(source, code string) int {
 			return 400
 		}
 	case "NETWORK_POLICY_TRANSITION_IN_PROGRESS":
+		if source == "DAYTONA_API" {
+			return 409
+		}
+	case "SANDBOX_TRANSITION_IN_PROGRESS":
 		if source == "DAYTONA_API" {
 			return 409
 		}
@@ -193,18 +205,6 @@ func catalogStatus4(source, code string) int {
 	case "IMAGE_NAME_TAKEN":
 		if source == "DAYTONA_API" {
 			return 409
-		}
-	case "IMAGE_NAME_RESERVED":
-		if source == "DAYTONA_API" {
-			return 400
-		}
-	case "IMAGE_TOO_LARGE":
-		if source == "DAYTONA_API" {
-			return 409
-		}
-	case "IDLE_OUT_OF_RANGE":
-		if source == "DAYTONA_API" {
-			return 400
 		}
 	}
 	return 0

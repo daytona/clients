@@ -284,8 +284,8 @@ class UnprocessableEntityError(DaytonaError, _shared.DaytonaUnprocessableEntityE
 
 class RateLimitError(DaytonaError, _shared.DaytonaRateLimitError):
     """HTTP 429. ``RATE_LIMITED`` and ``TOO_MANY_REQUESTS`` raise this class
-    itself (read ``code`` to tell them apart); ``LIMIT_EXCEEDED`` and
-    ``OVERLOADED`` raise its subclasses."""
+    itself (read ``code`` to tell them apart); ``LIMIT_EXCEEDED``,
+    ``OVERLOADED`` and ``DELETE_LOCK_TIMEOUT`` raise its subclasses."""
 
 
 class LimitExceededError(RateLimitError):
@@ -868,6 +868,8 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.ECR_ACCOUNT_MISMATCH: BadRequestError,
     codes.ECR_CREDENTIALS_INVALID: BadRequestError,
     codes.ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
+    codes.BUCKET_ROLE_INVALID: BadRequestError,
+    codes.BUCKET_ROLE_UNVERIFIABLE: InternalServerError,
     codes.EMAIL_ACCESS_DENIED: ForbiddenError,
     codes.GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
     codes.ENTITLEMENT_REQUIRED: ForbiddenError,
@@ -885,6 +887,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.MANAGEMENT_PLANE_ELSEWHERE: NotSupportedError,
     codes.NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL: BadRequestError,
     codes.NETWORK_POLICY_TRANSITION_IN_PROGRESS: ConflictError,
+    codes.SANDBOX_TRANSITION_IN_PROGRESS: ConflictError,
     codes.STALE_NETWORK_POLICY_REVISION: PreconditionFailedError,
     codes.NOT_SUPPORTED_FOR_CLASS: NotSupportedForClassError,
     codes.IMAGE_NOT_FOUND: ImageNotFoundError,
@@ -910,6 +913,7 @@ API_ERROR_CLASSES: Dict[str, Type[DaytonaError]] = {
     codes.ORIGIN_IMPORT_ONLY: OriginImportOnlyError,
     codes.PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
     codes.OVERLOADED: OverloadedError,
+    codes.DELETE_LOCK_TIMEOUT: OverloadedError,
     codes.PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
     codes.RATE_LIMITED: RateLimitError,
     codes.READ_ONLY_UNSUPPORTED: ReadOnlyUnsupportedError,

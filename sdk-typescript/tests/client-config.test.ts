@@ -10,6 +10,7 @@ import { INTERNAL } from '../src/v2/internal'
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { once } from 'node:events'
+import { inspect } from 'node:util'
 import { Daytona } from '../src/index'
 import { Daytona as DaytonaV2 } from '../src/v2/Daytona'
 import { BadRequestError, AuthenticationError, ClientTimeoutError, ConnectionError, RequestTimeoutError, SandboxCreateRequestTimeoutError } from '../src/v2/index'
@@ -218,6 +219,94 @@ describe('environment', () => {
     delete process.env.DAYTONA_API_KEY
     process.env.DAYTONA_PROJECT_ID = '   '
     expectBadRequest(() => new DaytonaV2({ jwtToken: 'jwt-token' }), 'projectId is required')
+  })
+
+  // Values no HTTP header can carry, refused before any request with a
+  // message that never contains them (sdk-python/tests/test_client_config.py).
+  const SECRET = 'dtn_config_secret'
+  const NOT_PRINTABLE = 'must be printable ASCII'
+  const MALFORMED: readonly (readonly [string, string])[] = [
+    ['   ', 'must not be blank'],
+    ['\t\r\n', 'must not be blank'],
+    [`${SECRET}\u00e9`, NOT_PRINTABLE],
+    [`${SECRET}\u0000x`, NOT_PRINTABLE],
+    [` ${SECRET}\u007f\n`, NOT_PRINTABLE],
+    [`${SECRET}\r\nX-Injected: 1`, NOT_PRINTABLE],
+  ]
+
+  function expectValueFree(run: () => unknown): void {
+    let thrown: unknown
+    try {
+      run()
+    } catch (error) {
+      thrown = error
+    }
+    const chain: unknown[] = []
+    for (let link: unknown = thrown; link instanceof Error && !chain.includes(link); link = (link as { readonly cause?: unknown }).cause) chain.push(link)
+    const diagnostics = [
+      inspect(thrown, { depth: null, showHidden: true }),
+      JSON.stringify(thrown),
+      JSON.stringify(Object.fromEntries(Object.entries(thrown as object))),
+      ...chain.map((link) => `${String(link)} ${(link as Error).stack ?? ''}`),
+    ].join('\n')
+    expect(diagnostics).not.toContain(SECRET)
+  }
+
+  it.each(MALFORMED.flatMap(([value, message]) => [['apiKey', value, message], ['jwtToken', value, message]] as const))(
+    'rejects a malformed explicit %s (%j) without its value',
+    (name, value, message) => {
+      const config = name === 'apiKey' ? { apiKey: value } : { jwtToken: value, projectId: 'project' }
+      expectBadRequest(() => new DaytonaV2(config), new RegExp(`^${name} ${message}$`))
+      expectBadRequest(() => new Daytona(config).v2, new RegExp(`^${name} ${message}$`))
+      expectValueFree(() => new DaytonaV2(config))
+      expectValueFree(() => new Daytona(config).v2)
+    },
+  )
+
+  it.each([' dtn_key', 'dtn_key\n', '\tdtn_key\r\n', 'dtn_key \n'])('trims surrounding whitespace from an explicit credential (%j)', (padded) => {
+    expect(new DaytonaV2({ apiKey: padded })['apiKey']).toBe('dtn_key')
+    expect(new DaytonaV2({ jwtToken: padded, projectId: 'p' })['hubIdentityKey'])
+      .toBe(new DaytonaV2({ jwtToken: 'dtn_key', projectId: 'p' })['hubIdentityKey'])
+  })
+
+  it('sends a padded explicit key trimmed', async () => {
+    // A key read from a file may end in a newline; the SDK trims it.
+    const client = new DaytonaV2({ apiKey: ' dtn_file_key\n' })
+    const sent: string[] = []
+    const api = client['api']
+    api.defaults.adapter = async (config) => {
+      sent.push(String(config.headers.get('Authorization')))
+      return { config, status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, data: new TextEncoder().encode('{"targets":[]}').buffer }
+    }
+    const actions = await client.listAuditActions()
+    await client.close()
+    expect(actions.targets).toEqual([])
+    expect(sent).toEqual(['Bearer dtn_file_key'])
+  })
+
+  it.each([
+    ['DAYTONA_API_KEY', `${SECRET}\u00e9`],
+    ['DAYTONA_API_KEY', `dtn_\u0001${SECRET}`],
+    ['DAYTONA_JWT_TOKEN', `${SECRET}\r\nX-Injected: 1`],
+  ])('rejects a malformed ambient %s after trimming, naming the variable', (variable, value) => {
+    process.env[variable] = `  ${value}\n`
+    process.env.DAYTONA_PROJECT_ID = 'project'
+    expectBadRequest(() => new DaytonaV2({}), new RegExp(`^${variable} ${NOT_PRINTABLE}$`))
+    expectValueFree(() => new DaytonaV2({}))
+  })
+
+  it.each([{ apiKey: 'k' }, { jwtToken: 'jwt', projectId: 'p' }])('leaves both ambient credentials unread with an explicit one (%j)', (config) => {
+    process.env.DAYTONA_API_KEY = `${SECRET}\u00e9`
+    process.env.DAYTONA_JWT_TOKEN = `${SECRET}\u00e9`
+    const original = process.env
+    const read = new Set<PropertyKey>()
+    process.env = new Proxy(original, { get: (target, key) => { read.add(key); return Reflect.get(target, key) } })
+    try {
+      new DaytonaV2(config)
+    } finally {
+      process.env = original
+    }
+    expect(read.has('DAYTONA_API_KEY') || read.has('DAYTONA_JWT_TOKEN')).toBe(false)
   })
 
   it('rejects an explicitly empty projectId', () => {

@@ -1,0 +1,1 @@
+**`daytona volume create --role-arn` mounts your own AWS bucket through an IAM role** — Daytona assumes the role, with your organization ID as the external ID, instead of using two project secrets. Both SDKs recognize the new `BUCKET_ROLE_INVALID` (400) and `BUCKET_ROLE_UNVERIFIABLE` (502) error codes.

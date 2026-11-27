@@ -56,6 +56,31 @@ func TestCreate_whenOptionIsInvalid_namesGoFields(t *testing.T) {
 	}
 }
 
+func TestCreate_whenHeaderValueIsInvalid_namesTheFailingPart(t *testing.T) {
+	for _, test := range []struct{ key, message string }{
+		{" key", "IdempotencyKey must have no leading or trailing whitespace"},
+		{"key ", "IdempotencyKey must have no leading or trailing whitespace"},
+		{"k\u00e9y", "IdempotencyKey must be printable ASCII"},
+		{" k\x01y ", "IdempotencyKey must be printable ASCII"},
+	} {
+		t.Run(test.key, func(t *testing.T) {
+			// Given
+			fake := newFakeServer(t, nil)
+			client := newTestClient(t, fake.Server)
+
+			// When
+			_, err := client.Create(t.Context(), "", &CreateOptions{IdempotencyKey: test.key})
+
+			// Then
+			require.ErrorIs(t, err, ErrBadRequest)
+			var detail *Error
+			require.ErrorAs(t, err, &detail)
+			require.Equal(t, test.message, detail.Message)
+			require.Empty(t, fake.requests())
+		})
+	}
+}
+
 func TestCreateMacOS_whenOptionIsInvalid_namesGoFields(t *testing.T) {
 	renew := true
 	for _, test := range []struct {

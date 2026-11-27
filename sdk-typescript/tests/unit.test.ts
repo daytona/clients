@@ -1647,7 +1647,7 @@ describe('V2 model', () => {
     const api = clientInstance(client)
     const patch = jest.spyOn(api, 'patch')
 
-    const linux = createSandbox({ id: 'linux', status: 'running', class: 'linux', name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
+    const linux = createSandbox({ id: 'linux', status: 'running', class: 'linux', persistent: false, name: 'linux', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     await expect(linux.updateLifecyclePolicy({ onIdleTimeout: 'pause' })).rejects.toThrow('lifecyclePolicy.onIdleTimeout=pause')
     await expect(linux.updateLifecyclePolicy({ onTimeout: 'stop' })).rejects.toThrow('lifecyclePolicy.onTimeout=stop')
 
@@ -8725,7 +8725,7 @@ describe('toolbox service request shaping', () => {
     const api = clientInstance(client)
     const volumes = client.volumes
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { volumes: [{ id: 'vol 1', name: 'listed', type: 'disk', size_gib: 4, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true }] } })
+      .mockResolvedValueOnce({ data: { volumes: [{ id: 'vol 1', name: 'listed', type: 'disk', size_gib: 4, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true, cursor: 'c1' }], total: 1, total_relation: 'eq' } })
       .mockResolvedValueOnce({ data: { id: 'vol 1', name: 'fetched', type: 'disk', size_gib: 8, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true } })
     const post = jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'vol 2', name: 'created', type: 'disk', size_gib: 16, status: 'ready', created_at: '2026-10-14T00:00:00Z', updated_at: '2026-10-14T00:00:00Z', futureField: true } })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
@@ -8734,7 +8734,7 @@ describe('toolbox service request shaping', () => {
       items: [{ id: 'vol 1', name: 'listed', type: 'disk', rawType: 'disk', sizeGib: 4, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' }],
       nextCursor: undefined,
     })
-    expect(get.mock.calls[0]).toEqual(['/volumes', { params: { cursor: undefined, limit: undefined } }])
+    expect(get.mock.calls[0]).toEqual(['/volumes/search', { params: {} }])
     await expect(volumes.get('vol/name')).resolves.toEqual({ id: 'vol 1', name: 'fetched', type: 'disk', rawType: 'disk', sizeGib: 8, status: 'ready', rawStatus: 'ready', createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' })
     expect(get.mock.calls[1]?.[0]).toBe('/volumes/vol%2Fname')
     expect(post).not.toHaveBeenCalled()
@@ -8767,7 +8767,7 @@ describe('toolbox service request shaping', () => {
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const get = jest.spyOn(api, 'get')
-      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }] } })
+      .mockResolvedValueOnce({ data: { secrets: [{ name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', cursor: 'c1' }], total: 1, total_relation: 'eq' } })
       .mockResolvedValueOnce({ data: { name: 'TOKEN', allowed_domains: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     const put = jest.spyOn(api, 'put').mockResolvedValue({ data: { name: 'API/TOKEN', allowed_domains: ['*.example.com'], description: 'desc', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' } })
     const del = jest.spyOn(api, 'delete').mockResolvedValue({ data: {} })
@@ -8775,7 +8775,7 @@ describe('toolbox service request shaping', () => {
     const secretsPage = await client.secrets.list()
     expect(secretsPage).toEqual({ items: [{ name: 'TOKEN', allowedDomains: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }] })
     expect(Object.keys(secretsPage)).toEqual(['items', 'nextCursor'])
-    expect(get.mock.calls[0]?.[0]).toBe('/secrets')
+    expect(get.mock.calls[0]?.[0]).toBe('/secrets/search')
     await client.secrets.set('API/TOKEN', 'secret', { allowedDomains: ['*.example.com'], description: 'desc', ifNotExists: true })
     expect(put).toHaveBeenCalledWith(
       '/secrets/API%2FTOKEN',
@@ -10650,18 +10650,15 @@ describe('macOS sandboxes and reservations', () => {
     expect(createSandbox({ id: 'lin', status: 'running', class: 'linux', name: 'lin', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key').macBootMode).toBeUndefined()
   })
 
-  it('refuses class-gated calls for a sandbox class it does not know instead of assuming linux', async () => {
+  it('refuses a waiting fork for a sandbox class it does not know instead of assuming linux', async () => {
     const client = macClient()
     const api = clientInstance(client)
     const post = jest.spyOn(api, 'post')
-    const patch = jest.spyOn(api, 'patch')
     const unknown = createSandbox({ id: 'odd', status: 'running', class: 'future-class', name: 'odd', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, undefined, 'key')
     expect(unknown.sandboxClass).toBe('unknown')
     expect(unknown.rawSandboxClass).toBe('future-class')
-    await expect(unknown.updateLifecyclePolicy({ onIdleTimeout: 'delete' })).rejects.toBeInstanceOf(UnsupportedOperationError)
     await expect(unknown.fork()).rejects.toThrow('unsupported sandbox class future-class')
     expect(post).not.toHaveBeenCalled()
-    expect(patch).not.toHaveBeenCalled()
   })
 
   it('allows class-independent calls for a sandbox class it does not know', async () => {

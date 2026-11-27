@@ -41,11 +41,13 @@ export class SearchProbe {
  * `_search_or_list`.
  * @internal
  */
-export async function searchOrList<T>(search: () => Promise<T>, list: () => Promise<T>, probe: SearchProbe): Promise<T> {
+export async function searchOrList<T>(search: () => Promise<T>, list: () => Promise<T>, probe: SearchProbe, pageField?: string): Promise<T> {
   const remembered = probe.notServed
   if (!remembered) {
     try {
-      return await search()
+      const result = await search()
+      if (pageField === undefined || isPage(result, pageField)) return result
+      probe.notServed = true
     } catch (error) {
       if (!searchNotServed(error)) throw error
       probe.notServed = true
@@ -61,6 +63,14 @@ export async function searchOrList<T>(search: () => Promise<T>, list: () => Prom
   }
   probe.notServed = false
   return search()
+}
+
+function isPage(value: unknown, field: string): boolean {
+  return isJsonObject(value) && Array.isArray(value[field])
+}
+
+function isJsonObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
@@ -83,4 +93,8 @@ export function refuseSearchName(ref: string, kind: 'image' | 'snapshot'): void 
   if (ref === 'search') {
     throw createDaytonaError(`'search' cannot be looked up by name; it is reserved for the search route — use the ${kind} ID`, 400, 'BAD_REQUEST', 'SDK')
   }
+}
+
+export function refuseResourceSearchName(ref: string, kind: 'secret' | 'volume'): void {
+  if (ref === 'search') throw createDaytonaError(`'search' cannot be used as a ${kind} name; it is reserved for the search route`, 400, 'BAD_REQUEST', 'SDK')
 }

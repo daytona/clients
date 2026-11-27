@@ -25,6 +25,7 @@ import {
   DaytonaServiceUnavailableError as RootDaytonaServiceUnavailableError,
   DaytonaTimeoutError as RootDaytonaTimeoutError,
   DaytonaUnprocessableEntityError as RootDaytonaUnprocessableEntityError,
+  nameErrorClass,
   registerErrorClasses,
 } from '../../errors.js'
 
@@ -70,7 +71,7 @@ export interface ErrorOptions {
   readonly code?: ErrorCode | (string & {})
   readonly source?: string
   readonly traceId?: string
-  /** `OVERLOADED` / `RATE_LIMITED`: how long to wait before retrying. */
+  /** `OVERLOADED` / `DELETE_LOCK_TIMEOUT` / `RATE_LIMITED`: how long to wait before retrying. */
   readonly retryAfterSeconds?: number
   /** `FEATURE_NOT_ENABLED`: the feature the organization lacks. */
   readonly feature?: string
@@ -369,8 +370,8 @@ export class ServiceUnavailableError extends DaytonaError {}
 export class InternalServerError extends DaytonaError {}
 /**
  * HTTP 429. `RATE_LIMITED` and `TOO_MANY_REQUESTS` throw this class itself
- * (read `code` to tell them apart); `LIMIT_EXCEEDED` and `OVERLOADED` throw its
- * subclasses.
+ * (read `code` to tell them apart); `LIMIT_EXCEEDED`, `OVERLOADED` and
+ * `DELETE_LOCK_TIMEOUT` throw its subclasses.
  */
 export class RateLimitError extends DaytonaError {}
 
@@ -669,6 +670,8 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   ECR_ACCOUNT_MISMATCH: BadRequestError,
   ECR_CREDENTIALS_INVALID: BadRequestError,
   ECR_OWNERSHIP_UNVERIFIABLE: InternalServerError,
+  BUCKET_ROLE_INVALID: BadRequestError,
+  BUCKET_ROLE_UNVERIFIABLE: InternalServerError,
   EMAIL_ACCESS_DENIED: ForbiddenError,
   GPU_ACCESS_UNDER_REVIEW: ForbiddenError,
   ENTITLEMENT_REQUIRED: ForbiddenError,
@@ -686,6 +689,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   MANAGEMENT_PLANE_ELSEWHERE: NotSupportedError,
   NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL: BadRequestError,
   NETWORK_POLICY_TRANSITION_IN_PROGRESS: ConflictError,
+  SANDBOX_TRANSITION_IN_PROGRESS: ConflictError,
   STALE_NETWORK_POLICY_REVISION: PreconditionFailedError,
   NOT_SUPPORTED_FOR_CLASS: NotSupportedForClassError,
   IMAGE_NOT_FOUND: ImageNotFoundError,
@@ -710,6 +714,7 @@ export const API_ERROR_CLASS: Record<ApiErrorCode, typeof DaytonaError> = {
   SANDBOX_ABUSE_HOLD: ForbiddenError,
   PROJECT_BUDGET_EXCEEDED: ProjectBudgetExceededError,
   OVERLOADED: OverloadedError,
+  DELETE_LOCK_TIMEOUT: OverloadedError,
   PLACEMENT_UNAVAILABLE: ServiceUnavailableError,
   RATE_LIMITED: RateLimitError,
   SEARCH_NOT_CONFIGURED: SearchNotConfiguredError,
@@ -1117,8 +1122,8 @@ registerErrorClasses(RootDaytonaInternalServerError, [InternalServerError])
 registerErrorClasses(RootDaytonaServiceUnavailableError, [ServiceUnavailableError])
 registerErrorClasses(RootDaytonaConnectionError, [ConnectionError])
 
-// Every error class in this module, keyed for cross-copy instanceof (a drift test
-// checks the list against the module's exports).
+// Every error class in this module, keyed for cross-copy instanceof and named
+// by the same key (a drift test checks the list against the module's exports).
 for (const [key, errorClass] of [
   ['DaytonaError', DaytonaError],
   ['BadRequestError', BadRequestError],
@@ -1225,5 +1230,6 @@ for (const [key, errorClass] of [
   ['PlanRequiresSalesError', PlanRequiresSalesError],
   ['AutomaticTopUpNotAvailableError', AutomaticTopUpNotAvailableError],
 ] as const) {
+  nameErrorClass(errorClass, key)
   registerV2ErrorClass(key, errorClass)
 }

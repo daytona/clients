@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -32,12 +32,13 @@ def _json_default(value: object) -> str:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 class BucketCredentials(BaseModel):
     """
-    Secret names used to access an external bucket.
+    How the platform accesses an external bucket: either both secret names, or `role_arn` alone.
     """ # noqa: E501
-    access_key_secret: StrictStr = Field(description="The project secret containing the access key.")
-    secret_key_secret: StrictStr = Field(description="The project secret containing the secret key.")
+    access_key_secret: Optional[StrictStr] = Field(default=None, description="The project secret containing the access key.")
+    role_arn: Optional[StrictStr] = Field(default=None, description="An IAM role in your AWS account that the platform assumes, with your organization ID as its `ExternalId`. Replaces the secret names; AWS buckets only.")
+    secret_key_secret: Optional[StrictStr] = Field(default=None, description="The project secret containing the secret key.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["access_key_secret", "secret_key_secret"]
+    __properties: ClassVar[List[str]] = ["access_key_secret", "role_arn", "secret_key_secret"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -87,6 +88,21 @@ class BucketCredentials(BaseModel):
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
+        # set to None if access_key_secret (nullable) is None
+        # and model_fields_set contains the field
+        if self.access_key_secret is None and "access_key_secret" in self.model_fields_set:
+            _dict['access_key_secret'] = None
+
+        # set to None if role_arn (nullable) is None
+        # and model_fields_set contains the field
+        if self.role_arn is None and "role_arn" in self.model_fields_set:
+            _dict['role_arn'] = None
+
+        # set to None if secret_key_secret (nullable) is None
+        # and model_fields_set contains the field
+        if self.secret_key_secret is None and "secret_key_secret" in self.model_fields_set:
+            _dict['secret_key_secret'] = None
+
         return _dict
 
     @classmethod
@@ -99,8 +115,9 @@ class BucketCredentials(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "access_key_secret": obj.get("access_key_secret"),
-            "secret_key_secret": obj.get("secret_key_secret")
+            **({"access_key_secret": obj["access_key_secret"]} if "access_key_secret" in obj else {}),
+            **({"role_arn": obj["role_arn"]} if "role_arn" in obj else {}),
+            **({"secret_key_secret": obj["secret_key_secret"]} if "secret_key_secret" in obj else {})
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

@@ -75,10 +75,12 @@ packages = ["src/daytona"]
 include = [
   "/src",
   "/tests",
-  # The two generator scripts the tests import (the sync-surface drift check
-  # and the sensitive-field rule), so the sdist's test suite collects.
+  # The generator scripts the tests import (the sync-surface drift check,
+  # the sensitive-field rule and the nullable-reference rewrite), so the
+  # sdist's test suite collects.
   "/gen/gen_sync.py",
   "/gen/mark_sensitive.py",
+  "/gen/nullable_refs.py",
   "/README.md",
   "/pyproject.toml",
 ]

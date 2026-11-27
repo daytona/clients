@@ -27,8 +27,9 @@ const LISTS: readonly (readonly [string, string, Lister])[] = [
   ['preview endpoints', 'ports', (_client, api) => createSandbox('sbx', createHttpClient(api.url, 'key')).ports.listEndpoints()],
 ]
 
-async function refusal(body: unknown, list: Lister): Promise<unknown> {
-  const api = await startFakeApi([{ status: 200, body }])
+async function refusal(body: unknown, list: Lister, searchFirst = false): Promise<unknown> {
+  const responses = searchFirst ? [{ status: 200, body }, { status: 200, body }] : [{ status: 200, body }]
+  const api = await startFakeApi(responses)
   const client = clientAt(api.url)
   try {
     return await list(client, api).then(() => undefined, (error: unknown) => error)
@@ -39,6 +40,7 @@ async function refusal(body: unknown, list: Lister): Promise<unknown> {
 }
 
 describe.each(LISTS)('the %s list', (_name, field, list) => {
+  const searchFirst = field === 'volumes' || field === 'secrets'
   const cases: ReadonlyArray<readonly [string, unknown, string]> = [
     ['a body without the array', { items: [], nextCursor: null }, `missing the ${field} array`],
     ['a non-array field', { [field]: {} }, `missing the ${field} array`],
@@ -49,7 +51,7 @@ describe.each(LISTS)('the %s list', (_name, field, list) => {
   // field, ignored (tests/malformed-responses.test.ts pins it).
   ]
   it.each(cases.filter(([name]) => !(field === 'mac_models' && name === 'a non-string cursor')))('refuses %s with BadRequestError', async (_case, body, message) => {
-    const error = await refusal(body, list)
+    const error = await refusal(body, list, searchFirst)
     expect(error).toBeInstanceOf(BadRequestError)
     expect(error).toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining(message) })
   })

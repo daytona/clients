@@ -511,13 +511,13 @@ it('sends valid search classes and timestamps', async () => {
   }
 })
 
-it('sends a search label with a lone surrogate JSON-escaped', async () => {
-  // Labels are sent as JSON, which escapes a lone surrogate (as a body does).
-  const api = await startFakeApi([{ status: 200, body: { sandboxes: [], total: 0, total_relation: 'eq', next_cursor: null } }])
+it('refuses a search label with a lone surrogate before any request', async () => {
+  // The API cannot read a JSON-escaped lone surrogate; the Python twin refuses it too.
+  const api = await startFakeApi([])
   const client = clientAt(api.url)
   try {
-    await client.v2.search({ labels: { team: 'a\ud800b' } })
-    expect(sentRequest(api, 1).path).toContain('%5Cud800')
+    await expect(client.v2.search({ labels: { team: 'a\ud800b' } })).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: 'label values must not contain a lone surrogate' })
+    expect(api.requests).toEqual([])
   } finally {
     await client.close()
     await api.close()

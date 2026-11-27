@@ -36,10 +36,10 @@ class CreateVolumeRequest(BaseModel):
     """
     CreateVolumeRequest
     """ # noqa: E501
-    bucket: Optional[BucketOptions] = None
+    bucket: Optional[BucketOptions] = Field(default=None, description="Settings for an existing bucket. Omit them to create a managed bucket.")
     name: StrictStr = Field(description="The project-unique volume name.")
     size_gib: Optional[StrictInt] = Field(default=None, description="Scratch size in GiB. Defaults to 100. Disk volumes only — supplying it on a bucket volume is a 400.")
-    type: Optional[VolumeType] = None
+    type: Optional[VolumeType] = Field(default=None, description="The volume type. Defaults to `disk`.")
     __properties: ClassVar[List[str]] = ["bucket", "name", "size_gib", "type"]
 
     model_config = ConfigDict(

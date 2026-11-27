@@ -30,7 +30,7 @@ from typing import (
 from urllib.parse import SplitResult, quote, urlsplit
 
 import anyio
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from . import _clock
 from ._api_core import (
@@ -45,16 +45,18 @@ from ._api_core import (
 from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from ._core import (
+    LIFECYCLE_ACTION_FIELDS,
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     TransportPayload,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
-    check_label_keys,
+    check_labels,
     enum_str,
     expect_object,
     expect_system_metrics,
     finite_number,
+    has_surrogate,
     header_text,
     image_options_body,
     lifecycle_body,
@@ -77,6 +79,7 @@ from ._gen.api import (
     SignSandboxFileUrlRequest,
 )
 from ._timestamps import rfc3339_timestamp
+from ._transition_retry import send_with_transition_retry
 from ._transport import AsyncTransport
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .build_logs import (
@@ -354,7 +357,7 @@ class AsyncSandbox:
             info = dataclasses.replace(info, sandbox_class=sandbox_class)
         if not isinstance(raw_sandbox_class, _Unset):
             info = dataclasses.replace(info, raw_sandbox_class=raw_sandbox_class)
-        if not isinstance(persistent, _Unset):
+        if isinstance(persistent, bool):
             info = dataclasses.replace(info, persistent=persistent)
         self._info = info
 
@@ -461,7 +464,9 @@ class AsyncSandbox:
 
     @property
     def persistent(self) -> Optional[bool]:
-        """macOS only: whether a stop keeps the disk; ``None`` until known."""
+        """Whether writable state survives stop/start and memory survives
+        pause/resume; ``None`` until known.
+        """
         return self._info.persistent
 
     @property
@@ -955,7 +960,9 @@ class AsyncSandbox:
             hub_provider=self._hub_provider,
             toolbox_url_from_api=True,
         )
-        self._info = fresh._info
+        self._info = dataclasses.replace(
+            fresh._info, persistent=fresh.persistent if fresh.persistent is not None else self.persistent
+        )
         if (
             self._direct_toolbox_url is None
             and fresh._toolbox_proxy_url
@@ -1351,7 +1358,7 @@ class AsyncSandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline); running out raises :class:`RequestTimeoutError`, and a
         terminal state raises :class:`SandboxTerminalStateError`. Which
-        sandboxes can stop (today: persistent macOS sandboxes) is the API's
+        sandboxes can stop (persistent non-GPU sandboxes, including macOS) is the API's
         decision; a refusal surfaces as its typed error. While it is stopped,
         toolbox calls (process, files, git, …) and its preview URLs answer
         :class:`SandboxNotRunningError` (409, ``SANDBOX_NOT_RUNNING``);
@@ -1364,6 +1371,8 @@ class AsyncSandbox:
     async def pause(self, *, timeout: float = 60) -> None:
         """Pause the sandbox with its memory and wait until it is ``paused``.
 
+        Persistence is required; sandboxes with volumes cannot pause. Memory
+        and processes survive pause/resume, unlike stop/start, which keeps disk.
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
         then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
@@ -1396,6 +1405,10 @@ class AsyncSandbox:
     ) -> AsyncSandbox:
         """Fork this sandbox and return the fork's handle.
 
+        Sandboxes with attached volumes cannot fork.
+        While the source is still starting, stopping or pausing, the API may report
+        ``SANDBOX_TRANSITION_IN_PROGRESS``. This submission retries that code
+        for up to 30 seconds; other conflicts are raised immediately.
         By default the fork continues from the source's memory (running
         processes included). ``memory=False`` copies only the disk, and the
         fork boots fresh. A macOS fork copies the disk only: omit ``memory``
@@ -1417,10 +1430,13 @@ class AsyncSandbox:
         it returns the handle — check ``fork.state``.
         """
         budget = _validate_wait_seconds(wait_seconds)
+        source_persistence = self.persistent
         # None: no deadline (above the timer maximum); 0.0: one request.
         waits = budget is None or budget > 0
         if name is not None and (not isinstance(name, str) or not name.strip()):
             raise create_error("fork name must be a non-empty string when given", 400, "BAD_REQUEST", "SDK")
+        if name is not None and has_surrogate(name):
+            raise create_error("fork name must not contain a lone surrogate", 400, "BAD_REQUEST", "SDK")
         if memory is not None and not isinstance(memory, bool):
             raise create_error("fork memory must be a boolean", 400, "BAD_REQUEST", "SDK")
         class_known = self.sandbox_class is not None
@@ -1431,21 +1447,10 @@ class AsyncSandbox:
             await self._require_sandbox_class() if waits else (self.raw_sandbox_class or self.sandbox_class)
         )
         targets: list[SandboxWaitState] = ["started"]
-        if waits:
+        if waits and class_known:
             # Refresh once before the POST; loading the class may already have
             # read the source. A running macOS fork's stopped state is interim.
-            # The target comes from this read: if the source stops between it
-            # and the POST, a macOS fork rests stopped while the wait looks for
-            # started, and fork() returns the handle at the end of the budget,
-            # not at once. Callers check fork.state.
-            if class_known:
-                await self.refresh_data()
-            if self.state == "started":
-                targets = ["started"]
-            elif sandbox_class == "linux" and self.state == "paused" and memory is not False:
-                targets = ["paused"]
-            else:
-                targets = ["stopped"]
+            await self.refresh_data()
         body: JsonObject = {}
         if name is not None:
             body["name"] = name
@@ -1458,16 +1463,16 @@ class AsyncSandbox:
             if endpoint:
                 endpoints.append(endpoint)
 
-        data = expect_fork_resp(
-            await self._require_api().send(
-                RequestSpec(
-                    "POST",
-                    f"/sandboxes/{quote(self.id, safe='')}/fork",
-                    json_body=body,
-                    on_headers=_capture_endpoint,
-                )
-            )
+        payload, retried = await send_with_transition_retry(
+            self._require_api(),
+            RequestSpec(
+                "POST",
+                f"/sandboxes/{quote(self.id, safe='')}/fork",
+                json_body=body,
+                on_headers=_capture_endpoint,
+            ),
         )
+        data = expect_fork_resp(payload)
         fork_id = data.id
         api_token = getattr(self._api, "token", None) if self._api else None
         # The fork's detail read counts against the wait budget; with no
@@ -1481,6 +1486,34 @@ class AsyncSandbox:
                 with anyio.move_on_after(
                     math.inf if deadline is None else max(0.0, deadline - _clock.monotonic())
                 ):
+                    if retried:
+                        # A refused POST invalidates the pre-submission state.
+                        await self.refresh_data()
+                    source_state = self.state
+                    match source_state:
+                        case "started":
+                            targets = ["started"]
+                        case "paused":
+                            targets = (
+                                ["paused"]
+                                if sandbox_class == "linux" and memory is not False
+                                else ["stopped"]
+                            )
+                        case (
+                            "queued"
+                            | "creating"
+                            | "starting"
+                            | "pausing"
+                            | "stopping"
+                            | "stopped"
+                            | "destroying"
+                            | "destroyed"
+                            | "error"
+                            | "unknown"
+                        ):
+                            targets = ["stopped"]
+                        case unreachable:
+                            assert_never(unreachable)
                     detail = sandbox_detail_wire(
                         await self._require_api().send(
                             RequestSpec("GET", f"/sandboxes/{quote(fork_id, safe='')}")
@@ -1490,10 +1523,14 @@ class AsyncSandbox:
                 # The fork exists; a failed read never costs the caller its handle.
                 detail = None
         accepted = data.to_dict()
+        if self.persistent is not None:
+            source_persistence = self.persistent
         forked_from = accepted.get("forked_from") or self.id
         if detail is not None and not detail.get("forked_from"):
             # A detail without `forked_from` keeps the source's id the fork names.
             detail = {**detail, "forked_from": forked_from}
+        if detail is not None and detail.get("persistent") is None and source_persistence is not None:
+            detail = {**detail, "persistent": source_persistence}
         # The fork gets its own toolbox URL from the API; inheriting the
         # parent's override could send its file and process calls to the parent.
         fork = AsyncSandbox._from_api(
@@ -1503,6 +1540,7 @@ class AsyncSandbox:
                 "id": fork_id,
                 "status": accepted.get("status"),
                 "forked_from": forked_from,
+                **({"persistent": source_persistence} if source_persistence is not None else {}),
                 **({"class": sandbox_class} if sandbox_class is not None else {}),
             },
             self._api,
@@ -1587,16 +1625,18 @@ class AsyncSandbox:
             raise create_error(
                 "update_lifecycle_policy requires at least one lifecycle field", 400, "BAD_REQUEST", "SDK"
             )
-        # One read when the class is unknown, and for a macOS sandbox whose
-        # persistence is unknown, as TypeScript reads it; never for a known
-        # Linux sandbox (persistence is macOS-only).
-        sandbox_class = await self._require_sandbox_class()
-        if sandbox_class == "macos" and self.persistent is None:
+        # Policies use the raw class: delete is valid even for a class this SDK
+        # does not otherwise know. One read resolves missing metadata.
+        needs_persistence = any(body.get(field) in ("stop", "pause") for field in LIFECYCLE_ACTION_FIELDS)
+        if (self.raw_sandbox_class is None and self.sandbox_class is None) or (
+            needs_persistence and self.persistent is None
+        ):
             await self.refresh_data()
+        sandbox_class = self.raw_sandbox_class or self.sandbox_class or "unknown"
         assert_lifecycle_class_support(
             body,
             sandbox_class=sandbox_class,
-            persistent=True if self.persistent is None else self.persistent,
+            persistent=self.persistent,
             action="update_lifecycle_policy",
         )
         data = expect_sandbox_lifecycle_policy(
@@ -1720,6 +1760,9 @@ class AsyncSandbox:
         sandbox keeps running. A macOS
         sandbox must be persistent and stopped; the capture answers
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later).
+        While a sandbox is still starting (Linux, Windows) or stopping (macOS), this submission
+        retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
+        other conflicts are raised immediately.
         The credential needs ``write:sandboxes`` in addition to ``write:images``;
         without it the capture raises :class:`ForbiddenError` (403).
 
@@ -1736,11 +1779,11 @@ class AsyncSandbox:
         """
         body: JsonObject = {}
         body.update(image_options_body(name=name, idle_expiry_seconds=idle_expiry_seconds))
-        operation = expect_create_image_resp(
-            await self._require_api().send(
-                RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/images", json_body=body)
-            )
+        payload, _ = await send_with_transition_retry(
+            self._require_api(),
+            RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/images", json_body=body),
         )
+        operation = expect_create_image_resp(payload)
         return expect_image(
             await self._require_api().send(
                 RequestSpec("GET", f"/images/{path_segment(operation.id, 'image id')}")
@@ -1751,19 +1794,21 @@ class AsyncSandbox:
         """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
         (``POST /sandboxes/{id}/snapshots``).
 
+        While the sandbox is still starting, this submission
+        retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
+        other conflicts are raised immediately.
+
         The credential needs ``write:sandboxes`` in addition to
         ``write:snapshots``; without it the capture raises
         :class:`ForbiddenError` (403).
         """
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-        created = expect_create_snapshot_resp(
-            await self._require_api().send(
-                RequestSpec(
-                    "POST", f"/sandboxes/{quote(self.id, safe='')}/snapshots", json_body={"name": name}
-                )
-            )
+        payload, _ = await send_with_transition_retry(
+            self._require_api(),
+            RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/snapshots", json_body={"name": name}),
         )
+        created = expect_create_snapshot_resp(payload)
         # The detail is checked against the contract before it is mapped, as images are.
         return parse_snapshot(
             expect_snapshot(
@@ -2289,7 +2334,7 @@ def _validated_labels(labels: object) -> Dict[str, str]:
                 "labels must be a mapping of string keys to string values", 400, "BAD_REQUEST", "SDK"
             )
         validated[key] = value
-    check_label_keys(validated)
+    check_labels(validated)
     return validated
 
 

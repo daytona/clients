@@ -4,7 +4,7 @@
  */
 
 import { pathSegment } from './pathSegment.js'
-import { pageParams } from './pageParams.js'
+import { pageParams, queryText } from './pageParams.js'
 import { frozenPage } from './frozen.js'
 import { listPage } from './listPage.js'
 import { SearchProbe, searchOrList } from './searchFirst.js'
@@ -19,7 +19,7 @@ import { assertKnownOptions, badRequest, headerText, snapshotOptions } from './o
 import { CONNECT_KEYS, FIND_KEYS, LIST_KEYS, SEARCH_KEYS } from './clientOptionKeys.js'
 import { createRegion, hasText, rejectV0Target } from './clientCreateOptions.js'
 import { labelsWithName } from './clientCreateNames.js'
-import { SEARCH_PATH, searchPageSandboxes, searchQueryParams } from './clientSearch.js'
+import { regionFilter, SEARCH_PATH, searchPageSandboxes, searchQueryParams } from './clientSearch.js'
 import { DaytonaError } from './errors/DaytonaError.js'
 import { assertSandboxResponse } from './sandboxMetadata.js'
 import type { SearchPageDto } from './clientSearch.js'
@@ -137,13 +137,16 @@ export async function findSandboxesByName(context: SandboxClientContext, name: s
   rejectV0Target(options)
   options = snapshotOptions('FindByNameOptions', options, FIND_KEYS) ?? {}
   if (typeof name !== 'string' || isBlank(name)) throw badRequest('name must be a non-blank string')
+  queryText(name, 'name')
   const region = createRegion(options)
+  // A named region filters the search; the default region searches every region.
+  const regionIds = region === undefined ? {} : { region_ids: regionFilter(region) }
   const found: Sandbox[] = []
   const seen = new Set<string>()
   let cursor: string | undefined
   for (;;) {
     const page = await context.api.get<SearchPageDto>(SEARCH_PATH, {
-      params: { labels: JSON.stringify(labelsWithName(name, undefined)), limit: 100, ...(cursor ? { cursor } : {}) },
+      params: { labels: JSON.stringify(labelsWithName(name, undefined)), limit: 100, ...regionIds, ...(cursor ? { cursor } : {}) },
       ...(region ? { headers: { 'x-daytona-region': region } } : {}),
     }).then((response) => response.data)
     // Every page is checked as search() checks it, total and relation included.
