@@ -453,12 +453,18 @@ make asynchronous callback work cancellation-aware when needed.
   A handle from `create*()` holds only what the create response carries (id,
   name, state, image, reservation and, when reported, the lifecycle policy)
   plus what the request fixed (`sandboxClass`, `region`, an `img_` / `snap_`
-  id you passed) until something reads the sandbox, and a sandbox that is already started when the create
-  answers (the usual case) is not read: call `refreshData()` before reading
-  `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
-  response does not report. Until then they are `undefined` (unknown). A
-  `fork()` handle whose wait did not read the sandbox (`waitSeconds: 0`, or a
-  failed read) is the same. `state` is `'unknown'` before a
+  id you passed) until something reads the sandbox. A create returns with no
+  wait and no read when its response already reports the sandbox started (the
+  usual case), when `waitSeconds` is 0, or when the server's hold used up a
+  finite `waitSeconds`; otherwise its wait reads the sandbox only as every wait does
+  (see "Waits and reads" below: never after a target event, once to confirm a
+  terminal event, and while it polls when the events stream decides nothing).
+  Call `refreshData()` before reading `cpu`, `memory`, `disk`, their limits,
+  `labels` or any other field the response does not report. Until then they
+  are `undefined` (unknown). A `fork()` handle holds the fork's detail read,
+  made before its wait (a fork wait decided by a target event adds none);
+  with `waitSeconds: 0`, or when that read fails, it is the same as a create
+  handle. `state` is `'unknown'` before a
   status is known. Absent values are `undefined` throughout the SDK's models,
   never `null`.
 
@@ -1330,12 +1336,22 @@ about 10 s of socket silence), not on the read backoff.
 completion: `stop()` returns at `stopped`, and `delete()` returns at
 `destroyed` (a sandbox disappearing during deletion also means completion).
 Client methods accept a sandbox or its ID and the same options, for example
-`daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. Once the target state
-has been observed, a failed metadata refresh afterwards does not turn that
-success into an error; a refresh that shows another state decides instead
-(a state terminal for that wait throws, any other state keeps the wait going
-under the same budget), so a lifecycle wait that returns leaves the handle in
-a requested state. `start()` on a sandbox that is already `starting`, because
+`daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. **Waits and reads:**
+a wait decided by a target event from the sandbox events stream makes no
+further request. A terminal event (`error`, `destroying`) gets one
+confirming read before the wait throws, except after a `destroyed` report or
+once the budget is spent; when that read is skipped or fails, the handle
+carries the reported state and the wait throws it. A wait the stream leaves
+undecided reads the sandbox while it polls. The handle takes an event's
+state and error message (an event without one clears the handle's), and its
+other fields, `spotEvictedAt`, the
+`lifecyclePolicy` deadlines and the activity clock included, are as of the
+last read (`refreshData()` reloads them). `start()` / `resume()` of a macOS
+sandbox read it once more after the target event, while budget remains and
+never after `destroyed`, for the boot mode and the reservation: a failed read
+keeps the observed success, and a read that shows another state decides
+(`destroying`, `destroyed` or `error` throw at once; any other state, such
+as `stopped` or `paused`, keeps the wait polling under the same deadline). `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and throws
 `SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
 once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,

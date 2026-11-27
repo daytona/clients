@@ -2887,36 +2887,61 @@ describe('V2 model', () => {
     }
   })
 
-  it('fills in the handle after a wait the socket decided, and not after a polled one', async () => {
+  it('reads nothing after a wait the socket decided, except a macOS start or resume', async () => {
     const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
     process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
-    // A socket frame carries only the state; create/start/resume hand back
-    // this handle, so the toolbox URL, resources and error reason must come
-    // from one GET, as on the polling path.
+    // A socket frame carries the state and the error message, and nothing else
+    // the handle exposes changes on a transition: no GET follows it. A macOS
+    // start or resume changes the boot mode and the reservation, so one GET
+    // fills them in.
     const client = new Daytona({ apiKey: 'key' })
     const api = clientInstance(client)
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true, reconcileIntervalMs: 0 }, async () => { throw new Error('unused') }, api)
-    const sandbox = createSandbox({ id: 'sbx', status: 'booting' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'linux', status: 'running', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } })
+    const sandbox = createSandbox({ id: 'sbx', status: 'booting', error: 'an earlier failure' }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
+    const get = jest.spyOn(api, 'get').mockResolvedValue({ data: { id: 'sbx', class: 'macos', status: 'running', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [], mac_boot_mode: 'warm' } })
+    jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'sbx', status: 'booting' }, headers: {} })
     const wait = jest.spyOn(hub, 'wait')
     try {
       wait.mockResolvedValueOnce({ state: 'started', rawState: 'running' })
       await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
-      expect(get).toHaveBeenCalledTimes(1)
-      expect(sandbox.memory).toBe(2)
+      expect(get).not.toHaveBeenCalled()
+      // The frame carried no error message: the handle's is cleared.
+      expect([sandbox.state, sandbox.rawState, sandbox.error]).toEqual(['started', 'running', undefined])
 
-      // Decided by the fallback poll: that poll already did the GET.
+      // The frame's error message is the handle's.
+      wait.mockResolvedValueOnce({ state: 'stopped', rawState: 'stopped', reason: 'the guest stopped' })
+      await sandbox.wait({ until: 'stopped', timeoutSeconds: 1 })
+      expect(get).not.toHaveBeenCalled()
+      expect(sandbox.error).toBe('the guest stopped')
+
+      // Decided by the fallback poll: that poll is the one GET.
       wait.mockImplementationOnce(async (_id, _predicate, options) => options!.sandboxPollFn!())
-      get.mockClear()
       await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
       expect(get).toHaveBeenCalledTimes(1)
+      expect(sandbox.sandboxClass).toBe('macos')
 
-      // The refresh shares the caller's budget.
+      // A macOS resume reads once after the socket decided, within its budget.
       wait.mockResolvedValueOnce({ state: 'started', rawState: 'running' })
       get.mockClear()
-      await sandbox.wait({ until: 'started', timeoutSeconds: 1 })
-      const config = get.mock.calls[0]?.[1] as { timeout?: number } | undefined
+      await sandbox.resume({ timeoutSeconds: 1 })
+      expect(get).toHaveBeenCalledTimes(1)
+      const config = get.mock.calls[0]?.[1] as { timeout?: number; params?: unknown } | undefined
       expect(config?.timeout).toBeLessThanOrEqual(1_000)
+      expect(config?.params).toBeUndefined()
+      expect(sandbox.macBootMode).toBe('warm')
+
+      // A macOS start of a stopped sandbox: its own read before it acts, then
+      // one read after the socket decided, within the budget.
+      get.mockReset()
+      get.mockResolvedValueOnce({ data: { id: 'sbx', class: 'macos', status: 'stopped', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [] } })
+        .mockResolvedValueOnce({ data: { id: 'sbx', class: 'macos', status: 'running', memory_mib: 2048, name: 'sbx', cpu: 1, cores_max: 1, disk_mib: 1024, region_id: '', port_map: [], reservation_id: 'res_b' } })
+      wait.mockResolvedValueOnce({ state: 'started', rawState: 'running' })
+      await sandbox.start({ timeoutSeconds: 1 })
+      expect(get).toHaveBeenCalledTimes(2)
+      const startRead = get.mock.calls[1]?.[1] as { timeout?: number; params?: unknown } | undefined
+      expect(startRead?.timeout).toBeLessThanOrEqual(1_000)
+      expect(startRead?.params).toBeUndefined()
+      expect([sandbox.state, sandbox.reservationId]).toEqual(['started', 'res_b'])
 
       // A destroyed sandbox has nothing to fill in: no GET (it would 404).
       wait.mockResolvedValueOnce({ state: 'destroyed', rawState: 'deleted' })
@@ -3616,7 +3641,7 @@ describe('creation shape', () => {
     expect(get).toHaveBeenCalledWith('/sandboxes/waiting', { timeout: 35000, params: { wait: 'running', timeout_ms: 30000 } })
   })
 
-  it('a create-returned sandbox waits via the socket hub and only refreshes once after the socket decision', async () => {
+  it('a create-returned sandbox waits via the socket hub and reads nothing after the socket decision', async () => {
     const savedEnv = process.env['DAYTONA_SANDBOX_EVENTS']
     process.env['DAYTONA_SANDBOX_EVENTS'] = '1'
     const client = newClient()
@@ -3639,8 +3664,8 @@ describe('creation shape', () => {
 
       expect(post).toHaveBeenCalledTimes(1)
       expect(wait).toHaveBeenCalledTimes(1)
-      expect(get).toHaveBeenCalledTimes(1)
-      expect(get).toHaveBeenCalledWith('/sandboxes/sbx', expect.objectContaining({ timeout: expect.any(Number) }))
+      expect(get).not.toHaveBeenCalled()
+      expect(sandbox.state).toBe('started')
     } finally {
       await client.close()
       if (savedEnv === undefined) delete process.env['DAYTONA_SANDBOX_EVENTS']

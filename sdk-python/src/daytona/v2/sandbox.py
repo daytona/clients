@@ -336,6 +336,7 @@ class AsyncSandbox:
         *,
         state: Union[SandboxState, _Unset] = _UNSET,
         raw_state: Union[Optional[str], _Unset] = _UNSET,
+        error: Union[Optional[str], _Unset] = _UNSET,
         labels: Union[Optional[Mapping[str, str]], _Unset] = _UNSET,
         sandbox_class: Union[Optional[Literal["linux", "macos", "unknown"]], _Unset] = _UNSET,
         raw_sandbox_class: Union[Optional[str], _Unset] = _UNSET,
@@ -358,6 +359,8 @@ class AsyncSandbox:
             info = dataclasses.replace(info, state=state)
         if not isinstance(raw_state, _Unset):
             info = dataclasses.replace(info, raw_state=raw_state)
+        if not isinstance(error, _Unset):
+            info = dataclasses.replace(info, error=error)
         if not isinstance(labels, _Unset):
             info = dataclasses.replace(info, labels=labels)
         if not isinstance(sandbox_class, _Unset):
@@ -367,6 +370,24 @@ class AsyncSandbox:
         if isinstance(persistent, bool):
             info = dataclasses.replace(info, persistent=persistent)
         self._info = info
+
+    def _is_macos(self) -> bool:
+        return self.sandbox_class == "macos"
+
+    def _kept_error(self, state: SandboxState, raw_state: Optional[str]) -> Optional[str]:
+        """The handle's error message when it came with ``state`` (and ``raw_state``,
+        when both wire statuses are known), else ``None``: a message never
+        labels another state. Only for an observation that carries no error
+        information (a 404 during a delete); an events frame's is verbatim."""
+        if self.state != state:
+            return None
+        if raw_state and self.raw_state and raw_state != self.raw_state:
+            return None
+        return self.error
+
+    def _observe_destroyed(self) -> None:
+        """A 404 in a delete: ``destroyed``, keeping only a message read with that state."""
+        self._update(state="destroyed", raw_state="deleted", error=self._kept_error("destroyed", "deleted"))
 
     def _update_lifecycle(self, policy: SandboxLifecycle, data: Mapping[str, JsonValue]) -> None:
         """Replace the lifecycle policy with one read from ``data``, keeping its wire timestamps."""
@@ -420,9 +441,10 @@ class AsyncSandbox:
     def labels(self) -> Optional[Mapping[str, str]]:
         """The sandbox labels: a fresh copy on every read (changing it changes
         nothing); replace them with :meth:`set_labels`. ``None`` until the API
-        has reported them: a ``create*()`` or ``fork()`` handle whose wait read
-        nothing holds only what the create response carries (call
-        :meth:`refresh_data` to load them)."""
+        has reported them: a ``create*()`` handle whose wait read nothing, or a
+        ``fork()`` handle whose detail read failed or was skipped, holds only
+        what the create or fork response carries (call :meth:`refresh_data`
+        to load them)."""
         return None if self._info.labels is None else dict(self._info.labels)
 
     @property
@@ -1000,6 +1022,7 @@ class AsyncSandbox:
         *,
         timeout: Optional[float] = None,
         missing_is_destroyed: bool = False,
+        read_after_target: Callable[[], bool] = lambda: False,
     ) -> None:
         """Wait until the sandbox reaches one of ``states`` (the engine behind :meth:`wait`).
 
@@ -1018,9 +1041,16 @@ class AsyncSandbox:
         them for up to one slice (``WAIT_FOR_STATE_SLICE_MS``) before it
         answers with such a state. Without that read, or
         when it fails, the reported state raises. A target state the events
-        hub reports is followed by one read that fills in the handle; that
-        read decides the same way (a failed read keeps the reported target),
-        so the handle never returns outside the target states. The events hub gets the budget less a final
+        hub reports ends the wait with no read: the handle takes the frame's
+        state and error message, and other fields that move on a transition
+        (``spot_evicted_at``, ``lifecycle_policy`` deadlines and the activity
+        clock) stay as of the last read. ``read_after_target`` (a macOS start
+        or resume, whose boot mode and reservation change; asked when the
+        report arrives, since a read during the wait may have learned the
+        class) follows it with one read while the budget lasts (none after
+        ``destroyed``); that read
+        decides the same way (a failed read keeps the reported target), so
+        the handle never returns outside the target states. The events hub gets the budget less a final
         reserve (``WAIT_FINAL_READ_RESERVE_S``, at most a quarter of it); when
         it has decided nothing by then, the reserve is a long-poll read of the
         server, so a state the stream never reported still ends the wait.
@@ -1106,11 +1136,13 @@ class AsyncSandbox:
                 retry.succeeded()
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
-                return WaitOutcome(self.state, self.raw_state or "")
+                return WaitOutcome(self.state, self.raw_state or "", self.error)
 
             def _observe_outcome(outcome: WaitOutcome) -> None:
-                # A frame without a status leaves the wire status unknown (None, never "").
-                self._update(state=outcome.state, raw_state=outcome.raw_state or None)
+                # A frame without a status leaves the wire status unknown (None,
+                # never ""). Its error message is taken verbatim: none means the
+                # sandbox has none, so it clears the handle's.
+                self._update(state=outcome.state, raw_state=outcome.raw_state or None, error=outcome.reason)
 
             def _on_observed(outcome: WaitOutcome) -> None:
                 nonlocal refreshed_by_poll
@@ -1169,7 +1201,8 @@ class AsyncSandbox:
             except SandboxTerminalStateError as error:
                 # What the handle last read, before the report overwrites it.
                 seen = (self.state, self.raw_state, self.error)
-                self._update(state=error.state)
+                # The report's error message, verbatim (none clears the handle's).
+                self._update(state=error.state, error=error.reason)
                 if error.raw_state is not None:
                     self._update(raw_state=error.raw_state)
                 # A terminal state the hub reports may be one it held before
@@ -1193,7 +1226,7 @@ class AsyncSandbox:
                     if not missing_is_destroyed:
                         raise error from None
                     # A sandbox the API no longer finds is gone.
-                    self._update(state="destroyed", raw_state="deleted")
+                    self._observe_destroyed()
                 except DaytonaError:
                     # The terminal outcome takes precedence over a failed read.
                     raise error from None
@@ -1211,14 +1244,16 @@ class AsyncSandbox:
                 confirm_read_end = _clock.monotonic()
             else:
                 _observe_outcome(resolved)
-                # A socket frame carries only the state. Callers (create, start,
-                # resume) hand back this handle, so fill in the rest — toolbox URL,
-                # region, resources, error reason — with one GET, as the polling
-                # path does, and within the same budget. A destroyed sandbox has
-                # nothing to fill in (the GET would be a 404). The target was
-                # observed, so neither a spent budget nor a failed refresh turns
-                # that success into an error.
-                if refreshed_by_poll or resolved.state == "destroyed":
+                # An events frame carries the state and the error message, and
+                # no read follows it: other fields that move on a transition
+                # (`spot_evicted_at`, lifecycle-policy deadlines, the activity
+                # clock) stay as of the last read. A macOS start or resume
+                # changes the boot mode and the reservation, which no response
+                # carries: those waits fill them in with one read within the same budget. A
+                # destroyed sandbox has nothing to fill in (the GET would be a
+                # 404). The target was observed, so neither a spent budget nor
+                # a failed read turns that success into an error.
+                if refreshed_by_poll or resolved.state == "destroyed" or not read_after_target():
                     return
                 remaining = None if deadline is None else deadline - _clock.monotonic()
                 if remaining is not None and remaining <= 0:
@@ -1376,17 +1411,20 @@ class AsyncSandbox:
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
         reaching ``destroyed`` or ``error`` first (or ``destroying``, unless
         ``until`` includes ``destroyed``) raises
-        :class:`SandboxTerminalStateError`. A terminal state the events hub
-        reports is confirmed with one read before it raises, while the wait has
-        budget left, unless that state already came from a full read or is
-        ``destroyed``. A target state the events hub reports is followed by
-        one read of the sandbox's details; when that read shows another state,
-        it decides instead: a state terminal for this wait raises, and any
-        other state keeps the wait going under the same deadline, so the
-        returned handle is in a requested state. No read follows a
-        ``destroyed`` report (it would be a 404) or a report that arrives as
-        the budget runs out, and a failed read keeps the reported state; the
-        handle then carries the reported target. When the events hub has reported nothing decisive, the
+        :class:`SandboxTerminalStateError`. A wait decided by a target event
+        from the sandbox events stream makes no further request. A terminal
+        event (``error``, ``destroying``) gets one confirming read before the
+        wait raises, except after a ``destroyed`` report, once the budget is
+        spent, or when that state already came from a full read; when that
+        read is skipped or fails, the handle carries the reported state and the
+        wait raises it. The handle takes an event's state and error message (an
+        event without one clears the handle's), and keeps its other fields, ``spot_evicted_at``, the
+        ``lifecycle_policy`` deadlines and the activity clock included, as of
+        the last read (:meth:`refresh_data` reloads them). Only :meth:`start`
+        and :meth:`resume` of a macOS sandbox read once more after the target
+        event, while budget remains and never after ``destroyed``, for the boot
+        mode and the reservation; a failed read keeps the observed success.
+        When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits. A read
@@ -1418,8 +1456,11 @@ class AsyncSandbox:
         confirm either state (up to one 30-second slice).
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
-        organization; after a start on a different Mac, iCloud asks the user to
-        sign in again. It raises :class:`ConflictError` with
+        organization (the handle reads the sandbox once more after the events
+        stream reports ``started``, while budget remains, for its boot mode and
+        reservation; a failed read keeps the observed success). Other fields,
+        ``spot_evicted_at`` and the ``lifecycle_policy`` deadlines included,
+        are as of the last read. After a start on a different Mac, iCloud asks the user to sign in again. It raises :class:`ConflictError` with
         ``DISK_NOT_READY`` while its disk is not ready yet (retry later),
         ``NO_FREE_SLOT`` when no Mac of the organization has space for its
         size, ``MAC_DISK_FULL`` when the Mac with space is low on free disk
@@ -1459,7 +1500,11 @@ class AsyncSandbox:
             # Joining a start or resume another caller sent: when it fails,
             # the sandbox goes back to stopped or paused.
             terminal_states = _JOINED_START_TERMINAL_STATES
-        await self._wait_for_state(["started"], terminal_states, timeout=timeout)
+        # A macOS start can change the boot mode and the reservation: one read
+        # after the events report fills them in.
+        await self._wait_for_state(
+            ["started"], terminal_states, timeout=timeout, read_after_target=self._is_macos
+        )
 
     async def stop(self, *, timeout: float = 60) -> None:
         """Stop the sandbox and wait until it is ``stopped``.
@@ -1499,7 +1544,11 @@ class AsyncSandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
-        raises :class:`SandboxTerminalStateError`.
+        raises :class:`SandboxTerminalStateError`. A macOS sandbox is read once
+        more after the events stream reports ``started``, while budget
+        remains, for its boot mode and reservation; a failed read keeps the
+        observed success. Other fields, ``spot_evicted_at`` and the
+        ``lifecycle_policy`` deadlines included, are as of the last read.
 
         Whether the sandbox can resume is the API's decision; a refusal
         surfaces as its typed error. A sandbox that is not paused, or whose
@@ -1518,7 +1567,14 @@ class AsyncSandbox:
         """
         timeout = _validate_timeout(timeout)
         await self._lifecycle_mutation(RequestSpec("POST", f"/sandboxes/{quote(self.id, safe='')}/resume"))
-        await self._wait_for_state(["started"], _RESUME_TERMINAL_STATES, timeout=timeout)
+        await self._wait_for_state(
+            ["started"],
+            _RESUME_TERMINAL_STATES,
+            timeout=timeout,
+            # Asked when the events report arrives: a handle built from an id
+            # alone learns its class only from a read during the wait.
+            read_after_target=self._is_macos,
+        )
 
     async def fork(
         self,
@@ -1717,7 +1773,7 @@ class AsyncSandbox:
             await self._wait_for_state(["destroyed"], timeout=timeout, missing_is_destroyed=True)
         except NotFoundError:
             # A sandbox the API no longer finds is gone: the wire status of `destroyed`.
-            self._update(state="destroyed", raw_state="deleted")
+            self._observe_destroyed()
 
     async def update_lifecycle_policy(
         self,

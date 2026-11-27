@@ -62,39 +62,125 @@ func TestWait_whenEventTerminal_isConfirmedByRead(t *testing.T) {
 	}
 }
 
-func TestWait_whenTargetEventObserved_refreshIsBestEffort(t *testing.T) {
-	for _, status := range []string{"stopping", "500"} {
+func TestWait_whenTargetEventObserved_readsNothing(t *testing.T) {
+	// Given: an event carrying the target state and no error message, on a
+	// handle that holds an earlier error message.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{})
+	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+	require.NoError(t, err)
+	sandbox.info.Region = " Local "
+	sandbox.info.Error = "an earlier failure"
+	source := &waitTestSource{events: make(chan stateObservation, 1)}
+	source.events <- stateObservation{State: SandboxStateStarted, RawState: "running"}
+	sandbox.client.stateSource = source
+	// When
+	err = sandbox.Wait(t.Context(), nil)
+	// Then: no read follows, and the event clears the error message.
+	require.NoError(t, err)
+	require.Equal(t, SandboxStateStarted, sandbox.State())
+	require.Empty(t, sandbox.Info().Error)
+	require.Empty(t, source.region)
+	require.Empty(t, fake.requests())
+}
+
+func TestWait_whenTargetEventHasNoReason_clearsAReadReason(t *testing.T) {
+	for _, status := range []string{"running", "stopped"} {
 		t.Run(status, func(t *testing.T) {
-			// Given: the refresh after the event fails, or shows a state that
-			// is not the target before a later read does.
-			var reads atomic.Int32
+			// Given: a full read that showed an error message, with the target
+			// state or another one.
 			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
-				if status == "500" {
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
 				detail := sandboxFixture("sbx")
-				if reads.Add(1) == 1 {
-					detail["status"] = status
-				}
+				detail["status"] = status
+				detail["error"] = "an earlier failure"
 				writeJSON(t, w, detail)
 			}})
 			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
 			require.NoError(t, err)
-			sandbox.info.Region = " Local "
+			require.NoError(t, sandbox.Refresh(t.Context()))
+			require.Equal(t, "an earlier failure", sandbox.Info().Error)
+			sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
+			// When: a started event without a message decides the wait.
+			err = sandbox.Wait(t.Context(), nil)
+			// Then: the event's absent message clears the read's, with no read.
+			require.NoError(t, err)
+			require.Empty(t, sandbox.Info().Error)
+			require.Len(t, reads(fake), 1)
+		})
+	}
+}
+
+func TestDelete_whenGone_keepsOnlyAReasonReadWithDestroyed(t *testing.T) {
+	for _, test := range []struct {
+		status string
+		kept   string
+	}{{"deleted", "an earlier failure"}, {"running", ""}} {
+		t.Run(test.status, func(t *testing.T) {
+			// Given: a read that showed a message, then a delete whose events
+			// report the sandbox no longer present.
+			var served atomic.Int32
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"DELETE /sandboxes/sbx": jsonHandler(t, map[string]string{}),
+				"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
+					served.Add(1)
+					detail := sandboxFixture("sbx")
+					detail["status"] = test.status
+					detail["error"] = "an earlier failure"
+					writeJSON(t, w, detail)
+				},
+			})
+			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+			require.NoError(t, err)
+			require.NoError(t, sandbox.Refresh(t.Context()))
+			sandbox.client.stateSource = eventSource(stateObservation{NotFound: true})
+			// When
+			err = sandbox.Delete(t.Context(), nil)
+			// Then: a 404 carries no message; only one read with destroyed stays.
+			require.NoError(t, err)
+			require.Equal(t, SandboxStateDestroyed, sandbox.State())
+			require.Equal(t, test.kept, sandbox.Info().Error)
+			require.EqualValues(t, 1, served.Load())
+		})
+	}
+}
+
+func TestResume_whenMacOSTargetEventObserved_refreshIsBestEffort(t *testing.T) {
+	for _, status := range []string{"stopping", "500"} {
+		t.Run(status, func(t *testing.T) {
+			// Given: the read after a macOS resume's event fails, or shows a
+			// state that is not the target before a later read does.
+			var served atomic.Int32
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"POST /sandboxes/sbx/resume": jsonHandler(t, map[string]string{}),
+				"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
+					if status == "500" {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					detail := sandboxFixture("sbx")
+					detail["class"] = "macos"
+					detail["mac_boot_mode"] = "warm"
+					if served.Add(1) == 1 {
+						detail["status"] = status
+					}
+					writeJSON(t, w, detail)
+				},
+			})
+			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+			require.NoError(t, err)
+			sandbox.info.Class = SandboxClassMacOS
 			source := &waitTestSource{events: make(chan stateObservation, 1)}
 			source.events <- stateObservation{State: SandboxStateStarted, RawState: "running"}
 			sandbox.client.stateSource = source
 			// When
-			err = sandbox.Wait(t.Context(), nil)
+			err = sandbox.Resume(t.Context(), nil)
 			// Then
 			require.NoError(t, err)
 			require.Equal(t, SandboxStateStarted, sandbox.State())
-			require.Empty(t, source.region)
 			if status == "500" {
-				require.Len(t, fake.requests(), 1)
+				require.Len(t, reads(fake), 1)
 			} else {
-				require.Len(t, fake.requests(), 2)
+				require.Len(t, reads(fake), 2)
+				require.Equal(t, MacBootMode("warm"), sandbox.Info().MacBootMode)
 			}
 		})
 	}

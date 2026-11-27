@@ -31,6 +31,12 @@ func (s *Sandbox) Pause(ctx context.Context, opts *LifecycleWaitOptions) error {
 
 // Resume resumes a paused sandbox and waits for started (default 60 seconds).
 // Returning to stopped is a *SandboxTerminalStateError. NoWait skips waiting.
+// A macOS sandbox is read once more after the events stream reports started,
+// while budget remains, for its boot mode and reservation; a failed read keeps
+// the observed success. Client.Resume by ID knows the class only when a read
+// during the wait reported it, and otherwise makes no such read. Other fields,
+// SpotEvictedAt and the lifecycle-policy deadlines included, are as of the
+// last read.
 //
 // Whether the sandbox can resume is the API's decision; a refusal returns its
 // typed error. A sandbox that is not paused, or whose saved state is
@@ -77,6 +83,10 @@ func (s *Sandbox) transition(ctx context.Context, transition lifecycleTransition
 	if transition.failure != "" {
 		w.terminal = append(w.terminal, transition.failure)
 	}
+	// A macOS resume can change the boot mode: one read after the target
+	// event fills it in. The class is checked when the event arrives: a
+	// handle built from an id alone learns it only from a read during the wait.
+	w.readAfterMacOSTarget = transition.action == "resume"
 	request := apiRequest{Method: http.MethodPost, Path: w.path + "/" + transition.action}
 	if transition.action == "" {
 		request.Method, request.Path = http.MethodDelete, w.path

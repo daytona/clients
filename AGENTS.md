@@ -1026,18 +1026,39 @@ skipping exist only in the TypeScript tool).
   deadline (long polls when the wait has one target state), which return at
   once if the state was reached. A failed read there keeps the timeout, with
   the read's error as its cause (a server's 408 included), except a 401 /
-  403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
-  target was observed, a failed
-  metadata refresh afterwards does not turn that success into an error; a
-  refresh that succeeds decides too: a target returns, a state terminal for
-  that wait that no lag can show (`destroyed`, `error`, and `destroying`
-  unless the wait targets `destroyed`) raises with the read's reason, and
-  any other state polls on under the same deadline, so a lifecycle wait
-  never returns a handle outside its targets (create and fork still return
-  theirs however the wait ends). An operation's own failure state (`started`
-  for a pause, `stopped` / `paused` for a joined start) is also the state
-  before it, which a lagging plain read shows; on this read and on the read
-  that confirms a terminal state the events hub reports, it is left to the
+  403 and a 404, which are raised (a 404 in a delete is `destroyed`). A
+  wait decided by a target event makes no further request; a terminal event
+  gets the one confirming read above (skipped after `destroyed`, once the
+  budget is spent, or when the state came from a full read; when skipped or
+  failed, the handle carries the reported state); the polling fallback and
+  the final reserve read. The handle takes the event's state and error
+  message verbatim, in all three SDKs (an event without one clears the
+  handle's; only a 404 during a delete, which carries no error information,
+  keeps a message held with `destroyed`; Go borrows a matching full read's
+  reason for a raised terminal error's `Reason` only, never for the handle);
+  its other fields are as of the last read, among them
+  those that do move on a transition: `spot_evicted_at` (set on an
+  eviction, cleared by start and resume), the lifecycle-policy deadlines and
+  the activity clock. The SDKs neither read for them nor clear them
+  themselves. The one exception is a macOS `start()` / `resume()` (Python
+  `read_after_target`, TypeScript `readAfterTarget`, Go
+  `sandboxWait.readAfterMacOSTarget`), whose boot mode and reservation change
+  and are in no response: one plain read follows the target event while
+  budget remains (none after `destroyed`). The class is checked when the
+  event arrives, so a handle built from an id alone (a by-id `resume()`)
+  reads only when a read during the wait reported it macOS. A target the hub
+  resolves from a state it already held is trusted like a fresh frame: a
+  stale held target (another caller moved the sandbox and its frame has not
+  arrived) can end a wait early, an accepted residual risk. Once the target
+  was observed, a failed read there does not turn that success into an
+  error; a read that succeeds decides: a target
+  returns, a state terminal for that wait that no lag can show
+  (`destroyed`, `error`, and `destroying` unless the wait targets
+  `destroyed`) raises with the read's reason, and any other state polls on
+  under the same deadline. An operation's own failure state (`started` for
+  a pause, `stopped` / `paused` for a joined start) is also the state before
+  it, which a lagging plain read shows; on this read and on the read that
+  confirms a terminal state the events hub reports, it is left to the
   long-poll reads that follow. The server holds a loose `wait=paused` on
   `started` and `wait=running` on `paused` for the whole slice, so such a
   failure is reported up to one 30-second slice later; a loose
@@ -1072,9 +1093,10 @@ skipping exist only in the TypeScript tool).
   one way in, in both SDKs. An absent value is `None` in Python and an
   optional `undefined` in TypeScript, never `null` (and never `''`): a
   handle's `state` is always set (`unknown` before a read), and the `labels`
-  of a create or fork handle whose wait read nothing are `None` / `undefined`
-  (unknown, not empty) until a detail read reports them; `to_json()` / `toJSON()` write `labels` whenever
-  they are known. The handle exposes the
+  of a create handle, or a fork handle whose detail read failed or was
+  skipped (`wait_seconds=0`), are `None` / `undefined` (unknown, not empty)
+  until a read reports them; `to_json()` / `toJSON()` write `labels`
+  whenever they are known. The handle exposes the
   sandbox-scoped `access_token` / `accessToken` it authenticates with, but
   not its toolbox URL. `to_json()` / `toJSON()` return one
   credential- and URL-free camelCase `SandboxHandleJSON`, a snapshot only:

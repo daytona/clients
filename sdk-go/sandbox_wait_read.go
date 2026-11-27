@@ -79,9 +79,7 @@ func (w *sandboxWait) fetch(ctx context.Context, options waitReadOptions) waitRe
 func (w *sandboxWait) accept(result waitReadResult) (stateObservation, error) {
 	if result.err != nil {
 		if w.missingIsDestroyed && errors.Is(result.err, ErrNotFound) {
-			gone := stateObservation{State: SandboxStateDestroyed, RawState: "deleted"}
-			w.sandbox.observeWait(gone)
-			return gone, nil
+			return w.sandbox.observeGone(), nil
 		}
 		return stateObservation{}, result.err
 	}
@@ -115,12 +113,33 @@ func (w *sandboxWait) readOutcome(outcome stateObservation) (bool, error) {
 	return false, nil
 }
 
+// observeWait records a wait observation. Its error message is taken
+// verbatim: an event without one means the sandbox has none, so it clears the
+// handle's.
 func (s *Sandbox) observeWait(outcome stateObservation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.info.State, s.info.RawState = outcome.State, outcome.RawState
 	s.info.Error = outcome.Reason
 	s.reasonFromRead = false
+}
+
+// observeGone records a 404 during a delete as destroyed. A 404 carries no
+// error information, so the handle keeps a message only when it already holds
+// it with destroyed / deleted, from a read or an event (as Python and
+// TypeScript do); a message never labels another state.
+func (s *Sandbox) observeGone() stateObservation {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	gone := stateObservation{State: SandboxStateDestroyed, RawState: "deleted"}
+	if s.info.State == gone.State && s.info.RawState == gone.RawState {
+		gone.Reason = s.info.Error
+		return gone
+	}
+	s.info.State, s.info.RawState = gone.State, gone.RawState
+	s.info.Error = ""
+	s.reasonFromRead = false
+	return gone
 }
 
 // Read the reason and its provenance under one lock; never carry the lock into

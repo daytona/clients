@@ -334,6 +334,71 @@ describe('WaitHub: snapshot then live', () => {
     await expect(prom).resolves.toMatchObject({ state: 'started' })
   })
 
+  test("a frame's error message comes with its outcome, and with the state the hub holds", async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    const ws = fc.prepare()
+    // A waiter that keeps the subscription, so later waits read the held state.
+    const background = hub.wait(SANDBOX_ID, targetPredicate(new Set(['destroyed']), new Set()), { timeout: 5000 })
+    void background.catch(() => undefined)
+    const stopped = targetPredicate(new Set(['stopped']), new Set(['error']))
+    const first = hub.wait(SANDBOX_ID, stopped, { timeout: 5000 })
+    await drain()
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'stopped', version: 1, error: 'the guest stopped' })
+    await expect(first).resolves.toEqual({ state: 'stopped', rawState: 'stopped', reason: 'the guest stopped' })
+    await expect(hub.wait(SANDBOX_ID, stopped, { timeout: 5000 })).resolves.toEqual({ state: 'stopped', rawState: 'stopped', reason: 'the guest stopped' })
+    // A frame without an error message clears it.
+    ws.inject({ type: 'event', id: SANDBOX_ID, status: 'running', version: 2, error: null })
+    await drain()
+    await expect(hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5000 })).resolves.toEqual({ state: 'started', rawState: 'running' })
+    await hub.detach()
+  })
+
+  test("a terminal frame's error message reaches the raised error, live and held", async () => {
+    const fc = makeFakeConnector()
+    const hub = makeHub(fc)
+    const ws = fc.prepare()
+    const background = hub.wait(SANDBOX_ID, targetPredicate(new Set(['destroyed']), new Set()), { timeout: 5000 })
+    void background.catch(() => undefined)
+    const live = hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5000 })
+    void live.catch(() => undefined)
+    await drain()
+    ws.inject({ type: 'snapshot', id: SANDBOX_ID, status: 'failed', version: 1, error: 'the guest crashed' })
+    await expect(live).rejects.toMatchObject({ rawState: 'failed', reason: 'the guest crashed' })
+    await expect(hub.wait(SANDBOX_ID, startedPredicate(), { timeout: 5000 })).rejects.toMatchObject({ rawState: 'failed', reason: 'the guest crashed' })
+    await hub.detach()
+  })
+
+  test('a moved state without an error message clears the destination socket\'s', async () => {
+    const hub = makeHub(makeFakeConnector())
+    type InternalSocket = {
+      subscriptions: Set<string>
+      states: Map<string, string>
+      rawStates: Map<string, string>
+      reasons: Map<string, string>
+    }
+    const internal = hub as unknown as {
+      ensureSocket: (key: string, region: string) => InternalSocket
+      moveSocketSubscriptions: (sourceKey: string, source: InternalSocket, destination: InternalSocket, preserveState: boolean) => void
+      ensureSocketLoop: (sock: InternalSocket) => void
+    }
+    internal.ensureSocketLoop = () => undefined
+    const source = internal.ensureSocket('regiona', 'regiona')
+    const destination = internal.ensureSocket('endpoint-a', 'regiona')
+    for (const [sock, state, raw] of [[source, 'started', 'running'], [destination, 'error', 'failed']] as const) {
+      sock.subscriptions.add(SANDBOX_ID)
+      sock.states.set(SANDBOX_ID, state)
+      sock.rawStates.set(SANDBOX_ID, raw)
+    }
+    destination.reasons.set(SANDBOX_ID, 'the guest crashed')
+
+    internal.moveSocketSubscriptions('regiona', source, destination, true)
+
+    expect([destination.states.get(SANDBOX_ID), destination.rawStates.get(SANDBOX_ID)]).toEqual(['started', 'running'])
+    expect(destination.reasons.has(SANDBOX_ID)).toBe(false)
+    await hub.detach()
+  })
+
   test('version rule: lower version dropped', async () => {
     const fc = makeFakeConnector()
     const hub = makeHub(fc)

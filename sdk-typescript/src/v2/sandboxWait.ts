@@ -28,9 +28,7 @@ export const WAIT_FOR_STATE_SLICE_MS = 30_000
 export const WAIT_FINAL_READ_RESERVE_MS = 5_000
 
 /** What a read of the sandbox found: its state, wire status and the server's reason. */
-export interface SandboxReadOutcome extends WaitOutcome {
-  readonly reason?: string
-}
+export type SandboxReadOutcome = WaitOutcome
 
 /** @internal */
 export interface SandboxWaitContext {
@@ -41,6 +39,7 @@ export interface SandboxWaitContext {
   readonly read: (timeoutMs?: number, wait?: SandboxWaitState, requestDeadline?: number, exact?: boolean) => Promise<SandboxReadOutcome>
   /** What the handle last observed, its reason included. */
   readonly current: () => SandboxReadOutcome
+  /** Records an observed state, wire status and error message (absent: none). */
   readonly observe: (outcome: WaitOutcome) => void
   /** The owning client's closed signal: ends a retry pause (readRetry.ts). */
   readonly closed?: AbortSignal
@@ -50,6 +49,16 @@ export interface SandboxStateWaitOptions {
   readonly timeoutSeconds?: number
   readonly terminalStates?: readonly SandboxState[]
   readonly missingIsDestroyed?: boolean
+  /**
+   * Whether to read the sandbox once after the events hub reports a target
+   * state, asked when the report arrives (a read during the wait may have
+   * learned the class). An events frame carries the state and the error
+   * message; the boot mode and the reservation a macOS start or resume
+   * changes are in no response, so only those waits ask for the read. Other
+   * fields that move on a transition (`spotEvictedAt`, lifecycle-policy
+   * deadlines, the activity clock) stay as of the last read.
+   */
+  readonly readAfterTarget?: () => boolean
 }
 
 function timeoutError(cause?: unknown): RequestTimeoutError {
@@ -73,6 +82,17 @@ export function waitQueryState(state: SandboxWaitState | undefined): string | un
       throw new BadRequestError(`invalid sandbox wait state: ${String(unhandled)}`, { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
   }
+}
+
+/**
+ * A 404 during a delete: `destroyed`. A 404 carries no error information, so
+ * the handle keeps a message only when it was read with `destroyed` /
+ * `deleted` (a message never labels another state).
+ */
+function destroyedOutcome(context: SandboxWaitContext): WaitOutcome {
+  const seen = context.current()
+  const kept = seen.state === 'destroyed' && (seen.rawState === '' || seen.rawState === 'deleted') ? seen.reason : undefined
+  return { state: 'destroyed', rawState: 'deleted', reason: kept }
 }
 
 /**
@@ -108,7 +128,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       return await context.read(timeoutMs, wait, readDeadline, wait !== undefined && exact)
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
-        const destroyed = { state: 'destroyed', rawState: 'deleted' } as const
+        const destroyed = destroyedOutcome(context)
         context.observe(destroyed)
         return destroyed
       }
@@ -217,7 +237,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       }).finally(() => { hubSettled.abort() })
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
-        context.observe({ state: 'destroyed', rawState: 'deleted' })
+        context.observe(destroyedOutcome(context))
         return
       }
       if (deadline !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') {
@@ -248,7 +268,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (!(error instanceof SandboxTerminalStateError)) throw error
       // What the handle last read, before the report overwrites it.
       const seen = context.current()
-      context.observe({ state: error.state, rawState: error.rawState ?? '' })
+      // The report's error message, verbatim (none clears the handle's).
+      context.observe({ state: error.state, rawState: error.rawState ?? '', reason: error.reason })
       // A terminal state the hub reports may be one it held before this
       // request's frames arrived (an `error` from an earlier wait, while a
       // DELETE already moves the sandbox on): one read confirms it, and the
@@ -276,12 +297,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     }
     if (resolved !== undefined) {
       context.observe(resolved)
-      // A socket frame carries only the state. Callers (create, start,
-      // resume) hand back this handle, so fill in the rest with one read
+      // An events frame carries the state and the error message, and no read
+      // follows it: other fields that move on a transition (`spotEvictedAt`,
+      // lifecycle-policy deadlines, the activity clock) stay as of the last
+      // read. A macOS start or resume changes the boot mode and the
+      // reservation, which no response carries: those waits fill them in with one read
       // within the same budget. A destroyed sandbox has nothing to fill in.
       // The target was observed, so neither a spent budget nor a failed read
       // turns that success into an error.
-      if (refreshedByPoll || resolved.state === 'destroyed') return
+      if (refreshedByPoll || resolved.state === 'destroyed' || options.readAfterTarget?.() !== true) return
       const budget = remaining()
       if (budget !== undefined && budget <= 0) return
       let outcome: SandboxReadOutcome
