@@ -7,6 +7,7 @@ import re
 from typing import Dict, Final, List, Mapping, Optional, Tuple
 
 from ._core import (
+    INT32_MAX,
     MAX_SAFE_INTEGER,
     JsonValue,
     TransportPayload,
@@ -39,6 +40,7 @@ from ._gen.toolbox import (
     ComputerUseWindow,
 )
 from ._gen.toolbox import ComputerUseDesktopFailure as ComputerUseDesktopFailureDto
+from ._gen.toolbox import ComputerUseResolution as ComputerUseResolutionDto
 from ._timestamps import parse_optional_timestamp, parse_timestamp
 from .computer_use_types import (
     ComputerUseA11yFindResult,
@@ -53,6 +55,7 @@ from .computer_use_types import (
     ComputerUseProcessRestartResult,
     ComputerUseReadyStatus,
     ComputerUseRecordingList,
+    ComputerUseResolution,
     ComputerUseScreenshot,
     ComputerUseScrollResult,
     ComputerUseStartingStatus,
@@ -375,6 +378,15 @@ def _check_status_fields(payload: object) -> Mapping[str, object]:
         for field in ("code", "message"):
             if not isinstance(cause.get(field), str):
                 raise _invalid(_INVALID_STATUS, f"cause.{field} must be a string")
+    resolution = payload.get("resolution")
+    if resolution is not None:
+        if not isinstance(resolution, Mapping):
+            raise _invalid(_INVALID_STATUS, "resolution must be null or an object")
+        for field in ("width", "height"):
+            value = resolution.get(field)
+            # The contract's int32, as the TypeScript SDK checks it.
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= INT32_MAX:
+                raise _invalid(_INVALID_STATUS, f"resolution.{field} must be a non-negative int32")
     return payload
 
 
@@ -395,22 +407,24 @@ def parse_computer_use_status(
     status = enum_str(model.status)
     desktop = enum_str(model.desktop)
     extra_fields = _additional_json_fields(model.additional_properties)
+    resolution = _parse_computer_use_resolution(model.resolution)
     # Outside the failed state the contract allows `cause` to be omitted or null.
     no_cause = model.cause is None
 
     if status == "inactive" and desktop == "not_started":
         if no_cause:
-            return ComputerUseNotStartedStatus(extra_fields=extra_fields)
+            return ComputerUseNotStartedStatus(resolution=resolution, extra_fields=extra_fields)
     elif status == "inactive" and desktop == "starting":
         if no_cause:
-            return ComputerUseStartingStatus(extra_fields=extra_fields)
+            return ComputerUseStartingStatus(resolution=resolution, extra_fields=extra_fields)
     elif status == "active" and desktop == "ready":
         if no_cause:
-            return ComputerUseReadyStatus(extra_fields=extra_fields)
+            return ComputerUseReadyStatus(resolution=resolution, extra_fields=extra_fields)
     elif status == "inactive" and desktop == "failed":
         if model.cause is not None:
             return ComputerUseFailedStatus(
                 cause=_parse_computer_use_desktop_failure(model.cause),
+                resolution=resolution,
                 extra_fields=extra_fields,
             )
         raise _invalid(_INVALID_STATUS, "cause is required when status is 'inactive' and desktop is 'failed'")
@@ -421,6 +435,7 @@ def parse_computer_use_status(
             raw_status=status,
             raw_desktop=desktop,
             cause=_parse_computer_use_desktop_failure(model.cause) if model.cause is not None else None,
+            resolution=resolution,
             extra_fields=extra_fields,
         )
     raise _invalid(
@@ -454,6 +469,13 @@ def parse_computer_use_restart(
         message=model.message,
         extra_fields=_additional_json_fields(model.additional_properties),
     )
+
+
+def _parse_computer_use_resolution(payload: ComputerUseResolutionDto | None) -> ComputerUseResolution | None:
+    # Only width and height are read: the type is also the request's.
+    if payload is None:
+        return None
+    return ComputerUseResolution(width=payload.width, height=payload.height)
 
 
 def _parse_computer_use_desktop_failure(payload: ComputerUseDesktopFailureDto) -> ComputerUseDesktopFailure:

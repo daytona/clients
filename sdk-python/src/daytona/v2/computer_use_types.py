@@ -74,6 +74,10 @@ class ComputerUseNotStartedStatus:
     status: Literal["inactive"] = "inactive"
     desktop: Literal["not_started"] = "not_started"
     cause: None = None
+    # The resolution the desktop runs at or, when it is not running, the one
+    # the next plain start or restart uses. Linux sandboxes only; None on other
+    # platforms and from guests that predate it.
+    resolution: Optional[ComputerUseResolution] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -82,6 +86,10 @@ class ComputerUseStartingStatus:
     status: Literal["inactive"] = "inactive"
     desktop: Literal["starting"] = "starting"
     cause: None = None
+    # The resolution the desktop runs at or, when it is not running, the one
+    # the next plain start or restart uses. Linux sandboxes only; None on other
+    # platforms and from guests that predate it.
+    resolution: Optional[ComputerUseResolution] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -90,6 +98,10 @@ class ComputerUseReadyStatus:
     status: Literal["active"] = "active"
     desktop: Literal["ready"] = "ready"
     cause: None = None
+    # The resolution the desktop runs at or, when it is not running, the one
+    # the next plain start or restart uses. Linux sandboxes only; None on other
+    # platforms and from guests that predate it.
+    resolution: Optional[ComputerUseResolution] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -98,6 +110,10 @@ class ComputerUseFailedStatus:
     cause: ComputerUseDesktopFailure
     status: Literal["inactive"] = "inactive"
     desktop: Literal["failed"] = "failed"
+    # The resolution the desktop runs at or, when it is not running, the one
+    # the next plain start or restart uses. Linux sandboxes only; None on other
+    # platforms and from guests that predate it.
+    resolution: Optional[ComputerUseResolution] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
@@ -114,6 +130,10 @@ class ComputerUseUnknownStatus:
     status: Literal["unknown"] = "unknown"
     desktop: Literal["unknown"] = "unknown"
     cause: Optional[ComputerUseDesktopFailure] = None
+    # The resolution the desktop runs at or, when it is not running, the one
+    # the next plain start or restart uses. Linux sandboxes only; None on other
+    # platforms and from guests that predate it.
+    resolution: Optional[ComputerUseResolution] = None
     extra_fields: Optional[Dict[str, JsonValue]] = None
 
 
