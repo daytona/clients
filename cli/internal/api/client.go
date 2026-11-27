@@ -168,30 +168,37 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 }
 
 func (c *Client) DoWithHeaders(ctx context.Context, method, path string, query url.Values, headers http.Header, in, out any) error {
+	_, err := c.DoReturningHeaders(ctx, method, path, query, headers, in, out)
+	return err
+}
+
+// DoReturningHeaders is DoWithHeaders that also returns the 2xx response's
+// headers (an ETag for a conditional update).
+func (c *Client) DoReturningHeaders(ctx context.Context, method, path string, query url.Values, headers http.Header, in, out any) (http.Header, error) {
 	var body io.Reader
 	if in != nil {
 		b, err := json.Marshal(in)
 		if err != nil {
-			return fmt.Errorf("encode request: %w", err)
+			return nil, fmt.Errorf("encode request: %w", err)
 		}
 		body = bytes.NewReader(b)
 	}
 	resp, err := c.raw(ctx, method, path, query, headers, body, "application/json", false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if out == nil {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		return nil
+		return resp.Header, nil
 	}
 	if resp.StatusCode == http.StatusNoContent {
-		return nil
+		return resp.Header, nil
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return fmt.Errorf("decode %s %s response: %w", method, path, err)
+		return nil, fmt.Errorf("decode %s %s response: %w", method, path, err)
 	}
-	return nil
+	return resp.Header, nil
 }
 
 // Stream performs a request and returns the open response for the caller to
