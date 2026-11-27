@@ -77,6 +77,7 @@ from ._gen.api import (
     SandboxListItem,
     SignSandboxFileUrlRequest,
 )
+from ._read_retry import ReadRetry
 from ._timestamps import rfc3339_timestamp
 from ._transition_retry import send_with_transition_retry
 from ._transport import AsyncTransport
@@ -92,6 +93,7 @@ from .computer_use import AsyncComputerUseService
 from .docker import AsyncDockerService
 from .errors import (
     AuthenticationError,
+    ClientClosedError,
     ClientTimeoutError,
     DaytonaError,
     ForbiddenError,
@@ -1042,6 +1044,9 @@ class AsyncSandbox:
             and wait_query_key(_wait_query_state(wait_target), effective_terminal) == "wait_exact"
         )
 
+        # One back-off and last failure for every read of this wait: the
+        # events fallback, the hub's probes and the final reserve.
+        retry = ReadRetry(self._api)
         hub = self._events_hub()
         if hub is not None and hub.enabled:
             predicate = _TargetPredicate(
@@ -1068,14 +1073,12 @@ class AsyncSandbox:
                         pause = min(pause, max(0.0, deadline - _clock.monotonic()))
                     if pause > 0:
                         await asyncio.sleep(pause)
+                # A failed read (a probe's or the fallback's) holds the next
+                # one back by its back-off or the server's retry hint.
+                await retry.pause(deadline if hub_deadline is None else hub_deadline)
                 remaining = None if deadline is None else deadline - _clock.monotonic()
                 if remaining is not None and remaining <= 0:
-                    raise create_error(
-                        "sandbox failed to reach the requested state before timeout",
-                        408,
-                        "REQUEST_TIMEOUT",
-                        "SDK",
-                    )
+                    raise _wait_timed_out() from retry.last_error
                 held = (
                     remaining
                     if hub_deadline is None
@@ -1086,14 +1089,21 @@ class AsyncSandbox:
                     if held is None
                     else min(WAIT_FOR_STATE_SLICE_MS, max(1, math.ceil(held * 1000)))
                 )
-                await self._refresh_data_within(
-                    timeout=None if remaining is None else ms / 1000,
-                    wait=wait_target,
-                    wait_timeout_ms=ms if wait_target is not None else None,
-                    # The read itself (its slack included) ends with the hub's share.
-                    deadline=deadline if hub_deadline is None else hub_deadline,
-                    exact=exact,
-                )
+                try:
+                    await self._refresh_data_within(
+                        timeout=None if remaining is None else ms / 1000,
+                        wait=wait_target,
+                        wait_timeout_ms=ms if wait_target is not None else None,
+                        # The read itself (its slack included) ends with the hub's share.
+                        deadline=deadline if hub_deadline is None else hub_deadline,
+                        exact=exact,
+                    )
+                except DaytonaError as error:
+                    # A failed read schedules the next one and is the wait's
+                    # timeout cause if nothing later fails.
+                    retry.probe_failed(error)
+                    raise
+                retry.succeeded()
                 last_poll_end = _clock.monotonic()
                 refreshed_by_poll = True
                 return WaitOutcome(self.state, self.raw_state or "")
@@ -1116,6 +1126,7 @@ class AsyncSandbox:
                     region_hint=None if (self.region or "").strip().lower() == "local" else self.region,
                     sandbox_poll_fn=_sandbox_poll_fn,
                     on_observed=_on_observed,
+                    read_retry=retry,
                 )
             except RequestTimeoutError as error:
                 # The events stream decided nothing within its share of the
@@ -1133,11 +1144,18 @@ class AsyncSandbox:
                         deadline,
                         exact,
                         last_read_end=last_poll_end,
+                        retry=retry,
                     )
-                except (SandboxTerminalStateError, NotFoundError, AuthenticationError, ForbiddenError):
+                except (
+                    SandboxTerminalStateError,
+                    NotFoundError,
+                    AuthenticationError,
+                    ForbiddenError,
+                    ClientClosedError,
+                ):
                     # What the read decided (a 404 outside a delete: the
-                    # sandbox is gone), or a credential the API refuses (final
-                    # for the hub's own probe too).
+                    # sandbox is gone), a credential the API refuses (final
+                    # for the hub's own probe too), or the client closing.
                     raise
                 except RequestTimeoutError as read_error:
                     if read_error.source == "SDK":
@@ -1229,11 +1247,18 @@ class AsyncSandbox:
                     deadline,
                     exact,
                     last_read_end=_clock.monotonic(),
+                    retry=retry,
                 )
                 return
 
         await self._poll_for_state(
-            target_states, effective_terminal, wait_target, deadline, exact, last_read_end=confirm_read_end
+            target_states,
+            effective_terminal,
+            wait_target,
+            deadline,
+            exact,
+            retry=retry,
+            last_read_end=confirm_read_end,
         )
 
     async def _poll_for_state(
@@ -1245,12 +1270,18 @@ class AsyncSandbox:
         exact: bool,
         *,
         last_read_end: Optional[float] = None,
+        retry: Optional[ReadRetry] = None,
     ) -> None:
         """The polling half of :meth:`_wait_for_state`: long-poll reads until a target or terminal state.
 
         ``last_read_end`` (a ``_clock.monotonic()`` instant) is when the wait's
         previous read ended; the first read keeps the minimum spacing after it.
+        A read that fails transiently is retried with back-off under the same
+        deadline (:mod:`._read_retry`); a spent deadline raises the wait's
+        timeout with the last failed read as its cause.
         """
+        if retry is None:
+            retry = ReadRetry(self._api)
         if last_read_end is not None:
             pause = WAIT_FOR_STATE_MIN_INTERVAL_S - (_clock.monotonic() - last_read_end)
             # The spacing never spends what is left: with less than it, the
@@ -1266,14 +1297,12 @@ class AsyncSandbox:
                     raise _sandbox_terminal_state_error(
                         self.id, self.state, raw_state=self.raw_state or None, reason=self.error
                     )
+            # After a failed read (this loop's or an earlier probe's), the
+            # back-off or the server's retry hint, within the deadline.
+            await retry.pause(deadline)
             remaining_timeout = None if deadline is None else deadline - _clock.monotonic()
             if remaining_timeout is not None and remaining_timeout <= 0:
-                raise create_error(
-                    "sandbox failed to reach the requested state before timeout",
-                    408,
-                    "REQUEST_TIMEOUT",
-                    "SDK",
-                )
+                raise _wait_timed_out() from retry.last_error
             wait_timeout_ms = (
                 WAIT_FOR_STATE_SLICE_MS
                 if remaining_timeout is None
@@ -1283,13 +1312,21 @@ class AsyncSandbox:
                 )
             )
             poll_started = _clock.monotonic()
-            await self._refresh_data_within(
-                timeout=None if remaining_timeout is None else wait_timeout_ms / 1000,
-                wait=wait_target,
-                wait_timeout_ms=wait_timeout_ms if wait_target is not None else None,
-                deadline=deadline,
-                exact=exact,
-            )
+            try:
+                await self._refresh_data_within(
+                    timeout=None if remaining_timeout is None else wait_timeout_ms / 1000,
+                    wait=wait_target,
+                    wait_timeout_ms=wait_timeout_ms if wait_target is not None else None,
+                    deadline=deadline,
+                    exact=exact,
+                )
+            except DaytonaError as error:
+                if retry.note(error):
+                    continue
+                if retry.last_error is not None and _is_wait_timeout(error):
+                    raise _wait_timed_out() from retry.last_error
+                raise
+            retry.succeeded()
             fresh = True
             if self.state in target_states:
                 return
@@ -1352,7 +1389,13 @@ class AsyncSandbox:
         handle then carries the reported target. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
-        for the other lifecycle waits and the create and fork waits.
+        for the other lifecycle waits and the create and fork waits. A read
+        that fails transiently (no response, a stalled read, HTTP 429 other
+        than ``LIMIT_EXCEEDED``, or a 5xx other than 501) is retried with
+        back-off within the budget, and the timeout then carries the last
+        failure as its cause; without a deadline (``timeout=0``) it is retried
+        until the server answers or the caller cancels. Any other failed read
+        is raised at once.
         """
         timeout = _validate_timeout(timeout)
         await self._wait_for_state(_wait_states(until), timeout=timeout)
@@ -2725,6 +2768,11 @@ def _wait_timed_out() -> DaytonaError:
     return create_error(
         "sandbox failed to reach the requested state before timeout", 408, "REQUEST_TIMEOUT", "SDK"
     )
+
+
+def _is_wait_timeout(error: DaytonaError) -> bool:
+    """The wait's own deadline running out (not a client read timer or a server's 408)."""
+    return isinstance(error, RequestTimeoutError) and error.source == "SDK"
 
 
 def _require_if_match(if_match: object) -> None:

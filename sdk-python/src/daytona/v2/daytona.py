@@ -731,7 +731,12 @@ class AsyncDaytona:
                 raise build_timed_out()
             poll_started = _clock.monotonic()
             try:
-                image = await self.images.get(image.id, wait="ready", timeout=remaining)
+                # Without a build budget, holds repeat without a deadline (a
+                # value above the timer maximum), retrying transient reads,
+                # never the single hold a ``None`` timeout makes.
+                image = await self.images.get(
+                    image.id, wait="ready", timeout=_UNBOUNDED_WAIT_S if remaining is None else remaining
+                )
             except DaytonaError as error:
                 # Only the client's own deadline is the build timeout; a server
                 # 408 keeps its source, as in TypeScript.
@@ -1357,12 +1362,22 @@ class AsyncDaytona:
             sb._hub = self._acquire_hub()
         return sb
 
+    def _begin_close(self) -> None:
+        """End the retry pauses of this client's waits with
+        :class:`ClientClosedError` (on the client's loop; the sync client runs
+        it before it waits for in-flight calls)."""
+        for transport in (self._api, self._toolbox):
+            begin_close = getattr(transport, "begin_close", None)
+            if callable(begin_close):
+                begin_close()
+
     async def close(self) -> None:
         """Close HTTP resources; new requests on this client or its handles raise
         ``ClientClosedError``. Close the root to let later ``root.v2`` access
         build a fresh client.
         """
         self._closed = True
+        self._begin_close()
         hub, self._hub = self._hub, None
         if hub is not None:
             await detach_hub(
@@ -1663,6 +1678,8 @@ def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
 
 #: The least time between two build polls when the server answers early.
 _BUILD_POLL_INTERVAL_S: Final = 1.0
+#: A wait budget above the timer maximum: repeat holds without a deadline.
+_UNBOUNDED_WAIT_S: Final = MAX_WIRE_WAIT_SECONDS + 1
 
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within

@@ -96,7 +96,7 @@ class Daytona:
 
     def close(self) -> None:
         """Close HTTP resources, then stop the bridge loop. Idempotent; safe from any thread."""
-        self._bridge.close(self._impl.close)
+        self._bridge.close(self._impl.close, interrupt=self._impl._begin_close)
 
     def create(
         self,

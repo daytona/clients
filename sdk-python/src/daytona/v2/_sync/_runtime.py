@@ -115,7 +115,7 @@ class UnboundBridge(SyncBridge):
         self.call(agen)
         return iter(())
 
-    def close(self, finalizer: object = None) -> None:
+    def close(self, finalizer: object = None, *, interrupt: object = None) -> None:
         return None
 
 

@@ -57,6 +57,8 @@ export class Daytona {
   private hub: WaitHub | undefined
   private readonly hubApi: AxiosInstance
   private closed = false
+  // Aborted by close(): a wait pausing to retry a failed read ends at once.
+  private readonly closing = new AbortController()
   // Remembers a deployment that does not serve sandbox search (list()).
   private readonly sandboxSearchProbe = new SearchProbe()
 
@@ -65,7 +67,7 @@ export class Daytona {
     this.apiKey = connection.apiKey
     this.apiUrl = connection.apiUrl
     this.hubIdentityKey = connection.hubIdentityKey
-    this.httpOptions = { ...connection.httpOptions, ensureOpen: () => {
+    this.httpOptions = { ...connection.httpOptions, closed: this.closing.signal, ensureOpen: () => {
       if (this.closed) throw new ClientClosedError()
     } }
     this.maxResponseBytes = connection.maxResponseBytes
@@ -115,6 +117,7 @@ export class Daytona {
    * `ClientClosedError`; closing the root lets `root.v2` build a fresh client. */
   public async close(): Promise<void> {
     this.closed = true
+    this.closing.abort()
     const hub = this.hub
     if (hub !== undefined) {
       this.hub = undefined

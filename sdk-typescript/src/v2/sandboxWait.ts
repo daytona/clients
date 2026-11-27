@@ -4,11 +4,12 @@
  */
 
 import { strip } from './pyText.js'
-import { AuthenticationError, BadRequestError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
+import { AuthenticationError, BadRequestError, ClientClosedError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
 import { targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
 import { MAX_TIMER_DELAY_MS, optionalSeconds, waitDeadline } from './options.js'
+import { ReadRetry } from './readRetry.js'
 import type { SandboxState, SandboxWaitState } from './types.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
@@ -41,6 +42,8 @@ export interface SandboxWaitContext {
   /** What the handle last observed, its reason included. */
   readonly current: () => SandboxReadOutcome
   readonly observe: (outcome: WaitOutcome) => void
+  /** The owning client's closed signal: ends a retry pause (readRetry.ts). */
+  readonly closed?: AbortSignal
 }
 
 export interface SandboxStateWaitOptions {
@@ -49,8 +52,8 @@ export interface SandboxStateWaitOptions {
   readonly missingIsDestroyed?: boolean
 }
 
-function timeoutError(): RequestTimeoutError {
-  return new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+function timeoutError(cause?: unknown): RequestTimeoutError {
+  return new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause })
 }
 
 export function waitQueryState(state: SandboxWaitState | undefined): string | undefined {
@@ -126,8 +129,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     return new SandboxTerminalStateError(context.id, error.state, { rawState: error.rawState ?? (seen.rawState || undefined), reason: seen.reason })
   }
 
+  // One back-off and last failure for every read of this wait: the events
+  // fallback, the hub's probes and the final reserve (readRetry.ts).
+  const retry = new ReadRetry(context.closed)
+
   // Long-poll reads until a target or terminal state. `lastReadEnd` is when
   // the wait's previous read ended; the first read keeps the minimum spacing.
+  // A read that fails transiently is retried with back-off under the same
+  // deadline; a spent deadline throws the wait's timeout with the last failed
+  // read as its cause.
   const pollForState = async (lastReadEnd?: number): Promise<void> => {
     if (lastReadEnd !== undefined) {
       const pause = WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastReadEnd)
@@ -136,10 +146,21 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (pause > 0 && (remaining() ?? Infinity) > pause) await sleep(pause)
     }
     for (;;) {
+      // After a failed read (this loop's or an earlier probe's), the back-off
+      // or the server's retry hint, within the deadline.
+      await retry.pause(deadline)
       const budget = remaining()
-      if (budget !== undefined && budget <= 0) throw timeoutError()
+      if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const pollStarted = Date.now()
-      const outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      let outcome: SandboxReadOutcome
+      try {
+        outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      } catch (error) {
+        if (retry.note(error)) continue
+        if (retry.lastError !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') throw timeoutError(retry.lastError)
+        throw error
+      }
+      retry.succeeded()
       if (states.some((target) => target === outcome.state)) return
       if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
       const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - pollStarted), remaining() ?? Infinity)
@@ -154,16 +175,33 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     // Where the hub's share ends: its probes hold no long poll past it, so
     // none still runs when the reserve starts reading.
     const hubDeadline = deadline === undefined ? undefined : Date.now() + hubBudget
+    // Aborted once the hub's wait settles: an early probe still pausing on a
+    // retry hint then stops without reading for a wait that is over.
+    const hubSettled = new AbortController()
     const sandboxPollFn = async (): Promise<WaitOutcome> => {
       if (lastPollEnd !== undefined) {
         const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastPollEnd), remaining() ?? Infinity)
         if (pause > 0) await sleep(pause)
       }
+      // A failed read (a probe's or the fallback's) holds the next one back by
+      // its back-off or the server's retry hint.
+      await retry.pause(hubDeadline ?? deadline, undefined, hubSettled.signal)
+      // The hub ignores a probe whose waiter has settled.
+      if (hubSettled.signal.aborted) throw timeoutError(retry.lastError)
       const budget = remaining()
-      if (budget !== undefined && budget <= 0) throw timeoutError()
+      if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
       // The read itself (its slack included) ends with the hub's share.
-      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
+      let result: SandboxReadOutcome
+      try {
+        result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
+      } catch (error) {
+        // A failed read schedules the next one and is the wait's timeout cause
+        // if nothing later fails; a probe that outlived its wait records nothing.
+        if (!hubSettled.signal.aborted) retry.probeFailed(error)
+        throw error
+      }
+      retry.succeeded()
       lastPollEnd = Date.now()
       refreshedByPoll = true
       return result
@@ -175,7 +213,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         regionHint: context.region !== undefined && strip(context.region).toLowerCase() === 'local' ? undefined : context.region,
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
-      })
+        readRetry: retry,
+      }).finally(() => { hubSettled.abort() })
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
         context.observe({ state: 'destroyed', rawState: 'deleted' })
@@ -199,6 +238,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
             readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError
             || (readError instanceof RequestTimeoutError && readError.source === 'SDK')
             || readError instanceof AuthenticationError || readError instanceof ForbiddenError
+            || readError instanceof ClientClosedError
           ) throw readError
           if (readError instanceof DaytonaError) throw new RequestTimeoutError(error.message, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: readError })
           throw readError

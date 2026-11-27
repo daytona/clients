@@ -7412,11 +7412,12 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
     assert linux_api.specs[0].path == "/images"
     assert linux_api.specs[1].path == "/images/img-built"
     assert linux_api.specs[1].params == {}
-    # No build_timeout: the build is awaited without a deadline (server-held long polls).
+    # No build_timeout: the build is awaited without a deadline (repeated
+    # server-held long polls, whose failed reads are retried).
     assert linux_api.specs[2].path == "/images/img-built"
-    assert linux_api.specs[2].params == {"wait": "ready"}
+    assert linux_api.specs[2].params == {"wait": "ready", "timeout_ms": 60_000}
     assert linux_api.specs[3].path == "/images/img-built"
-    assert linux_api.specs[3].params == {"wait": "ready"}
+    assert linux_api.specs[3].params == {"wait": "ready", "timeout_ms": 60_000}
     assert linux_api.specs[4].path == "/sandboxes"
     assert linux_api.specs[4].json_body == {
         "image": "img-built",
@@ -7998,6 +7999,7 @@ async def test_sandbox_wait_for_state_normalizes_local_target_to_no_region_hint(
             region_hint: str | None = None,
             sandbox_poll_fn: object = None,
             on_observed: object = None,
+            read_retry: object = None,
         ):
             assert sandbox_id == "550e8400-e29b-41d4-a716-446655440000"
             self.region_hint = region_hint
@@ -8430,8 +8432,8 @@ async def test_sandbox_wait_for_state_updates_the_cached_state_before_rethrowing
             )
 
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
-    # The final read in the wait's reserve fails: the wait's own timeout stands.
-    api = RecordingTransport([create_error("busy", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")])
+    # The final read in the wait's reserve fails for good: the wait's own timeout stands.
+    api = RecordingTransport([create_error("refused", 400, "BAD_REQUEST", "DAYTONA_API")])
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
     sandbox._update(state="started")
@@ -8442,7 +8444,7 @@ async def test_sandbox_wait_for_state_updates_the_cached_state_before_rethrowing
         await sandbox._wait_for_state(["paused"], timeout=10)
 
     assert raised.value.source == "SDK"
-    assert isinstance(raised.value.__cause__, ServiceUnavailableError)
+    assert isinstance(raised.value.__cause__, BadRequestError)
     assert [spec.method for spec in api.specs] == ["GET"]
     assert sandbox.state == "stopped"
     assert sandbox.raw_state == "stopped"
@@ -11044,7 +11046,7 @@ async def test_docker_wait_until_ready_maps_a_transport_timeout_at_the_deadline(
 
 
 @pytest.mark.anyio
-async def test_docker_wait_until_ready_reraises_a_transport_timeout_before_the_deadline(
+async def test_docker_wait_until_ready_retries_a_transport_timeout_before_the_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     clock = {"now": 0.0}
@@ -11056,9 +11058,10 @@ async def test_docker_wait_until_ready_reraises_a_transport_timeout_before_the_d
             return await super().send(spec)
 
     stalled = ClientTimeoutError("operation timed out")
-    with pytest.raises(ClientTimeoutError) as info:
-        await AsyncDockerService(Advancing([stalled])).wait_until_ready(timeout=60)  # type: ignore[arg-type]
-    assert info.value is stalled
+    transport = Advancing([stalled, {"state": "ready", "owner": "daemon"}])
+    status = await AsyncDockerService(transport).wait_until_ready(timeout=60)  # type: ignore[arg-type]
+    assert status.state == "ready"
+    assert len(transport.specs) == 2
 
 
 @pytest.mark.anyio

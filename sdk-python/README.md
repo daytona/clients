@@ -1276,6 +1276,27 @@ the observed public state as `error.state` and the wire status as
 `error.raw_state`. When the server explains that state, the explanation is
 `error.reason` and ends the error message.
 
+Every wait that reads the server (sandbox waits, `docker.wait_until_ready()`,
+`images.get()` / `snapshots.get()` with `wait="ready"` and a positive
+`timeout`, the readiness waits of `images.pull()` and `create_from_build()`)
+retries a read that fails transiently (no response, a stalled read, HTTP 429
+other than `LIMIT_EXCEEDED`, or a 5xx other than 501) with backoff (0.2 s
+doubling to 5 s, or the server's retry hint when longer: the error's
+`retry_after_ms` / `retry_after_seconds`, else the `Retry-After` header)
+within the same budget, and never sooner than the wait's own poll spacing
+(0.2 s for sandbox waits, 0.5 s for Docker, 1 s for image and snapshot
+readiness). When the budget runs out, its timeout error carries the last
+failed read as `__cause__`. A wait without a deadline keeps
+retrying until the server answers, the caller cancels or the client is closed
+(which ends it with `ClientClosedError`); `images.get()` / `snapshots.get()`
+with `wait="ready"` but no `timeout` make a single server-default hold and do
+not retry. Any other failure, such as an authentication error, is raised at
+once, with one exception: while the events stream is live, its early probes
+of a sandbox wait keep waiting through any failure other than 401, 403, 404
+or a closed client, and the wait's timeout then carries that failure as its
+cause. A failed probe is retried on the probes' own schedule (after about
+10 s of socket silence), not on the read backoff.
+
 `start()`, `stop()`, `pause()`, `resume()` and `delete()` take `timeout=`
 (seconds) with the same default and unbounded form. They wait for
 completion: `stop()` returns at `stopped`, and `delete()` returns at

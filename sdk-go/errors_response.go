@@ -98,6 +98,7 @@ func saturatedDuration(value int64, unit time.Duration) time.Duration {
 }
 
 func parseRetryAfter(value string) time.Duration {
+	value = strings.TrimSpace(value)
 	if seconds, err := strconv.ParseInt(value, 10, 64); err == nil && seconds >= 0 {
 		return saturatedDuration(seconds, time.Second)
 	}

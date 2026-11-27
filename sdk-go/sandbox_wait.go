@@ -23,13 +23,14 @@ import (
 // A bounded wait reserves up to five seconds for authoritative API reads
 // regardless of socket activity. Once a target event was observed, failure to
 // refresh metadata does not undo success. Caller cancellation is never hidden.
-// With events enabled, nondecisive read failures (including rate limits) retry
-// within the budget; the last read failure is retained as a timeout cause.
-// Live probes rearm after a fresh jittered ten seconds. Fallback polling
-// honors RetryAfter.
-// Fallback polling stops on HTTP 4xx other than 429; live-event probes stop
-// only on 401, 403, or 404. Final-reserve failures remain timeout causes.
-// With events disabled, read failures are returned immediately.
+// Polling retries a transient read failure (no response, a client read
+// timeout, HTTP 429 other than LIMIT_EXCEEDED, or a 5xx other than 501) after a backoff of 200 ms
+// doubling to 5 s, or RetryAfter when longer, within the budget; the last
+// read failure is retained as the timeout's cause. Other polling failures,
+// including any other 4xx, 501, and LIMIT_EXCEEDED, return at once.
+// Live-event probes retry every failure except 401, 403, or 404, rearming
+// after a fresh jittered ten seconds. Final-reserve failures remain timeout
+// causes.
 func (s *Sandbox) Wait(ctx context.Context, opts *WaitOptions) error {
 	if err := s.client.ensureOpen(); err != nil {
 		return err
@@ -92,7 +93,7 @@ func (w *sandboxWait) run(ctx context.Context) error {
 	}
 	events, release, activity := w.sandbox.client.stateSource.watch(ctx, w.sandbox.id, region)
 	defer release()
-	retry := newWaitReadRetry(w.sandbox.client.stateSource)
+	var retry waitReadRetry
 	if events == nil {
 		return w.poll(ctx, &retry)
 	}
