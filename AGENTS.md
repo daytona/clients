@@ -1032,9 +1032,11 @@ skipping exist only in the TypeScript tool).
   budget is spent, or when the state came from a full read; when skipped or
   failed, the handle carries the reported state); the polling fallback and
   the final reserve read. The handle takes the event's state and error
-  message verbatim (an event without one clears the handle's; only a 404
-  during a delete, which carries no error information, keeps a message read
-  with `destroyed`); its other fields are as of the last read, among them
+  message verbatim, in all three SDKs (an event without one clears the
+  handle's; only a 404 during a delete, which carries no error information,
+  keeps a message held with `destroyed`; Go borrows a matching full read's
+  reason for a raised terminal error's `Reason` only, never for the handle);
+  its other fields are as of the last read, among them
   those that do move on a transition: `spot_evicted_at` (set on an
   eviction, cleared by start and resume), the lifecycle-policy deadlines and
   the activity clock. The SDKs neither read for them nor clear them

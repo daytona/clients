@@ -119,8 +119,11 @@ the sandbox's setup diagnostic in the message.
 response reports. A create returns with no wait and no read when the response
 already reports the sandbox started, with `NoWait`, or when the server's hold
 used up a finite wait; otherwise its wait reads only as every wait does
-(see "Durations and waits"). Call `sandbox.Refresh(ctx)` before reading
-`Info().Resources`, labels or other detail fields.
+(see "Durations and waits"), and those reads fill the handle in. A handle from
+`Fork` holds the fork's detail read, made before its wait unless `NoWait`; a
+fork wait decided by a target event adds no read. Call `sandbox.Refresh(ctx)`
+before reading `Info().Resources`, labels or other detail fields when no read
+has reported them.
 
 **Files.** Paths are inside the sandbox.
 

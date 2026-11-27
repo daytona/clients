@@ -125,8 +125,9 @@ func (s *Sandbox) observeWait(outcome stateObservation) {
 }
 
 // observeGone records a 404 during a delete as destroyed. A 404 carries no
-// error information, so a message stays only when a read reported it with
-// destroyed / deleted (a message never labels another state).
+// error information, so the handle keeps a message only when it already holds
+// it with destroyed / deleted, from a read or an event (as Python and
+// TypeScript do); a message never labels another state.
 func (s *Sandbox) observeGone() stateObservation {
 	s.mu.Lock()
 	defer s.mu.Unlock()

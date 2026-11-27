@@ -171,15 +171,16 @@ Reads in `_wait_for_state`:
   (`_observe_outcome` takes the frame's state and error message verbatim, so
   a frame without one clears the handle's; only `_observe_destroyed`, for a
   404 during a delete, keeps a message read with `destroyed` through
-  `_kept_error`; `spot_evicted_at`, the lifecycle-policy deadlines and the activity clock
-  stay as of the last read).
-- A terminal event (`error`, `destroying`) gets one confirming read before
-  the wait raises. It is skipped after a `destroyed` report, once the budget
+  `_kept_error`; `spot_evicted_at`, the lifecycle-policy deadlines and the
+  activity clock stay as of the last read).
+- A terminal event (`error`, and `destroying` unless the wait targets
+  `destroyed`, as a delete does) gets one confirming read before the wait
+  raises. It is skipped after a `destroyed` report, once the budget
   is spent, and when the reported state already came from a full read (the
   hub's probe). When it is skipped or fails, the handle carries the reported
   state and the wait raises it; when it succeeds, it decides (a target
-  returns, `destroyed` / `error` / `destroying` raise, any other state polls
-  on under the same deadline).
+  returns, `destroyed` / `error` raise, `destroying` raises unless the wait
+  targets `destroyed`, any other state polls on under the same deadline).
 - A wait the stream leaves undecided reads while it polls (the hub's probes,
   the final reserve, or the long-poll fallback).
 - The macOS post-target read: only `start()` / `resume()` pass
