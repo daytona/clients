@@ -168,15 +168,17 @@ func (w *sandboxWait) eventNotFound() (bool, error) {
 		"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
 }
 
-// observeEvent records the event on the handle. A target event's error
-// message, or its absence, stands; only a terminal event borrows the reason of
-// a matching full read.
+// observeEvent records the event on the handle verbatim: its error message,
+// or its absence, replaces the handle's. The returned observation is what a
+// raised terminal error reports: a terminal event without a message borrows
+// the reason of a matching full read for the error only, read before the
+// handle is updated.
 func (w *sandboxWait) observeEvent(event stateObservation, success bool) stateObservation {
 	reported := event
 	if reported.Reason == "" && !success {
 		reported.Reason = w.sandbox.readReasonFor(event)
 	}
-	w.sandbox.observeWait(reported)
+	w.sandbox.observeWait(event)
 	return reported
 }
 

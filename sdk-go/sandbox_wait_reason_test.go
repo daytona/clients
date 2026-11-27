@@ -47,12 +47,13 @@ func TestWait_whenTerminalEventRefreshFails_preservesMatchingReadReason(t *testi
 			// When
 			err = sandbox.Wait(t.Context(), nil)
 
-			// Then: the reason describes only the matching state and wire status.
+			// Then: the raised reason describes only the matching state and wire
+			// status; the handle takes the event's own message verbatim.
 			var terminal *SandboxTerminalStateError
 			require.ErrorAs(t, err, &terminal)
 			require.Equal(t, test.eventStatus, terminal.RawState)
 			require.Equal(t, test.want, terminal.Reason)
-			require.Equal(t, test.want, sandbox.Info().Error)
+			require.Equal(t, test.eventReason, sandbox.Info().Error)
 		})
 	}
 }
