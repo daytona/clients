@@ -160,6 +160,17 @@ export interface ReplaceOptions {
   readonly timeoutSeconds?: number
 }
 
+export interface MoveOptions {
+  /**
+   * Total deadline of this move in seconds, replacing the client's
+   * `requestTimeoutSeconds`; `0`, or a value above 2,147,483.647 (about 24.8
+   * days), is no limit. Omitted, the client's request timeout applies. A
+   * negative or non-finite value (or one that is not a number) throws
+   * `BadRequestError` before any request.
+   */
+  readonly timeoutSeconds?: number
+}
+
 export interface WatchDirOptions {
   readonly recursive?: boolean
   /**
@@ -188,6 +199,7 @@ const WRITE_MANY_OPTION_KEYS = optionKeys<WriteManyOptions>()({ atomic: true })
 const LIST_FILES_OPTION_KEYS = optionKeys<ListFilesOptions>()({ depth: true })
 const MKDIR_OPTION_KEYS = optionKeys<MkdirOptions>()({ mode: true })
 const REMOVE_OPTION_KEYS = optionKeys<RemoveOptions>()({ recursive: true, timeoutSeconds: true })
+const MOVE_OPTION_KEYS = optionKeys<MoveOptions>()({ timeoutSeconds: true })
 const FILE_SEARCH_OPTION_KEYS = optionKeys<FileSearchOptions>()({ timeoutSeconds: true })
 const REPLACE_OPTION_KEYS = optionKeys<ReplaceOptions>()({ timeoutSeconds: true })
 const WATCH_DIR_OPTION_KEYS = optionKeys<WatchDirOptions>()({ recursive: true, onExit: true, onOverflow: true })
@@ -490,10 +502,28 @@ export class FileSystemService {
     await this.transport.delete<void>('/files', { params: { path, recursive: options.recursive }, ...callTimeout(options.timeoutSeconds) })
   }
 
-  public async move(source: string, destination: string): Promise<void> {
+  /**
+   * Move or rename a file or directory.
+   *
+   * `timeoutSeconds` replaces the client's `requestTimeoutSeconds` for this
+   * call, which a move to another file system (a copy in the sandbox) can
+   * outlast; see {@link MoveOptions}.
+   *
+   * The SDK does not retry a move that timed out or failed (only a 401, which
+   * the sandbox refuses before moving anything, is re-sent once with a fresh
+   * token). A timeout ends the call, not the move: the move may still be
+   * running in the sandbox, or have finished, so check the destination (for
+   * example with {@link stat}) before moving again.
+   */
+  public async move(source: string, destination: string, options: MoveOptions = {}): Promise<void> {
     sandboxPath('source', source)
     sandboxPath('destination', destination)
-    await this.transport.post<void>('/files/move', undefined, { params: { source, destination } })
+    assertKnownOptions('MoveOptions', options, MOVE_OPTION_KEYS)
+    const timeout = secondsToMs('timeoutSeconds', options.timeoutSeconds)
+    await this.transport.post<void>('/files/move', undefined, {
+      params: { source, destination },
+      ...(timeout === undefined ? {} : { timeout }),
+    })
   }
 
   /**

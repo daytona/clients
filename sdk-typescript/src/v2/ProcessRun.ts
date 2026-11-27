@@ -9,7 +9,8 @@ import type * as toolbox from './gen/toolbox-types.js'
 import type { LogFrame, ProcessResult, RunKeepLogs, WaitResult } from './types.js'
 import { ProcessHandle } from './ProcessHandle.js'
 import {
-  bodyFor, frameFromWire, processFromWire, runKeepLogs, runStdin, secondsToMs, startedProcessKind, waitResult, WAIT_READ_SLACK_MS,
+  bodyFor, frameFromWire, processFromWire, processWaitHoldMs, runKeepLogs, runStdin, secondsToMs, startedProcessKind, waitResult,
+  WAIT_READ_SLACK_MS,
 } from './ProcessWire.js'
 import type { ProcessSpec } from './ProcessWire.js'
 import { INTERNAL } from './internal.js'
@@ -49,9 +50,6 @@ export async function startProcess(
   return new ProcessHandle(INTERNAL, transport, sandboxId, processFromWire(data).id, startedProcessKind(data, body))
 }
 
-/** How long `run()` without a `timeoutSeconds` holds its first request, as the Python SDK does. */
-const RUN_WAIT_MS = 60_000
-
 /** `process.run()` / `session.run()`: start, wait within `timeoutSeconds`, collect the output. */
 export async function runProcess(
   binding: ProcessBinding,
@@ -61,15 +59,16 @@ export async function runProcess(
   const body = bodyFor({ ...spec, stdin: runStdin(spec.stdin), keepLogs: runKeepLogs(options.keepLogs) })
   // Reject invalid caller budgets locally before issuing any request.
   const requestedTimeout = secondsToMs('timeoutSeconds', options.timeoutSeconds)
-  // Without a budget the first request still holds for one wait window (as
-  // the Python SDK does), so a short command is one round trip; the rest of
-  // an unbounded wait continues with wait().
-  const holdMs = requestedTimeout ?? RUN_WAIT_MS
+  // The first request holds for one wait round at most (the budget when it
+  // is shorter), so a short command is one round trip; the rest of the wait
+  // continues with wait(), in rounds, until the caller's deadline. The start
+  // request is never retried: a failed one may still have started the process.
+  const holdMs = processWaitHoldMs(requestedTimeout === undefined || requestedTimeout === 0 ? undefined : requestedTimeout)
   const query = encodeQuery({ waitMs: holdMs, logs: 'text' })
   const startedAt = Date.now()
   // The HTTP timeout must exceed the requested wait to allow its response.
   const started = await binding.transport.post<toolbox.ProcessDto>(`/processes${query}`, body, {
-    timeout: holdMs === 0 ? 0 : holdMs + WAIT_READ_SLACK_MS,
+    timeout: holdMs + WAIT_READ_SLACK_MS,
   })
   // The whole record is checked, as the Python SDK does: a missing `state` is malformed, never "running".
   const startedInfo = processFromWire(started)

@@ -28,7 +28,7 @@ func TestWaitReadsRecordWhenExecutionTimedOut(t *testing.T) {
 	require.Equal(t, 124, *result.ExitCode)
 	require.Equal(t, ProcessSignalTerminate, result.Signal)
 	require.Len(t, fake.requests(), 2)
-	require.Equal(t, "0", fake.requests()[0].Query.Get("timeoutMs"))
+	require.Equal(t, "30000", fake.requests()[0].Query.Get("timeoutMs"))
 }
 
 func TestWaitContinuesWhenLongPollExpiresButProcessRuns(t *testing.T) {

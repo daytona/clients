@@ -571,13 +571,14 @@ async def test_local_is_never_a_region_hint() -> None:
 async def test_a_successful_refresh_after_an_observed_target_keeps_what_it_read() -> None:
     sandbox = lazy_sandbox(_client(), "sbx")
     sandbox._update(sandbox_class="linux", state="starting", raw_state="booting")
-    sandbox._api = _Api([_detail("sbx", "stopping")])  # type: ignore[attr-defined]
+    sandbox._api = _Api([_detail("sbx", "stopping"), _detail("sbx", "running", cpu=2)])  # type: ignore[attr-defined]
     sandbox._hub = _ResolvingHub("started", "running")  # type: ignore[assignment]
 
     await sandbox.wait(timeout=5)
 
-    # The handle reports what the server said last, not the event-time state.
-    assert (sandbox.state, sandbox.raw_state) == ("stopping", "stopping")
+    # The handle reports what the server said last, not the event-time state;
+    # a read outside the targets kept the wait going until one showed a target.
+    assert (sandbox.state, sandbox.raw_state, sandbox.cpu) == ("started", "running", 2)
 
 
 @pytest.mark.anyio

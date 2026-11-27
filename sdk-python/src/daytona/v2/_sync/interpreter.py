@@ -73,8 +73,9 @@ class InterpreterService:
         :class:`~daytona.v2.errors.UnsupportedOperationError` (400) before a
         kernel is provisioned, while
         :class:`~daytona.v2.errors.KernelUnavailableError` (503) means a
-        supported language's kernel failed to install or start. ``cwd`` and
-        ``env`` apply to every run in the context.
+        supported language's kernel failed to install or start (see
+        :meth:`run` for what the first use of a language installs). ``cwd``
+        and ``env`` apply to every run in the context.
         """
         from .types import InterpreterContext
 
@@ -130,6 +131,28 @@ class InterpreterService:
         ``SESSION_NOT_FOUND`` error; callers decide whether to recreate the
         context and what to rerun. ``timeout`` is the caller wait budget in
         seconds; ``0`` waits unbounded.
+
+        **First run of a language.** The sandbox starts the language's kernel
+        on its first run, installing it when the image does not ship it:
+        Python installs ``ipykernel`` from PyPI (``pypi.org``,
+        ``files.pythonhosted.org``) unless the image's Python already has it
+        and its ``venv`` module;
+        TypeScript and JavaScript download Deno from ``dl.deno.land`` unless
+        ``deno`` is on the image's ``PATH``. That run takes a few seconds
+        longer, and under a network policy that blocks those hosts it cannot
+        install the kernel: allow those domains, or use an image that ships
+        ``ipykernel`` / ``deno``. When the sandbox ends the run before the
+        code reaches a kernel (most often a kernel that could not be installed
+        or started), this raises
+        :class:`~daytona.v2.errors.KernelUnavailableError` (503, source
+        ``SDK``) carrying the sandbox's setup diagnostic. The sandbox reports
+        no error code for such a run: a context that is already gone when the
+        run is submitted raises ``SESSION_NOT_FOUND`` as above, but one
+        deleted while the run waits behind another run in it ends the run
+        this way and raises this error. A kernel that stops
+        during the run returns the output produced so far with
+        ``process.reason == "lost"``; its state is gone and the next run starts
+        a new kernel.
         """
         return self._bridge.call(
             lambda: self._impl.run(

@@ -589,7 +589,9 @@ async def test_a_wait_budget_above_the_timer_maximum_is_no_limit() -> None:
 
     await handle.wait(timeout=10**9)
 
-    assert transport.specs[0].params == {"timeoutMs": 0}
+    # No deadline: one bounded round, not one request held until the end.
+    assert transport.specs[0].params == {"timeoutMs": 30000}
+    assert transport.specs[0].timeout == 35.0
 
 
 @pytest.mark.anyio
@@ -1045,19 +1047,22 @@ def test_timestamps_accept_rfc_3339_variants_like_the_typescript_sdk(value: str,
 
 
 @pytest.mark.anyio
-async def test_run_without_a_timeout_holds_one_60_second_window_like_the_typescript_sdk() -> None:
+async def test_run_without_a_timeout_holds_one_30_second_round_like_the_typescript_sdk() -> None:
     terminal = _process(state="terminal", reason="exited", exitCode=0)
     terminal["logs"] = {"frames": [], "nextCursor": "0", "truncatedHead": False, "eof": True}
-    transport = Transport([terminal, terminal])
+    transport = Transport([terminal, terminal, terminal])
     process = AsyncProcessService("sbx", transport)  # type: ignore[arg-type]
 
     await process.run("true")
     await process.run("true", timeout=0)
+    await process.run("true", timeout=600)
 
-    assert transport.specs[0].params == {"waitMs": 60000, "logs": "text"}
-    assert transport.specs[0].timeout == 65.0
-    assert transport.specs[1].params == {"waitMs": 0, "logs": "text"}
-    assert transport.specs[1].unbounded_read
+    # No budget, an explicit no-limit budget and a long budget all hold the
+    # start request for one bounded round, never for the whole budget.
+    for spec in transport.specs:
+        assert spec.params == {"waitMs": 30000, "logs": "text"}
+        assert spec.timeout == 35.0
+        assert not spec.unbounded_read
 
 
 def _toolbox_classes() -> list[type]:
