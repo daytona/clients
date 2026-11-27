@@ -123,9 +123,9 @@ describe('shell sessions', () => {
     // When
     await session.run('true', keepLogs === undefined ? {} : { keepLogs })
     // Then
-    expect(post).toHaveBeenCalledWith('/processes?waitMs=60000&logs=text', {
+    expect(post).toHaveBeenCalledWith('/processes?waitMs=30000&logs=text', {
       kind: 'exec', sessionId: 'shell-1', shellCommand: 'true', stdin: 'closed', keepLogs: 'on_exit_ttl',
-    }, { timeout: 65_000 })
+    }, { timeout: 35_000 })
   })
 
   it('refuses keepLogs none for run before any request, since the output is read back from the log', async () => {
@@ -166,7 +166,7 @@ describe('shell sessions', () => {
     const result = await session.run('echo later; exit 7')
     // Then
     expect(result).toMatchObject({ reason: 'exited', exitCode: 7, stdout: 'later' })
-    expect(get.mock.calls.map(([path]) => path)).toEqual(['/processes/command-1/wait?timeoutMs=0', '/processes/command-1/logs'])
+    expect(get.mock.calls.map(([path]) => path)).toEqual(['/processes/command-1/wait?timeoutMs=30000', '/processes/command-1/logs'])
   })
 
   it('forwards all command options when starting a session command', async () => {

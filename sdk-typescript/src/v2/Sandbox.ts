@@ -51,7 +51,7 @@ import { deepFrozen } from './frozen.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
 import type { SandboxMetadata } from './sandboxMetadata.js'
 import { SandboxAuth, rfc3339EpochMs } from './sandboxAuth.js'
-import { DEFAULT_SANDBOX_TERMINAL_STATES, PAUSE_TERMINAL_STATES, RESUME_TERMINAL_STATES, WAIT_FOR_STATE_SLICE_MS, waitForSandboxState, waitQueryState } from './sandboxWait.js'
+import { DEFAULT_SANDBOX_TERMINAL_STATES, JOINED_START_TERMINAL_STATES, PAUSE_TERMINAL_STATES, RESUME_TERMINAL_STATES, WAIT_FOR_STATE_SLICE_MS, waitForSandboxState, waitQueryState } from './sandboxWait.js'
 import type { SandboxStateWaitOptions } from './sandboxWait.js'
 import type {
   CreateAccessTokenOptions,
@@ -543,7 +543,7 @@ export class Sandbox {
     return this.process.run(command, options)
   }
 
-  /** Execute code and return its result: an alias for {@link InterpreterService.run}, same options. */
+  /** Execute code and return its result: an alias for {@link InterpreterService.run}, same options and errors. */
   public async runCode(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
     return this.interpreter.run(code, options)
   }
@@ -710,13 +710,18 @@ export class Sandbox {
         // A frame without a status leaves the wire status unknown (never '').
         this.observed.rawState = outcome.rawState || undefined
       },
+      closed: this.httpOptions?.closed,
     }, states, options)
   }
 
   /**
    * Start a stopped sandbox, or resume a paused one, and wait until it is started.
    * If stop or pause is still in progress, wait for it to settle before
-   * sending start or resume, using the same timeout budget.
+   * sending start or resume, using the same timeout budget. A sandbox that is
+   * already `starting` (a start or resume another caller sent) is waited for
+   * without a new request; when that operation fails and the sandbox returns
+   * to `stopped` or `paused`, this throws `SandboxTerminalStateError` once the
+   * wait's long-poll reads confirm either state (up to one 30-second slice).
    *
    * A stopped macOS sandbox starts with its disk and size on any Mac of the
    * organization; after a start on a different Mac, iCloud asks the user to
@@ -763,6 +768,10 @@ export class Sandbox {
     } else if (this.state === 'stopped') {
       const r = await this.api.post(`/sandboxes/${strictUriEncode(this.id)}/start`)
       this.learnEventDestination(eventDestinationFromHeaders(r.headers))
+    } else if (this.state === 'starting') {
+      // Joining a start or resume another caller sent: when it fails, the
+      // sandbox goes back to stopped or paused.
+      terminalStates = JOINED_START_TERMINAL_STATES
     }
     await this.waitForState(['started'], { timeoutSeconds, terminalStates })
   }
@@ -785,10 +794,13 @@ export class Sandbox {
 
   /**
    * Pause the sandbox with its memory and wait until it is paused.
-   * A return to started means the pause failed. A paused macOS sandbox keeps
+   * A return to started means the pause failed; this then throws
+   * `SandboxTerminalStateError` once the wait's reads confirm it, after up to
+   * one 30-second long-poll read. A paused macOS sandbox keeps
    * its memory on its Mac. With auto-renew on, it keeps its reservation
    * renewing; otherwise the sandbox is stopped, with its disk, before the
-   * reservation ends.
+   * reservation ends. Only a persistent sandbox can pause (`persistent: true`
+   * on create); on one that is not, the API throws `ConflictError` (409).
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -801,7 +813,21 @@ export class Sandbox {
 
   /**
    * Resume a paused sandbox and wait until it is started.
-   * A return to stopped means the resume failed.
+   * A return to stopped means the resume failed; this then throws
+   * `SandboxTerminalStateError`.
+   *
+   * Whether the sandbox can resume is the API's decision; a refusal surfaces
+   * as its typed error. A sandbox that is not paused, or whose saved state is
+   * unavailable, throws `ConflictError` with `CONFLICT`, and a sandbox class
+   * that cannot resume throws `NotSupportedForClassError`
+   * (`NOT_SUPPORTED_FOR_CLASS`). A paused macOS sandbox whose Mac reservation
+   * is ending throws `ConflictError` with `NO_ACTIVE_RESERVATION`: its memory
+   * is on that Mac, so another reservation cannot take it over. The sandbox
+   * is stopped with its disk when the reservation ends, and `start()` can then
+   * start it under another reservation. A suspended organization throws
+   * `OrgSuspendedError`, a project at its monthly budget
+   * `ProjectBudgetExceededError`, and a resume the platform cannot take now
+   * `ServiceUnavailableError`.
    */
   public async resume(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -813,7 +839,9 @@ export class Sandbox {
   }
 
   /**
-   * Fork this sandbox and return the fork handle.
+   * Fork this sandbox and return the fork handle. Only a persistent sandbox
+   * (`persistent: true` on create) without attached volumes can be forked;
+   * otherwise the API throws `ConflictError` (409).
    *
    * By default the fork continues from the source's memory (running processes
    * included). `memory: false` copies only the disk, after which the fork boots
@@ -1143,7 +1171,13 @@ export class Sandbox {
    * a terminal state before the target raises {@link SandboxTerminalStateError}.
    * A terminal state the events hub reports is confirmed with one read before it raises,
    * while the wait has budget left, unless that state already came from a full read or
-   * is `destroyed`. When the events hub has reported nothing decisive, the last part
+   * is `destroyed`. A target state the events hub reports is followed by one read of
+   * the sandbox's details; when that read shows another state, it decides instead:
+   * a state terminal for this wait throws, and any other state keeps the wait
+   * going under the same deadline, so the returned handle is in a requested state. No
+   * read follows a `destroyed` report (it would be a 404) or a report that arrives as
+   * the budget runs out, and a failed read keeps the reported state; the handle then
+   * carries the reported target. When the events hub has reported nothing decisive, the last part
    * of a bounded budget (up to 5 s) reads the state from the server, so a state the
    * hub missed still ends the wait; the same holds for the other lifecycle waits and
    * the create and fork waits.
@@ -1186,7 +1220,15 @@ export class Sandbox {
 
   /**
    * Capture this sandbox, memory and disk, as a new {@link Snapshot}
-   * (`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
+   * (`POST /sandboxes/{id}/snapshots`). Linux sandboxes only, and only while
+   * running: a macOS sandbox throws `NotSupportedForClassError` (409). For a
+   * persistent macOS sandbox, pausing it keeps its memory instead, and
+   * `captureImage()` captures its disk once it is stopped; a macOS sandbox
+   * that is not persistent has neither option.
+   * The API also refuses with `ConflictError` (409) a sandbox that is not
+   * running, one whose saved state is unavailable, one with an attached
+   * volume, and a snapshot name that already exists.
+   * The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).
    * While the sandbox is still starting, submission retries

@@ -22,7 +22,7 @@ func init() {
 }
 
 // Help texts shared by `reservation create` and `sandbox create-macos`.
-const autoRenewUsage = "renew while a sandbox is active; create-macos requires --reservation new"
+const autoRenewUsage = "renew while a sandbox is active"
 
 const (
 	reservationCreateExample   = "daytona reservation create --region '<region>' --model '<model>' --idempotency-key nightly-mac"

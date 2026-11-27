@@ -16,6 +16,7 @@ import (
 type volumeBucketCredentialsView struct {
 	AccessKeySecret string `json:"access_key_secret"`
 	SecretKeySecret string `json:"secret_key_secret"`
+	RoleArn         string `json:"role_arn"`
 }
 
 type volumeBucketOptionsView struct {
@@ -52,6 +53,7 @@ func volumeKV(volume gen.Volume) [][2]string {
 		[2]string{"bucket_prefix", formatPtr(volumeBucketPrefix(bucket))},
 		[2]string{"bucket_access_key_secret", volumeBucketAccessKeySecret(bucket)},
 		[2]string{"bucket_secret_key_secret", volumeBucketSecretKeySecret(bucket)},
+		[2]string{"bucket_role_arn", volumeBucketRoleArn(bucket)},
 	)
 }
 
@@ -78,14 +80,25 @@ func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 	if req.Bucket.Origin != nil && *req.Bucket.Origin != "external" {
 		return cerr.Usage("bucket.origin must be \"external\" (a platform-owned bucket is requested by omitting the bucket object)")
 	}
-	// Customer buckets require both project secret names.
+	// A customer bucket needs both project secret names, or an IAM role.
 	if req.Bucket.Credentials == nil {
-		return cerr.Usage("a customer bucket needs --access-key-secret and --secret-key-secret (project secret names)")
+		return cerr.Usage("a customer bucket needs --access-key-secret and --secret-key-secret (project secret names), or --role-arn")
 	}
 	creds := req.Bucket.Credentials
-	hasAccessKey := strings.TrimSpace(derefString(creds.AccessKeySecret)) != ""
-	hasSecretKey := strings.TrimSpace(derefString(creds.SecretKeySecret)) != ""
-	if !hasAccessKey || !hasSecretKey {
+	// A field that is present must name something: an empty one would be
+	// sent as "" and read as absent by the server.
+	for flag, v := range map[string]*string{"--role-arn": creds.RoleArn, "--access-key-secret": creds.AccessKeySecret, "--secret-key-secret": creds.SecretKeySecret} {
+		if v != nil && strings.TrimSpace(*v) == "" {
+			return cerr.Usage("%s must not be empty", flag)
+		}
+	}
+	if creds.RoleArn != nil {
+		if creds.AccessKeySecret != nil || creds.SecretKeySecret != nil {
+			return cerr.Usage("--role-arn replaces --access-key-secret and --secret-key-secret; pass one or the other")
+		}
+		return nil
+	}
+	if creds.AccessKeySecret == nil || creds.SecretKeySecret == nil {
 		return cerr.Usage("--access-key-secret and --secret-key-secret are required together")
 	}
 	return nil
@@ -161,4 +174,11 @@ func volumeBucketSecretKeySecret(bucket *volumeBucketOptionsView) string {
 		return ""
 	}
 	return bucket.Credentials.SecretKeySecret
+}
+
+func volumeBucketRoleArn(bucket *volumeBucketOptionsView) string {
+	if bucket == nil || bucket.Credentials == nil {
+		return ""
+	}
+	return bucket.Credentials.RoleArn
 }

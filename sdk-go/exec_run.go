@@ -26,19 +26,20 @@ func (s *Processes) run(
 	if options.Stdout != nil || options.Stderr != nil {
 		return s.runStreaming(ctx, body, options)
 	}
-	hold := int64(60000)
-	if options.Timeout != 0 {
-		hold = wireMilliseconds(timeout)
+	// The create request holds one wait round at most (the budget when it is
+	// shorter); the rest of the wait goes on in rounds. It is never retried:
+	// a failed create may still have started the process.
+	hold := processWaitRound
+	if timeout > 0 {
+		hold = min(hold, timeout)
 	}
-	requestTimeout := NoTimeout
-	if hold > 0 {
-		requestTimeout = time.Duration(hold)*time.Millisecond + 5*time.Second
-	}
+	milliseconds := wireMilliseconds(hold)
+	requestTimeout := time.Duration(milliseconds)*time.Millisecond + waitReadSlack
 	started := time.Now()
 	var raw json.RawMessage
 	if err = s.sandbox.toolbox().do(ctx, toolboxRequest{
 		Method: http.MethodPost, Path: "/processes",
-		Query: url.Values{"waitMs": {strconv.FormatInt(hold, 10)}, "logs": {"text"}},
+		Query: url.Values{"waitMs": {strconv.FormatInt(milliseconds, 10)}, "logs": {"text"}},
 		Body:  body, Result: &raw, Timeout: requestTimeout,
 	}); err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"encoding/hex"
+	"errors"
 	"math/big"
 	"net/url"
 	"regexp"
@@ -18,7 +19,14 @@ var (
 	buildLogRoutePattern = regexp.MustCompile(`/build-logs/([^/]+)/([^/%]+)$`)
 )
 
-func buildLogDestination(api *apiClient, raw, discoveryPath string) (*buildLogTarget, error) {
+// errBuildLogIdentity marks a destination naming another resource than the
+// one discovery asked about.
+var errBuildLogIdentity = errors.New("unexpected build log identity")
+
+// buildLogDestination validates raw. Its resource ID must be the one
+// discoveryPath names, or canonicalID when the caller resolved that value (an
+// image name) to its ID.
+func buildLogDestination(api *apiClient, raw, discoveryPath, canonicalID string) (*buildLogTarget, error) {
 	target, err := parseBuildLogURL(raw)
 	if err != nil {
 		return nil, err
@@ -33,8 +41,16 @@ func buildLogDestination(api *apiClient, raw, discoveryPath string) (*buildLogTa
 		return nil, buildLogProtocol("unexpected build log collection")
 	}
 	id, err := url.PathUnescape(requested[1])
-	if err != nil || !sameBuildLogResource(requested[0], id, actual[2]) {
+	if err != nil {
 		return nil, buildLogProtocol("unexpected build log identity")
+	}
+	if canonicalID != "" {
+		id = canonicalID
+	}
+	if !sameBuildLogResource(requested[0], id, actual[2]) {
+		failure := buildLogProtocol("unexpected build log identity")
+		failure.Err = errBuildLogIdentity
+		return nil, failure
 	}
 	scoped := *api
 	scoped.baseURL = target.Scheme + "://" + target.Host

@@ -22,7 +22,13 @@ from _handles import lazy_sandbox
 from network_policy_test_server import FakeApi, PlannedResponse
 
 from daytona import AsyncDaytona, DaytonaConfig
-from daytona.v2 import DockerWaitTimeoutError, ImageBuilder, RequestTimeoutError, _clock
+from daytona.v2 import (
+    DockerWaitTimeoutError,
+    ImageBuilder,
+    ImageBuildTimeoutError,
+    RequestTimeoutError,
+    _clock,
+)
 from daytona.v2.daytona import AsyncDaytona as AsyncDaytonaV2
 from daytona.v2.types import JsonObject
 
@@ -173,7 +179,7 @@ _CASES: list[tuple[str, list[PlannedResponse], _Call, int, type[RequestTimeoutEr
             ImageBuilder.from_registry("alpine"), build_timeout=budget, wait_seconds=0
         ),
         3,
-        RequestTimeoutError,
+        ImageBuildTimeoutError,
     ),
 ]
 

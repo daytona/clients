@@ -4,17 +4,24 @@
  */
 
 import { strip } from './pyText.js'
-import { AuthenticationError, BadRequestError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
+import { AuthenticationError, BadRequestError, ClientClosedError, DaytonaError, ForbiddenError, NotFoundError, RequestTimeoutError, SandboxTerminalStateError } from './errors/DaytonaError.js'
 import { targetPredicate, waitQueryKey } from './events.js'
 import type { WaitHub, WaitOutcome } from './events.js'
 import { sleep } from './http.js'
 import { MAX_TIMER_DELAY_MS, optionalSeconds, waitDeadline } from './options.js'
+import { ReadRetry } from './readRetry.js'
 import type { SandboxState, SandboxWaitState } from './types.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
 
 export const DEFAULT_SANDBOX_TERMINAL_STATES = ['destroying', 'destroyed', 'error'] as const satisfies readonly SandboxState[]
 export const PAUSE_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'started'] as const
 export const RESUME_TERMINAL_STATES = [...DEFAULT_SANDBOX_TERMINAL_STATES, 'stopped'] as const
+export const JOINED_START_TERMINAL_STATES = [...RESUME_TERMINAL_STATES, 'paused'] as const
+// The terminal states a read that lags behind an events report cannot show by
+// lagging. The operation-specific ones (`started` for a pause, `stopped` /
+// `paused` for a start) are also the state before the operation, so only a
+// long-poll read decides them.
+const IRREVERSIBLE_STATES: ReadonlySet<SandboxState> = new Set(DEFAULT_SANDBOX_TERMINAL_STATES)
 export const WAIT_FOR_STATE_SLICE_MS = 30_000
 // The end of a sandbox wait's budget kept for a read of the server when the
 // events stream has decided nothing: at most 5 s, at most a quarter of it.
@@ -35,6 +42,8 @@ export interface SandboxWaitContext {
   /** What the handle last observed, its reason included. */
   readonly current: () => SandboxReadOutcome
   readonly observe: (outcome: WaitOutcome) => void
+  /** The owning client's closed signal: ends a retry pause (readRetry.ts). */
+  readonly closed?: AbortSignal
 }
 
 export interface SandboxStateWaitOptions {
@@ -43,8 +52,8 @@ export interface SandboxStateWaitOptions {
   readonly missingIsDestroyed?: boolean
 }
 
-function timeoutError(): RequestTimeoutError {
-  return new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+function timeoutError(cause?: unknown): RequestTimeoutError {
+  return new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause })
 }
 
 export function waitQueryState(state: SandboxWaitState | undefined): string | undefined {
@@ -87,6 +96,8 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
   const deadline = waitDeadline(seconds)
   const terminalStates = options.terminalStates ?? DEFAULT_SANDBOX_TERMINAL_STATES
   const effectiveTerminal = states.includes('destroyed') ? terminalStates.filter((s) => s !== 'destroying') : terminalStates
+  // What a plain read that confirms an events report may throw on its own.
+  const confirmedTerminal = effectiveTerminal.filter((s) => IRREVERSIBLE_STATES.has(s))
   const waitTarget = new Set(states).size === 1 ? states[0] : undefined
   // A wait for `destroyed` alone holds its long polls with `wait_exact=deleted`.
   const waitValue = waitQueryState(waitTarget)
@@ -118,8 +129,15 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     return new SandboxTerminalStateError(context.id, error.state, { rawState: error.rawState ?? (seen.rawState || undefined), reason: seen.reason })
   }
 
+  // One back-off and last failure for every read of this wait: the events
+  // fallback, the hub's probes and the final reserve (readRetry.ts).
+  const retry = new ReadRetry(context.closed)
+
   // Long-poll reads until a target or terminal state. `lastReadEnd` is when
   // the wait's previous read ended; the first read keeps the minimum spacing.
+  // A read that fails transiently is retried with back-off under the same
+  // deadline; a spent deadline throws the wait's timeout with the last failed
+  // read as its cause.
   const pollForState = async (lastReadEnd?: number): Promise<void> => {
     if (lastReadEnd !== undefined) {
       const pause = WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastReadEnd)
@@ -128,10 +146,21 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (pause > 0 && (remaining() ?? Infinity) > pause) await sleep(pause)
     }
     for (;;) {
+      // After a failed read (this loop's or an earlier probe's), the back-off
+      // or the server's retry hint, within the deadline.
+      await retry.pause(deadline)
       const budget = remaining()
-      if (budget !== undefined && budget <= 0) throw timeoutError()
+      if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const pollStarted = Date.now()
-      const outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      let outcome: SandboxReadOutcome
+      try {
+        outcome = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(budget ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget)
+      } catch (error) {
+        if (retry.note(error)) continue
+        if (retry.lastError !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') throw timeoutError(retry.lastError)
+        throw error
+      }
+      retry.succeeded()
       if (states.some((target) => target === outcome.state)) return
       if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
       const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - pollStarted), remaining() ?? Infinity)
@@ -146,40 +175,46 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
     // Where the hub's share ends: its probes hold no long poll past it, so
     // none still runs when the reserve starts reading.
     const hubDeadline = deadline === undefined ? undefined : Date.now() + hubBudget
+    // Aborted once the hub's wait settles: an early probe still pausing on a
+    // retry hint then stops without reading for a wait that is over.
+    const hubSettled = new AbortController()
     const sandboxPollFn = async (): Promise<WaitOutcome> => {
       if (lastPollEnd !== undefined) {
         const pause = Math.min(WAIT_FOR_STATE_MIN_INTERVAL_MS - (Date.now() - lastPollEnd), remaining() ?? Infinity)
         if (pause > 0) await sleep(pause)
       }
+      // A failed read (a probe's or the fallback's) holds the next one back by
+      // its back-off or the server's retry hint.
+      await retry.pause(hubDeadline ?? deadline, undefined, hubSettled.signal)
+      // The hub ignores a probe whose waiter has settled.
+      if (hubSettled.signal.aborted) throw timeoutError(retry.lastError)
       const budget = remaining()
-      if (budget !== undefined && budget <= 0) throw timeoutError()
+      if (budget !== undefined && budget <= 0) throw timeoutError(retry.lastError)
       const held = budget === undefined || hubDeadline === undefined ? budget : Math.max(1, Math.min(budget, hubDeadline - Date.now()))
       // The read itself (its slack included) ends with the hub's share.
-      const result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
+      let result: SandboxReadOutcome
+      try {
+        result = await read(Math.min(WAIT_FOR_STATE_SLICE_MS, Math.ceil(held ?? WAIT_FOR_STATE_SLICE_MS)), waitTarget, hubDeadline ?? deadline)
+      } catch (error) {
+        // A failed read schedules the next one and is the wait's timeout cause
+        // if nothing later fails; a probe that outlived its wait records nothing.
+        if (!hubSettled.signal.aborted) retry.probeFailed(error)
+        throw error
+      }
+      retry.succeeded()
       lastPollEnd = Date.now()
       refreshedByPoll = true
       return result
     }
+    let resolved: WaitOutcome | undefined
     try {
-      const resolved = await context.hub.wait(context.id, targetPredicate(new Set<SandboxState>(states), new Set(effectiveTerminal)), {
+      resolved = await context.hub.wait(context.id, targetPredicate(new Set<SandboxState>(states), new Set(effectiveTerminal)), {
         timeout: hubBudget,
         regionHint: context.region !== undefined && strip(context.region).toLowerCase() === 'local' ? undefined : context.region,
         sandboxPollFn,
         onObserved: (outcome) => { refreshedByPoll = false; context.observe(outcome) },
-      })
-      context.observe(resolved)
-      if (!refreshedByPoll && resolved.state !== 'destroyed') {
-        const budget = remaining()
-        if (budget === undefined || budget > 0) {
-          try {
-            await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_TIMER_DELAY_MS))
-          } catch (error) {
-            // The target was observed; a failed refresh keeps that observation.
-            if (!(error instanceof DaytonaError)) throw error
-          }
-        }
-      }
-      return
+        readRetry: retry,
+      }).finally(() => { hubSettled.abort() })
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
         context.observe({ state: 'destroyed', rawState: 'deleted' })
@@ -203,6 +238,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
             readError instanceof SandboxTerminalStateError || readError instanceof NotFoundError
             || (readError instanceof RequestTimeoutError && readError.source === 'SDK')
             || readError instanceof AuthenticationError || readError instanceof ForbiddenError
+            || readError instanceof ClientClosedError
           ) throw readError
           if (readError instanceof DaytonaError) throw new RequestTimeoutError(error.message, { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: readError })
           throw readError
@@ -229,9 +265,42 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
         throw error
       }
       if (states.some((target) => target === outcome.state)) return
-      if (effectiveTerminal.includes(outcome.state)) throw terminalError(outcome)
-      // Neither a target nor terminal: the hub's report was stale. Poll for
-      // the rest of the budget, under the same deadline.
+      if (confirmedTerminal.includes(outcome.state)) throw terminalError(outcome)
+      // Anything else, the state before the operation included (the hub may
+      // hold it from an earlier wait, and the read may lag as well): the
+      // long-poll reads that follow decide, under the same deadline. They are
+      // no proof against a lagging row: a loose `wait=running` still answers
+      // `stopped` at once. The first long poll keeps the minimum spacing.
+      await pollForState(Date.now())
+      return
+    }
+    if (resolved !== undefined) {
+      context.observe(resolved)
+      // A socket frame carries only the state. Callers (create, start,
+      // resume) hand back this handle, so fill in the rest with one read
+      // within the same budget. A destroyed sandbox has nothing to fill in.
+      // The target was observed, so neither a spent budget nor a failed read
+      // turns that success into an error.
+      if (refreshedByPoll || resolved.state === 'destroyed') return
+      const budget = remaining()
+      if (budget !== undefined && budget <= 0) return
+      let outcome: SandboxReadOutcome
+      try {
+        outcome = await read(budget === undefined ? undefined : Math.min(Math.ceil(budget), MAX_TIMER_DELAY_MS))
+      } catch (error) {
+        if (!(error instanceof DaytonaError)) throw error
+        return
+      }
+      // The read the handle now carries decides: a lifecycle wait never
+      // returns a handle outside its targets. A terminal state no lag can show
+      // throws; any other state (a read behind the event, the state before the
+      // operation, or a later transition) polls on under the same deadline,
+      // and the long-poll reads decide (a loose `wait=running` still answers
+      // `stopped` at once, so they are no proof against a lagging row).
+      if (states.some((target) => target === outcome.state)) return
+      if (confirmedTerminal.includes(outcome.state)) throw terminalError(outcome)
+      await pollForState(Date.now())
+      return
     }
   }
 

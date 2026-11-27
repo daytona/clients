@@ -6,7 +6,7 @@
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import type { Server } from 'node:http'
-import { ImageBuilder, RequestTimeoutError } from '../src/v2/index'
+import { ImageBuildTimeoutError, ImageBuilder, RequestTimeoutError } from '../src/v2/index'
 import { imageWire, snapshotWire } from './artifactFixtures'
 import { clientAt } from './helpers/client'
 
@@ -58,7 +58,10 @@ it('ends a stalled build wait at buildTimeoutSeconds', async () => {
   const client = clientAt(url, { requestTimeoutSeconds: 30 })
   try {
     const { error, seconds } = await elapsedRejection(() => client.v2.createFromBuild(ImageBuilder.fromRegistry('alpine'), { buildTimeoutSeconds: 1 }))
-    expect(error).toMatchObject({ constructor: RequestTimeoutError, message: 'image build did not finish before timeout', source: 'SDK' })
+    // A RequestTimeoutError still, naming the image the server keeps building.
+    expect(error).toBeInstanceOf(RequestTimeoutError)
+    expect(error).toMatchObject({ constructor: ImageBuildTimeoutError, message: 'image build did not finish before timeout', source: 'SDK', code: 'REQUEST_TIMEOUT', statusCode: 408 })
+    expect((error as ImageBuildTimeoutError).imageId).toBe('img')
     expect(seconds).toBeGreaterThanOrEqual(0.9)
     expect(seconds).toBeLessThan(3)
   } finally {

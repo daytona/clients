@@ -339,7 +339,10 @@ class SyncTransport:
             finally:
                 stream.__exit__(None, None, None)
             raise error_from_response(
-                response.status_code, body, content_type=response.headers.get("content-type")
+                response.status_code,
+                body,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
         return SyncResponseStream(stream, response)
 
@@ -366,7 +369,10 @@ class SyncTransport:
             raise connection_error(exc) from exc
         if response.status_code >= 300:
             raise error_from_response(
-                response.status_code, response.content, content_type=response.headers.get("content-type")
+                response.status_code,
+                response.content,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
         return response
 
@@ -573,9 +579,34 @@ class _StreamOwners:
     def __init__(self) -> None:
         self._streams: set[AsyncResponseStream] = set()
         self._closed = False
+        # Set once the owning client starts closing: wakes every wait pausing
+        # to retry a failed read (:meth:`retry_sleep`).
+        self._closing = False
+        self._retry_pauses: set[anyio.Event] = set()
 
     def ensure_open(self) -> None:
         if self._closed:
+            raise ClientClosedError()
+
+    def begin_close(self) -> None:
+        """Wake every retry pause; loop-confined like the rest of this class."""
+        self._closing = True
+        for pause in tuple(self._retry_pauses):
+            pause.set()
+
+    async def retry_sleep(self, seconds: float) -> None:
+        """Sleep before a wait retries a failed read; the client closing ends
+        it at once with :class:`ClientClosedError`."""
+        if self._closing:
+            raise ClientClosedError()
+        woken = anyio.Event()
+        self._retry_pauses.add(woken)
+        try:
+            with anyio.move_on_after(seconds):
+                await woken.wait()
+        finally:
+            self._retry_pauses.discard(woken)
+        if self._closing:
             raise ClientClosedError()
 
     def add(self, stream: AsyncResponseStream) -> None:
@@ -587,6 +618,7 @@ class _StreamOwners:
         self._streams.discard(stream)
 
     async def close(self) -> None:
+        self.begin_close()
         self._closed = True
         first_error: BaseException | None = None
         for stream in tuple(self._streams):
@@ -908,7 +940,10 @@ class AsyncTransport:
                 with anyio.move_on_after(_STREAM_RELEASE_GRACE_SECONDS, shield=True):
                     await stream.__aexit__(None, None, None)
             typed_error = error_from_response(
-                response.status_code, body, content_type=response.headers.get("content-type")
+                response.status_code,
+                body,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
             if span is not None:
                 span.finish(status_code=response.status_code, error=typed_error)
@@ -1005,6 +1040,17 @@ class AsyncTransport:
             await result.close()
             raise
         return result
+
+    def begin_close(self) -> None:
+        """Wake the retry pauses of waits reading through this client's
+        transports, which then raise :class:`ClientClosedError` (the first step
+        of the owning client's close; loop-confined)."""
+        if self._owns_streams:
+            self._stream_owners.begin_close()
+
+    async def retry_sleep(self, seconds: float) -> None:
+        """A wait's pause before it retries a failed read (:mod:`._read_retry`)."""
+        await self._stream_owners.retry_sleep(seconds)
 
     async def close(self) -> None:
         try:
@@ -1117,7 +1163,10 @@ class AsyncTransport:
             span.finish(status_code=response.status_code)
         if response.status_code >= 300:
             raise error_from_response(
-                response.status_code, response.content, content_type=response.headers.get("content-type")
+                response.status_code,
+                response.content,
+                content_type=response.headers.get("content-type"),
+                retry_after=response.headers.get("retry-after"),
             )
         return response
 
@@ -1188,15 +1237,14 @@ def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
     ``timeout`` (a wait's budget plus its slack, a git remote call, ...)
     replaces it for that request with the same meaning: total time from
     sending to the last byte, ``0`` or a value above the timer maximum meaning
-    no limit. A hold that reads without a deadline (``unbounded_read``,
-    ``/wait`` with no budget) and a file transfer (idle-bounded per phase
-    instead) have no total bound.
+    no limit. A hold that reads without a deadline (``unbounded_read``) and a
+    file transfer (idle-bounded per phase instead) have no total bound.
     """
     if spec.transfer:
         return 0.0
     if spec.timeout is not None:
         return _per_call_seconds(spec.timeout)
-    if spec.unbounded_read or spec.path.endswith("/wait"):
+    if spec.unbounded_read:
         return 0.0
     return request_timeout_seconds
 
@@ -1273,7 +1321,7 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
     elif spec.timeout is not None:
         # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
         kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
-    elif spec.unbounded_read or spec.path.endswith("/wait"):
+    elif spec.unbounded_read:
         kwargs["timeout"] = _timeout_with_unbounded_read(request_timeout_seconds)
     return kwargs
 
@@ -1329,7 +1377,10 @@ def _request_headers(
 def _decode_response(response: httpx.Response) -> Union[JsonValue, bytes]:
     if response.status_code >= 300:
         raise error_from_response(
-            response.status_code, response.content, content_type=response.headers.get("content-type")
+            response.status_code,
+            response.content,
+            content_type=response.headers.get("content-type"),
+            retry_after=response.headers.get("retry-after"),
         )
     if is_json_media_type(response.headers.get("content-type")):
         try:

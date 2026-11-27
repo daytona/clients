@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Mapping, Optional
 
 from typing_extensions import Self
 
-from ._core import refuse_dot_segment
+from ._core import process_command, refuse_dot_segment
 from ._transport import AsyncTransport
 from .errors import DaytonaError, ProcessNotFoundError, SessionNotFoundError, create_error
 from .types import KeepLogs, ProcessInfo, ProcessResult, RunKeepLogs, SessionJSON, StdinMode
@@ -92,7 +92,7 @@ class AsyncSession:
         4.4 (macOS's ``/bin/bash``) when a DEBUG trap is set.
         """
         return await self._process().run(
-            command,
+            process_command(command),
             stdin=stdin,
             timeout=timeout,
             execution_timeout=execution_timeout,
@@ -119,7 +119,7 @@ class AsyncSession:
         for :meth:`ProcessService.start`.
         """
         return await self._process().start(
-            command,
+            process_command(command),
             stdin=stdin,
             execution_timeout=execution_timeout,
             name=name,

@@ -39,6 +39,7 @@ from daytona.v2 import (
     FilesystemEventType,
     ImageBuilder,
     ImageBuildFailedError,
+    ImageBuildTimeoutError,
     ImageSource,
     MacReservation,
     ManifestImageSource,
@@ -6349,7 +6350,7 @@ async def test_interpreter_isolated_run_spends_the_caller_budget_on_context_crea
 
 
 @pytest.mark.anyio
-async def test_process_run_timeout_zero_uses_the_unbounded_wait_wire_form():
+async def test_process_run_timeout_zero_waits_in_bounded_rounds():
     transport = RecordingTransport(
         [
             _process_payload("proc", "exec", "running"),
@@ -6367,13 +6368,12 @@ async def test_process_run_timeout_zero_uses_the_unbounded_wait_wire_form():
     assert transport.specs[0] == RequestSpec(
         "POST",
         "/processes",
-        params={"waitMs": 0, "logs": "text"},
+        params={"waitMs": 30000, "logs": "text"},
         json_body={"kind": "exec", "shellCommand": "echo hi", "stdin": "closed", "keepLogs": "on_exit_ttl"},
-        timeout=None,
-        unbounded_read=True,
+        timeout=30 + WAIT_READ_SLACK_SECONDS,
     )
     assert transport.specs[1] == RequestSpec(
-        "GET", "/processes/proc/wait", params={"timeoutMs": 0}, unbounded_read=True
+        "GET", "/processes/proc/wait", params={"timeoutMs": 30000}, timeout=30 + WAIT_READ_SLACK_SECONDS
     )
 
 
@@ -7038,10 +7038,11 @@ async def test_process_wait_bounds_the_transport_read_for_a_positive_budget_only
     assert bounded.params == {"timeoutMs": 10000}
     assert bounded.timeout == pytest.approx(10 + WAIT_READ_SLACK_SECONDS)
     assert bounded.unbounded_read is False
-    # 0 = unbounded, on the wire AND on the read side.
-    assert unbounded.params == {"timeoutMs": 0}
-    assert unbounded.timeout is None
-    assert unbounded.unbounded_read is True
+    # 0 = no deadline, waited out in bounded rounds: no request is held,
+    # or read, without a bound.
+    assert unbounded.params == {"timeoutMs": 30000}
+    assert unbounded.timeout == pytest.approx(30 + WAIT_READ_SLACK_SECONDS)
+    assert unbounded.unbounded_read is False
 
 
 @pytest.mark.anyio
@@ -7152,7 +7153,7 @@ async def test_pty_delete_refuses_non_pty_processes() -> None:
     transport = RecordingTransport([_process_payload("p1", "exec", "running")])
     pty = AsyncPtyService(AsyncProcessService("sbx", transport))
     with pytest.raises(
-        UnsupportedOperationError, match="process.delete\\(\\) is only supported for pty handles"
+        UnsupportedOperationError, match="pty.delete\\(\\) is only supported for pty handles"
     ):
         await pty.delete("p1")
     # Only the metadata lookup was sent — no signal, no cleanup.
@@ -7412,11 +7413,12 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
     assert linux_api.specs[0].path == "/images"
     assert linux_api.specs[1].path == "/images/img-built"
     assert linux_api.specs[1].params == {}
-    # No build_timeout: the build is awaited without a deadline (server-held long polls).
+    # No build_timeout: the build is awaited without a deadline (repeated
+    # server-held long polls, whose failed reads are retried).
     assert linux_api.specs[2].path == "/images/img-built"
-    assert linux_api.specs[2].params == {"wait": "ready"}
+    assert linux_api.specs[2].params == {"wait": "ready", "timeout_ms": 60_000}
     assert linux_api.specs[3].path == "/images/img-built"
-    assert linux_api.specs[3].params == {"wait": "ready"}
+    assert linux_api.specs[3].params == {"wait": "ready", "timeout_ms": 60_000}
     assert linux_api.specs[4].path == "/sandboxes"
     assert linux_api.specs[4].json_body == {
         "image": "img-built",
@@ -7429,7 +7431,10 @@ async def test_daytona_create_posts_an_inline_dockerfile_source_on_linux():
 async def test_image_service_promote_patches_the_name_and_rereads() -> None:
     # Parity with TypeScript `images.promote`: PATCH /images/{id} {name}, then GET.
     transport = RecordingTransport(
-        [{}, {**_image_page_payload("img-1"), "name": "keep-this", "anonymous": False}]
+        [
+            {**_image_page_payload("img-1"), "name": "keep-this", "region_ids": []},
+            {**_image_page_payload("img-1"), "name": "keep-this", "anonymous": False},
+        ]
     )
     service = AsyncImagesService(transport)  # type: ignore[arg-type]
 
@@ -7441,6 +7446,51 @@ async def test_image_service_promote_patches_the_name_and_rereads() -> None:
     ]
     assert transport.specs[0].json_body == {"name": "keep-this"}
     assert image.name == "keep-this"
+    # The read-back reports the regions the PATCH answer lacks.
+    assert image.available_in == ("region-b",)
+
+
+@pytest.mark.anyio
+async def test_image_service_promote_reads_back_by_the_answered_id() -> None:
+    # "search" is a name get() refuses; the read-back uses the id the PATCH answered with.
+    transport = RecordingTransport(
+        [
+            {**_image_page_payload("img-9"), "name": "keep-this"},
+            {**_image_page_payload("img-9"), "name": "keep-this"},
+        ]
+    )
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    image = await service.promote("search", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [
+        ("PATCH", "/images/search"),
+        ("GET", "/images/img-9"),
+    ]
+    assert image.id == "img-9"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("image_id", ["..", "\ud800"])
+async def test_image_service_promote_refuses_an_answered_id_that_cannot_be_a_path_id(image_id: str) -> None:
+    transport = RecordingTransport([{**_image_page_payload("img-1"), "id": image_id}])
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError, match="image response id"):
+        await service.promote("img-1", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [("PATCH", "/images/img-1")]
+
+
+@pytest.mark.anyio
+async def test_image_service_promote_refuses_a_malformed_answer_before_reading_back() -> None:
+    transport = RecordingTransport([{}])
+    service = AsyncImagesService(transport)  # type: ignore[arg-type]
+
+    with pytest.raises(BadRequestError):
+        await service.promote("img-1", "keep-this")
+
+    assert [(spec.method, spec.path) for spec in transport.specs] == [("PATCH", "/images/img-1")]
 
 
 @pytest.mark.anyio
@@ -7559,6 +7609,9 @@ async def test_create_from_build_raises_request_timeout_when_the_build_outlasts_
         "REQUEST_TIMEOUT",
         "SDK",
     )
+    # It names the image the server keeps building.
+    assert isinstance(raised.value, ImageBuildTimeoutError)
+    assert raised.value.image_id == "img-slow"
     assert all(spec.path != "/sandboxes" for spec in api.specs), "no sandbox is created"
 
 
@@ -7998,6 +8051,7 @@ async def test_sandbox_wait_for_state_normalizes_local_target_to_no_region_hint(
             region_hint: str | None = None,
             sandbox_poll_fn: object = None,
             on_observed: object = None,
+            read_retry: object = None,
         ):
             assert sandbox_id == "550e8400-e29b-41d4-a716-446655440000"
             self.region_hint = region_hint
@@ -8430,8 +8484,8 @@ async def test_sandbox_wait_for_state_updates_the_cached_state_before_rethrowing
             )
 
     client = AsyncDaytona(DaytonaConfig(api_key="key"))
-    # The final read in the wait's reserve fails: the wait's own timeout stands.
-    api = RecordingTransport([create_error("busy", 503, "SERVICE_UNAVAILABLE", "DAYTONA_API")])
+    # The final read in the wait's reserve fails for good: the wait's own timeout stands.
+    api = RecordingTransport([create_error("refused", 400, "BAD_REQUEST", "DAYTONA_API")])
     bind_api(client, api)
     sandbox = lazy_sandbox(client, "sbx")
     sandbox._update(state="started")
@@ -8442,7 +8496,7 @@ async def test_sandbox_wait_for_state_updates_the_cached_state_before_rethrowing
         await sandbox._wait_for_state(["paused"], timeout=10)
 
     assert raised.value.source == "SDK"
-    assert isinstance(raised.value.__cause__, ServiceUnavailableError)
+    assert isinstance(raised.value.__cause__, BadRequestError)
     assert [spec.method for spec in api.specs] == ["GET"]
     assert sandbox.state == "stopped"
     assert sandbox.raw_state == "stopped"
@@ -8680,7 +8734,7 @@ async def test_pty_service_lists_and_deletes_via_process_handles() -> None:
 
 
 @pytest.mark.anyio
-async def test_process_wait_timeout_zero_sends_unbounded_poll_and_waits_for_terminal() -> None:
+async def test_process_wait_timeout_zero_sends_bounded_rounds_and_waits_for_terminal() -> None:
     class DelayedTransport(RecordingTransport):
         async def send(self, spec):
             await asyncio.sleep(0.001)
@@ -8691,7 +8745,7 @@ async def test_process_wait_timeout_zero_sends_unbounded_poll_and_waits_for_term
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert await handle.wait(timeout=0) == WaitResult(reason="exited", exit_code=0, raw_reason="exited")
-    assert transport.specs[0].params == {"timeoutMs": 0}
+    assert transport.specs[0].params == {"timeoutMs": 30000}
 
 
 @pytest.mark.anyio
@@ -8732,15 +8786,19 @@ async def test_process_stdin_allows_exec_and_unknown_handles_to_call_the_wire() 
 async def test_process_wait_computed_exhaustion_returns_timed_out_without_forwarding_zero(monkeypatch):
     now = iter([0.0, 0.0, 0.001, 0.001])
     monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(now, 0.001))
-    transport = RecordingTransport([{"reason": "timed_out"}])
+    transport = RecordingTransport([{"reason": "timed_out"}, _process_payload("proc", "exec", "running")])
 
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert await handle.wait(timeout=0.001) == WaitResult(reason="timed_out")
+    # The round that spends the budget is followed by one record read (the
+    # process may have ended with it), bounded by the slack alone.
     assert [(spec.path, spec.params, spec.unbounded_read) for spec in transport.specs] == [
-        ("/processes/proc/wait", {"timeoutMs": 1}, False)
+        ("/processes/proc/wait", {"timeoutMs": 1}, False),
+        ("/processes/proc", {}, False),
     ]
     assert transport.specs[0].timeout == pytest.approx(0.001 + WAIT_READ_SLACK_SECONDS)
+    assert transport.specs[1].timeout == pytest.approx(WAIT_READ_SLACK_SECONDS)
 
 
 @pytest.mark.anyio
@@ -8759,7 +8817,9 @@ async def test_process_wait_preserves_the_caller_deadline(monkeypatch):
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert (await handle.wait(timeout=600.001)).exit_code == 0
-    assert transport.specs[0].params == {"timeoutMs": 600001}
+    # The first round holds 30 s, not the whole budget; the last one only
+    # what is left of it.
+    assert transport.specs[0].params == {"timeoutMs": 30000}
     assert transport.specs[2].params is not None
     remaining = transport.specs[2].params["timeoutMs"]
     assert isinstance(remaining, int)
@@ -11038,7 +11098,7 @@ async def test_docker_wait_until_ready_maps_a_transport_timeout_at_the_deadline(
 
 
 @pytest.mark.anyio
-async def test_docker_wait_until_ready_reraises_a_transport_timeout_before_the_deadline(
+async def test_docker_wait_until_ready_retries_a_transport_timeout_before_the_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     clock = {"now": 0.0}
@@ -11050,9 +11110,10 @@ async def test_docker_wait_until_ready_reraises_a_transport_timeout_before_the_d
             return await super().send(spec)
 
     stalled = ClientTimeoutError("operation timed out")
-    with pytest.raises(ClientTimeoutError) as info:
-        await AsyncDockerService(Advancing([stalled])).wait_until_ready(timeout=60)  # type: ignore[arg-type]
-    assert info.value is stalled
+    transport = Advancing([stalled, {"state": "ready", "owner": "daemon"}])
+    status = await AsyncDockerService(transport).wait_until_ready(timeout=60)  # type: ignore[arg-type]
+    assert status.state == "ready"
+    assert len(transport.specs) == 2
 
 
 @pytest.mark.anyio

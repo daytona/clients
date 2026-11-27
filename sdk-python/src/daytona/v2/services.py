@@ -8,7 +8,6 @@ import uuid
 from collections.abc import Sequence as SequenceABC
 from typing import (
     AsyncIterator,
-    Awaitable,
     Callable,
     Dict,
     Literal,
@@ -66,6 +65,8 @@ from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
 from ._image_context import prepared_context
 from ._image_pull import ImagePull
+from ._pages import iter_pages
+from ._read_retry import ReadRetry
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
 from .errors import ClientTimeoutError, ConflictError, DaytonaError, NotFoundError, create_error
@@ -99,9 +100,6 @@ from .types import (
     VolumeType,
 )
 
-_T = TypeVar("_T")
-
-
 _path = path_segment
 
 # The types a create may name, from the contract.
@@ -119,25 +117,6 @@ def _additional_cursor_from_mapping(payload: Mapping[str, JsonValue]) -> Optiona
         return next_cursor
     camel_case_cursor = payload.get("nextCursor")
     return camel_case_cursor if isinstance(camel_case_cursor, str) else None
-
-
-async def _iter_pages(
-    fetch_page: Callable[[Optional[str]], Awaitable[ListResult[_T]]], cursor: Optional[str] = None
-) -> AsyncIterator[_T]:
-    seen_cursors: set[str] = set()
-    if cursor is not None:
-        seen_cursors.add(cursor)
-    current_cursor = cursor
-    while True:
-        page = await fetch_page(current_cursor)
-        for item in page.items:
-            yield item
-        next_cursor = page.next_cursor
-        # An empty cursor ends the list too, as in TypeScript.
-        if not next_cursor or next_cursor == current_cursor or next_cursor in seen_cursors:
-            return
-        seen_cursors.add(next_cursor)
-        current_cursor = next_cursor
 
 
 def _check_context_image_options(name: str | None, idle_expiry_seconds: int | None) -> None:
@@ -167,9 +146,15 @@ class AsyncImagesService:
         cursor: Optional[str] = None,
         timeout: Optional[float] = None,
     ) -> BuildLogFollowResult:
-        """Observe a submitted image build. ``timeout`` is the observation budget
-        in seconds (not an execution TTL); omitted, ``0`` or a value above about
-        24.8 days adds no deadline."""
+        """Observe a submitted image build, by the image's ID or name.
+        ``timeout`` is the observation budget in seconds (not an execution
+        TTL); omitted, ``0`` or a value above about 24.8 days adds no deadline.
+
+        ``"search"`` cannot be followed by name (``GET /images/search`` is the
+        search route): it raises :class:`BadRequestError` before any request;
+        follow such an image by its ID.
+        """
+        _refuse_search_name(image_id, "image")
         return await follow_build_logs(
             self._transport,
             f"/images/{_path(image_id, 'image_id')}/build-logs-url",
@@ -393,12 +378,24 @@ class AsyncImagesService:
         that already exists raises :class:`ImageNameTakenError`; a reserved
         prefix (``img_``, ``snap_``, ``sbx_``, ``vol_``, ``fn_``) raises
         :class:`ImageNameReservedError`.
+
+        The image is then read again by the id the promotion answered with, so
+        the result reports the image's current state (its regions included),
+        as :meth:`get` does. The name is applied once the promotion succeeds;
+        a failed read afterwards raises its error.
         """
         path = f"/images/{_path(image_id, 'image_id')}"
         if not isinstance(name, str) or not name.strip():
             raise create_error("name must be a non-empty string", 400, "BAD_REQUEST", "SDK")
-        await self._transport.send(RequestSpec("PATCH", path, json_body={"name": name}))
-        return await self.get(image_id)
+        promoted = expect_image(
+            await self._transport.send(RequestSpec("PATCH", path, json_body={"name": name}))
+        )
+        # By id: the caller's value may be a name (even "search", which get() refuses).
+        return expect_image(
+            await self._transport.send(
+                RequestSpec("GET", f"/images/{_path(promoted.id, 'image response id')}")
+            )
+        )
 
     async def delete(self, image_id: str, /) -> None:
         await self._transport.send(RequestSpec("DELETE", f"/images/{_path(image_id, 'image_id')}"))
@@ -419,10 +416,13 @@ class AsyncImagesService:
         image you just created may be missing until the index catches up; :meth:`get`
         reads it at once) and, on a deployment without search, ``GET /images``.
 
-        ``platform`` picks the shared images Daytona publishes for every
-        project: ``"false"`` (the server default) lists the project's own
-        images, ``"true"`` lists only the non-deprecated platform images (the
-        default one carries ``default=True``), and ``"any"`` lists both.
+        ``platform`` picks the shared images the platform publishes to every
+        project of the deployment: ``"false"`` (the server default) lists the
+        project's own images, ``"true"`` lists only the non-deprecated
+        platform images (the default one, if the deployment has one, carries
+        ``default=True``), and ``"any"`` lists both. A deployment may publish
+        no platform images, or no default: then create from an image you
+        register with :meth:`pull` or :meth:`build`.
         """
         params = page_params(cursor, limit)
         if not isinstance(anonymous, bool):
@@ -455,7 +455,7 @@ class AsyncImagesService:
         limit: Optional[int] = None,
         platform: Optional[Literal["true", "false", "any"]] = None,
     ) -> AsyncIterator[Image]:
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self.list(
                 anonymous=anonymous,
                 sandbox_id=sandbox_id,
@@ -632,6 +632,8 @@ async def _get_artifact(
     a budget that runs out before the artifact settles raises
     :class:`RequestTimeoutError` (408, ``REQUEST_TIMEOUT``, ``SDK``), as
     ``images.pull()`` and ``sandbox.wait()`` do: never an unsettled observation.
+    A hold that fails transiently is retried with back-off within the budget
+    (:mod:`._read_retry`); the timeout then carries the last failure as its cause.
     """
     if wait is not None and wait != "ready":
         raise create_error(f'wait must be "ready" or omitted, got {wait!r}', 400, "BAD_REQUEST", "SDK")
@@ -651,10 +653,11 @@ async def _get_artifact(
     def timed_out() -> DaytonaError:
         return create_error("artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK")
 
+    retry = ReadRetry(transport)
     while True:
         remaining = None if deadline is None else deadline - _clock.monotonic()
         if remaining is not None and remaining <= 0:
-            raise timed_out()
+            raise timed_out() from retry.last_error
         # A long poll is governed by the wait budget, not the request timeout:
         # each hold is the smaller of the remaining budget and the server's
         # 60 s cap, in whole milliseconds, and the read adds network slack —
@@ -677,19 +680,25 @@ async def _get_artifact(
                     )
                 )
             )
-        except ClientTimeoutError as error:
+        except DaytonaError as error:
             # Only expiry of this wait's own cap is the wait running out.
             if (
-                deadline is not None
+                isinstance(error, ClientTimeoutError)
+                and deadline is not None
                 and remaining is not None
                 and (remaining <= slack_read or _clock.monotonic() >= deadline)
             ):
                 raise timed_out() from error
-            raise
+            if not retry.note(error):
+                raise
+            # Never sooner than the one-second poll spacing, whatever the back-off.
+            await retry.pause(deadline, not_before=started + _ARTIFACT_MIN_POLL_INTERVAL_S)
+            continue
+        retry.succeeded()
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES:
             return artifact
         if deadline is not None and _clock.monotonic() >= deadline:
-            raise timed_out()
+            raise timed_out() from retry.last_error
         elapsed = _clock.monotonic() - started
         if elapsed < _ARTIFACT_MIN_POLL_INTERVAL_S:
             pause = _ARTIFACT_MIN_POLL_INTERVAL_S - elapsed
@@ -744,7 +753,7 @@ class AsyncSnapshotsService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[Snapshot]:
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self.list(
                 name=name,
                 sandbox_id=sandbox_id,
@@ -892,7 +901,7 @@ class AsyncVolumesService:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[Volume]:
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self._list_page(
                 cursor=next_cursor,
                 limit=limit,
@@ -1099,13 +1108,18 @@ class AsyncReservationsService:
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> AsyncIterator[MacReservation]:
         """Every reservation of the organization, draining page by page."""
-        async for item in _iter_pages(
+        async for item in iter_pages(
             lambda next_cursor: self.list(cursor=next_cursor, limit=limit),
             cursor,
         ):
             yield item
 
     async def get(self, reservation_id: str, /) -> MacReservation:
+        """Fetch one Mac reservation of the organization by its id.
+
+        A reservation that does not exist, or belongs to another organization,
+        raises :class:`NotFoundError`.
+        """
         return _mac_reservation(
             await self._transport.send(
                 RequestSpec("GET", f"/reservations/{_path(reservation_id, 'reservation_id')}")
@@ -1334,7 +1348,7 @@ class AsyncSecretsService:
     async def iter(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> AsyncIterator[Secret]:
-        async for item in _iter_pages(lambda next_cursor: self.list(cursor=next_cursor, limit=limit), cursor):
+        async for item in iter_pages(lambda next_cursor: self.list(cursor=next_cursor, limit=limit), cursor):
             yield item
 
     async def search(
@@ -1403,8 +1417,10 @@ class AsyncSecretsService:
 
         ``value`` must not be empty. ``allowed_domains``: The hosts where this
         secret's value may be sent (exact or ``*.`` wildcard), or ``["*"]`` for
-        any verified host. ``"*"`` lets the value reach any HTTPS host,
-        including one a compromised sandbox controls. ``description`` omitted
+        any verified host; it must not be empty (a :class:`Secret` read back
+        with no allowed domains is sent nowhere, but ``set()`` cannot create
+        one). ``"*"`` lets the value reach any HTTPS host, including one a
+        compromised sandbox controls. ``description`` omitted
         (or ``None``) keeps the stored description of an existing secret, read
         first with :meth:`get` (one more request, not atomic with the write; an
         error from it other than not-found fails the call; no read with

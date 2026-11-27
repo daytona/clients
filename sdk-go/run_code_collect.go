@@ -28,7 +28,7 @@ func (s *Interpreter) collectCode(
 			ProcessID: handle.ID(), WaitResult: WaitResult{Reason: ProcessReasonUnknown},
 		}), err
 	}
-	return output.finish(InterpreterProcess{ProcessID: handle.ID(), WaitResult: *wait}), nil
+	return output.complete(handle.ID(), *wait)
 }
 
 func (o *runCodeOutput) collect(ctx context.Context, handle *ProcessHandle, wait *WaitResult) error {
@@ -105,7 +105,7 @@ func (s *Interpreter) streamCode(
 			}), err
 		}
 	}
-	return output.finish(InterpreterProcess{ProcessID: handle.ID(), WaitResult: *wait.result}), nil
+	return output.complete(handle.ID(), *wait.result)
 }
 
 func (o *runCodeOutput) stream(ctx context.Context, handle *ProcessHandle) (bool, error) {

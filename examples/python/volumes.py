@@ -7,8 +7,12 @@
 Run from examples with DAYTONA_API_KEY set:
     PYTHONPATH=python python python/volumes.py
 
-Writes become available to other sandboxes asynchronously. See
-``../volumes_share.py`` for a persistence round-trip with synchronization waits.
+Sandbox 2 is created after sandbox 1 wrote, but sandbox 1's writes are not
+guaranteed to be visible in it yet, so it may list nothing: a running sandbox
+refreshes its mount with
+``sandbox.volumes.pull(volume.id, request_id="refresh-1")`` (where the
+deployment supports it). See ``../volumes_share.py`` for a persistence
+round-trip across sandbox deletion.
 """
 
 from __future__ import annotations
@@ -46,7 +50,7 @@ def main() -> int:
         if not require_started(s2):
             return 1
         files = s2.fs.list(mount2).items
-        names = ", ".join(f.name for f in files) or "(not yet synchronized)"
+        names = ", ".join(f.name for f in files) or "(nothing yet: not pulled)"
         info(f"s2 sees at {mount2}: {names}")
 
         section("sandbox 3: mount a subpath of the volume")

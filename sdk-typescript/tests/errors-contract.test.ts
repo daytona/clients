@@ -82,6 +82,13 @@ describe('v2 error surface', () => {
     expect(new v2.LimitExceededError('limit reached', { limit: 'max_concurrent_sandboxes', current: 3, max: 3 }).max).toBe(3)
   })
 
+  it('keeps ImageBuildTimeoutError catchable as a RequestTimeoutError, with its image', () => {
+    const error = new v2.ImageBuildTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', imageId: 'img_1' })
+    expect(error).toBeInstanceOf(v2.RequestTimeoutError)
+    expect(error).toMatchObject({ imageId: 'img_1', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', name: 'ImageBuildTimeoutError' })
+    expect(new v2.ImageBuildTimeoutError('x').imageId).toBeUndefined()
+  })
+
   it('keeps ImageBuildFailedError.buildError separate from the message', () => {
     const bare = new v2.ImageBuildFailedError('image img_1 build failed', { imageId: 'img_1' })
     expect(bare.message).toBe('image img_1 build failed')
@@ -165,6 +172,7 @@ describe('error constructors refuse a value that is not an options object', () =
     ['ClientTimeoutError', v2.ClientTimeoutError as never],
     ['TransferCancelledError', v2.TransferCancelledError as never],
     ['ImageBuildFailedError', v2.ImageBuildFailedError as never],
+    ['ImageBuildTimeoutError', v2.ImageBuildTimeoutError as never],
     ['BuildLogInterruptedError', v2.BuildLogInterruptedError as never],
   ]
 

@@ -109,11 +109,16 @@ class SyncBridge:
     def closed(self) -> bool:
         return self._closed
 
-    def call(self, operation: Callable[[], Awaitable[T]]) -> T:
+    def call(
+        self, operation: Callable[[], Awaitable[T]], *, on_submit: Callable[[], None] | None = None
+    ) -> T:
         """Run ``operation()`` on the bridge loop and block for its result.
 
         Takes a zero-argument callable rather than ``(func, *args)`` so the
-        coroutine is built by the caller and stays fully typed.
+        coroutine is built by the caller and stays fully typed. ``on_submit``
+        runs on the caller's thread just before the call is submitted to the
+        loop (which may be busy with a blocking callback), once the bridge is
+        known to be open; it may run even if the submission itself then fails.
         """
         if self._closed:
             raise ClientClosedError(f"{self._name} is closed")
@@ -158,7 +163,10 @@ class SyncBridge:
         future: concurrent.futures.Future[T] | None = None
         try:
             with self._lock:
-                future = self._portal_locked().start_task_soon(run_and_signal)
+                portal = self._portal_locked()
+                if on_submit is not None:
+                    on_submit()
+                future = portal.start_task_soon(run_and_signal)
             return future.result()
         except RuntimeError as error:
             # Starting the bridge's loop thread, or the loop's own work, needs
@@ -290,8 +298,17 @@ class SyncBridge:
         except RuntimeError:
             return False
 
-    def close(self, finalizer: Callable[[], Awaitable[None]] | None = None) -> None:
+    def close(
+        self,
+        finalizer: Callable[[], Awaitable[None]] | None = None,
+        *,
+        interrupt: Callable[[], None] | None = None,
+    ) -> None:
         """Run ``finalizer`` on the loop once in-flight calls have finished, then stop the loop.
+
+        ``interrupt`` runs on the loop first, before the drain: the owner's
+        signal to calls that would otherwise wait on (a wait pausing to retry a
+        failed read ends with ``ClientClosedError``).
 
         ``finalizer`` is the owner's own async teardown (the root client's
         HTTP pools). It runs after every previously submitted call has
@@ -339,6 +356,9 @@ class SyncBridge:
 
         def drain_then_finalize_on_loop() -> None:
             # runs on the caller's thread: wait for in-flight calls, then run the finalizer on the loop
+            if interrupt is not None:
+                with contextlib.suppress(Exception):
+                    portal.call(interrupt)
             with self._inflight_lock:
                 while self._inflight:
                     self._idle.wait(timeout=_CANCEL_SETTLE_SECONDS)
@@ -353,6 +373,9 @@ class SyncBridge:
 
             async def finalize_after_inflight() -> None:
                 try:
+                    if interrupt is not None:
+                        with contextlib.suppress(Exception):
+                            interrupt()
                     # The call that invoked close() is itself in flight and will
                     # finish on its own; everything else must drain first. Wait
                     # for the count to reach the calls still running besides us —

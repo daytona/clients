@@ -95,7 +95,7 @@ func macosCreateFlags(f *pflag.FlagSet, flags *sandboxCreateFlags) {
 	f.StringArrayVar(&flags.env, "env", nil, "environment variable KEY=VALUE (repeatable)")
 	f.BoolVar(&flags.persistent, "persistent", false, "keep the disk and machine across stop/start on any Mac of the organization, and memory across pause/resume; delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it, though a Mac failure can lose its most recent writes; an ephemeral sandbox ends with its reservation or a failed Mac.")
 	f.StringVar(&flags.reservation, "reservation", "", "target an existing reservation by ID; new buys the cheapest fitting model; omitted may buy if none fits (confirmation required unless --yes)")
-	f.BoolVar(&flags.autoRenew, "auto-renew", false, autoRenewUsage)
+	f.BoolVar(&flags.autoRenew, "auto-renew", false, autoRenewUsage+"; only with --reservation new")
 	flagPlaceholder(f, "cores", "N")
 	flagPlaceholder(f, "memory", "MIB")
 	flagPlaceholder(f, "disk", "MIB")

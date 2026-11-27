@@ -127,8 +127,12 @@ export class ProcessService {
   /**
    * Run a command, wait for its shell to exit, and collect its output.
    *
-   * Normally one round trip: starts, waits, and returns inline logs. Larger
-   * output or a process outliving the wait window falls back to split calls.
+   * Normally one round trip: starts, waits (at most 30 seconds, or
+   * `timeoutSeconds` if shorter), and returns inline logs. A process that
+   * outlives that window is waited for in further rounds of at most 30
+   * seconds each until `timeoutSeconds`, and larger output is read in further
+   * calls. The start request itself is never retried: a failed start may
+   * still have started the process.
    * Output is bounded by per-process retention; a timed-out result collects
    * only the first few log pages rather than chasing a live writer.
    *
@@ -172,8 +176,9 @@ export class ProcessService {
 
   /** Reconnect a shell session by id or by `session.toJSON()`, without a request. */
   public connectSession(session: string | SessionJSON): Session {
-    if (typeof session === 'string') return new Session(INTERNAL, this.binding(), requireSessionId(session, 'sessionId'))
-    const sandboxId = requireSessionId(session?.sandboxId, 'sandboxId')
+    // Anything but an identity object is read as an id, so `null` names sessionId.
+    if (typeof session !== 'object' || session === null) return new Session(INTERNAL, this.binding(), requireSessionId(session, 'sessionId'))
+    const sandboxId = requireSessionId(session.sandboxId, 'sandboxId')
     const sessionId = requireSessionId(session?.sessionId, 'sessionId')
     if (sandboxId !== this.sandboxId) {
       throw new BadRequestError('session belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
@@ -183,10 +188,11 @@ export class ProcessService {
 
   /** Reconnect a process by id or by `handle.toJSON()`, without a request. */
   public connect(process: string | ProcessHandleJSON): ProcessHandle {
-    if (typeof process === 'string') {
+    // Anything but an identity object is read as an id, so `null` names processId.
+    if (typeof process !== 'object' || process === null) {
       return new ProcessHandle(INTERNAL, this.transport, this.sandboxId, requireProcessId(process, 'processId'))
     }
-    if (requireProcessId(process?.sandboxId, 'sandboxId') !== this.sandboxId) {
+    if (requireProcessId(process.sandboxId, 'sandboxId') !== this.sandboxId) {
       throw new BadRequestError('process handle belongs to a different sandbox', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
     return new ProcessHandle(
@@ -312,7 +318,7 @@ export class PtyService {
     const handle = this.connect(process)
     // Check kind before the destructive action: this namespace only owns PTYs.
     const info = await handle.get()
-    if (info.kind !== 'pty') throw invalidPtyVerbError('delete', info.kind)
+    if (info.kind !== 'pty') throw invalidPtyVerbError('delete', info.kind, 'pty')
     try {
       await handle.kill()
     } catch (error) {

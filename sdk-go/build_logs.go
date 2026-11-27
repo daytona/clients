@@ -62,7 +62,9 @@ func (s *Sandbox) FollowBuildLogs(ctx context.Context, opts *FollowBuildLogsOpti
 }
 
 // FollowBuildLogs observes an image build lazily, with the same checkpoint,
-// retry and cancellation semantics as Sandbox.FollowBuildLogs.
+// retry and cancellation semantics as Sandbox.FollowBuildLogs. imageID is the
+// image's ID or name; the reserved name "search" is refused with
+// ErrBadRequest before any request (follow such an image by its ID).
 func (s *Images) FollowBuildLogs(ctx context.Context, imageID string,
 	opts *FollowBuildLogsOptions,
 ) iter.Seq2[BuildLogEvent, error] {
@@ -76,6 +78,10 @@ type buildLogSource struct {
 }
 
 func buildLogDiscoveryPath(collection, id string) (string, error) {
+	if collection == "images" && id == "search" {
+		// GET /images/search is the search route: the name cannot be resolved.
+		return "", badRequest("'search' cannot be looked up by name; use the resource ID")
+	}
 	segment, err := pathSegment(id)
 	if err != nil {
 		return "", err

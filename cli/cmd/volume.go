@@ -41,10 +41,12 @@ func newVolumeCreateCommand() *cobra.Command {
 	prefix := ""
 	accessKeySecret := ""
 	secretKeySecret := ""
+	roleArn := ""
 	pathStyle := false
 	cmd := &cobra.Command{
 		Use: "create <name>", Short: "Create a volume",
-		Long: "Create a volume. Without --type the server chooses the volume's type.\nExamples:\n  daytona volume create data\n  daytona volume create data --type disk --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET",
+		Long: "Create a volume. Without --type the server chooses the volume's type.\n" +
+			"The positional <name> is required even with --file, and it replaces any name in the file.\nExamples:\n  daytona volume create data\n  daytona volume create data --type disk --size-gib 200\n  daytona volume create data --type bucket\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --access-key-secret AWS_KEY --secret-key-secret AWS_SECRET\n  daytona volume create data --type bucket --bucket corp-data --bucket-region us-east-1 --role-arn arn:aws:iam::123456789012:role/daytona-bucket",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := refuseResourceSearchName("volume", args[0]); err != nil {
@@ -73,6 +75,9 @@ func newVolumeCreateCommand() *cobra.Command {
 			if cmd.Flags().Changed("secret-key-secret") {
 				workload.NestedBody(workload.NestedBody(body, "bucket"), "credentials").Set("secret_key_secret", secretKeySecret)
 			}
+			if cmd.Flags().Changed("role-arn") {
+				workload.NestedBody(workload.NestedBody(body, "bucket"), "credentials").Set("role_arn", roleArn)
+			}
 			req, err := workload.DecodeBody[gen.CreateVolumeRequest](body)
 			if err != nil {
 				return err
@@ -100,6 +105,7 @@ func newVolumeCreateCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&pathStyle, "path-style", pathStyle, "use path-style S3 addressing for a customer bucket")
 	cmd.Flags().StringVar(&accessKeySecret, "access-key-secret", accessKeySecret, "project secret name holding the bucket access key")
 	cmd.Flags().StringVar(&secretKeySecret, "secret-key-secret", secretKeySecret, "project secret name holding the bucket secret key")
+	cmd.Flags().StringVar(&roleArn, "role-arn", roleArn, "IAM role Daytona assumes to reach an AWS bucket, with your organization ID as the external ID (instead of the secret flags)")
 	addFileFlag(cmd, "")
 	return cmd
 }
@@ -136,10 +142,10 @@ func newVolumeListCommand() *cobra.Command {
 						item.Id, item.Name, string(item.Type), string(item.Status), formatSizeGib(item.SizeGib),
 						volumeBucketName(bucket), volumeBucketOrigin(bucket), formatPtr(volumeBucketEndpoint(bucket)),
 						formatPtr(volumeBucketRegion(bucket)), formatPtr(volumeBucketPrefix(bucket)),
-						volumeBucketAccessKeySecret(bucket), volumeBucketSecretKeySecret(bucket), item.UpdatedAt.Format(time.RFC3339),
+						volumeBucketAccessKeySecret(bucket), volumeBucketSecretKeySecret(bucket), volumeBucketRoleArn(bucket), item.UpdatedAt.Format(time.RFC3339),
 					})
 				}
-				return output.Table{Headers: []string{"ID", "NAME", "TYPE", "STATUS", "SIZE_GIB", "BUCKET", "ORIGIN", "ENDPOINT", "REGION", "PREFIX", "ACCESS_KEY_SECRET", "SECRET_KEY_SECRET", "UPDATED"}, Rows: rows}
+				return output.Table{Headers: []string{"ID", "NAME", "TYPE", "STATUS", "SIZE_GIB", "BUCKET", "ORIGIN", "ENDPOINT", "REGION", "PREFIX", "ACCESS_KEY_SECRET", "SECRET_KEY_SECRET", "ROLE_ARN", "UPDATED"}, Rows: rows}
 			})
 		},
 	}
@@ -149,7 +155,7 @@ func newVolumeListCommand() *cobra.Command {
 
 func newVolumeGetCommand() *cobra.Command {
 	return &cobra.Command{
-		Use: "get <id>", Short: "Get one volume", Long: "Get one volume.\nExample:\n  daytona volume get <id>", Args: cobra.ExactArgs(1),
+		Use: "get <id-or-name>", Short: "Get one volume", Long: "Get one volume by its vol_… id or its name.\nExamples:\n  daytona volume get vol_123\n  daytona volume get data", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := refuseResourceSearchName("volume", args[0]); err != nil {
 				return err

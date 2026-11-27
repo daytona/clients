@@ -36,7 +36,8 @@ func newSecretSetCmd() *cobra.Command {
 	var useStdin bool
 	var allowedDomains []string
 	var description string
-	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Long: "Create or update a project secret and print it (never its value). It reads the stored secret first, so options you do not pass keep their values: it needs read as well as write access to secrets.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Long: "Create or update a project secret and print it (never its value). The value is always required (--value, --from-file or --stdin): the API replaces the whole secret and never returns the stored value.\n" +
+		"Creating a secret also requires --allowed-domain. On an existing secret the command reads it first, so the metadata options you do not pass (--allowed-domain, --description) keep their stored values (an existing secret with no allowed domains needs --allowed-domain too): it needs read as well as write access to secrets.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if err := refuseResourceSearchName("secret", args[0]); err != nil {
 			return err
 		}
@@ -101,8 +102,8 @@ func newSecretSetCmd() *cobra.Command {
 	cmd.Flags().StringVar(&value, "value", "", "secret value on the command line — visible to other local users via the process list and shell history; prefer --stdin or --from-file")
 	cmd.Flags().StringVar(&fromFile, "from-file", "", "read the secret value from a file; strips exactly one trailing newline (or CRLF)")
 	cmd.Flags().BoolVar(&useStdin, "stdin", false, "read the secret value from stdin; strips exactly one trailing newline (or CRLF)")
-	cmd.Flags().Var((*secretDomainFlag)(&allowedDomains), "allowed-domain", "hosts where this secret's value may be sent (repeatable or comma-separated; no empty entries), or '*' to remove domain restrictions; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
-	cmd.Flags().StringVar(&description, "description", "", "secret description (set to an empty string to clear it)")
+	cmd.Flags().Var((*secretDomainFlag)(&allowedDomains), "allowed-domain", "hosts where this secret's value may be sent (repeatable or comma-separated; no empty entries; required when creating or when the existing secret has none; omitted otherwise keeps the existing secret's allowed domains), or '*' to remove domain restrictions; '*' lets the value reach any HTTPS host including one a compromised sandbox controls")
+	cmd.Flags().StringVar(&description, "description", "", "secret description (omitted keeps an existing secret's description; set to an empty string to clear it)")
 	return cmd
 }
 

@@ -99,7 +99,7 @@ func newMemberUpdateCmd() *cobra.Command {
 			return a.Printer().Object(updated, [][2]string{{"user_id", member.UserId.String()}, {"roles", joinComma(updated.V.Roles)}})
 		},
 	}
-	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated); replaces the member's roles")
+	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (required, at least one; repeatable or comma-separated); replaces the member's roles")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview the revocation count without committing the role change")
 	return cmd
 }

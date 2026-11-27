@@ -19,12 +19,13 @@ it.each([new ClientTimeoutError(), new ConnectionError('unreachable')])('returns
   const client = clientAt('http://api.invalid')
   const api = client.v2['api']
   jest.spyOn(api, 'post').mockResolvedValue({ data: { id: 'created', class: 'linux', status: 'pending', name: 'created', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] } })
-  jest.spyOn(api, 'get').mockRejectedValue(error)
+  const get = jest.spyOn(api, 'get').mockRejectedValue(error)
   try {
-    // When waiting after successful submission.
-    const sandbox = await client.v2.create()
+    // When waiting after successful submission (the failed read is retried until the budget ends).
+    const sandbox = await client.v2.create(undefined, { waitSeconds: 1 })
     // Then the accepted sandbox remains inspectable.
     expect(sandbox).toMatchObject({ id: 'created', state: 'creating' })
+    expect(get.mock.calls.length).toBeGreaterThan(1)
   } finally {
     await client.close()
   }

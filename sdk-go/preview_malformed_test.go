@@ -131,6 +131,7 @@ func TestPortsListEndpointsAll_whenCancelledBeforeIteration(t *testing.T) {
 
 func TestPortsListEndpointsAll_whenFetchFailsYieldsErrorOnce(t *testing.T) {
 	// Given
+	pauses := recordPageRetryPauses(t)
 	fake := newFakeServer(t, map[string]http.HandlerFunc{
 		"GET /sandboxes/sbx/ports": func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(503) },
 	})
@@ -143,5 +144,7 @@ func TestPortsListEndpointsAll_whenFetchFailsYieldsErrorOnce(t *testing.T) {
 	// Then
 	require.Len(t, failures, 1)
 	require.ErrorIs(t, failures[0], ErrServiceUnavailable)
-	require.Len(t, fake.requests(), 1)
+	// A 503 page is read three times before the walk ends.
+	require.Len(t, fake.requests(), pageReadAttempts)
+	require.Len(t, *pauses, pageReadAttempts-1)
 }
