@@ -20,8 +20,8 @@ type imageListFilters struct {
 	anonymous string
 	platform  string
 	name      string
-	// nameSet keeps an explicit --name '' (sent as name=, as the Python and TypeScript SDKs send
-	// it) apart from an omitted --name.
+	// nameSet keeps an explicit --name '' (sent as name=, as the Python and
+	// TypeScript SDKs send it) apart from an omitted --name.
 	nameSet   bool
 	sandboxID string
 }
