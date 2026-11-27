@@ -562,7 +562,7 @@ whole seconds where the API stores seconds:
 |---|---|---|
 | `--timeout` | commands that wait (`sandbox create*`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `wait`, `exec`, `process wait`, `process logs --follow`, `docker status --wait`, `snapshot create`, `image create`, `build`, `capture`, `logs --follow`) | how long the CLI waits; never sent to the server |
 | `--execution-timeout` | `sandbox exec` | server-side execution deadline, greater than zero and rounded up to milliseconds; omitted means no execution deadline |
-| `--lifecycle-timeout` / `--on-lifecycle-timeout ACTION` | `sandbox create*`, `sandbox update` | the sandbox's wall-clock lifetime and the action when it ends |
+| `--lifecycle-timeout` / `--on-lifecycle-timeout ACTION` | `sandbox create*`, `sandbox update` | the sandbox's wall-clock lifetime and the action when it ends (the earliest time the action runs, not an exact time: the platform acts shortly after the deadline passes; the same holds for `--idle-timeout`) |
 | `--idle-timeout` / `--on-idle-timeout ACTION` | `sandbox create*`, `sandbox update` | idle time before the action, at least `1m` (the API's minimum); `sandbox update --idle-timeout off` clears it |
 | `--server-wait` | `sandbox create*` | how long the server holds the create response (`0s` answers at once; server default `3s`); the CLI still waits for `running` unless `--no-wait`, which neither `--server-wait` nor a `--file` `wait_seconds` combines with |
 | `--create-ttl` | `sandbox create*` | how long the sandbox may take to reach `running` before the server deletes it; `max` asks for the server's maximum (server default `1h`) |

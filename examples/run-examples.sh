@@ -14,6 +14,8 @@
 #     slower than the others: each waits for a real image build.
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
 #     volumes_share.{ts,py} are standalone persistence round-trip examples.
+#   - computer-use is opt-in: set DAYTONA_DESKTOP_IMAGE to a project image with a
+#     desktop (desktop automation must be available in its region).
 #   - Without API access you can still validate the examples statically:
 #       ./run-examples.sh check     # type checks + offline tests against a fake client
 set -uo pipefail
@@ -28,6 +30,10 @@ PY_EXAMPLES=(exec_command file_operations git_ops lifecycle images dynamic_build
 if [[ "${DAYTONA_RUN_VOLUMES:-}" == "1" ]]; then
   TS_EXAMPLES+=(volumes)
   PY_EXAMPLES+=(volumes)
+fi
+if [[ -n "${DAYTONA_DESKTOP_IMAGE:-}" ]]; then
+  TS_EXAMPLES+=(computer-use)
+  PY_EXAMPLES+=(computer_use)
 fi
 
 pass=0 fail=0

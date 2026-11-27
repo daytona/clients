@@ -330,7 +330,10 @@ export interface SandboxTerminalStateErrorOptions {
 
 /**
  * A lifecycle wait (`wait()`, `start()`, `stop()`, ...) saw the sandbox reach a terminal state first.
- * `state` is the observed public sandbox state (e.g. `'destroyed'`).
+ * `state` is the observed public sandbox state (e.g. `'destroyed'`). It can be
+ * a state the operation fell back to rather than its target: a `pause()` that
+ * fails reports `started`, and a `resume()` that cannot finish reports
+ * `stopped`. Either way, the operation did not complete.
  */
 export class SandboxTerminalStateError extends ConflictError {
   public readonly state: SandboxState
@@ -366,6 +369,18 @@ export class DockerNotReadyError extends ConflictError {
   }
 }
 
+/**
+ * HTTP 412: the `ifMatch` revision no longer matches. Thrown by the
+ * conditional writes (network policy, sandbox secrets) when the ETag passed as
+ * `ifMatch` is stale: read the resource again and retry with its new `etag`.
+ * Pass the ETag exactly as returned (an opaque, quoted string). The SDK
+ * refuses an empty one, or one that is not printable ASCII or has leading or
+ * trailing spaces, with `BadRequestError` (400) before sending; any other
+ * value is sent as given, and the API answers 400, not 412, for some values it
+ * cannot parse. A create-only
+ * `secrets.set(name, value, { allowedDomains, ifNotExists: true })` that
+ * finds the secret throws the subclass `SecretAlreadyExistsError`.
+ */
 export class PreconditionFailedError extends DaytonaError {}
 export class SecretAlreadyExistsError extends PreconditionFailedError {}
 export class GoneError extends DaytonaError {}

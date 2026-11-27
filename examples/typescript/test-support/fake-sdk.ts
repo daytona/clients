@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs'
 
 import { Daytona } from '@daytona/sdk'
-import { ConflictError, ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
+import { AddonUnavailableError, ConflictError, ImageBuildFailedError, NameConflictError, NotFoundError, RequestTimeoutError } from '@daytona/sdk/v2'
 import type {
   BuildLogFollowOptions,
   CreateFromBuildOptions,
@@ -57,6 +57,16 @@ export interface Scenario {
   readonly buildReplyLost?: boolean
   /** images.delete answers 409 this many times before it succeeds. */
   readonly imageDeleteConflicts?: number
+  /** The status recording.stop() reports (default 'completed'). */
+  readonly recordingStatus?: string
+  /** Desktop automation is unavailable: computerUse.start() throws AddonUnavailableError. */
+  readonly computerUseUnavailable?: boolean
+  /** The desktop never reports ready. */
+  readonly desktopNeverReady?: boolean
+  /** The first desktop action (a mouse move) throws. */
+  readonly desktopActionFails?: boolean
+  /** recording.stop() throws. */
+  readonly recordingStopFails?: boolean
 }
 
 export interface Record {
@@ -73,6 +83,8 @@ export interface Record {
   deletedImages: string[]
   imageWaits: { wait?: string; timeoutSeconds?: number }[]
   mounts: { sandboxId: string; mounts: Mount[] }[]
+  recordingsStopped: string[]
+  recordingDownloads: string[]
 }
 
 const scenario: Scenario = JSON.parse(process.env.EXAMPLE_FAKE_SCENARIO ?? '{}')
@@ -90,6 +102,8 @@ const record: Record = {
   deletedImages: [],
   imageWaits: [],
   mounts: [],
+  recordingsStopped: [],
+  recordingDownloads: [],
 }
 process.on('exit', () => {
   if (process.env.EXAMPLE_FAKE_RECORD) writeFileSync(process.env.EXAMPLE_FAKE_RECORD, JSON.stringify(record))
@@ -248,6 +262,7 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
       listBranches: async () => ({ items: ['master'] }),
       deleteBranch: async () => undefined,
     },
+    computerUse: computerUse(),
     buildLogs: async () => 'STEP 2: the marker\n',
     delete: async () => {
       if (scenario.sandboxDeleteThrows) throw new Error(scenario.sandboxDeleteThrows)
@@ -255,6 +270,46 @@ function sandbox(name: string, env: { [name: string]: string }, dockerfile: stri
     },
   }
   return box
+}
+
+/** A desktop that is ready once started; recording.stop() reports scenario.recordingStatus. */
+function computerUse() {
+  let started = false
+  // A live recording has no endTime; the one stop() returns is final and has it.
+  const recording = (id: string, status: string, endTime?: string) => ({
+    id, fileName: `${id}.mp4`, filePath: `/home/daytona/recordings/${id}.mp4`, startTime: '2026-01-01T00:00:00Z', status,
+    ...(endTime === undefined ? {} : { endTime }),
+  })
+  return {
+    start: async () => {
+      if (scenario.computerUseUnavailable) {
+        throw new AddonUnavailableError('desktop automation is unavailable', { statusCode: 503, code: 'ADDON_UNAVAILABLE', source: 'DAEMON' })
+      }
+      started = true
+      return { message: 'started', status: {} }
+    },
+    status: async () => (started && !scenario.desktopNeverReady ? { status: 'active', desktop: 'ready' } : { status: 'inactive', desktop: 'not_started' }),
+    mouse: {
+      move: async ({ x, y }: { x: number; y: number }) => {
+        if (scenario.desktopActionFails) throw new Error('the mouse move failed')
+        return { x, y }
+      },
+    },
+    keyboard: { type: async () => undefined },
+    screen: { screenshot: async () => ({ screenshot: '', sizeBytes: 42 }) },
+    recording: {
+      start: async () => recording('rec-1', 'recording'),
+      stop: async ({ id }: { id: string }) => {
+        record.recordingsStopped.push(id)
+        if (scenario.recordingStopFails) throw new Error('stop lost its connection')
+        return recording(id, scenario.recordingStatus ?? 'completed', '2026-01-01T00:00:05Z')
+      },
+      download: async (id: string) => {
+        record.recordingDownloads.push(id)
+        return new Uint8Array(8)
+      },
+    },
+  }
 }
 
 type Box = ReturnType<typeof sandbox>

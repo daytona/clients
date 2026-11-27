@@ -31,7 +31,11 @@ var (
 	ErrServiceUnavailable errorCategory = "service unavailable"
 	// ErrConnection matches network failures without an HTTP response.
 	ErrConnection errorCategory = "connection"
-	// ErrPreconditionFailed matches revision conflicts (412).
+	// ErrPreconditionFailed matches revision conflicts (412): a stale If-Match
+	// ETag on a conditional write, or a create-only secret write that finds the
+	// secret (which also matches ErrSecretAlreadyExists). An empty, non-ASCII
+	// or padded ETag is refused locally with ErrBadRequest, and the API answers
+	// 400 (ErrBadRequest), not 412, for some other values it cannot parse.
 	ErrPreconditionFailed errorCategory = "precondition failed"
 	// ErrMethodNotAllowed matches unavailable HTTP methods (405).
 	ErrMethodNotAllowed errorCategory = "method not allowed"

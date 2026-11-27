@@ -21,6 +21,7 @@ import itertools
 import re
 import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
+from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import NamedTuple, Optional
@@ -34,7 +35,14 @@ sys.path[:0] = [str(EXAMPLES / "python"), str(EXAMPLES)]
 from _common import IMAGE, IMAGE_NAME, IMAGE_WAIT_SECONDS, RUN, image_name
 
 from daytona.v2 import (
+    AddonUnavailableError,
     BadRequestError,
+    ComputerUseLifecycleResponse,
+    ComputerUseNotStartedStatus,
+    ComputerUsePoint,
+    ComputerUseReadyStatus,
+    ComputerUseRecording,
+    ComputerUseScreenshotResponse,
     GitCommitResponse,
     GitStatus,
     ImageBuilder,
@@ -53,6 +61,13 @@ from daytona.v2 import (
     RequestTimeoutError,
     VolumeMount,
     ReplaceResult,
+)
+from daytona.v2._sync.computer_use import ComputerUseService
+from daytona.v2._sync.computer_use_services import (
+    KeyboardService,
+    MouseService,
+    RecordingService,
+    ScreenService,
 )
 from daytona.v2._sync.daytona import Daytona as SyncDaytona
 from daytona.v2._sync.filesystem import FileSystemService
@@ -121,6 +136,16 @@ class FakeWorld:
         self.build_logs_fail_after_output = False
         self.interpreter_exit_code = 0
         self.interpreter_error: Optional[InterpreterError] = None
+        # The status recording.stop() reports; computer_use.start() raises
+        # AddonUnavailableError when desktop automation is unavailable.
+        self.recording_status = "completed"
+        self.computer_use_unavailable = False
+        # The desktop never becomes ready; a desktop action raises; stop() raises.
+        self.desktop_never_ready = False
+        self.desktop_action_fails = False
+        self.recording_stop_fails = False
+        self.recordings_stopped: list[str] = []
+        self.recording_downloads: list[str] = []
         self.client = self._client()
 
     # -- client -----------------------------------------------------------
@@ -431,10 +456,69 @@ class FakeWorld:
         git.list_branches.return_value = ListResult(items=["master"])
         sandbox.git = git
 
+        sandbox.computer_use = self._computer_use()
         sandbox.build_logs.return_value = "STEP 2: the marker\n"
         sandbox.delete.side_effect = lambda **_: self._delete(sandbox)
         self.sandboxes.append(sandbox)
         return sandbox
+
+    def _computer_use(self) -> MagicMock:
+        """A desktop that is ready once started; stop() reports ``recording_status``."""
+        started = False
+
+        def start(**_: object) -> ComputerUseLifecycleResponse:
+            nonlocal started
+            if self.computer_use_unavailable:
+                raise AddonUnavailableError(
+                    "desktop automation is unavailable", status_code=503, code="ADDON_UNAVAILABLE", source="DAEMON"
+                )
+            started = True
+            return ComputerUseLifecycleResponse(message="started", status={})
+
+        # A live recording has no end_time; the one stop() returns is final and has it.
+        def recording(rec_id: str, status: str, end_time: Optional[datetime] = None) -> ComputerUseRecording:
+            return ComputerUseRecording(
+                id=rec_id,
+                file_name=f"{rec_id}.mp4",
+                file_path=f"/home/daytona/recordings/{rec_id}.mp4",
+                start_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                status=status,
+                end_time=end_time,
+            )
+
+        def stop(*, id: str) -> ComputerUseRecording:
+            self.recordings_stopped.append(id)
+            if self.recording_stop_fails:
+                raise ConnectionError("stop lost its connection")
+            return recording(id, self.recording_status, datetime(2026, 1, 1, 0, 0, 5, tzinfo=timezone.utc))
+
+        def move(*, x: int, y: int) -> ComputerUsePoint:
+            if self.desktop_action_fails:
+                raise RuntimeError("the mouse move failed")
+            return ComputerUsePoint(x=x, y=y)
+
+        def download(rec_id: str, /, **_: object) -> bytes:
+            self.recording_downloads.append(rec_id)
+            return b"\0" * 8
+
+        computer_use: MagicMock = create_autospec(ComputerUseService, instance=True)
+        computer_use.start.side_effect = start
+        computer_use.status.side_effect = lambda: (
+            ComputerUseReadyStatus() if started and not self.desktop_never_ready else ComputerUseNotStartedStatus()
+        )
+        mouse = create_autospec(MouseService, instance=True)
+        mouse.move.side_effect = move
+        computer_use.mouse = mouse
+        computer_use.keyboard = create_autospec(KeyboardService, instance=True)
+        screen = create_autospec(ScreenService, instance=True)
+        screen.screenshot.return_value = ComputerUseScreenshotResponse(screenshot="", size_bytes=42)
+        computer_use.screen = screen
+        recordings = create_autospec(RecordingService, instance=True)
+        recordings.start.side_effect = lambda **_: recording("rec-1", "recording")
+        recordings.stop.side_effect = stop
+        recordings.download.side_effect = download
+        computer_use.recording = recordings
+        return computer_use
 
     def _run(
         self,
@@ -1116,3 +1200,126 @@ def test_the_test_double_reports_a_commands_output_as_a_stdout_log_frame() -> No
         ("stdout", "out")
     ]
     assert _result(0, "").logs == ()
+
+
+# -- computer use ---------------------------------------------------------
+
+
+@pytest.fixture
+def desktop_world(monkeypatch: pytest.MonkeyPatch) -> FakeWorld:
+    monkeypatch.setenv("DAYTONA_DESKTOP_IMAGE", "desktop-image")
+    monkeypatch.setenv("EXAMPLE_POLL_SECONDS", "0")
+    monkeypatch.delenv("EXAMPLE_DESKTOP_WAIT_SECONDS", raising=False)
+    world = FakeWorld()
+    world.add_image("desktop-image", "ready")
+    return world
+
+
+def test_computer_use_downloads_a_usable_recording_and_deletes_the_sandbox(
+    run_example: Callable[..., tuple[int, FakeWorld]], desktop_world: FakeWorld
+) -> None:
+    code, world = run_example("computer_use", world=desktop_world)
+    assert code == 0
+    assert world.recordings_stopped == ["rec-1"]
+    assert world.recording_downloads == ["rec-1"]
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
+
+
+@pytest.mark.parametrize("status", ["failed", "interrupted", "a-status-from-a-later-release"])
+def test_computer_use_never_downloads_a_recording_with_no_usable_file(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    desktop_world: FakeWorld,
+    capsys: pytest.CaptureFixture[str],
+    status: str,
+) -> None:
+    desktop_world.recording_status = status
+    code, world = run_example("computer_use", world=desktop_world)
+    assert code == 1
+    assert f"ended {status}" in capsys.readouterr().out
+    assert world.recording_downloads == []
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
+
+
+def test_computer_use_reports_unavailable_desktop_automation_and_deletes_the_sandbox(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    desktop_world: FakeWorld,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    desktop_world.computer_use_unavailable = True
+    code, world = run_example("computer_use", world=desktop_world)
+    assert code == 1
+    assert "desktop automation is not available" in capsys.readouterr().out
+    assert world.recordings_stopped == []
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
+
+
+def test_computer_use_skips_a_non_started_sandbox_and_deletes_it(
+    run_example: Callable[..., tuple[int, FakeWorld]], desktop_world: FakeWorld
+) -> None:
+    desktop_world.sandbox_state = "creating"
+    code, world = run_example("computer_use", world=desktop_world)
+    assert code == 1
+    assert len(world.sandboxes) == 1
+    world.sandboxes[0].computer_use.start.assert_not_called()
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
+
+
+def test_computer_use_needs_a_desktop_image(
+    run_example: Callable[..., tuple[int, FakeWorld]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("DAYTONA_DESKTOP_IMAGE", raising=False)
+    code, world = run_example("computer_use")
+    assert code == 2
+    assert world.sandboxes == []
+
+
+def test_computer_use_stops_the_recording_and_keeps_the_error_when_an_action_fails(
+    run_example: Callable[..., tuple[int, FakeWorld]], desktop_world: FakeWorld
+) -> None:
+    desktop_world.desktop_action_fails = True
+    with pytest.raises(RuntimeError, match="the mouse move failed"):
+        run_example("computer_use", world=desktop_world)
+    assert desktop_world.recordings_stopped == ["rec-1"]
+    assert desktop_world.recording_downloads == []
+    assert desktop_world.deleted_sandboxes == [s.id for s in desktop_world.sandboxes]
+
+
+def test_computer_use_keeps_the_action_error_when_stopping_also_fails(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    desktop_world: FakeWorld,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    desktop_world.desktop_action_fails = True
+    desktop_world.recording_stop_fails = True
+    with pytest.raises(RuntimeError, match="the mouse move failed"):
+        run_example("computer_use", world=desktop_world)
+    assert "could not stop recording rec-1: stop lost its connection" in capsys.readouterr().out
+    assert desktop_world.deleted_sandboxes == [s.id for s in desktop_world.sandboxes]
+
+
+def test_computer_use_gives_up_on_a_desktop_that_never_gets_ready(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    desktop_world: FakeWorld,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EXAMPLE_DESKTOP_WAIT_SECONDS", "0")
+    desktop_world.desktop_never_ready = True
+    code, world = run_example("computer_use", world=desktop_world)
+    assert code == 1
+    assert world.recordings_stopped == []
+    assert len(world.sandboxes) == 1
+    assert world.deleted_sandboxes == [s.id for s in world.sandboxes]
+
+
+@pytest.mark.parametrize("value", ["soon", "nan", "inf", "-1"])
+def test_computer_use_refuses_a_wait_that_is_not_a_finite_duration_before_creating(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    desktop_world: FakeWorld,
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    monkeypatch.setenv("EXAMPLE_DESKTOP_WAIT_SECONDS", value)
+    with pytest.raises(SystemExit) as exited:
+        run_example("computer_use", world=desktop_world)
+    assert exited.value.code == 2
+    assert desktop_world.sandboxes == []

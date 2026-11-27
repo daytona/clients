@@ -338,6 +338,15 @@ export class RecordingService {
     this.transport = transport
   }
 
+  /**
+   * Start recording the desktop and return the new recording (`status`
+   * `recording`). Throws `DesktopNotReadyError` (409, `DESKTOP_NOT_READY`)
+   * while the desktop is not ready, `AddonUnavailableError` (503,
+   * `ADDON_UNAVAILABLE`) when the sandbox cannot record, and
+   * `BadRequestError` when the recording limits are reached. A recording whose
+   * capture fails after it started is reported with `status` `failed` by
+   * `stop()`, `get()` and `list()`.
+   */
   public async start(request: ComputerUseRecordingStartRequest = {}): Promise<ComputerUseRecording> {
     assertKnownOptions('ComputerUseRecordingStartRequest', request, RECORDING_START_KEYS)
     return mapComputerUseRecording(
@@ -345,6 +354,26 @@ export class RecordingService {
     )
   }
 
+  /**
+   * Stop a recording and return its final metadata (`endTime` set). A
+   * successful return does not mean the file is usable: check `status`
+   * first. A recording is final once `endTime` is set, and only a final
+   * `completed`, `duration_limit_reached` or `size_limit_reached` recording
+   * has a usable file at `filePath`. `failed` (the capture ended on its own or
+   * produced no usable output) has none, and `interrupted` (the encoder had to
+   * be killed) may leave a partial or unplayable file. The vocabulary is open:
+   * treat any other value as not usable.
+   *
+   * @example
+   * const rec = await sandbox.computerUse.recording.start({ label: 'demo' })
+   * // ... drive the desktop ...
+   * const done = await sandbox.computerUse.recording.stop({ id: rec.id })
+   * if (['completed', 'duration_limit_reached', 'size_limit_reached'].includes(done.status)) {
+   *   const data = await sandbox.computerUse.recording.download(done.id)
+   * } else {
+   *   console.warn(`recording ${done.id} ended ${done.status}`)
+   * }
+   */
   public async stop(request: ComputerUseRecordingStopRequest): Promise<ComputerUseRecording> {
     assertKnownOptions('ComputerUseRecordingStopRequest', request, RECORDING_STOP_KEYS)
     return mapComputerUseRecording(
@@ -352,10 +381,26 @@ export class RecordingService {
     )
   }
 
+  /**
+   * List the live and retained recordings (one response, not paginated).
+   * Failed recordings stay in the list with `status` `failed`. A recording
+   * without `endTime` is still live, whatever its `status`
+   * (`duration_limit_reached` and `size_limit_reached` are also reported while
+   * a limit-ended recording is being finalized); check a final recording's
+   * `status` as described on `stop()`.
+   */
   public async list(): Promise<ComputerUseRecordingsResponse> {
     return mapComputerUseRecordings(await this.transport.get<toolbox.ComputerUseRecordingsResponse>('/computeruse/recordings'))
   }
 
+  /**
+   * Read one recording, a live one included. While `endTime` is unset the
+   * recording is live, and its `status` is `recording`, `stopping`,
+   * `duration_limit_reached` or `size_limit_reached` (a limit was hit and the
+   * file is still being finalized), so do not use its file yet. A recording
+   * whose capture failed is still returned, with `status` `failed`; check a
+   * final recording's `status` as described on `stop()` before using its file.
+   */
   public async get(id: string): Promise<ComputerUseRecording> {
     return mapComputerUseRecording(await this.transport.get<toolbox.ComputerUseRecording>(`/computeruse/recordings/${pathSegment(id, 'recording id')}`))
   }
