@@ -83,19 +83,12 @@ func validateVolumeCreateRequest(req gen.CreateVolumeRequest) error {
 		return cerr.Usage("a customer bucket needs --access-key-secret and --secret-key-secret (project secret names)")
 	}
 	creds := req.Bucket.Credentials
-	hasAccessKey := strings.TrimSpace(ptrValue(creds.AccessKeySecret)) != ""
-	hasSecretKey := strings.TrimSpace(ptrValue(creds.SecretKeySecret)) != ""
+	hasAccessKey := strings.TrimSpace(derefString(creds.AccessKeySecret)) != ""
+	hasSecretKey := strings.TrimSpace(derefString(creds.SecretKeySecret)) != ""
 	if !hasAccessKey || !hasSecretKey {
 		return cerr.Usage("--access-key-secret and --secret-key-secret are required together")
 	}
 	return nil
-}
-
-func ptrValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
 }
 
 // volumeType is the type the request names, "" when it leaves the choice to the server.

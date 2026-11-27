@@ -71,7 +71,7 @@ export interface ErrorOptions {
   readonly code?: ErrorCode | (string & {})
   readonly source?: string
   readonly traceId?: string
-  /** `OVERLOADED` / `RATE_LIMITED`: how long to wait before retrying. */
+  /** `OVERLOADED` / `DELETE_LOCK_TIMEOUT` / `RATE_LIMITED`: how long to wait before retrying. */
   readonly retryAfterSeconds?: number
   /** `FEATURE_NOT_ENABLED`: the feature the organization lacks. */
   readonly feature?: string
