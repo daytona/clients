@@ -89,7 +89,11 @@ func (s *ComputerUseRecordings) Start(
 //	}
 //	switch rec.Status {
 //	case "completed", "duration_limit_reached", "size_limit_reached":
-//		// rec.FilePath holds the recording.
+//		data, err := recordings.Download(ctx, rec.ID, nil)
+//		if err != nil {
+//			return err
+//		}
+//		_ = data // the recording's bytes (FilePath is its path in the sandbox)
 //	default:
 //		return fmt.Errorf("recording %s ended %s", rec.ID, rec.Status)
 //	}
