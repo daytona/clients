@@ -1,0 +1,26 @@
+changelog.d/sdk-error-messages.fixed.md
+  s_cdd0f68a8f776a::t_a77bd1d6f91a79 2-4
+sdk-python/README.md
+  s_cdd0f68a8f776a::t_4ee3c2c15b26d6 305-308
+changelog.d/sdk-create-env-names.fixed.md
+  s_cdd0f68a8f776a::t_a77bd1d6f91a79 1
+sdk-typescript/README.md
+  s_cdd0f68a8f776a::t_a77bd1d6f91a79 1100-1103
+  s_cdd0f68a8f776a::t_4ee3c2c15b26d6 234-237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05367d239df446fff3e28d9c85ebad58dc94bcb4",
+  "prompts": {},
+  "sessions": {
+    "s_cdd0f68a8f776a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de231bf37ffehrrSh4v7IOEgN3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
