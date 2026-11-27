@@ -1,0 +1,69 @@
+sdk-typescript/README.md
+  s_10413bdfe4b841::t_43ebc100910258 242-265
+sdk-typescript/src/utils/Import.ts
+  s_10413bdfe4b841::t_5011b93c7c191a 12,20-22,39-46,167
+  s_10413bdfe4b841::t_a375db4e7c959d 62-64,66
+sdk-typescript/scripts/post-build.js
+  s_10413bdfe4b841::t_a1d686eef2fe0d 31-49,130
+  s_10413bdfe4b841::t_7e68d0a218abce 72-76,89-90,119-129
+  s_10413bdfe4b841::t_4363ca6a14e712 131
+sdk-typescript/runtime-tests/webpack-cjs/run.sh
+  s_10413bdfe4b841::t_99145d87f88a7a 10,13,20,23-27
+  s_10413bdfe4b841::t_159c8d61835f53 11-12,14-17
+sdk-typescript/src/__tests__/Import.test.ts
+  s_10413bdfe4b841::t_7235d9b27aee1a 10-13,97-106
+  s_10413bdfe4b841::t_6952bee871c157 95-96,107
+sdk-typescript/src/__tests__/UntracedRequire.test.ts
+  s_10413bdfe4b841::t_899215ee67743c 86-87,89
+  s_10413bdfe4b841::t_16fdbb1d0c53ef 7-9,30-31,60-85,88,90-107
+  s_10413bdfe4b841::t_6952bee871c157 1-6,10-29,32-59,108-109
+sdk-typescript/src/utils/UntracedRequire.ts
+  s_10413bdfe4b841::t_edd1821d13f055 58-59
+  s_10413bdfe4b841::t_3ead969860c0f9 1-10,12-17,30,39-57,60-64,66-100
+  s_10413bdfe4b841::t_65725e952971f4 11
+  s_10413bdfe4b841::t_16fdbb1d0c53ef 18-29,31-38,65
+sdk-typescript/runtime-tests/nextjs/next.config.js
+  s_10413bdfe4b841::t_fa6b3691718425 5,11-16
+  s_10413bdfe4b841::t_c6b10b99849f58 4,6-10,17-20
+sdk-typescript/src/__tests__/NodeLoaders.test.ts
+  s_10413bdfe4b841::t_58a708968ae0a6 1-46
+sdk-typescript/src/utils/NodeLoaders.ts
+  s_10413bdfe4b841::t_a375db4e7c959d 12-13,18-19,24-36,38-40,46-49,54
+  s_10413bdfe4b841::t_633ce270746b05 5,7-11,16-17,20-23,42-45,50-53
+  s_10413bdfe4b841::t_58a708968ae0a6 37
+sdk-typescript/runtime-tests/webpack-cjs/package.json
+  s_10413bdfe4b841::t_159c8d61835f53 5-6
+sdk-typescript/runtime-tests/esbuild-cjs/isolated.ts
+  s_10413bdfe4b841::t_77d7aea44d7f1e 4-7,16-19,24-35,39-40
+  s_10413bdfe4b841::t_3ad21bc592b54d 36-38
+sdk-typescript/runtime-tests/nextjs/run.sh
+  s_10413bdfe4b841::t_ec1b8be4244185 122-125
+  s_10413bdfe4b841::t_9f15345f1d905e 5-10,46,53-62,79,81,103-113,127-145,147-148
+sdk-typescript/runtime-tests/esbuild-cjs/run.sh
+  s_10413bdfe4b841::t_bdebbf7c78ca06 13
+sdk-typescript/runtime-tests/README.md
+  s_10413bdfe4b841::t_43ebc100910258 40,45-46
+sdk-typescript/src/__tests__/post-build.test.ts
+  s_10413bdfe4b841::t_899215ee67743c 191-198,293-295
+  s_10413bdfe4b841::t_a1d686eef2fe0d 15-25,41,74,78-82,182-190,199-204
+  s_10413bdfe4b841::t_7910fe6ae3ff55 205,209,212,215-224,277-292,296
+  s_10413bdfe4b841::t_b593fd9fc56ac3 297
+sdk-typescript/runtime-tests/webpack-cjs/webpack.config.cjs
+  s_10413bdfe4b841::t_159c8d61835f53 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1e16c875ca8cf0f1f965353b4e219ea27d2539b6",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
