@@ -4,6 +4,24 @@
 
 package daytona
 
+// CodeSignupNotInvited is SIGNUP_NOT_INVITED (API).
+const CodeSignupNotInvited = "SIGNUP_NOT_INVITED"
+
+// ErrSignupNotInvited matches code SIGNUP_NOT_INVITED, independently of its source.
+var ErrSignupNotInvited = codeSentinel{"SIGNUP_NOT_INVITED", 403}
+
+// CodeSourceAmbiguous is SOURCE_AMBIGUOUS (API).
+const CodeSourceAmbiguous = "SOURCE_AMBIGUOUS"
+
+// ErrSourceAmbiguous matches code SOURCE_AMBIGUOUS, independently of its source.
+var ErrSourceAmbiguous = codeSentinel{"SOURCE_AMBIGUOUS", 409}
+
+// CodeSecretAlreadyExists is SECRET_ALREADY_EXISTS (API).
+const CodeSecretAlreadyExists = "SECRET_ALREADY_EXISTS"
+
+// ErrSecretAlreadyExists matches code SECRET_ALREADY_EXISTS, independently of its source.
+var ErrSecretAlreadyExists = codeSentinel{"SECRET_ALREADY_EXISTS", 412}
+
 // CodeUserSuspended is USER_SUSPENDED (API).
 const CodeUserSuspended = "USER_SUSPENDED"
 
@@ -106,26 +124,20 @@ const CodeSandboxNotRunning = "SANDBOX_NOT_RUNNING"
 // ErrSandboxNotRunning matches code SANDBOX_NOT_RUNNING, independently of its source.
 var ErrSandboxNotRunning = codeSentinel{"SANDBOX_NOT_RUNNING", 409}
 
-// CodeRegionMismatch is REGION_MISMATCH (ROUTER).
-const CodeRegionMismatch = "REGION_MISMATCH"
-
-// ErrRegionMismatch matches code REGION_MISMATCH, independently of its source.
-var ErrRegionMismatch = codeSentinel{"REGION_MISMATCH", 400}
-
-// CodeUnknownRegion is UNKNOWN_REGION (ROUTER).
-const CodeUnknownRegion = "UNKNOWN_REGION"
-
-// ErrUnknownRegion matches code UNKNOWN_REGION, independently of its source.
-var ErrUnknownRegion = codeSentinel{"UNKNOWN_REGION", 400}
-
-// CodeRegionRequired is REGION_REQUIRED (ROUTER).
-const CodeRegionRequired = "REGION_REQUIRED"
-
-// ErrRegionRequired matches code REGION_REQUIRED, independently of its source.
-var ErrRegionRequired = codeSentinel{"REGION_REQUIRED", 400}
-
 func catalogStatus6(source, code string) int {
 	switch code {
+	case "SIGNUP_NOT_INVITED":
+		if source == "DAYTONA_API" {
+			return 403
+		}
+	case "SOURCE_AMBIGUOUS":
+		if source == "DAYTONA_API" {
+			return 409
+		}
+	case "SECRET_ALREADY_EXISTS":
+		if source == "DAYTONA_API" {
+			return 412
+		}
 	case "USER_SUSPENDED":
 		if source == "DAYTONA_API" {
 			return 403
@@ -193,18 +205,6 @@ func catalogStatus6(source, code string) int {
 	case "SANDBOX_NOT_RUNNING":
 		if source == "DAYTONA_PROXY" {
 			return 409
-		}
-	case "REGION_MISMATCH":
-		if source == "DAYTONA_ROUTER" {
-			return 400
-		}
-	case "UNKNOWN_REGION":
-		if source == "DAYTONA_ROUTER" {
-			return 400
-		}
-	case "REGION_REQUIRED":
-		if source == "DAYTONA_ROUTER" {
-			return 400
 		}
 	}
 	return 0

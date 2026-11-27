@@ -36,7 +36,7 @@ class BucketOptions(BaseModel):
     """
     The customer's own bucket, for a bucket volume with origin `external`.
     """ # noqa: E501
-    credentials: Optional[BucketCredentials] = Field(default=None, description="The secret names used to access the bucket.")
+    credentials: Optional[BucketCredentials] = Field(default=None, description="How the platform accesses the bucket: two project secret names, or an IAM role to assume.")
     endpoint: Optional[StrictStr] = Field(default=None, description="Non-AWS S3 endpoint (`http(s)://…`); absent or empty means AWS.")
     name: StrictStr = Field(description="The bucket name.")
     origin: Optional[ExternalBucketOrigin] = Field(default=None, description="The bucket origin. Defaults to `external`; managed buckets are requested by omitting this whole object.")

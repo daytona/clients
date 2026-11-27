@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional, Union
+from daytona.v2._gen.api.models.desktop_config import DesktopConfig
 from daytona.v2._gen.api.models.port_mapping import PortMapping
 from daytona.v2._gen.api.models.set_sandbox_network_policy_request import SetSandboxNetworkPolicyRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest
@@ -43,6 +44,7 @@ class CreateSandboxRequest(BaseModel):
     cpu_arch: Optional[StrictStr] = Field(default=None, description="The CPU architecture the sandbox requires. Omit it to use the region default — unless the image was imported from Daytona v0 and `cpu_type` is omitted too, in which case the architecture that image was imported for is used.")
     cpu_type: Optional[StrictStr] = Field(default=None, description="Preferred CPU type.")
     create_timeout_seconds: Optional[StrictInt] = Field(default=None, description="Seconds allowed for the sandbox to reach `running`. Defaults to 3600; `-1` uses the maximum.")
+    desktop: Optional[DesktopConfig] = None
     disk_max_mib: Optional[StrictInt] = Field(default=None, description="Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when restoring a snapshot, it must equal the captured disk size or be absent.")
     disk_mib: Optional[StrictInt] = Field(default=None, description="Writable disk size in MiB.")
     env: Optional[Dict[str, StrictStr]] = Field(default=None, description="Sandbox-specific environment variables (real values, verbatim). Names must be POSIX-ish identifiers (`[A-Za-z_][A-Za-z0-9_]*`). Names the platform reserves for its own use, including every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT` and `DAYTONA_DOCKER_START` (so `DAYTONA_SANDBOX_TOKEN` too), fail the create with 400 naming the key.")
@@ -62,7 +64,7 @@ class CreateSandboxRequest(BaseModel):
     user: Optional[StrictStr] = Field(default=None, description="Default operating-system user.")
     volumes: Optional[List[VolumeMount]] = Field(default=None, description="Volumes mounted in the sandbox.")
     wait_seconds: Optional[StrictInt] = Field(default=None, description="Seconds to wait before returning. Defaults to 3; `0` returns immediately.")
-    __properties: ClassVar[List[str]] = ["cores_max", "cpu", "cpu_arch", "cpu_type", "create_timeout_seconds", "disk_max_mib", "disk_mib", "env", "idempotency_key", "image", "labels", "lifecycle_policy", "memory_max_mib", "memory_mib", "name", "network_policy", "persistent", "ports", "region_id", "secrets", "spot", "user", "volumes", "wait_seconds"]
+    __properties: ClassVar[List[str]] = ["cores_max", "cpu", "cpu_arch", "cpu_type", "create_timeout_seconds", "desktop", "disk_max_mib", "disk_mib", "env", "idempotency_key", "image", "labels", "lifecycle_policy", "memory_max_mib", "memory_mib", "name", "network_policy", "persistent", "ports", "region_id", "secrets", "spot", "user", "volumes", "wait_seconds"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -105,6 +107,9 @@ class CreateSandboxRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of desktop
+        if self.desktop:
+            _dict['desktop'] = self.desktop.to_dict()
         # override the default output from pydantic by calling `to_dict()` of lifecycle_policy
         if self.lifecycle_policy:
             _dict['lifecycle_policy'] = self.lifecycle_policy.to_dict()
@@ -227,6 +232,7 @@ class CreateSandboxRequest(BaseModel):
             **({"cpu_arch": obj["cpu_arch"]} if "cpu_arch" in obj else {}),
             **({"cpu_type": obj["cpu_type"]} if "cpu_type" in obj else {}),
             **({"create_timeout_seconds": obj["create_timeout_seconds"]} if "create_timeout_seconds" in obj else {}),
+            **({"desktop": DesktopConfig.from_dict(obj["desktop"]) if obj["desktop"] is not None else None} if "desktop" in obj else {}),
             **({"disk_max_mib": obj["disk_max_mib"]} if "disk_max_mib" in obj else {}),
             **({"disk_mib": obj["disk_mib"]} if "disk_mib" in obj else {}),
             **({"env": obj["env"]} if "env" in obj else {}),

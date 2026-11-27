@@ -4,6 +4,24 @@
 
 package daytona
 
+// CodeRegionMismatch is REGION_MISMATCH (ROUTER).
+const CodeRegionMismatch = "REGION_MISMATCH"
+
+// ErrRegionMismatch matches code REGION_MISMATCH, independently of its source.
+var ErrRegionMismatch = codeSentinel{"REGION_MISMATCH", 400}
+
+// CodeUnknownRegion is UNKNOWN_REGION (ROUTER).
+const CodeUnknownRegion = "UNKNOWN_REGION"
+
+// ErrUnknownRegion matches code UNKNOWN_REGION, independently of its source.
+var ErrUnknownRegion = codeSentinel{"UNKNOWN_REGION", 400}
+
+// CodeRegionRequired is REGION_REQUIRED (ROUTER).
+const CodeRegionRequired = "REGION_REQUIRED"
+
+// ErrRegionRequired matches code REGION_REQUIRED, independently of its source.
+var ErrRegionRequired = codeSentinel{"REGION_REQUIRED", 400}
+
 // CodeIdempotencyKeyRequired is IDEMPOTENCY_KEY_REQUIRED (ROUTER).
 const CodeIdempotencyKeyRequired = "IDEMPOTENCY_KEY_REQUIRED"
 
@@ -82,20 +100,20 @@ const CodeUnauthorized = "UNAUTHORIZED"
 // ErrUnauthorized matches code UNAUTHORIZED, independently of its source.
 var ErrUnauthorized = codeSentinel{"UNAUTHORIZED", 401}
 
-// CodeUnprocessableEntity is UNPROCESSABLE_ENTITY (GENERIC).
-const CodeUnprocessableEntity = "UNPROCESSABLE_ENTITY"
-
-// CodeUnsupportedMediaType is UNSUPPORTED_MEDIA_TYPE (GENERIC).
-const CodeUnsupportedMediaType = "UNSUPPORTED_MEDIA_TYPE"
-
-// CodeClientClosed is CLIENT_CLOSED (SDK).
-const CodeClientClosed = "CLIENT_CLOSED"
-
-// ErrClientClosed matches code CLIENT_CLOSED, independently of its source.
-var ErrClientClosed = codeSentinel{"CLIENT_CLOSED", 0}
-
 func catalogStatus7(source, code string) int {
 	switch code {
+	case "REGION_MISMATCH":
+		if source == "DAYTONA_ROUTER" {
+			return 400
+		}
+	case "UNKNOWN_REGION":
+		if source == "DAYTONA_ROUTER" {
+			return 400
+		}
+	case "REGION_REQUIRED":
+		if source == "DAYTONA_ROUTER" {
+			return 400
+		}
 	case "IDEMPOTENCY_KEY_REQUIRED":
 		if source == "DAYTONA_ROUTER" {
 			return 400
@@ -132,14 +150,6 @@ func catalogStatus7(source, code string) int {
 		return 429
 	case "UNAUTHORIZED":
 		return 401
-	case "UNPROCESSABLE_ENTITY":
-		return 422
-	case "UNSUPPORTED_MEDIA_TYPE":
-		return 415
-	case "CLIENT_CLOSED":
-		if source == "SDK" {
-			return 0
-		}
 	}
 	return 0
 }
