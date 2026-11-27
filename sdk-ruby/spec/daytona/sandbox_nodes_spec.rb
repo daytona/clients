@@ -225,6 +225,35 @@ RSpec.describe Daytona::SandboxNodes do
     expect(a_request(:delete, %r{/process/session/})).to have_been_made.twice
   end
 
+  it 'keeps the stream and split markers across streamed log messages' do
+    sessions
+    chunks = Queue.new
+    allow(Daytona::Common::WebSocketDialer).to receive(:connect) do |_, **_, &block|
+      handlers = {}
+      socket = double('socket')
+      allow(socket).to receive(:on) { |event, &handler| handlers[event] = handler }
+      allow(socket).to receive(:close)
+      block.call(socket)
+      ["\x01\x01", "\x01ok\x02", "\x02\x02bad", " more\x01"].each do |data|
+        handlers[:message].call(double(type: :binary, data: data))
+      end
+      handlers[:close].call
+      socket
+    end
+    sandbox.nodes.process.exec(
+      command: 'echo ok',
+      on_stdout: ->(rank, chunk) { chunks << [rank, :stdout, chunk] },
+      on_stderr: ->(rank, chunk) { chunks << [rank, :stderr, chunk] }
+    )
+    output = Array.new(chunks.size) { chunks.pop }.group_by(&:first).transform_values do |entries|
+      entries.group_by { |entry| entry[1] }.transform_values { |parts| parts.map(&:last).join }
+    end
+    expect(output).to eq(
+      0 => { stdout: 'ok', stderr: "bad more\x01" },
+      1 => { stdout: 'ok', stderr: "bad more\x01" }
+    )
+  end
+
   it 'uploads the exact bytes of an IO on every rank' do
     bytes = [1, 0, 2].pack('C*')
     sandbox.nodes.each do |node|
@@ -340,5 +369,59 @@ RSpec.describe Daytona::SandboxNodes do
       expect(error.operation_id).to eq('op')
     end
     expect(a_request(:get, url)).not_to have_been_made
+  end
+end
+
+RSpec.describe 'Daytona::NodeLogStream' do
+  let(:stream_class) { Daytona.const_get(:NodeLogStream) }
+  let(:node) do
+    api_client = double('api_client', default_headers: {}, config: double(base_url: 'https://node.example/api'))
+    double('node', rank: 0, process_api: double(api_client:))
+  end
+  let(:expired_deadline) do
+    double('deadline').tap do |deadline|
+      allow(deadline).to receive(:remaining).and_raise(Daytona::Sdk::TimeoutError, 'expired')
+    end
+  end
+
+  it 'completes a close that arrives after the deadline when there is nothing left to emit' do
+    stream = stream_class.new(node, 'session', 'command', expired_deadline, { stdout: ->(_, _) {} })
+
+    stream.send(:on_close)
+
+    expect(stream.instance_variable_get(:@completion).pop(true)).to be_nil
+  end
+
+  it 'emits held-back bytes before reporting a WebSocket error' do
+    chunks = []
+    deadline = double('deadline', remaining: 10)
+    stream = stream_class.new(node, 'session', 'command', deadline, { stdout: ->(_, chunk) { chunks << chunk } })
+    stream.send(:on_message, double(type: :binary, data: "\x01\x01\x01out\x01"))
+
+    stream.send(:on_error, StandardError.new('reset'))
+
+    expect(chunks.join).to eq("out\x01")
+    expect(stream.instance_variable_get(:@completion).pop(true).message).to eq('WebSocket error: reset')
+  end
+
+  it 'reports a callback error raised while flushing on a WebSocket error' do
+    deadline = double('deadline', remaining: 10)
+    callbacks = { stdout: ->(_, _) { raise IOError, 'callback failed' } }
+    stream = stream_class.new(node, 'session', 'command', deadline, callbacks)
+    stream.instance_variable_get(:@demuxer).feed("\x01\x01\x01out\x01")
+
+    stream.send(:on_error, StandardError.new('reset'))
+
+    expect(stream.instance_variable_get(:@completion).pop(true)).to be_a(IOError)
+  end
+
+  it 'still reports the deadline when a close has held-back output to emit' do
+    stream = stream_class.new(node, 'session', 'command', expired_deadline, { stdout: ->(_, _) {} })
+    stream.send(:on_message, double(type: :binary, data: "\x01\x01\x01out\x01"))
+    stream.instance_variable_get(:@completion).clear
+
+    stream.send(:on_close)
+
+    expect(stream.instance_variable_get(:@completion).pop(true)).to be_a(Daytona::Sdk::TimeoutError)
   end
 end

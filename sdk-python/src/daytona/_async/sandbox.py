@@ -1029,15 +1029,26 @@ class AsyncSandbox(SandboxDto):
         timeout: float | None = 60,  # pylint: disable=unused-argument
         wait: bool = False,
     ) -> None:
-        """Deletes the Sandbox.
+        """Requests deletion of the Sandbox and returns without waiting for it to be destroyed, unless ``wait`` is True.
 
-        By default returns as soon as the deletion request is accepted (fire-and-forget).
-        Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
+        By default returns as soon as the deletion request is accepted, so the Sandbox can still be
+        returned by ``get()`` and ``list()`` for a short time. Pass ``wait=True`` to block until the
+        Sandbox reaches the 'destroyed' state.
 
         Args:
             timeout (float | None): Timeout (in seconds) for the request and, when ``wait``
                 is True, for reaching 'destroyed'. 0 means no timeout. Default is 60 seconds.
             wait (bool): If True, wait until the Sandbox is destroyed. Defaults to False.
+
+        Example:
+            ```python
+            async with AsyncDaytona() as daytona:
+                sandbox = await daytona.create()
+                # ... use sandbox ...
+                await sandbox.delete()  # Returns once the deletion request is accepted
+                # Or, to return once the Sandbox is destroyed:
+                # await sandbox.delete(wait=True)
+            ```
         """
         subscription: wait_poll.WaitSubscription | None = None
         try:

@@ -535,6 +535,7 @@ module Daytona
       @completion = Queue.new
       @lock = Mutex.new
       @active = true
+      @demuxer = Util::Demuxer.new
     end
 
     def run
@@ -555,26 +556,46 @@ module Daytona
       Common::WebSocketDialer.connect(@url.to_s, headers: @headers) do |socket|
         @socket = socket
         socket.on(:message) { |message| on_message(message) }
-        socket.on(:close) { @completion.push(nil) }
-        socket.on(:error) { |error| @completion.push(Sdk::Error.new("WebSocket error: #{error.message}")) }
+        socket.on(:close) { on_close }
+        socket.on(:error) { |error| on_error(error) }
       end
       failure = @completion.pop
       raise failure if failure
     end
 
     def on_message(message)
-      return @completion.push(nil) if message.type == :close
+      return on_close if message.type == :close
 
-      stdout, stderr = Util.demux(message.data.to_s)
+      emit { @demuxer.feed(message.data.to_s) }
+    rescue StandardError => e
+      @completion.push(e)
+    end
+
+    def on_close
+      emit { @demuxer.flush }
+      @completion.push(nil)
+    rescue StandardError => e
+      @completion.push(e)
+    end
+
+    def on_error(error)
+      emit { @demuxer.flush }
+      @completion.push(Sdk::Error.new("WebSocket error: #{error.message}"))
+    rescue StandardError => e
+      @completion.push(e)
+    end
+
+    def emit
       @lock.synchronize do
         return unless @active
 
+        stdout, stderr = yield
+        output = { stdout:, stderr: }.reject { |_, chunk| chunk.empty? }
+        next if output.empty?
+
         @deadline.remaining
-        @callbacks[:stdout]&.call(@node.rank, stdout) unless stdout.empty?
-        @callbacks[:stderr]&.call(@node.rank, stderr) unless stderr.empty?
+        output.each { |stream, chunk| @callbacks[stream]&.call(@node.rank, chunk) }
       end
-    rescue StandardError => e
-      @completion.push(e)
     end
 
     def close_socket

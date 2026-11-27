@@ -58,6 +58,9 @@ require 'daytona'
 config = Daytona::Config.new(api_key: 'YOUR_API_KEY')
 daytona = Daytona::Daytona.new(config)
 sandbox = daytona.create
+
+# delete returns once the deletion request is accepted; wait: true returns once the sandbox is destroyed
+sandbox.delete(wait: true)
 ```
 
 ## Examples and guides

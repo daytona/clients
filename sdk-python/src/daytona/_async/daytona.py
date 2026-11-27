@@ -783,10 +783,11 @@ class AsyncDaytona:
 
     @with_instrumentation()
     async def delete(self, sandbox: AsyncSandbox, timeout: float = 60, wait: bool = False) -> None:
-        """Deletes a Sandbox.
+        """Requests deletion of a Sandbox and returns without waiting for it to be destroyed, unless ``wait`` is True.
 
-        By default returns as soon as the deletion request is accepted (fire-and-forget).
-        Pass ``wait=True`` to block until the Sandbox reaches the 'destroyed' state.
+        By default returns as soon as the deletion request is accepted, so the Sandbox can still be
+        returned by ``get()`` and ``list()`` for a short time. Pass ``wait=True`` to block until the
+        Sandbox reaches the 'destroyed' state.
 
         Args:
             sandbox (Sandbox): The Sandbox instance to delete.
@@ -801,7 +802,9 @@ class AsyncDaytona:
             ```python
             sandbox = await daytona.create()
             # ... use sandbox ...
-            await daytona.delete(sandbox)  # Clean up when done
+            await daytona.delete(sandbox)  # Returns once the deletion request is accepted
+            # Or, to return once the Sandbox is destroyed:
+            # await daytona.delete(sandbox, wait=True)
             ```
         """
         _ = await sandbox.delete(timeout, wait=wait)

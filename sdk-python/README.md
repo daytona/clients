@@ -51,6 +51,9 @@ config = DaytonaConfig(api_key="YOUR_API_KEY")
 daytona = Daytona(config)
 sandbox = daytona.create()
 response = sandbox.process.code_run('print("Hello World")')
+
+# delete() returns once the deletion request is accepted; wait=True returns once the sandbox is destroyed
+sandbox.delete(wait=True)
 ```
 
 ## Examples and guides

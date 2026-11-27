@@ -320,6 +320,105 @@ RSpec.describe Daytona::Process do
     end
   end
 
+  describe 'streamed log demultiplexing across WebSocket messages' do
+    let(:messages) { ["\x01\x01\x01out\n\x02", "\x02\x02err\n", "more\n\x01", "\x01\x01", "back\n\x02\x02"] }
+
+    let(:socket) { PassiveWebSocket.new }
+
+    before { allow(Daytona::Common::WebSocketDialer).to receive(:connect).and_yield(socket).and_return(socket) }
+
+    def wait_for_handlers(*events)
+      Timeout.timeout(5) { sleep 0.01 until events.all? { |event| socket.handlers.key?(event) } }
+    end
+
+    def stream_logs(messages)
+      output = [+'', +'']
+      thread = Thread.new { yield(->(chunk) { output[0] << chunk }, ->(chunk) { output[1] << chunk }) }
+      wait_for_handlers(:message, :close)
+      messages.each { |data| socket.emit(:message, double(type: :binary, data: data)) }
+      socket.emit(:close)
+      raise 'log stream did not finish' unless thread.join(5)
+
+      output
+    end
+
+    it 'keeps the stream and split markers in session command logs' do
+      result = stream_logs(messages) do |on_stdout, on_stderr|
+        process.get_session_command_logs_async(
+          session_id: 'sess-1', command_id: 'cmd-1', on_stdout: on_stdout, on_stderr: on_stderr
+        )
+      end
+
+      expect(result).to eq(["out\nback\n\x02\x02", "err\nmore\n"])
+    end
+
+    it 'keeps the stream and split markers in entrypoint logs' do
+      result = stream_logs(messages) do |on_stdout, on_stderr|
+        process.get_entrypoint_logs_async(on_stdout: on_stdout, on_stderr: on_stderr)
+      end
+
+      expect(result).to eq(["out\nback\n\x02\x02", "err\nmore\n"])
+    end
+
+    it 'emits held-back bytes before a WebSocket error is raised' do
+      stdout = +''
+      thread = Thread.new do
+        process.get_entrypoint_logs_async(on_stdout: ->(chunk) { stdout << chunk }, on_stderr: ->(_chunk) {})
+      end
+      wait_for_handlers(:error)
+      socket.emit(:message, double(type: :binary, data: "\x01\x01\x01out\x01"))
+
+      expect { socket.emit(:error, StandardError.new('reset')) }.to raise_error(Daytona::Sdk::Error, /reset/)
+      raise 'log stream did not finish' unless thread.join(5)
+
+      expect(stdout).to eq("out\x01")
+    end
+
+    def follow_logs(method, on_stdout)
+      on_stderr = ->(_chunk) {}
+      return process.get_entrypoint_logs_async(on_stdout:, on_stderr:) if method == :entrypoint
+
+      process.get_session_command_logs_async(session_id: 's', command_id: 'c', on_stdout:, on_stderr:)
+    end
+
+    def stream_with_raising_flush(method)
+      calls = 0
+      on_stdout = lambda do |_chunk|
+        calls += 1
+        raise IOError, 'callback failed' if calls == 2
+      end
+      thread = Thread.new { follow_logs(method, on_stdout) }
+      wait_for_handlers(:message, :close, :error)
+      socket.emit(:message, double(type: :binary, data: "\x01\x01\x01out\n\x02"))
+      [thread, -> { calls }]
+    end
+
+    %i[entrypoint session].each do |method|
+      it "finishes #{method} logs on close when a callback raises during the final flush" do
+        thread, calls = stream_with_raising_flush(method)
+
+        expect { socket.emit(:close) }.to raise_error(IOError, 'callback failed')
+        expect(thread.join(5)&.value).to eq(:close)
+        expect(calls.call).to eq(2)
+      end
+
+      it "finishes #{method} logs on a close message when a callback raises during the final flush" do
+        thread, = stream_with_raising_flush(method)
+
+        expect { socket.emit(:message, double(type: :close, data: '')) }.to raise_error(IOError, 'callback failed')
+        expect(thread.join(5)&.value).to eq(:close)
+      end
+
+      it "finishes #{method} logs and keeps the WebSocket error when a callback raises during the final flush" do
+        thread, = stream_with_raising_flush(method)
+
+        expect { socket.emit(:error, StandardError.new('reset')) }
+          .to raise_error(Daytona::Sdk::Error, 'WebSocket error: reset') { |e| expect(e.cause).to be_a(IOError) }
+        expect(thread.join(5)&.value).to eq(:error)
+      end
+    end
+  end
+
   describe '#get_entrypoint_logs_async' do
     it 'streams entrypoint logs until close' do
       socket = PassiveWebSocket.new

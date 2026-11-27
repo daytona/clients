@@ -419,16 +419,24 @@ module Daytona
       sandbox_api.create_ssh_access(id, { expires_in_minutes: })
     end
 
-    # Deletes the Sandbox.
+    # Requests deletion of the Sandbox and returns without waiting for it to be destroyed, unless +wait+ is true.
     #
-    # By default returns as soon as the deletion request is accepted (matching
-    # origin/main behavior). Pass +wait: true+ to block until the Sandbox
-    # reaches the +destroyed+ state.
+    # By default returns as soon as the deletion request is accepted, so the Sandbox can
+    # still be returned by +get+ and +list+ for a short time. Pass +wait: true+ to block
+    # until the Sandbox reaches the +destroyed+ state.
     #
     # @param timeout [Numeric] Maximum wait time in seconds (defaults to 60 s).
     #   Only meaningful when +wait+ is true.
     # @param wait [Boolean] When +true+, block until the Sandbox is destroyed.
     # @return [void]
+    #
+    # @example
+    #   daytona = Daytona::Daytona.new
+    #   sandbox = daytona.create
+    #   # ... use sandbox ...
+    #   sandbox.delete # Returns once the deletion request is accepted
+    #   # Or, to return once the Sandbox is destroyed:
+    #   # sandbox.delete(wait: true)
     def delete(timeout = DEFAULT_TIMEOUT, wait: false) # rubocop:disable Metrics/MethodLength
       return delete_and_wait(timeout) if wait
 

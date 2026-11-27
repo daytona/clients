@@ -59,6 +59,9 @@ const sandbox = await daytona.create({
 });
 const response = await sandbox.process.codeRun('console.log("Hello World!")');
 console.log(response.result);
+
+// delete() returns once the deletion request is accepted; pass wait = true to return once the sandbox is destroyed
+await sandbox.delete(60, true);
 ```
 
 ## Examples and guides
@@ -230,4 +233,39 @@ volumes.forEach(vol => console.log(vol.name))
 for await (const sandbox of daytona.list({ labels: { env: 'dev' } })) {
   console.log(sandbox.id)
 }
+
+// collect every sandbox into an array
+const sandboxes = await Array.fromAsync(daytona.list()) // Node.js 22+
 ```
+
+`daytona.list()` returns `Promise<PaginatedSandboxes>` up to SDK 0.179.0 and an async iterator from 0.180.0. Code that does `(await daytona.list()).items` needs to iterate or collect instead.
+
+## OpenTelemetry and bundled apps
+
+`new Daytona({ otelEnabled: true })` (or `DAYTONA_OTEL_ENABLED=true`) loads the OpenTelemetry SDK and its instrumentation (`@opentelemetry/sdk-node`, `@opentelemetry/instrumentation-http`, the exporter and their dependencies) when the client is created, not when the SDK is imported. Bundlers do not see these packages, so they stay out of your bundle and must be present at runtime. They are installed with `@daytona/sdk`, so this works whenever the app runs next to its `node_modules`. `@opentelemetry/api`, which the SDK uses for its own tracing calls, is imported as usual and bundled like any other dependency.
+
+Loading them this way needs Node.js 20.16+ or 22.3+ (or Bun or Deno) when the app imports the SDK as an ES module; with `require('@daytona/sdk')` older Node.js versions work too. Apps that do not enable OpenTelemetry need none of this.
+
+If your server build copies only the files it traces, add the packages to it. With Next.js (`output: 'standalone'` and other traced deployments), add them in `next.config.js`. This is needed even with `serverExternalPackages: ['@daytona/sdk']`, because output tracing cannot follow the runtime load either:
+
+```js
+module.exports = {
+  output: 'standalone',
+  outputFileTracingIncludes: {
+    '/**': [
+      './node_modules/{@grpc,@js-sdsl,@opentelemetry,@protobufjs}/**/*',
+      './node_modules/{acorn,acorn-import-attributes,cjs-module-lexer,es-module-lexer,forwarded-parse}/**/*',
+      './node_modules/{import-in-the-middle,module-details-from-path,require-in-the-middle,lodash.camelcase}/**/*',
+      './node_modules/{debug,ms,long,protobufjs,yaml,yargs,yargs-parser,y18n,cliui,escalade}/**/*',
+      './node_modules/{get-caller-file,require-directory,string-width,strip-ansi,wrap-ansi}/**/*',
+      './node_modules/{ansi-regex,ansi-styles,color-convert,color-name,emoji-regex,is-fullwidth-code-point}/**/*',
+    ],
+  },
+}
+```
+
+The paths assume npm or Yarn with a hoisted `node_modules` next to `next.config.js`. With pnpm the packages live under `node_modules/.pnpm`, and in a monorepo they may be hoisted to the workspace root: adjust the paths to where they are installed (relative to the project, or to `outputFileTracingRoot` when you set it).
+
+Leaving `@daytona/sdk` unbundled (for example webpack `externals`) helps only when the deployment installs the SDK's dependencies, such as a server shipped with a full `node_modules`.
+
+Without the packages, creating the client with `otelEnabled` throws a `DaytonaError` that names the missing package and shows this snippet. The other Node-only modules the SDK loads lazily (local files for `Image`, context uploads) are bundled and traced as usual.

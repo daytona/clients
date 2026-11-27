@@ -2,7 +2,7 @@
   "name": "runtime-test-esbuild-cjs",
   "private": true,
   "scripts": {
-    "build": "esbuild test.ts --bundle --outfile=dist/test.js --platform=node --target=node20 --format=cjs --log-level=error"
+    "build": "esbuild test.ts isolated.ts --bundle --outdir=dist --platform=node --target=node20 --format=cjs --log-level=error"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",

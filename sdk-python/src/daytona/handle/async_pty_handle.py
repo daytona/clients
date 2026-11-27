@@ -13,6 +13,7 @@ import aiohttp
 
 from daytona_toolbox_api_client_async import PtySessionInfo
 
+from .._utils.timeout import with_timeout
 from ..common.errors import DaytonaConnectionError, DaytonaError, DaytonaTimeoutError
 from ..common.pty import PtyResult, PtySize
 
@@ -141,15 +142,37 @@ class AsyncPtyHandle:
         except Exception as e:
             raise DaytonaConnectionError(f"Failed to send input to PTY: {e}") from e
 
-    async def wait(self) -> PtyResult:
+    @with_timeout()
+    async def wait(
+        self,
+        timeout: float | None = None,  # pylint: disable=unused-argument # pyright: ignore[reportUnusedParameter]
+    ) -> PtyResult:
         """
         Wait for the PTY process to exit and return the result.
 
-        Cancelling this call (for example when `asyncio.wait_for` times out) only stops
-        waiting; the PTY session stays connected.
+        A timeout or a cancelled call (for example when `asyncio.wait_for` times out) only
+        stops waiting; the PTY session stays connected, so you can send input or wait again.
+
+        Args:
+            timeout: Optional timeout in seconds. 0 or None means no timeout; negative values
+                are rejected. Unlike the synchronous ``PtyHandle.wait()``, which returns a result
+                with ``exit_code`` None on timeout, this raises ``DaytonaTimeoutError``.
 
         Returns:
             PtyResult: Result containing exit code and error (if any)
+
+        Raises:
+            DaytonaTimeoutError: If the process has not exited before the timeout elapses,
+                whether or not the PTY is producing output.
+            DaytonaError: If the timeout is negative.
+
+        Example:
+            ```python
+            try:
+                result = await pty_handle.wait(timeout=30)
+            except DaytonaTimeoutError:
+                await pty_handle.kill()
+            ```
         """
         # Shield the reader task: cancelling a caller's wait() must not cancel the task that
         # owns the WebSocket. disconnect() cancels it directly.

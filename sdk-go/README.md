@@ -60,8 +60,9 @@ func main() {
 
     log.Printf("Output: %s\n", result.Result)
 
-    // Clean up
-    if err := sandbox.Delete(ctx); err != nil {
+    // Clean up. Delete returns once the deletion request is accepted;
+    // DeleteAndWait returns once the sandbox is destroyed.
+    if err := sandbox.DeleteAndWait(ctx, 60*time.Second); err != nil {
         log.Printf("Failed to delete: %v", err)
     }
 }

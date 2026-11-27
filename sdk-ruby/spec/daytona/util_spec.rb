@@ -51,6 +51,74 @@ RSpec.describe Daytona::Util do
     end
   end
 
+  describe Daytona::Util::Demuxer do
+    def demux_messages(messages)
+      demuxer = described_class.new
+      stdout = +''
+      stderr = +''
+      (messages.map { |message| demuxer.feed(message) } << demuxer.flush).each do |out, err|
+        stdout << out
+        stderr << err
+      end
+      [stdout, stderr]
+    end
+
+    [
+      [["\x01\x01\x01line1\n", "line2\n"], ["line1\nline2\n", '']],
+      [["\x01\x01\x01line1\n", "line2\n\x02\x02\x02err\n"], ["line1\nline2\n", "err\n"]],
+      [["\x01\x01\x01out\n\x02\x02", "\x02err\n"], ["out\n", "err\n"]],
+      [["\x01\x01\x01out\n\x02", "\x02\x02err\n"], ["out\n", "err\n"]],
+      [["\x01\x01\x01", "out\n"], ["out\n", '']],
+      [["\x01\x01\x01out\n\x02\x02\x02", "err\n"], ["out\n", "err\n"]],
+      [["\x01", "\x01", "\x01out\n"], ["out\n", '']]
+    ].each do |messages, expected|
+      it "keeps the stream across messages #{messages.inspect}" do
+        expect(demux_messages(messages)).to eq(expected)
+      end
+    end
+
+    it 'gives the same output wherever the stream is split' do
+      stream = "\x01\x01\x01hello\n\x02\x02\x02oops\n\x01\x01\x01bye\n"
+      expected = %W[hello\nbye\n oops\n]
+
+      (1...stream.bytesize).each do |offset|
+        messages = [stream.byteslice(0, offset), stream.byteslice(offset..)]
+        expect(demux_messages(messages)).to eq(expected), "split at byte #{offset}"
+      end
+      expect(demux_messages(stream.each_char.to_a)).to eq(expected)
+    end
+
+    it 'holds back a trailing partial marker until the next message' do
+      demuxer = described_class.new
+
+      expect(demuxer.feed("\x01\x01\x01out\x02\x02")).to eq(['out', ''])
+      expect(demuxer.feed("\x02err")).to eq(['', 'err'])
+    end
+
+    it 'flushes held-back bytes that never complete a marker as output of the current stream' do
+      demuxer = described_class.new
+
+      expect(demuxer.feed("\x01\x01\x01out\x02\x02")).to eq(['out', ''])
+      expect(demuxer.flush).to eq(["\x02\x02", ''])
+      expect(demuxer.flush).to eq(['', ''])
+    end
+
+    it 'emits bytes that only look like the start of a marker once the next message rules it out' do
+      expect(demux_messages(["\x02\x02\x02a\x01\x01", 'b'])).to eq(['', "a\x01\x01b"])
+    end
+
+    it 'drops output only before the first marker of the whole stream' do
+      expect(demux_messages(['orphan', "\x01\x01\x01hello", ' world'])).to eq(['hello world', ''])
+    end
+
+    it 'keeps the encoding of the incoming data' do
+      stdout, = described_class.new.feed("\x01\x01\x01h\u00e9llo")
+
+      expect(stdout).to eq("h\u00e9llo")
+      expect(stdout.encoding).to eq(Encoding::UTF_8)
+    end
+  end
+
   describe '.stream_async' do
     it 'streams chunks asynchronously to the callback' do
       http = double('Http')

@@ -273,6 +273,11 @@ module Daytona
       url.query = 'follow=true'
 
       completion_queue = Queue.new
+      demuxer = Util::Demuxer.new
+      emit = lambda do |(stdout, stderr)|
+        on_stdout.call(stdout) unless stdout.empty?
+        on_stderr.call(stderr) unless stderr.empty?
+      end
 
       Common::WebSocketDialer.connect(
         url.to_s,
@@ -285,20 +290,25 @@ module Daytona
         client.on(:message) do |message|
           if message.type == :close
             client.close
-            completion_queue.push(:close)
+            begin
+              emit.call(demuxer.flush)
+            ensure
+              completion_queue.push(:close)
+            end
           else
-            stdout, stderr = Util.demux(message.data.to_s)
-
-            on_stdout.call(stdout) unless stdout.empty?
-            on_stderr.call(stderr) unless stderr.empty?
+            emit.call(demuxer.feed(message.data.to_s))
           end
         end
 
         client.on(:close) do
+          emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:close)
         end
 
         client.on(:error) do |e|
+          emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:error)
           raise Sdk::Error, "WebSocket error: #{e.message}"
         end
@@ -342,6 +352,11 @@ module Daytona
       url.query = 'follow=true'
 
       completion_queue = Queue.new
+      demuxer = Util::Demuxer.new
+      emit = lambda do |(stdout, stderr)|
+        on_stdout.call(stdout) unless stdout.empty?
+        on_stderr.call(stderr) unless stderr.empty?
+      end
 
       Common::WebSocketDialer.connect(
         url.to_s,
@@ -354,20 +369,25 @@ module Daytona
         client.on(:message) do |message|
           if message.type == :close
             client.close
-            completion_queue.push(:close)
+            begin
+              emit.call(demuxer.flush)
+            ensure
+              completion_queue.push(:close)
+            end
           else
-            stdout, stderr = Util.demux(message.data.to_s)
-
-            on_stdout.call(stdout) unless stdout.empty?
-            on_stderr.call(stderr) unless stderr.empty?
+            emit.call(demuxer.feed(message.data.to_s))
           end
         end
 
         client.on(:close) do
+          emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:close)
         end
 
         client.on(:error) do |e|
+          emit.call(demuxer.flush)
+        ensure
           completion_queue.push(:error)
           raise Sdk::Error, "WebSocket error: #{e.message}"
         end

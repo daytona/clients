@@ -178,7 +178,10 @@ def delete(sandbox, wait: false)
 
 ```
 
-Deletes a Sandbox.
+Requests deletion of a Sandbox and returns without waiting for it to be destroyed, unless +wait+ is true.
+
+By default returns as soon as the deletion request is accepted, so the Sandbox can
+still be returned by +get+ and +list+ for a short time.
 
 **Parameters**:
 
@@ -188,6 +191,18 @@ Deletes a Sandbox.
 **Returns**:
 
 - `void`
+
+**Examples:**
+
+```ruby
+daytona = Daytona::Daytona.new
+sandbox = daytona.create
+# ... use sandbox ...
+daytona.delete(sandbox) # Returns once the deletion request is accepted
+# Or, to return once the Sandbox is destroyed:
+# daytona.delete(sandbox, wait: true)
+
+```
 
 #### get()
 

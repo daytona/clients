@@ -396,11 +396,11 @@ public class Sandbox {
     }
 
     /**
-     * Deletes this Sandbox.
+     * Requests deletion of this Sandbox and returns without waiting for it to be destroyed.
      *
-     * <p>Fires the delete API call and returns immediately without waiting for the
-     * Sandbox to reach the {@code destroyed} state. Use {@link #delete(long, boolean)}
-     * with {@code wait=true} to block until destruction completes.
+     * <p>Returns as soon as the deletion request is accepted, so the Sandbox can still be
+     * returned by {@code get} and {@code list} for a short time. Use {@link #delete(long, boolean)}
+     * with {@code wait=true} to block until the Sandbox reaches the {@code destroyed} state.
      *
      * @throws DaytonaException if the delete API call fails
      */
@@ -409,9 +409,9 @@ public class Sandbox {
     }
 
     /**
-     * Deletes this Sandbox.
+     * Requests deletion of this Sandbox and returns without waiting for it to be destroyed.
      *
-     * <p>Fires the delete API call and returns immediately. Use
+     * <p>Returns as soon as the deletion request is accepted. Use
      * {@link #delete(long, boolean)} with {@code wait=true} to block until destroyed.
      *
      * @param timeoutSeconds timeout for the HTTP request (and for waiting when
