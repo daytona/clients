@@ -167,10 +167,11 @@ rules below. A fork's handle keeps its detail read, made before its wait.
 
 Reads in `_wait_for_state`:
 
-- A wait decided by a target event makes no further request
+- A wait decided by a target event makes no further request, except
+  `start()` / `resume()` of a macOS sandbox (the last bullet)
   (`_observe_outcome` takes the frame's state and error message verbatim, so
   a frame without one clears the handle's; only `_observe_destroyed`, for a
-  404 during a delete, keeps a message read with `destroyed` through
+  404 during a delete, keeps a message held with `destroyed` through
   `_kept_error`; `spot_evicted_at`, the lifecycle-policy deadlines and the
   activity clock stay as of the last read).
 - A terminal event (`error`, and `destroying` unless the wait targets
@@ -181,8 +182,10 @@ Reads in `_wait_for_state`:
   state and the wait raises it; when it succeeds, it decides (a target
   returns, `destroyed` / `error` raise, `destroying` raises unless the wait
   targets `destroyed`, any other state polls on under the same deadline).
-- A wait the stream leaves undecided reads while it polls (the hub's probes,
-  the final reserve, or the long-poll fallback).
+- A wait the stream leaves undecided reads while it polls: the hub's probes,
+  the long-poll fallback, and the final reserve, which spends the last part
+  of a bounded budget (`WAIT_FINAL_READ_RESERVE_S`, at most a quarter of it)
+  on reads of the server, long polls when the wait has one target state.
 - The macOS post-target read: only `start()` / `resume()` pass
   `read_after_target=self._is_macos`, checked when the report arrives, for
   the boot mode and the reservation. It happens while budget remains and
