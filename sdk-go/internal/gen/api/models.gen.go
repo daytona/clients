@@ -143,6 +143,9 @@ const (
 	V0SANDBOXNOTFOUND                   ApiErrorCode = "V0_SANDBOX_NOT_FOUND"
 	V0SANDBOXNOTIMPORTABLE              ApiErrorCode = "V0_SANDBOX_NOT_IMPORTABLE"
 	VOLUMENOTFOUND                      ApiErrorCode = "VOLUME_NOT_FOUND"
+	WEBHOOKSNOTCONFIGURED               ApiErrorCode = "WEBHOOKS_NOT_CONFIGURED"
+	WEBHOOKSNOTINITIALIZED              ApiErrorCode = "WEBHOOKS_NOT_INITIALIZED"
+	WEBHOOKSPROVIDERUNAVAILABLE         ApiErrorCode = "WEBHOOKS_PROVIDER_UNAVAILABLE"
 	WORKLOADPLANEELSEWHERE              ApiErrorCode = "WORKLOAD_PLANE_ELSEWHERE"
 )
 
@@ -408,6 +411,12 @@ func (e ApiErrorCode) Valid() bool {
 	case V0SANDBOXNOTIMPORTABLE:
 		return true
 	case VOLUMENOTFOUND:
+		return true
+	case WEBHOOKSNOTCONFIGURED:
+		return true
+	case WEBHOOKSNOTINITIALIZED:
+		return true
+	case WEBHOOKSPROVIDERUNAVAILABLE:
 		return true
 	case WORKLOADPLANEELSEWHERE:
 		return true
@@ -809,6 +818,45 @@ func (e BuildContextUploadState) Valid() bool {
 	case BuildContextUploadStateReady:
 		return true
 	case BuildContextUploadStateUploading:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BuildLogDoneReason.
+const (
+	Deadline        BuildLogDoneReason = "deadline"
+	NotApplicable   BuildLogDoneReason = "not_applicable"
+	ResourceDeleted BuildLogDoneReason = "resource_deleted"
+	Terminal        BuildLogDoneReason = "terminal"
+)
+
+// Valid indicates whether the value is a known member of the BuildLogDoneReason enum.
+func (e BuildLogDoneReason) Valid() bool {
+	switch e {
+	case Deadline:
+		return true
+	case NotApplicable:
+		return true
+	case ResourceDeleted:
+		return true
+	case Terminal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BuildLogGapReason.
+const (
+	Truncated BuildLogGapReason = "truncated"
+)
+
+// Valid indicates whether the value is a known member of the BuildLogGapReason enum.
+func (e BuildLogGapReason) Valid() bool {
+	switch e {
+	case Truncated:
 		return true
 	default:
 		return false
@@ -2117,6 +2165,30 @@ func (e VolumeType) Valid() bool {
 	}
 }
 
+// Defines values for WebhookEventType.
+const (
+	V2SandboxCreated       WebhookEventType = "v2.sandbox.created"
+	V2SandboxStatusChanged WebhookEventType = "v2.sandbox.status_changed"
+	V2WalletDepleted       WebhookEventType = "v2.wallet.depleted"
+	V2WalletLowBalance     WebhookEventType = "v2.wallet.low_balance"
+)
+
+// Valid indicates whether the value is a known member of the WebhookEventType enum.
+func (e WebhookEventType) Valid() bool {
+	switch e {
+	case V2SandboxCreated:
+		return true
+	case V2SandboxStatusChanged:
+		return true
+	case V2WalletDepleted:
+		return true
+	case V2WalletLowBalance:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListPermissionsParamsScope.
 const (
 	ListPermissionsParamsScopeOrganization ListPermissionsParamsScope = "organization"
@@ -2632,6 +2704,95 @@ type BuildContextUploadPart struct {
 // BuildContextUploadState The state of a build-context upload.
 type BuildContextUploadState string
 
+// BuildLogChunk defines model for BuildLogChunk.
+type BuildLogChunk struct {
+	// DataBase64 Base64-encoded log bytes.
+	DataBase64 string `json:"data_base64"`
+
+	// NextOffset The byte offset to request next.
+	NextOffset string `json:"next_offset"`
+
+	// StartOffset The first byte offset in this chunk.
+	StartOffset string `json:"start_offset"`
+}
+
+// BuildLogDone defines model for BuildLogDone.
+type BuildLogDone struct {
+	// Cursor The final cursor, or `null` when no cursor is available.
+	Cursor *string `json:"cursor,omitempty"`
+
+	// OutputComplete Whether all build output was delivered.
+	OutputComplete bool `json:"output_complete"`
+
+	// Reason Why the log stream ended.
+	Reason BuildLogDoneReason `json:"reason"`
+
+	// Status The build status when the log stream ended.
+	Status string `json:"status"`
+}
+
+// BuildLogDoneReason defines model for BuildLogDoneReason.
+type BuildLogDoneReason string
+
+// BuildLogError defines model for BuildLogError.
+type BuildLogError struct {
+	// Code The machine-readable error code.
+	Code string `json:"code"`
+
+	// Error The user-facing error detail.
+	Error string `json:"error"`
+
+	// Retryable Whether the reader may retry the request.
+	Retryable bool `json:"retryable"`
+
+	// TraceId The trace ID for support, or `null` when unavailable.
+	TraceId *string `json:"trace_id,omitempty"`
+}
+
+// BuildLogGap defines model for BuildLogGap.
+type BuildLogGap struct {
+	// DroppedBytes The number of unavailable bytes.
+	DroppedBytes string `json:"dropped_bytes"`
+
+	// FirstAvailableOffset The earliest byte offset still available.
+	FirstAvailableOffset string `json:"first_available_offset"`
+
+	// Reason Why bytes are unavailable.
+	Reason BuildLogGapReason `json:"reason"`
+
+	// RequestedOffset The byte offset the reader requested.
+	RequestedOffset string `json:"requested_offset"`
+}
+
+// BuildLogGapReason defines model for BuildLogGapReason.
+type BuildLogGapReason string
+
+// BuildLogSourceChanged defines model for BuildLogSourceChanged.
+type BuildLogSourceChanged struct {
+	// Reason Why the log source changed.
+	Reason string `json:"reason"`
+}
+
+// BuildLogState The build's current state, sent on the build-log stream. Offsets are
+// decimal strings counting raw bytes, not Unicode positions, and event IDs
+// are opaque cursors.
+type BuildLogState struct {
+	// DeadlineAt The build deadline, or `null` when no deadline applies.
+	DeadlineAt *time.Time `json:"deadline_at,omitempty"`
+
+	// Error The build failure detail, or `null` when no failure is reported.
+	Error *string `json:"error,omitempty"`
+
+	// Status The current build status.
+	Status string `json:"status"`
+}
+
+// BuildLogUnavailable defines model for BuildLogUnavailable.
+type BuildLogUnavailable struct {
+	// Reason Why build logs are unavailable.
+	Reason string `json:"reason"`
+}
+
 // BuildLogsUrl A link to build logs.
 type BuildLogsUrl struct {
 	// Url The URL for reading the build logs.
@@ -2982,8 +3143,11 @@ type CreateMacosSandboxRequest struct {
 	// Reservation Omitted uses any Mac reservation of the organization in the region that fits this size. "new" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.
 	Reservation *string `json:"reservation,omitempty"`
 
-	// Secrets Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.
-	Secrets *[]string `json:"secrets,omitempty"`
+	// Secrets Project secrets to attach. Each is a secret name, injected under an
+	// environment variable of the same name, or an object that names the
+	// variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+	// Secret values are used only for requests to their allowed hosts.
+	Secrets *[]SandboxSecretAttachment `json:"secrets,omitempty"`
 
 	// Volumes Disk volumes to attach, as on Linux: at most 8, each read-write. Each
 	// volume uses its `size_gib` (100 GiB when omitted) of disk space on the
@@ -3254,7 +3418,9 @@ type CreateSandboxRequest struct {
 	// NetworkPolicy Outbound network rules applied to the sandbox.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
 
-	// Persistent Whether writable state persists across stops. Defaults to `false`.
+	// Persistent Whether the sandbox keeps its disk across stop and start and its memory
+	// across pause and resume. Linux stop, start, pause, resume and fork require
+	// a persistent sandbox. Defaults to `false`.
 	Persistent *bool `json:"persistent,omitempty"`
 
 	// Ports Ports exposed when the sandbox starts.
@@ -3265,8 +3431,10 @@ type CreateSandboxRequest struct {
 	// the organization's, then `earth`.
 	RegionId *string `json:"region_id,omitempty"`
 
-	// Secrets Secret names made available to the sandbox.
-	Secrets *[]string `json:"secrets,omitempty"`
+	// Secrets Project secrets to attach. Each is a secret name, injected under an
+	// environment variable of the same name, or an object that names the
+	// variable: `{"name": "tenant-a-openai", "env": "OPENAI_API_KEY"}`.
+	Secrets *[]SandboxSecretAttachment `json:"secrets,omitempty"`
 
 	// Spot Whether to use discounted interruptible capacity. Defaults to `false`.
 	Spot *bool `json:"spot,omitempty"`
@@ -4497,7 +4665,11 @@ type NetworkPolicyRules struct {
 	// BlockAll Whether traffic is denied unless an allow rule matches.
 	BlockAll bool `json:"block_all"`
 
-	// Version Policy format version.
+	// UpstreamProxy The forward proxy the sandbox's egress is sent through, or omitted
+	// when egress is not proxied.
+	UpstreamProxy *UpstreamProxy `json:"upstream_proxy,omitempty"`
+
+	// Version Policy format version: `3` when `upstream_proxy` is set, else `2`.
 	Version int32 `json:"version"`
 }
 
@@ -6047,6 +6219,13 @@ type Sandbox struct {
 	// sandboxes created after it.
 	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
 
+	// DeletedAt When the sandbox was deleted. Present only on `GET /sandboxes/{id}`,
+	// and only when the status is `deleted`; omitted from batch-wait
+	// (`GET /sandboxes/batch-wait`) snapshots. A deleted sandbox stays
+	// readable for a while after its deletion; after that, reading it
+	// returns 404.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
 	// Desktop Desktop settings this sandbox was created with: the create request, or for
 	// a restored or forked sandbox the settings captured from its source. Not
 	// live state: a desktop restart can change them. GET /computeruse/display/info
@@ -6295,6 +6474,13 @@ type SandboxListItem struct {
 	// sandboxes created after it.
 	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
 
+	// DeletedAt When the sandbox was deleted. Present only on `GET /sandboxes/{id}`,
+	// and only when the status is `deleted`; omitted from batch-wait
+	// (`GET /sandboxes/batch-wait`) snapshots. A deleted sandbox stays
+	// readable for a while after its deletion; after that, reading it
+	// returns 404.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
 	// Desktop Desktop settings this sandbox was created with: the create request, or for
 	// a restored or forked sandbox the settings captured from its source. Not
 	// live state: a desktop restart can change them. GET /computeruse/display/info
@@ -6464,11 +6650,44 @@ type SandboxSearchPage struct {
 // SandboxSearchSort defines model for SandboxSearchSort.
 type SandboxSearchSort string
 
+// SandboxSecretAttachment One secret to attach: a secret name, injected under that name, or an
+// object that names the variable separately.
+type SandboxSecretAttachment struct {
+	union json.RawMessage
+}
+
+// SandboxSecretAttachment0 The secret name. The secret is injected under an environment variable
+// of the same name.
+type SandboxSecretAttachment0 = string
+
+// SandboxSecretAttachmentBinding A secret and the environment variable it is injected under.
+type SandboxSecretAttachmentBinding struct {
+	// Env The environment variable the secret is injected under. Defaults to the
+	// secret name.
+	Env *string `json:"env,omitempty"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+}
+
+// SandboxSecretBinding One attached secret as a sandbox reports it.
+type SandboxSecretBinding struct {
+	// Env The environment variable the secret is injected under.
+	Env string `json:"env"`
+
+	// Name The secret name.
+	Name string `json:"name"`
+}
+
 // SandboxSecrets The secrets attached to a sandbox: the requested names and how far the
 // sandbox has applied them.
 type SandboxSecrets struct {
 	// AppliedRevision Revision the sandbox has applied, or null before the first one.
 	AppliedRevision *int64 `json:"applied_revision,omitempty"`
+
+	// Bindings The requested secrets and the environment variable each is injected
+	// under, in the order of `secrets`.
+	Bindings *[]SandboxSecretBinding `json:"bindings,omitempty"`
 
 	// CaptureStatus For a restored or forked sandbox, how much of the source's secrets the
 	// copy received: `complete`, `partial` or an unknown status.
@@ -6750,6 +6969,12 @@ type SetSandboxNetworkPolicyRequest struct {
 	// `400 NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. With `allow_domains`
 	// null, omitted or null normalizes to `false`.
 	BlockAll *bool `json:"block_all,omitempty"`
+
+	// UpstreamProxy Sends the sandbox's web egress through this HTTP or HTTPS forward
+	// proxy. Omitted or null means egress is not proxied. Combines with every
+	// other rule in the policy; destinations inside `allow_cidrs` are still
+	// reached directly.
+	UpstreamProxy *UpstreamProxyInput `json:"upstream_proxy,omitempty"`
 }
 
 // SetSandboxPortRequest defines model for SetSandboxPortRequest.
@@ -6760,9 +6985,12 @@ type SetSandboxPortRequest struct {
 
 // SetSandboxSecretsRequest defines model for SetSandboxSecretsRequest.
 type SetSandboxSecretsRequest struct {
-	// Secrets The complete desired set of project secret names. Required; send `[]`
-	// to detach every secret.
-	Secrets []string `json:"secrets"`
+	// Secrets The complete desired set of project secrets. Each is a secret name or
+	// an object that names the variable. A secret already attached keeps its
+	// variable unless the item sets `env`; a newly attached one is injected
+	// under its own name unless the item sets `env`. Required; send `[]` to
+	// detach every secret.
+	Secrets []SandboxSecretAttachment `json:"secrets"`
 }
 
 // SetSecretRequest A secret value and its metadata. Values are encrypted at rest and are
@@ -7223,6 +7451,25 @@ type UpdateSandboxLifecyclePolicyRequest struct {
 	TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
 }
 
+// UpdateSecretRequest A partial update of an existing secret. Every field is optional; an
+// absent field keeps its stored value. Without `value`, `allowed_domains`
+// can only remove hosts from the stored scope.
+type UpdateSecretRequest struct {
+	// AllowedDomains The replacement egress scope, in the same form as on create. Without
+	// `value`, every entry must already be covered by the stored scope: a
+	// request can remove hosts the value reaches, never add them. To add
+	// hosts, send `value` too. Omit it to keep the stored scope.
+	AllowedDomains *[]string `json:"allowed_domains,omitempty"`
+
+	// Description The replacement description; `null` clears it. Omit it to keep the
+	// stored description.
+	Description *string `json:"description,omitempty"`
+
+	// Value The replacement value (max 64 KiB). Write-only — never echoed back.
+	// Omit it to keep the stored value.
+	Value *string `json:"value,omitempty"`
+}
+
 // UpdateServiceAccountRequest defines model for UpdateServiceAccountRequest.
 type UpdateServiceAccountRequest struct {
 	// Description The replacement description; `null` clears it.
@@ -7233,6 +7480,37 @@ type UpdateServiceAccountRequest struct {
 
 	// Roles The replacement role identifiers.
 	Roles *[]string `json:"roles,omitempty"`
+}
+
+// UpstreamProxy The forward proxy a network policy sends egress through.
+type UpstreamProxy struct {
+	// CredentialsSecret Name of the project secret that holds the proxy credentials, or null
+	// when the proxy is used without credentials.
+	CredentialsSecret *string `json:"credentials_secret,omitempty"`
+
+	// Url The proxy URL in normalized form: `<scheme>://<host>:<port>`, with the
+	// host lowercased, an IPv6 address in brackets, and the scheme's default
+	// port filled in.
+	Url string `json:"url"`
+}
+
+// UpstreamProxyInput The forward proxy a network policy sends egress through, as requested.
+type UpstreamProxyInput struct {
+	// CredentialsSecret Name of a project secret whose value is `username:password`, sent to
+	// the proxy as HTTP basic proxy authorization. The value never enters
+	// the sandbox. The secret's `allowed_domains` must include the proxy
+	// host; an IP address host requires `["*"]`. Naming a secret requires
+	// permission to read the project's secrets, except when a policy update
+	// keeps the secret and `url` the current policy already has. Omitted or null
+	// means the proxy is used without credentials.
+	CredentialsSecret *string `json:"credentials_secret,omitempty"`
+
+	// Url The proxy URL: `http://` or `https://`, a host, and an optional port
+	// (default 80 for `http`, 443 for `https`). It must not contain
+	// credentials, a path other than `/`, a query, or a fragment. A host that
+	// is an IP address in a private or reserved range is rejected. `https`
+	// is required when `credentials_secret` is set.
+	Url string `json:"url"`
 }
 
 // UsageCharge defines model for UsageCharge.
@@ -7501,6 +7779,93 @@ type V0SandboxPage struct {
 	Sandboxes []V0Sandbox `json:"sandboxes"`
 }
 
+// V2SandboxCreatedWebhook The `v2.sandbox.created` webhook payload.
+type V2SandboxCreatedWebhook struct {
+	// OccurredAt When the sandbox was created on the platform, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a sandbox's events by this field.
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// OrganizationId The ID of the organization that owns the sandbox.
+	OrganizationId openapi_types.UUID `json:"organization_id"`
+
+	// ProjectId The ID of the project that owns the sandbox.
+	ProjectId openapi_types.UUID `json:"project_id"`
+
+	// Sandbox The sandbox.
+	Sandbox WebhookSandbox `json:"sandbox"`
+
+	// Timestamp When the webhook was sent, as an RFC 3339 timestamp in UTC.
+	Timestamp time.Time `json:"timestamp"`
+
+	// Type The event type, `v2.sandbox.created`.
+	Type WebhookEventType `json:"type"`
+}
+
+// V2SandboxStatusChangedWebhook The `v2.sandbox.status_changed` webhook payload.
+type V2SandboxStatusChangedWebhook struct {
+	// FromStatus The status before the change.
+	FromStatus SandboxStatus `json:"from_status"`
+
+	// OccurredAt When the status changed, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a sandbox's events by this field. Two steps of one change can, rarely, carry the same value.
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// OrganizationId The ID of the organization that owns the sandbox.
+	OrganizationId openapi_types.UUID `json:"organization_id"`
+
+	// ProjectId The ID of the project that owns the sandbox.
+	ProjectId openapi_types.UUID `json:"project_id"`
+
+	// Sandbox The sandbox, with its status after the change.
+	Sandbox WebhookSandbox `json:"sandbox"`
+
+	// Timestamp When the webhook was sent, as an RFC 3339 timestamp in UTC.
+	Timestamp time.Time `json:"timestamp"`
+
+	// Type The event type, `v2.sandbox.status_changed`.
+	Type WebhookEventType `json:"type"`
+}
+
+// V2WalletDepletedWebhook The `v2.wallet.depleted` webhook payload.
+type V2WalletDepletedWebhook struct {
+	// OccurredAt When the platform found the wallet depleted and requested the organization's suspension, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a wallet's events by this field.
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// OrganizationId The ID of the organization that owns the wallet.
+	OrganizationId openapi_types.UUID `json:"organization_id"`
+
+	// Timestamp When the webhook was sent, as an RFC 3339 timestamp in UTC.
+	Timestamp time.Time `json:"timestamp"`
+
+	// Type The event type, `v2.wallet.depleted`.
+	Type WebhookEventType `json:"type"`
+
+	// Wallet The wallet.
+	Wallet WebhookWallet `json:"wallet"`
+}
+
+// V2WalletLowBalanceWebhook The `v2.wallet.low_balance` webhook payload.
+type V2WalletLowBalanceWebhook struct {
+	// Currency The lowercase ISO 4217 currency code of the threshold.
+	Currency string `json:"currency"`
+
+	// OccurredAt When the platform found the balance at or below the threshold, as an RFC 3339 timestamp in UTC with microsecond precision. Deliveries are not ordered; order a wallet's events by this field.
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// OrganizationId The ID of the organization that owns the wallet.
+	OrganizationId openapi_types.UUID `json:"organization_id"`
+
+	// ThresholdCents The organization's low-balance notification threshold in cents. The event is sent when the wallet's promotional plus purchased credit balance is at or below it.
+	ThresholdCents int64 `json:"threshold_cents"`
+
+	// Timestamp When the webhook was sent, as an RFC 3339 timestamp in UTC.
+	Timestamp time.Time `json:"timestamp"`
+
+	// Type The event type, `v2.wallet.low_balance`.
+	Type WebhookEventType `json:"type"`
+
+	// Wallet The wallet.
+	Wallet WebhookWallet `json:"wallet"`
+}
+
 // Volume A volume available to the project.
 type Volume struct {
 	// CreatedAt When the volume was created.
@@ -7680,6 +8045,93 @@ type Wallet struct {
 	TotalSpentThisMonthCents int64 `json:"total_spent_this_month_cents"`
 }
 
+// WebhookEventType The event type of a webhook delivery. Every v2 event type is
+// `v2.<resource>.<event>`. More event types may be added; receivers must
+// accept values they don't recognize.
+type WebhookEventType string
+
+// WebhookPortalAccess A short-lived webhook portal session.
+type WebhookPortalAccess struct {
+	// Token The portal session token, a short-lived bearer credential scoped to
+	// the organization's webhook application.
+	Token string `json:"token"`
+
+	// Url The portal URL to embed, carrying the token.
+	Url string `json:"url"`
+}
+
+// WebhookSandbox The sandbox a webhook is about: a subset of the `Sandbox` returned by
+// `GET /sandboxes/{sandbox_id}`, with the same field names and values.
+type WebhookSandbox struct {
+	// Class The sandbox class.
+	Class SandboxClass `json:"class"`
+
+	// CreatedAt When the sandbox was created, as an RFC 3339 timestamp in UTC.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Error Failure detail, or null when no failure is recorded.
+	Error *string `json:"error,omitempty"`
+
+	// Id The sandbox ID.
+	Id string `json:"id"`
+
+	// Labels User-defined sandbox labels.
+	Labels map[string]string `json:"labels"`
+
+	// Name The sandbox name.
+	Name string `json:"name"`
+
+	// RegionId The region the sandbox runs in.
+	RegionId string `json:"region_id"`
+
+	// Status The sandbox status.
+	Status SandboxStatus `json:"status"`
+}
+
+// WebhookWallet The organization's wallet, read when the event is sent: a subset
+// of the `Wallet` returned by `GET /orgs/{org_id}/billing/wallet`, with the
+// same field names and values. The event's condition is checked against
+// `free_credits_balance_cents` plus `paid_credits_balance_cents`, which
+// count the current month's unbilled usage; `balance_cents` does not, so it
+// can be higher.
+type WebhookWallet struct {
+	// BalanceCents The total available balance in cents.
+	BalanceCents int64 `json:"balance_cents"`
+
+	// Currency The lowercase ISO 4217 currency code.
+	Currency string `json:"currency"`
+
+	// FreeCreditsBalanceCents The promotional-credit balance in cents.
+	FreeCreditsBalanceCents int64 `json:"free_credits_balance_cents"`
+
+	// PaidCreditsBalanceCents The purchased-credit balance in cents.
+	PaidCreditsBalanceCents int64 `json:"paid_credits_balance_cents"`
+}
+
+// WebhooksStatus An organization's webhook state, as the management routes answer it.
+type WebhooksStatus struct {
+	// CreatedAt When the organization's webhook state was first recorded.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// HasEndpoints Whether the application has at least one endpoint, as last checked.
+	HasEndpoints bool `json:"has_endpoints"`
+
+	// Initialized Whether the organization has a webhook application.
+	Initialized bool `json:"initialized"`
+
+	// LastError The last initialization error code, or `null` after a success.
+	LastError *string `json:"last_error,omitempty"`
+
+	// OrganizationId The organization ID.
+	OrganizationId openapi_types.UUID `json:"organization_id"`
+
+	// SvixApplicationId The webhook provider's application ID, when initialized.
+	SvixApplicationId *string `json:"svix_application_id,omitempty"`
+
+	// UpdatedAt When the organization's webhook state last changed.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
 // ApiKeyId defines model for ApiKeyId.
 type ApiKeyId = openapi_types.UUID
 
@@ -7757,6 +8209,9 @@ type EntitlementRequired = ErrorBody
 
 // Forbidden The JSON error envelope every non-2xx response carries.
 type Forbidden = ErrorBody
+
+// NotServedHere The JSON error envelope every non-2xx response carries.
+type NotServedHere = ErrorBody
 
 // TooManyRequests The JSON error envelope every non-2xx response carries.
 type TooManyRequests = ErrorBody
@@ -8775,11 +9230,26 @@ type SetSandboxSecretsJSONRequestBody = SetSandboxSecretsRequest
 // CreateSandboxSnapshotJSONRequestBody defines body for CreateSandboxSnapshot for application/json ContentType.
 type CreateSandboxSnapshotJSONRequestBody = CreateSandboxSnapshotRequest
 
+// UpdateSecretJSONRequestBody defines body for UpdateSecret for application/json ContentType.
+type UpdateSecretJSONRequestBody = UpdateSecretRequest
+
 // SetSecretJSONRequestBody defines body for SetSecret for application/json ContentType.
 type SetSecretJSONRequestBody = SetSecretRequest
 
 // CreateVolumeJSONRequestBody defines body for CreateVolume for application/json ContentType.
 type CreateVolumeJSONRequestBody = CreateVolumeRequest
+
+// V2SandboxCreatedJSONRequestBody defines body for V2SandboxCreated for application/json ContentType.
+type V2SandboxCreatedJSONRequestBody = V2SandboxCreatedWebhook
+
+// V2SandboxStatusChangedJSONRequestBody defines body for V2SandboxStatusChanged for application/json ContentType.
+type V2SandboxStatusChangedJSONRequestBody = V2SandboxStatusChangedWebhook
+
+// V2WalletDepletedJSONRequestBody defines body for V2WalletDepleted for application/json ContentType.
+type V2WalletDepletedJSONRequestBody = V2WalletDepletedWebhook
+
+// V2WalletLowBalanceJSONRequestBody defines body for V2WalletLowBalance for application/json ContentType.
+type V2WalletLowBalanceJSONRequestBody = V2WalletLowBalanceWebhook
 
 // AsDesktopEnvironment returns the union data inside the DesktopConfig_Environment as a DesktopEnvironment
 func (t DesktopConfig_Environment) AsDesktopEnvironment() (DesktopEnvironment, error) {
@@ -9025,6 +9495,68 @@ func (t PublicImageSource) MarshalJSON() ([]byte, error) {
 }
 
 func (t *PublicImageSource) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSandboxSecretAttachment0 returns the union data inside the SandboxSecretAttachment as a SandboxSecretAttachment0
+func (t SandboxSecretAttachment) AsSandboxSecretAttachment0() (SandboxSecretAttachment0, error) {
+	var body SandboxSecretAttachment0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSandboxSecretAttachment0 overwrites any union data inside the SandboxSecretAttachment as the provided SandboxSecretAttachment0
+func (t *SandboxSecretAttachment) FromSandboxSecretAttachment0(v SandboxSecretAttachment0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSandboxSecretAttachment0 performs a merge with any union data inside the SandboxSecretAttachment, using the provided SandboxSecretAttachment0
+func (t *SandboxSecretAttachment) MergeSandboxSecretAttachment0(v SandboxSecretAttachment0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSandboxSecretAttachmentBinding returns the union data inside the SandboxSecretAttachment as a SandboxSecretAttachmentBinding
+func (t SandboxSecretAttachment) AsSandboxSecretAttachmentBinding() (SandboxSecretAttachmentBinding, error) {
+	var body SandboxSecretAttachmentBinding
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSandboxSecretAttachmentBinding overwrites any union data inside the SandboxSecretAttachment as the provided SandboxSecretAttachmentBinding
+func (t *SandboxSecretAttachment) FromSandboxSecretAttachmentBinding(v SandboxSecretAttachmentBinding) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSandboxSecretAttachmentBinding performs a merge with any union data inside the SandboxSecretAttachment, using the provided SandboxSecretAttachmentBinding
+func (t *SandboxSecretAttachment) MergeSandboxSecretAttachmentBinding(v SandboxSecretAttachmentBinding) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SandboxSecretAttachment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SandboxSecretAttachment) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

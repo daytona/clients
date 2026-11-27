@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List
+from daytona.v2._gen.api.models.sandbox_secret_attachment import SandboxSecretAttachment
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -34,7 +35,7 @@ class SetSandboxSecretsRequest(BaseModel):
     """
     SetSandboxSecretsRequest
     """ # noqa: E501
-    secrets: List[StrictStr] = Field(description="The complete desired set of project secret names. Required; send `[]` to detach every secret.")
+    secrets: List[SandboxSecretAttachment] = Field(description="The complete desired set of project secrets. Each is a secret name or an object that names the variable. A secret already attached keeps its variable unless the item sets `env`; a newly attached one is injected under its own name unless the item sets `env`. Required; send `[]` to detach every secret.")
     __properties: ClassVar[List[str]] = ["secrets"]
 
     model_config = ConfigDict(
@@ -78,6 +79,13 @@ class SetSandboxSecretsRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in secrets (list)
+        _items = []
+        if self.secrets:
+            for _item_secrets in self.secrets:
+                if _item_secrets:
+                    _items.append(_item_secrets.to_dict())
+            _dict['secrets'] = _items
         return _dict
 
     @classmethod
@@ -90,7 +98,7 @@ class SetSandboxSecretsRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "secrets": obj.get("secrets")
+            "secrets": [SandboxSecretAttachment.from_dict(_item) for _item in obj["secrets"]] if obj.get("secrets") is not None else None
         })
         return _obj
 

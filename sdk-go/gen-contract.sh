@@ -31,6 +31,10 @@ fi
 # left out (as in cli/hack/gen.sh). Every schema is still generated.
 exclude_toolbox='  exclude-operation-ids: [screenshot, screenshot_compressed, screenshot_region, screenshot_region_compressed]'
 
+# The API spec's `webhooks` payloads are referenced only from the webhooks
+# section, which the generator's pruning does not follow while it still emits
+# their request-body aliases: pruning is off for the API spec so those payload
+# schemas are generated too.
 config=$(mktemp "${TMPDIR:-/tmp}/daytona-oapi.XXXXXX")
 trap 'rm -f "$config"' EXIT
 for spec in api toolbox; do
@@ -41,7 +45,7 @@ output: internal/gen/$spec/models.gen.go
 generate:
   models: true
 output-options:
-  skip-prune: false
+  skip-prune: $([ "$spec" = api ] && echo true || echo false)
 $([ "$spec" = toolbox ] && echo "$exclude_toolbox")
 EOF
   "$BIN" -config "$config" "../contract/$spec-openapi.json"

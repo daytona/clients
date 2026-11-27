@@ -263,6 +263,9 @@ from daytona.v2._gen.api.models.sandbox_port_page import SandboxPortPage as Sand
 from daytona.v2._gen.api.models.sandbox_resource_limits import SandboxResourceLimits as SandboxResourceLimits
 from daytona.v2._gen.api.models.sandbox_search_page import SandboxSearchPage as SandboxSearchPage
 from daytona.v2._gen.api.models.sandbox_search_sort import SandboxSearchSort as SandboxSearchSort
+from daytona.v2._gen.api.models.sandbox_secret_attachment import SandboxSecretAttachment as SandboxSecretAttachment
+from daytona.v2._gen.api.models.sandbox_secret_attachment_binding import SandboxSecretAttachmentBinding as SandboxSecretAttachmentBinding
+from daytona.v2._gen.api.models.sandbox_secret_binding import SandboxSecretBinding as SandboxSecretBinding
 from daytona.v2._gen.api.models.sandbox_secrets import SandboxSecrets as SandboxSecrets
 from daytona.v2._gen.api.models.sandbox_status import SandboxStatus as SandboxStatus
 from daytona.v2._gen.api.models.sandbox_timeout_limits import SandboxTimeoutLimits as SandboxTimeoutLimits
@@ -326,7 +329,10 @@ from daytona.v2._gen.api.models.update_project_limits_request import UpdateProje
 from daytona.v2._gen.api.models.update_project_request import UpdateProjectRequest as UpdateProjectRequest
 from daytona.v2._gen.api.models.update_reservation_request import UpdateReservationRequest as UpdateReservationRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest as UpdateSandboxLifecyclePolicyRequest
+from daytona.v2._gen.api.models.update_secret_request import UpdateSecretRequest as UpdateSecretRequest
 from daytona.v2._gen.api.models.update_service_account_request import UpdateServiceAccountRequest as UpdateServiceAccountRequest
+from daytona.v2._gen.api.models.upstream_proxy import UpstreamProxy as UpstreamProxy
+from daytona.v2._gen.api.models.upstream_proxy_input import UpstreamProxyInput as UpstreamProxyInput
 from daytona.v2._gen.api.models.usage_charge import UsageCharge as UsageCharge
 from daytona.v2._gen.api.models.usage_history_resolution import UsageHistoryResolution as UsageHistoryResolution
 from daytona.v2._gen.api.models.usage_limit import UsageLimit as UsageLimit
@@ -342,6 +348,10 @@ from daytona.v2._gen.api.models.v0_migration_summary import V0MigrationSummary a
 from daytona.v2._gen.api.models.v0_sandbox import V0Sandbox as V0Sandbox
 from daytona.v2._gen.api.models.v0_sandbox_import import V0SandboxImport as V0SandboxImport
 from daytona.v2._gen.api.models.v0_sandbox_page import V0SandboxPage as V0SandboxPage
+from daytona.v2._gen.api.models.v2_sandbox_created_webhook import V2SandboxCreatedWebhook as V2SandboxCreatedWebhook
+from daytona.v2._gen.api.models.v2_sandbox_status_changed_webhook import V2SandboxStatusChangedWebhook as V2SandboxStatusChangedWebhook
+from daytona.v2._gen.api.models.v2_wallet_depleted_webhook import V2WalletDepletedWebhook as V2WalletDepletedWebhook
+from daytona.v2._gen.api.models.v2_wallet_low_balance_webhook import V2WalletLowBalanceWebhook as V2WalletLowBalanceWebhook
 from daytona.v2._gen.api.models.volume import Volume as Volume
 from daytona.v2._gen.api.models.volume_bucket_origin import VolumeBucketOrigin as VolumeBucketOrigin
 from daytona.v2._gen.api.models.volume_mount import VolumeMount as VolumeMount
@@ -353,3 +363,8 @@ from daytona.v2._gen.api.models.volume_search_status import VolumeSearchStatus a
 from daytona.v2._gen.api.models.volume_status import VolumeStatus as VolumeStatus
 from daytona.v2._gen.api.models.volume_type import VolumeType as VolumeType
 from daytona.v2._gen.api.models.wallet import Wallet as Wallet
+from daytona.v2._gen.api.models.webhook_event_type import WebhookEventType as WebhookEventType
+from daytona.v2._gen.api.models.webhook_portal_access import WebhookPortalAccess as WebhookPortalAccess
+from daytona.v2._gen.api.models.webhook_sandbox import WebhookSandbox as WebhookSandbox
+from daytona.v2._gen.api.models.webhook_wallet import WebhookWallet as WebhookWallet
+from daytona.v2._gen.api.models.webhooks_status import WebhooksStatus as WebhooksStatus

@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, Strict
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from daytona.v2._gen.api.models.port_mapping import PortMapping
+from daytona.v2._gen.api.models.sandbox_secret_attachment import SandboxSecretAttachment
 from daytona.v2._gen.api.models.set_sandbox_network_policy_request import SetSandboxNetworkPolicyRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest
 from daytona.v2._gen.api.models.volume_mount import VolumeMount
@@ -55,7 +56,7 @@ class CreateMacosSandboxRequest(BaseModel):
     ports: Optional[List[PortMapping]] = Field(default=None, description="Ports exposed when the sandbox starts.")
     region_id: Optional[StrictStr] = Field(default=None, description="The region to create the sandbox in. When omitted: the named reservation's region. Otherwise, when Macs are offered in exactly one region, that region; when they are offered in several, the project's or organization's default region if it is one of them, else `region_id` is required (`400 BAD_REQUEST`). With no Mac region offered, the project's default region, then the organization's, then `earth`.")
     reservation: Optional[StrictStr] = Field(default=None, description="Omitted uses any Mac reservation of the organization in the region that fits this size. \"new\" buys a reservation of the cheapest available Mac model that fits this size. A reservation ID uses only that reservation. An accepted create can wait for space on a Mac until `create_timeout_seconds`.")
-    secrets: Optional[List[StrictStr]] = Field(default=None, description="Names of project secrets to attach. Secret values are used only for requests to their allowed hosts.")
+    secrets: Optional[List[SandboxSecretAttachment]] = Field(default=None, description="Project secrets to attach. Each is a secret name, injected under an environment variable of the same name, or an object that names the variable: `{\"name\": \"tenant-a-openai\", \"env\": \"OPENAI_API_KEY\"}`. Secret values are used only for requests to their allowed hosts.")
     volumes: Optional[List[VolumeMount]] = Field(default=None, description="Disk volumes to attach, as on Linux: at most 8, each read-write. Each volume uses its `size_gib` (100 GiB when omitted) of disk space on the sandbox's Mac, beside the sandbox's disk. A sandbox with volumes cannot be persistent. A bucket volume returns 400.")
     wait_seconds: Optional[StrictInt] = Field(default=None, description="Seconds to hold the response until the sandbox is `running`, capped at 3 by default. Omitted uses the cap, `0` returns immediately, and a negative value returns 400. The response carries the status reached when the wait ends.")
     __properties: ClassVar[List[str]] = ["auto_renew", "cores", "create_timeout_seconds", "disk_mib", "env", "idempotency_key", "image", "labels", "lifecycle_policy", "memory_mib", "name", "network_policy", "persistent", "ports", "region_id", "reservation", "secrets", "volumes", "wait_seconds"]
@@ -114,6 +115,13 @@ class CreateMacosSandboxRequest(BaseModel):
                 if _item_ports:
                     _items.append(_item_ports.to_dict())
             _dict['ports'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in secrets (list)
+        _items = []
+        if self.secrets:
+            for _item_secrets in self.secrets:
+                if _item_secrets:
+                    _items.append(_item_secrets.to_dict())
+            _dict['secrets'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in volumes (list)
         _items = []
         if self.volumes:
@@ -209,7 +217,7 @@ class CreateMacosSandboxRequest(BaseModel):
             **({"ports": [PortMapping.from_dict(_item) for _item in obj["ports"]] if obj["ports"] is not None else None} if "ports" in obj else {}),
             **({"region_id": obj["region_id"]} if "region_id" in obj else {}),
             **({"reservation": obj["reservation"]} if "reservation" in obj else {}),
-            **({"secrets": obj["secrets"]} if "secrets" in obj else {}),
+            **({"secrets": [SandboxSecretAttachment.from_dict(_item) for _item in obj["secrets"]] if obj["secrets"] is not None else None} if "secrets" in obj else {}),
             **({"volumes": [VolumeMount.from_dict(_item) for _item in obj["volumes"]] if obj["volumes"] is not None else None} if "volumes" in obj else {}),
             **({"wait_seconds": obj["wait_seconds"]} if "wait_seconds" in obj else {})
         })

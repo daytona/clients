@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, Stri
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from daytona.v2._gen.api.models.desktop_config import DesktopConfig
 from daytona.v2._gen.api.models.port_mapping import PortMapping
+from daytona.v2._gen.api.models.sandbox_secret_attachment import SandboxSecretAttachment
 from daytona.v2._gen.api.models.set_sandbox_network_policy_request import SetSandboxNetworkPolicyRequest
 from daytona.v2._gen.api.models.update_sandbox_lifecycle_policy_request import UpdateSandboxLifecyclePolicyRequest
 from daytona.v2._gen.api.models.volume_mount import VolumeMount
@@ -56,10 +57,10 @@ class CreateSandboxRequest(BaseModel):
     memory_mib: Optional[StrictInt] = Field(default=None, description="Reserved memory in MiB.")
     name: Optional[StrictStr] = Field(default=None, description="Sandbox name. A name is generated when omitted.")
     network_policy: Optional[SetSandboxNetworkPolicyRequest] = Field(default=None, description="Outbound network rules applied to the sandbox.")
-    persistent: Optional[StrictBool] = Field(default=None, description="Whether writable state persists across stops. Defaults to `false`.")
+    persistent: Optional[StrictBool] = Field(default=None, description="Whether the sandbox keeps its disk across stop and start and its memory across pause and resume. Linux stop, start, pause, resume and fork require a persistent sandbox. Defaults to `false`.")
     ports: Optional[List[PortMapping]] = Field(default=None, description="Ports exposed when the sandbox starts.")
     region_id: Optional[StrictStr] = Field(default=None, description="The region to create the sandbox in. Any listed region, including `earth` (anywhere). When omitted: the project's default region, then the organization's, then `earth`.")
-    secrets: Optional[List[StrictStr]] = Field(default=None, description="Secret names made available to the sandbox.")
+    secrets: Optional[List[SandboxSecretAttachment]] = Field(default=None, description="Project secrets to attach. Each is a secret name, injected under an environment variable of the same name, or an object that names the variable: `{\"name\": \"tenant-a-openai\", \"env\": \"OPENAI_API_KEY\"}`.")
     spot: Optional[StrictBool] = Field(default=None, description="Whether to use discounted interruptible capacity. Defaults to `false`.")
     user: Optional[StrictStr] = Field(default=None, description="Default operating-system user.")
     volumes: Optional[List[VolumeMount]] = Field(default=None, description="Volumes mounted in the sandbox.")
@@ -123,6 +124,13 @@ class CreateSandboxRequest(BaseModel):
                 if _item_ports:
                     _items.append(_item_ports.to_dict())
             _dict['ports'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in secrets (list)
+        _items = []
+        if self.secrets:
+            for _item_secrets in self.secrets:
+                if _item_secrets:
+                    _items.append(_item_secrets.to_dict())
+            _dict['secrets'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in volumes (list)
         _items = []
         if self.volumes:
@@ -247,7 +255,7 @@ class CreateSandboxRequest(BaseModel):
             **({"persistent": obj["persistent"]} if "persistent" in obj else {}),
             **({"ports": [PortMapping.from_dict(_item) for _item in obj["ports"]] if obj["ports"] is not None else None} if "ports" in obj else {}),
             **({"region_id": obj["region_id"]} if "region_id" in obj else {}),
-            **({"secrets": obj["secrets"]} if "secrets" in obj else {}),
+            **({"secrets": [SandboxSecretAttachment.from_dict(_item) for _item in obj["secrets"]] if obj["secrets"] is not None else None} if "secrets" in obj else {}),
             **({"spot": obj["spot"]} if "spot" in obj else {}),
             **({"user": obj["user"]} if "user" in obj else {}),
             **({"volumes": [VolumeMount.from_dict(_item) for _item in obj["volumes"]] if obj["volumes"] is not None else None} if "volumes" in obj else {}),

@@ -22,14 +22,25 @@ if ! [ -x "$BIN" ] || ! "$BIN" -version 2>/dev/null | grep -q "$WANT"; then
   GOFLAGS=-mod=mod go install "github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$WANT"
   BIN="$DEFAULT_OAPI_CODEGEN"
 fi
-"$BIN" -generate types -package api -o gen/api/types.gen.go ../contract/api-openapi.json
+# API: the spec's `webhooks` payloads are referenced only from the webhooks
+# section, which the generator's pruning does not follow while it still emits
+# their request-body aliases, so pruning is off and every schema is generated.
+CONFIG_PATH="$(mktemp "${TMPDIR:-/tmp}/daytona-oapi.XXXXXX")"
+trap 'rm -f "$CONFIG_PATH"' EXIT
+cat > "$CONFIG_PATH" <<'EOF2'
+package: api
+output: gen/api/types.gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true
+EOF2
+"$BIN" -config "$CONFIG_PATH" ../contract/api-openapi.json
 # Toolbox: the four computer-use screenshot operations declare both
 # `show_cursor` and a camelCase `showCursor` query alias, which collide as Go
 # fields in the generated *Params types. Computer-use is out of the CLI's
 # scope, so those operations are excluded from generation;
 # every schema and every other operation is generated.
-CONFIG_PATH="$(mktemp "${TMPDIR:-/tmp}/daytona-oapi.XXXXXX")"
-trap 'rm -f "$CONFIG_PATH"' EXIT
 cat > "$CONFIG_PATH" <<'EOF2'
 package: toolbox
 output: gen/toolbox/types.gen.go

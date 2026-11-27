@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.upstream_proxy import UpstreamProxy
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -37,9 +38,10 @@ class NetworkPolicyRules(BaseModel):
     allow_cidrs: List[StrictStr] = Field(description="IPv4 addresses and CIDR ranges allowed by the policy.")
     allow_domains: Optional[List[StrictStr]] = Field(default=None, description="Domain names allowed by the policy, or null when domain filtering is not configured.")
     block_all: StrictBool = Field(description="Whether traffic is denied unless an allow rule matches.")
-    version: StrictInt = Field(description="Policy format version.")
+    upstream_proxy: Optional[UpstreamProxy] = Field(default=None, description="The forward proxy the sandbox's egress is sent through, or omitted when egress is not proxied.")
+    version: StrictInt = Field(description="Policy format version: `3` when `upstream_proxy` is set, else `2`.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["allow_cidrs", "allow_domains", "block_all", "version"]
+    __properties: ClassVar[List[str]] = ["allow_cidrs", "allow_domains", "block_all", "upstream_proxy", "version"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -84,6 +86,9 @@ class NetworkPolicyRules(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of upstream_proxy
+        if self.upstream_proxy:
+            _dict['upstream_proxy'] = self.upstream_proxy.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -93,6 +98,11 @@ class NetworkPolicyRules(BaseModel):
         # and model_fields_set contains the field
         if self.allow_domains is None and "allow_domains" in self.model_fields_set:
             _dict['allow_domains'] = None
+
+        # set to None if upstream_proxy (nullable) is None
+        # and model_fields_set contains the field
+        if self.upstream_proxy is None and "upstream_proxy" in self.model_fields_set:
+            _dict['upstream_proxy'] = None
 
         return _dict
 
@@ -109,6 +119,7 @@ class NetworkPolicyRules(BaseModel):
             "allow_cidrs": obj.get("allow_cidrs"),
             **({"allow_domains": obj["allow_domains"]} if "allow_domains" in obj else {}),
             "block_all": obj.get("block_all"),
+            **({"upstream_proxy": UpstreamProxy.from_dict(obj["upstream_proxy"]) if obj["upstream_proxy"] is not None else None} if "upstream_proxy" in obj else {}),
             "version": obj.get("version")
         })
         # store additional fields in additional_properties

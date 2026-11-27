@@ -53,6 +53,9 @@ func loadContractRouter(path string) (routers.Router, error) {
 	downconvert31(generic)
 	if m, ok := generic.(map[string]any); ok {
 		m["openapi"] = "3.0.3"
+		// `webhooks` (requests the API sends, not routes it serves) is a
+		// 3.1-only field that the 3.0 loader refuses.
+		delete(m, "webhooks")
 	}
 	raw, _ = json.Marshal(generic)
 	loader := openapi3.NewLoader()

@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from daytona.v2._gen.api.models.upstream_proxy_input import UpstreamProxyInput
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -37,7 +38,8 @@ class SetSandboxNetworkPolicyRequest(BaseModel):
     allow_cidrs: Optional[List[StrictStr]] = Field(default=None, description="IPv4 addresses and network-aligned CIDR ranges allowed by the policy. Host bits in a CIDR are rejected; bare IPv4 addresses are accepted. Duplicates are removed in input order. Defaults to an empty list. A non-empty list requires `block_all: true` or non-null `allow_domains`; otherwise it has no effect and is rejected with `400 BAD_REQUEST`.")
     allow_domains: Optional[List[StrictStr]] = Field(default=None, description="ASCII hostnames (at least two LDH labels) or leading `*.` wildcards, lowercased, with one trailing dot removed and duplicates removed in input order. Null means domain filtering is not configured; a non-null list implies `block_all: true` when that field is omitted or null.")
     block_all: Optional[StrictBool] = Field(default=None, description="Default-deny toggle. With a non-null `allow_domains`, omitted or null normalizes to `true`, and an explicit `false` is rejected with `400 NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. With `allow_domains` null, omitted or null normalizes to `false`.")
-    __properties: ClassVar[List[str]] = ["allow_cidrs", "allow_domains", "block_all"]
+    upstream_proxy: Optional[UpstreamProxyInput] = Field(default=None, description="Sends the sandbox's web egress through this HTTP or HTTPS forward proxy. Omitted or null means egress is not proxied. Combines with every other rule in the policy; destinations inside `allow_cidrs` are still reached directly.")
+    __properties: ClassVar[List[str]] = ["allow_cidrs", "allow_domains", "block_all", "upstream_proxy"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -80,6 +82,9 @@ class SetSandboxNetworkPolicyRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of upstream_proxy
+        if self.upstream_proxy:
+            _dict['upstream_proxy'] = self.upstream_proxy.to_dict()
         # set to None if allow_domains (nullable) is None
         # and model_fields_set contains the field
         if self.allow_domains is None and "allow_domains" in self.model_fields_set:
@@ -89,6 +94,11 @@ class SetSandboxNetworkPolicyRequest(BaseModel):
         # and model_fields_set contains the field
         if self.block_all is None and "block_all" in self.model_fields_set:
             _dict['block_all'] = None
+
+        # set to None if upstream_proxy (nullable) is None
+        # and model_fields_set contains the field
+        if self.upstream_proxy is None and "upstream_proxy" in self.model_fields_set:
+            _dict['upstream_proxy'] = None
 
         return _dict
 
@@ -104,7 +114,8 @@ class SetSandboxNetworkPolicyRequest(BaseModel):
         _obj = cls.model_validate({
             **({"allow_cidrs": obj["allow_cidrs"]} if "allow_cidrs" in obj else {}),
             **({"allow_domains": obj["allow_domains"]} if "allow_domains" in obj else {}),
-            **({"block_all": obj["block_all"]} if "block_all" in obj else {})
+            **({"block_all": obj["block_all"]} if "block_all" in obj else {}),
+            **({"upstream_proxy": UpstreamProxyInput.from_dict(obj["upstream_proxy"]) if obj["upstream_proxy"] is not None else None} if "upstream_proxy" in obj else {})
         })
         return _obj
 

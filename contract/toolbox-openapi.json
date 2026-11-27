@@ -537,6 +537,15 @@
         "type": "string",
         "x-daytona-open-enum": true
       },
+      "ComputerUseDesktopEnvironment": {
+        "description": "The Linux desktop environment.",
+        "enum": [
+          "xfce",
+          "gnome"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "ComputerUseDesktopFailure": {
         "description": "The failure attached to a `failed` desktop state.",
         "properties": {
@@ -1256,6 +1265,17 @@
         "additionalProperties": false,
         "description": "The optional body of `POST /computeruse/start` and `/restart`.",
         "properties": {
+          "environment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComputerUseDesktopEnvironment",
+                "description": "Linux desktop environment: xfce or gnome. Omitted = the last selected,\nor xfce. Windows and macOS refuse this option."
+              }
+            ]
+          },
           "resolution": {
             "oneOf": [
               {
@@ -1263,7 +1283,7 @@
               },
               {
                 "$ref": "#/components/schemas/ComputerUseResolution",
-                "description": "The desktop resolution. Omitted = the resolution last selected in\nthis sandbox, or 1280x720 if none was. One of 1024x768, 1280x720 or\n1920x1080."
+                "description": "The desktop resolution. Omitted = the resolution last selected in\nthis sandbox, or 1280x720 on Linux and 1024x768 on Windows if none was.\nOne of 1024x768, 1280x720 or 1920x1080. Unsupported on macOS."
               }
             ]
           }
@@ -1287,6 +1307,28 @@
           "desktop": {
             "$ref": "#/components/schemas/ComputerUseDesktopState",
             "description": "The current desktop state."
+          },
+          "environment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComputerUseDesktopEnvironment",
+                "description": "The running desktop's environment, otherwise the one the next plain\nstart or restart uses: the last selected, or xfce. Linux only; absent\non Windows, macOS and older daemons."
+              }
+            ]
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ComputerUseResolution",
+                "description": "The resolution the desktop runs at, or, when it is not running, the\none the next plain start or restart uses: the last one selected, or\n1280x720 on Linux or 1024x768 on Windows if none was. Absent on macOS, and\nfrom daemons that predate it."
+              }
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/ComputerUseActivityStatus",
@@ -5069,7 +5111,7 @@
     },
     "/computeruse/restart": {
       "post": {
-        "description": "Restarts the desktop and returns its ready status. The body is optional: `resolution` restarts the desktop at that size (1024x768, 1280x720 or 1920x1080) and keeps it for later starts; omitted, the desktop restarts at its current resolution. Linux only: other platforms refuse a `resolution`.",
+        "description": "Restarts the desktop and returns its ready status. The optional body selects `environment` (xfce or gnome) and `resolution` (1024x768, 1280x720 or 1920x1080) and keeps them for later starts. Omitted fields reuse the last selection, defaulting to xfce and to 1280x720 on Linux or 1024x768 on Windows. GNOME availability, preflight and resource checks run before replacing the desktop or saving settings; a refusal leaves the current desktop unchanged. Windows refuses an `environment`; macOS refuses either setting.",
         "operationId": "restart",
         "requestBody": {
           "content": {
@@ -5106,7 +5148,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
+            "description": "`BAD_REQUEST` \u2014 unsupported settings or insufficient GNOME resources; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set desktop settings or the system layer has no GNOME desktop"
           },
           "409": {
             "content": {
@@ -5116,7 +5158,7 @@
                 }
               }
             },
-            "description": "`CONFLICT` \u2014 a concurrent restart brought the desktop up at a different resolution; retry the restart"
+            "description": "`CONFLICT` \u2014 a concurrent restart brought the desktop up with different settings; retry the restart"
           },
           "413": {
             "content": {
@@ -5166,7 +5208,7 @@
                 }
               }
             },
-            "description": "`ADDON_UNAVAILABLE` \u2014 desktop automation is unavailable"
+            "description": "`ADDON_UNAVAILABLE` \u2014 desktop automation is unavailable, GNOME preflight failed or timed out, or GNOME did not become ready"
           }
         },
         "summary": "Restart the desktop",
@@ -5757,7 +5799,7 @@
     },
     "/computeruse/start": {
       "post": {
-        "description": "Starts the desktop and returns its process statuses. The body is optional: `resolution` selects the desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts; omitted, the desktop uses the resolution last selected, or 1280x720. Starting a running desktop at a different resolution is refused; restart it with the new one instead. Linux only: other platforms refuse a `resolution`.",
+        "description": "Starts the desktop and returns its process statuses. The optional body selects `environment` (xfce or gnome) and `resolution` (1024x768, 1280x720 or 1920x1080), kept for later starts and restarts. Omitted fields reuse the last selection, defaulting to xfce and to 1280x720 on Linux or 1024x768 on Windows. Starting a running desktop with different settings is refused; use restart instead. GNOME requires a system layer with GNOME, a successful preflight, at least 4 vCPUs and 8192 MiB. Windows refuses an `environment`; macOS refuses either setting.",
         "operationId": "start",
         "requestBody": {
           "content": {
@@ -5794,7 +5836,7 @@
                 }
               }
             },
-            "description": "`BAD_REQUEST` \u2014 unsupported resolution; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set the resolution"
+            "description": "`BAD_REQUEST` \u2014 unsupported settings or insufficient GNOME resources; `UNSUPPORTED_OPERATION` \u2014 this platform cannot set desktop settings or the system layer has no GNOME desktop"
           },
           "409": {
             "content": {
@@ -5804,7 +5846,7 @@
                 }
               }
             },
-            "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart; `CONFLICT` \u2014 the desktop is running at a different resolution"
+            "description": "`DESKTOP_NOT_READY` \u2014 the desktop is already starting or failed and needs restart; `CONFLICT` \u2014 the desktop is running with different settings"
           },
           "413": {
             "content": {
@@ -5854,7 +5896,7 @@
                 }
               }
             },
-            "description": "`ADDON_UNAVAILABLE` \u2014 desktop automation is unavailable"
+            "description": "`ADDON_UNAVAILABLE` \u2014 desktop automation is unavailable, GNOME preflight failed or timed out, or GNOME did not become ready"
           }
         },
         "summary": "Start the desktop",
@@ -5865,7 +5907,7 @@
     },
     "/computeruse/status": {
       "get": {
-        "description": "Returns the desktop state and activity `status`.",
+        "description": "Returns the desktop state and activity `status`. Linux also reports the running desktop's environment and resolution, otherwise the settings the next plain start or restart uses.",
         "operationId": "status",
         "responses": {
           "200": {
