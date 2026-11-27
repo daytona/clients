@@ -1113,7 +1113,9 @@ for a throwaway run or use `createContext({ language, contextId, cwd, env })` /
 `connectContext()` / `listContexts()` for an independent named context. Select a
 context with `run(code, { context })`: a handle, its `toJSON()` identity (an
 `InterpreterContextJSON`) or a context id together with `language`. A context's `run(code, { cwd, timeoutSeconds })`
-takes no `env`: set it when the context is created. If an explicit named context
+takes no `env`: set it when the context is created. `await using ctx = await
+sandbox.interpreter.createContext({ language: 'python' })` deletes the context on
+scope exit, as `ctx.close()` does. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
 `timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded): on
@@ -1445,6 +1447,36 @@ them. For the limits Daytona determines for each organization (total and
 persistent sandboxes, volumes, images and snapshots) the refusal still names
 the limit but leaves out the counts, so `current` and `max` are `undefined`;
 contact support to request a higher one. Other rate-limited requests keep throwing plain `RateLimitError`.
+
+Every `iter()` (and `ports.iterEndpoints()`) reads a page again after a
+transient failure: a dropped connection, or an HTTP 429 (other than
+`LIMIT_EXCEEDED`), 502, 503 or 504. A page gets at most three reads, and a
+retry waits at least as long as the server's retry hint (the error body's or
+the `Retry-After` header); a hint above 10 seconds ends the walk at once,
+without a retry. The error the walk itself throws carries `pageCursor`, the
+cursor of the page that failed (`undefined` for the first page): pass it as
+`cursor` to the same `iter()` call to resume with that page, after the items
+already yielded. Keep your own handling of each item outside the `try`, so
+its errors are not mistaken for the walk's:
+
+```ts
+import { DaytonaError } from '@daytona/sdk/v2'
+
+async function* allSandboxes() {
+  let cursor: string | undefined
+  for (let attempt = 0; ; attempt++) {
+    try {
+      for await (const sandbox of daytona.v2.iter({ cursor })) yield sandbox
+      return
+    } catch (e) {
+      if (!(e instanceof DaytonaError) || attempt === 2) throw e
+      cursor = e.pageCursor // resume at the page that failed
+    }
+  }
+}
+
+for await (const sandbox of allSandboxes()) await handle(sandbox) // errors thrown here are not caught above
+```
 
 On a sandbox that is deleted or being deleted, `setLabels()`,
 `updateLifecyclePolicy()`, `resetIdleTimer()` and the preview-endpoint calls

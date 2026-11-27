@@ -21,6 +21,7 @@ import type { ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, Sign
 import { assertKnownOptions, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
+import { iterPages } from './pages.js'
 
 /**
  * Request header (and its value) that skips the preview warning page. Send it
@@ -191,16 +192,7 @@ export class PortsService {
 
   public async *iterEndpoints(options: ListEndpointsOptions = {}): AsyncIterable<PreviewEndpoint> {
     options = snapshotOptions('ListEndpointsOptions', options, LIST_ENDPOINTS_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.listEndpoints({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.listEndpoints({ ...options, cursor }), options.cursor)
   }
 
   /**

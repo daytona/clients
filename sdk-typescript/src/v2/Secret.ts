@@ -29,6 +29,7 @@ import type { SearchOrder, SearchResult, SearchTimestamp } from './types.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
+import { iterPages } from './pages.js'
 import { omitNullSearchOptions, resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
 import type { CommonResourceSearchOptions } from './resourceSearch.js'
 import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFirst.js'
@@ -131,16 +132,7 @@ export class SecretsService {
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {
     options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
   /** Gets one secret's metadata (never its value). */

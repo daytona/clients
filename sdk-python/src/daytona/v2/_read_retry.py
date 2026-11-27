@@ -12,6 +12,8 @@ deadline raises the wait's own timeout with the last failed read as its cause.
 Any other failure (a 4xx, a 501, ``LIMIT_EXCEEDED``) is raised at once. Only
 reads are retried, never a request that changes something. The Go and
 TypeScript SDKs apply the same policy.
+
+The page walks of ``iter()`` (:mod:`._pages`) read the same retry hint.
 """
 
 from __future__ import annotations

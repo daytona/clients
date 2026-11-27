@@ -1169,7 +1169,8 @@ receives; a failing `on_exit` is ignored. A watch whose stream drops ends with
 returned; a failure before the watch starts (a refused connection, an HTTP
 error, a stream that ends before `start`) is raised from `watch_dir()` and
 does not call it. `stop()` returns once a callback that is already running,
-and `on_exit`, have finished.
+and `on_exit`, have finished; no event queued behind that callback is
+delivered, even when a blocking synchronous callback holds a backlog.
 
 To stop a watch from an event, signal the code that holds the handle (an
 `asyncio.Event`, or a `threading.Event` with the synchronous client) and call
@@ -1531,11 +1532,40 @@ error at once, and the only automatic retry of one is the single retry after a
 to repeat. A few specialised paths do retry on their own, within their own
 budget: build-context uploads (each part and the completion request, up to 3
 attempts each), process waits (a long poll cut by a connection
-failure or a client timeout), and the build-log followers and sandbox events
+failure or a client timeout), page walks (`iter()`, below), and the build-log followers and sandbox events
 stream (they reconnect). An error's `retry_after_seconds` comes from the
 `retry_after_seconds` field of the error body; a bare `Retry-After` response
 header does not set it. A client-side timeout ends the SDK's wait, not the
 work it started in the sandbox or on the platform.
+
+Every `iter()` (and `ports.iter_endpoints()`) reads a page again after a
+transient failure: a dropped connection, or an HTTP 429 (other than
+`LIMIT_EXCEEDED`), 502, 503 or 504. A page gets at most three reads, and a
+retry waits at least as long as the server's retry hint (the error body's or
+the `Retry-After` header); a hint above 10 seconds ends the walk at once,
+without a retry. The error the walk itself raises carries `page_cursor`, the
+cursor of the page that failed (`None` for the first page): pass it as
+`cursor` to the same `iter()` call to resume with that page, after the items
+already yielded. Keep your own handling of each item outside the `try`, so
+its errors are not mistaken for the walk's:
+
+```python
+def all_sandboxes():
+    cursor = None
+    for attempt in range(3):
+        try:
+            for sandbox in d.v2.iter(cursor=cursor):
+                yield sandbox
+            return
+        except daytona.v2.DaytonaError as e:
+            if attempt == 2:
+                raise
+            cursor = e.page_cursor  # resume at the page that failed
+
+
+for sandbox in all_sandboxes():
+    handle(sandbox)  # errors raised here are not caught above
+```
 
 On a sandbox that is deleted or being deleted, `set_labels()`,
 `update_lifecycle_policy()`, `reset_idle_timer()` and the preview-endpoint calls

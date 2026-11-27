@@ -52,7 +52,14 @@ class DaytonaError(_shared.DaytonaError):
     it is given. A subclass with defaults (``ClientTimeoutError``, ...) uses its
     default for a keyword that is omitted or ``None``, as the TypeScript SDK does
     for ``undefined``.
+
+    ``page_cursor`` is set on an error that ends an ``iter()`` walk: the
+    cursor of the page whose read failed (``None`` for the walk's first page
+    without a cursor, and on every other error). Pass it as ``cursor`` to the
+    same ``iter()`` to resume with that page.
     """
+
+    page_cursor: Optional[str] = None
 
     def __init__(
         self,

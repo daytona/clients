@@ -209,6 +209,13 @@ export class DaytonaError extends Error {
   public readonly requestId?: string
   public readonly retryAfterMs?: number
   public readonly cause?: unknown
+  /**
+   * Set on an error that ends an `iter()` walk: the cursor of the page whose
+   * read failed (`undefined` for the walk's first page without a cursor, and
+   * on every other error). Pass it as `cursor` to the same `iter()` to resume
+   * with that page.
+   */
+  public readonly pageCursor?: string
 
   constructor(message: string, options?: ErrorOptions) {
     super(message)

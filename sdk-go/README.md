@@ -239,6 +239,18 @@ if errors.As(err, &apiErr) {
 }
 ```
 
+Every `ListAll` (and `SearchAll`, `ListEndpointsAll`) reads a page again after
+a transient failure: a dropped connection, or an HTTP 429 (other than
+`LIMIT_EXCEEDED`), 502, 503 or 504. A page gets at most three reads, and a
+retry waits at least as long as the server's retry hint (`RetryAfter`, from the
+error body or the `Retry-After` header); a hint above 10 seconds ends the walk
+at once, without a retry. The `*daytona.Error` the walk itself yields carries
+`PageCursor`, the cursor of the page that failed (empty for the first page):
+pass it as `Cursor` to the same call to resume with that page, after the items
+already yielded. A context cancelled between pages carries the next page's
+cursor; one cancelled while a page's items are being yielded carries none,
+since that page was partly consumed.
+
 `Fork`, `CaptureImage` and `CreateSnapshot` retry only
 `ErrSandboxTransitionInProgress` for up to 30 seconds from the first attempt.
 The API's retry delay is clamped to 1–5 seconds; other conflicts are returned
