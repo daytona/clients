@@ -619,6 +619,21 @@ async def test_an_observed_target_ends_the_wait_with_no_read(verb: str) -> None:
 
 
 @pytest.mark.anyio
+async def test_an_observed_target_without_a_message_clears_one_read_with_the_same_state() -> None:
+    sandbox = lazy_sandbox(_client(), "sbx")
+    # A read showed the target state with a message the server has since cleared.
+    sandbox._update(sandbox_class="linux", state="started", raw_state="running", error="an earlier failure")
+    api = _Api([])
+    sandbox._api = api  # type: ignore[attr-defined]
+    sandbox._hub = _ResolvingHub("started", "running")  # type: ignore[assignment]
+
+    await sandbox.wait(until="started", timeout=5)
+
+    assert (sandbox.state, sandbox.raw_state, sandbox.error) == ("started", "running", None)
+    assert api.specs == []
+
+
+@pytest.mark.anyio
 async def test_an_observed_target_carries_the_frames_error_message() -> None:
     sandbox = lazy_sandbox(_client(), "sbx")
     sandbox._update(sandbox_class="linux", state="started", raw_state="running")
@@ -668,14 +683,14 @@ class _TerminalHub:
 @pytest.mark.parametrize(
     ("before", "frame_reason", "kept"),
     [
-        (("error", "failed", "the guest crashed"), None, "the guest crashed"),
+        (("error", "failed", "the guest crashed"), None, None),
         (("error", "lost", "the host went away"), None, None),
         (("started", "running", "an earlier failure"), None, None),
         (("error", "failed", "an earlier failure"), "the guest crashed", "the guest crashed"),
     ],
     ids=["same-state", "other-wire-status", "other-state", "frame-message"],
 )
-async def test_a_terminal_report_keeps_only_an_error_message_read_with_its_state(
+async def test_a_terminal_report_takes_the_frames_error_message_verbatim(
     before: tuple[str, str, str], frame_reason: Optional[str], kept: Optional[str], observed: bool
 ) -> None:
     sandbox = lazy_sandbox(_client(), "sbx")
@@ -689,8 +704,8 @@ async def test_a_terminal_report_keeps_only_an_error_message_read_with_its_state
     with pytest.raises(SandboxTerminalStateError):
         await sandbox.wait(until="started", timeout=5)
 
-    # The frame's message wins; without one, only a message held for the same
-    # state and wire status stays.
+    # The frame's message, or its absence, replaces the handle's, whatever the
+    # handle held before.
     assert (sandbox.state, sandbox.raw_state, sandbox.error) == ("error", "failed", kept)
     assert [spec.method for spec in api.specs] == ["GET"]
 

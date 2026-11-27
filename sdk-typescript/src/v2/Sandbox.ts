@@ -706,16 +706,12 @@ export class Sandbox {
       },
       current: () => ({ state: this.state ?? 'unknown', rawState: this.rawState ?? '', reason: this.error }),
       observe: (outcome) => {
-        // The observation's error message; without one, a message the handle
-        // holds for the same state and wire status stays, and any other is
-        // dropped (a message never labels another state).
-        const rawState = outcome.rawState || undefined
-        const sameState = this.observed.state === outcome.state
-          && (rawState === undefined || this.observed.rawState === undefined || this.observed.rawState === rawState)
-        this.observed.error = outcome.reason ?? (sameState ? this.observed.error : undefined)
         this.observed.state = outcome.state
         // A frame without a status leaves the wire status unknown (never '').
-        this.observed.rawState = rawState
+        this.observed.rawState = outcome.rawState || undefined
+        // The observation's error message, verbatim: none means the sandbox
+        // has none, so it clears the handle's.
+        this.observed.error = outcome.reason
       },
       closed: this.httpOptions?.closed,
     }, states, options)
@@ -1192,8 +1188,8 @@ export class Sandbox {
    * the wait throws, except after a `destroyed` report, once the budget is spent, or
    * when that state already came from a full read; when that read is skipped or fails,
    * the handle carries the reported state and the wait throws it. The handle takes an
-   * event's state and error message (an event without one keeps only a message held for
-   * the same state and wire status), and keeps its other fields, `spotEvictedAt`, the
+   * event's state and error message (an event without one clears the handle's), and keeps
+   * its other fields, `spotEvictedAt`, the
    * lifecycle-policy deadlines and the activity clock included, as of the last read
    * (`refreshData()` reloads them). Only `start()` and `resume()` of a macOS sandbox read
    * once more after the target event, while budget remains and never after `destroyed`,

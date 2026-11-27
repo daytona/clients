@@ -377,7 +377,8 @@ class AsyncSandbox:
     def _kept_error(self, state: SandboxState, raw_state: Optional[str]) -> Optional[str]:
         """The handle's error message when it came with ``state`` (and ``raw_state``,
         when both wire statuses are known), else ``None``: a message never
-        labels another state."""
+        labels another state. Only for an observation that carries no error
+        information (a 404 during a delete); an events frame's is verbatim."""
         if self.state != state:
             return None
         if raw_state and self.raw_state and raw_state != self.raw_state:
@@ -1138,12 +1139,9 @@ class AsyncSandbox:
 
             def _observe_outcome(outcome: WaitOutcome) -> None:
                 # A frame without a status leaves the wire status unknown (None,
-                # never ""). Its error message replaces the handle's; without
-                # one, a message held for the same state and wire status stays,
-                # computed before the update.
-                raw_state = outcome.raw_state or None
-                error = outcome.reason or self._kept_error(outcome.state, raw_state)
-                self._update(state=outcome.state, raw_state=raw_state, error=error)
+                # never ""). Its error message is taken verbatim: none means the
+                # sandbox has none, so it clears the handle's.
+                self._update(state=outcome.state, raw_state=outcome.raw_state or None, error=outcome.reason)
 
             def _on_observed(outcome: WaitOutcome) -> None:
                 nonlocal refreshed_by_poll
@@ -1202,10 +1200,8 @@ class AsyncSandbox:
             except SandboxTerminalStateError as error:
                 # What the handle last read, before the report overwrites it.
                 seen = (self.state, self.raw_state, self.error)
-                # The report's error message, else the one the handle read with
-                # the same state and wire status.
-                reason = error.reason or self._kept_error(error.state, error.raw_state)
-                self._update(state=error.state, error=reason)
+                # The report's error message, verbatim (none clears the handle's).
+                self._update(state=error.state, error=error.reason)
                 if error.raw_state is not None:
                     self._update(raw_state=error.raw_state)
                 # A terminal state the hub reports may be one it held before
@@ -1421,8 +1417,7 @@ class AsyncSandbox:
         spent, or when that state already came from a full read; when that
         read is skipped or fails, the handle carries the reported state and the
         wait raises it. The handle takes an event's state and error message (an
-        event without one keeps only a message held for the same state and wire
-        status), and keeps its other fields, ``spot_evicted_at``, the
+        event without one clears the handle's), and keeps its other fields, ``spot_evicted_at``, the
         ``lifecycle_policy`` deadlines and the activity clock included, as of
         the last read (:meth:`refresh_data` reloads them). Only :meth:`start`
         and :meth:`resume` of a macOS sandbox read once more after the target

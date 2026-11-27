@@ -85,6 +85,17 @@ export function waitQueryState(state: SandboxWaitState | undefined): string | un
 }
 
 /**
+ * A 404 during a delete: `destroyed`. A 404 carries no error information, so
+ * the handle keeps a message only when it was read with `destroyed` /
+ * `deleted` (a message never labels another state).
+ */
+function destroyedOutcome(context: SandboxWaitContext): WaitOutcome {
+  const seen = context.current()
+  const kept = seen.state === 'destroyed' && (seen.rawState === '' || seen.rawState === 'deleted') ? seen.reason : undefined
+  return { state: 'destroyed', rawState: 'deleted', reason: kept }
+}
+
+/**
  * The events hub's share of a wait ending at `deadline`: all but the
  * final-read reserve. The hub reads `0` as no deadline, so a spent budget is a
  * timeout here.
@@ -117,8 +128,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       return await context.read(timeoutMs, wait, readDeadline, wait !== undefined && exact)
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
-        // A message the handle read with `destroyed` stays (observe keeps it).
-        const destroyed = { state: 'destroyed', rawState: 'deleted' } as const
+        const destroyed = destroyedOutcome(context)
         context.observe(destroyed)
         return destroyed
       }
@@ -227,7 +237,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       }).finally(() => { hubSettled.abort() })
     } catch (error) {
       if (options.missingIsDestroyed && error instanceof NotFoundError) {
-        context.observe({ state: 'destroyed', rawState: 'deleted' })
+        context.observe(destroyedOutcome(context))
         return
       }
       if (deadline !== undefined && error instanceof RequestTimeoutError && error.source === 'SDK') {
@@ -258,8 +268,7 @@ export async function waitForSandboxState(context: SandboxWaitContext, states: r
       if (!(error instanceof SandboxTerminalStateError)) throw error
       // What the handle last read, before the report overwrites it.
       const seen = context.current()
-      // The report's error message, else the one the handle holds for the
-      // same state and wire status (observe keeps it).
+      // The report's error message, verbatim (none clears the handle's).
       context.observe({ state: error.state, rawState: error.rawState ?? '', reason: error.reason })
       // A terminal state the hub reports may be one it held before this
       // request's frames arrived (an `error` from an earlier wait, while a

@@ -62,7 +62,7 @@ it('keeps the state a successful macOS refresh reads after the hub observed the 
 })
 
 const TERMINAL_REPORTS = [
-  { path: 'same state', before: { state: 'error', rawState: 'failed', error: 'the guest crashed' }, frameReason: undefined, kept: 'the guest crashed' },
+  { path: 'same state', before: { state: 'error', rawState: 'failed', error: 'the guest crashed' }, frameReason: undefined, kept: undefined },
   { path: 'other wire status', before: { state: 'error', rawState: 'lost', error: 'the host went away' }, frameReason: undefined, kept: undefined },
   { path: 'other state', before: { state: 'started', rawState: 'running', error: 'an earlier failure' }, frameReason: undefined, kept: undefined },
   { path: 'frame message', before: { state: 'error', rawState: 'failed', error: 'an earlier failure' }, frameReason: 'the guest crashed', kept: 'the guest crashed' },
@@ -74,7 +74,7 @@ describe.each([
   // The state the hub holds: no waiter observes it.
   { source: 'held state', observed: false },
 ])('a terminal report from a $source', ({ observed }) => {
-  it.each(TERMINAL_REPORTS)('keeps only an error message read with its state ($path)', async ({ before, frameReason, kept }) => {
+  it.each(TERMINAL_REPORTS)('takes the frame\'s error message verbatim ($path)', async ({ before, frameReason, kept }) => {
     // Given a report of `error`, and a read that cannot confirm it.
     const api = createHttpClient('http://api.invalid')
     const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
@@ -87,10 +87,23 @@ describe.each([
     // When the wait ends on the report, after its one confirming read failed.
     await expect(sandbox.wait({ timeoutSeconds: 5 })).rejects.toBeInstanceOf(SandboxTerminalStateError)
     expect(get).toHaveBeenCalledTimes(1)
-    // Then the frame's message wins; without one, only a message held for the
-    // same state and wire status stays.
+    // Then the frame's message, or its absence, replaces the handle's.
     expect([sandbox.state, sandbox.rawState, sandbox.error]).toEqual(['error', 'failed', kept])
   })
+})
+
+it('a target event without a message clears one read with the same state', async () => {
+  // Given a handle read as started with a message the server has since cleared.
+  const api = createHttpClient('http://api.invalid')
+  const hub = new WaitHub('http://api.invalid', 'key', { enabled: true }, async () => { throw new Error('unexpected socket') }, api)
+  jest.spyOn(hub, 'wait').mockResolvedValue({ state: 'started', rawState: 'running' })
+  const get = jest.spyOn(api, 'get')
+  const sandbox = createSandbox({ sandboxId: 'sbx', sandboxClass: 'linux', state: 'started', rawState: 'running', error: 'an earlier failure' }, api, undefined, undefined, undefined, {}, undefined, undefined, hub)
+  // When a started event without a message decides the wait.
+  await sandbox.wait({ timeoutSeconds: 5 })
+  // Then the message is cleared, with no read.
+  expect([sandbox.state, sandbox.rawState, sandbox.error]).toEqual(['started', 'running', undefined])
+  expect(get).not.toHaveBeenCalled()
 })
 
 it('a 404 in a delete drops an error message read with another state', async () => {

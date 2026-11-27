@@ -161,7 +161,7 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 
 func (w *sandboxWait) eventNotFound() (bool, error) {
 	if w.missingIsDestroyed {
-		w.sandbox.observeWait(stateObservation{State: SandboxStateDestroyed, RawState: "deleted"})
+		w.sandbox.observeGone()
 		return true, nil
 	}
 	return true, newSDKError(CodeNotFound, 404,

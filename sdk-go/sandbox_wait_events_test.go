@@ -83,33 +83,62 @@ func TestWait_whenTargetEventObserved_readsNothing(t *testing.T) {
 	require.Empty(t, fake.requests())
 }
 
-func TestWait_whenTargetEventHasNoReason_keepsOnlyAReadReasonForItsState(t *testing.T) {
-	for _, test := range []struct {
-		name   string
-		status string
-		kept   string
-	}{
-		{"same-state", "running", "an earlier failure"},
-		{"other-state", "stopped", ""},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			// Given: a full read that showed an error message with a state.
+func TestWait_whenTargetEventHasNoReason_clearsAReadReason(t *testing.T) {
+	for _, status := range []string{"running", "stopped"} {
+		t.Run(status, func(t *testing.T) {
+			// Given: a full read that showed an error message, with the target
+			// state or another one.
 			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
 				detail := sandboxFixture("sbx")
-				detail["status"] = test.status
+				detail["status"] = status
 				detail["error"] = "an earlier failure"
 				writeJSON(t, w, detail)
 			}})
 			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
 			require.NoError(t, err)
 			require.NoError(t, sandbox.Refresh(t.Context()))
+			require.Equal(t, "an earlier failure", sandbox.Info().Error)
 			sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
 			// When: a started event without a message decides the wait.
 			err = sandbox.Wait(t.Context(), nil)
-			// Then: the message stays only when it was read with that state.
+			// Then: the event's absent message clears the read's, with no read.
 			require.NoError(t, err)
-			require.Equal(t, test.kept, sandbox.Info().Error)
+			require.Empty(t, sandbox.Info().Error)
 			require.Len(t, reads(fake), 1)
+		})
+	}
+}
+
+func TestDelete_whenGone_keepsOnlyAReasonReadWithDestroyed(t *testing.T) {
+	for _, test := range []struct {
+		status string
+		kept   string
+	}{{"deleted", "an earlier failure"}, {"running", ""}} {
+		t.Run(test.status, func(t *testing.T) {
+			// Given: a read that showed a message, then a delete whose events
+			// report the sandbox no longer present.
+			var served atomic.Int32
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"DELETE /sandboxes/sbx": jsonHandler(t, map[string]string{}),
+				"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
+					served.Add(1)
+					detail := sandboxFixture("sbx")
+					detail["status"] = test.status
+					detail["error"] = "an earlier failure"
+					writeJSON(t, w, detail)
+				},
+			})
+			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+			require.NoError(t, err)
+			require.NoError(t, sandbox.Refresh(t.Context()))
+			sandbox.client.stateSource = eventSource(stateObservation{NotFound: true})
+			// When
+			err = sandbox.Delete(t.Context(), nil)
+			// Then: a 404 carries no message; only one read with destroyed stays.
+			require.NoError(t, err)
+			require.Equal(t, SandboxStateDestroyed, sandbox.State())
+			require.Equal(t, test.kept, sandbox.Info().Error)
+			require.EqualValues(t, 1, served.Load())
 		})
 	}
 }

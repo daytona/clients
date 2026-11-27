@@ -578,8 +578,7 @@ class Sandbox:
         spent, or when that state already came from a full read; when that
         read is skipped or fails, the handle carries the reported state and the
         wait raises it. The handle takes an event's state and error message (an
-        event without one keeps only a message held for the same state and wire
-        status), and keeps its other fields, ``spot_evicted_at``, the
+        event without one clears the handle's), and keeps its other fields, ``spot_evicted_at``, the
         ``lifecycle_policy`` deadlines and the activity clock included, as of
         the last read (:meth:`refresh_data` reloads them). Only :meth:`start`
         and :meth:`resume` of a macOS sandbox read once more after the target
