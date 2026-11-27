@@ -144,6 +144,11 @@ export class ReservationsService {
     yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
+  /**
+   * Fetch one Mac reservation of the organization by its id. A reservation
+   * that does not exist, or belongs to another organization, throws
+   * `NotFoundError`.
+   */
   public async get(id: string): Promise<MacReservation> {
     const { data } = await this.http.get<api.MacReservation>(`/reservations/${pathSegment(id, 'id')}`)
     return reservation(data)

@@ -1,8 +1,11 @@
 /*
  * git — clone a repo, stage a change, commit, branch, and read status.
  *
- * Shows clone / add / commit / branches / createBranch / checkoutBranch /
- * deleteBranch / status / push / pull.
+ * Shows clone / status / add / commit / listBranches / createBranch /
+ * checkoutBranch / deleteBranch. It never pushes or pulls (`git.push` /
+ * `git.pull`): pushing needs a remote you can write to and its credentials,
+ * and pulling needs new commits on the configured remote (a public remote
+ * needs no credentials).
  *
  * Run (from examples):
  *     DAYTONA_API_KEY=dtn_... \

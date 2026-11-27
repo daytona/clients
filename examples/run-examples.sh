@@ -9,9 +9,9 @@
 # DAYTONA_API_KEY (required), DAYTONA_IMAGE (default python:3.12-slim).
 #
 # Notes:
-#   - `dynamic-build`, `dockerfile-sandbox`, `local-files` and `build-logs` build a
-#     Dockerfile, so the deployment must support image builds. It is
-#     slower than the others: the first create waits for a real build.
+#   - `images`, `dynamic-build`, `dockerfile-sandbox`, `local-files` and `build-logs` build a
+#     Dockerfile, so the deployment must support image builds. They are
+#     slower than the others: each waits for a real image build.
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
 #     volumes_share.{ts,py} are standalone persistence round-trip examples.
 #   - Without API access you can still validate the examples statically:
@@ -23,8 +23,8 @@ WHICH="${1:-both}"
 PY_BIN="../sdk-python/.venv/bin/python"
 [[ -x "$PY_BIN" ]] || PY_BIN="python3"
 
-TS_EXAMPLES=(exec-command file-operations git lifecycle snapshots dynamic-build dockerfile-sandbox local-files build-logs pagination secrets-env)
-PY_EXAMPLES=(exec_command file_operations git_ops lifecycle snapshots dynamic_build dockerfile_sandbox local_files build_logs pagination secrets_env)
+TS_EXAMPLES=(exec-command file-operations git lifecycle images dynamic-build dockerfile-sandbox local-files build-logs pagination secrets-env)
+PY_EXAMPLES=(exec_command file_operations git_ops lifecycle images dynamic_build dockerfile_sandbox local_files build_logs pagination secrets_env)
 if [[ "${DAYTONA_RUN_VOLUMES:-}" == "1" ]]; then
   TS_EXAMPLES+=(volumes)
   PY_EXAMPLES+=(volumes)

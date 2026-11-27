@@ -1,0 +1,3 @@
+**Volume example notes** — `volumes.py` and `volumes/index.ts` say another
+sandbox's writes may not be visible yet and show the
+`sandbox.volumes.pull(volume_id, request_id=…)` call that refreshes a mount.

@@ -128,9 +128,9 @@ func newSnapshotListCommand() *cobra.Command {
 
 func newSnapshotGetCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
+		Use:   "get <id-or-name>",
 		Short: "Get one snapshot",
-		Long:  "Get one snapshot.\nExample:\n  daytona snapshot get <id>",
+		Long:  "Get one snapshot by its id or its name. The name search is reserved for the search route: read a snapshot named search by its id.\nExamples:\n  daytona snapshot get <id>\n  daytona snapshot get saved-state",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// A usage error, so before any credential or profile work.

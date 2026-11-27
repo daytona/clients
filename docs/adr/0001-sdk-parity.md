@@ -33,10 +33,10 @@ arguments; TypeScript uses `camelCase` and options objects. Durations are in
 seconds in both SDKs: Python keeps the bare name (`timeout`,
 `request_timeout`), TypeScript adds the unit to it (`timeoutSeconds`,
 `requestTimeoutSeconds`), and a TypeScript options object rejects a key it does
-not define at runtime, naming the replacement of a renamed one. The client
-configuration and the in-sandbox toolbox follow this rule today; TypeScript
-per-call `timeout` options that still take milliseconds move to it area by
-area. These are spelling
+not define at runtime, naming the replacement of a renamed one. Every option
+follows this rule: the client configuration, the in-sandbox toolbox and every
+per-call option of the client, lifecycle and platform services take seconds,
+and none takes milliseconds. These are spelling
 differences, not shape differences: `sandbox.run_code(...)` and
 `sandbox.runCode(...)` take the same inputs and return the same result. The
 client's request timeout means the same in both: the total time one ordinary

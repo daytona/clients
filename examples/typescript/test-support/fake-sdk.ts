@@ -51,6 +51,12 @@ export interface Scenario {
   pullFails?: string
   /** Another run registers the image first: pull finds the name taken (409). */
   pullConflict?: boolean
+  /** Statuses the waits on an image built with images.build return (default ['ready']). */
+  readonly buildWaits?: readonly string[]
+  /** images.build registers the image, then throws as if its reply was lost. */
+  readonly buildReplyLost?: boolean
+  /** images.delete answers 409 this many times before it succeeds. */
+  readonly imageDeleteConflicts?: number
 }
 
 export interface Record {
@@ -93,6 +99,7 @@ const secrets = new Map<string, string>()
 type FakeVolume = { readonly id: string; readonly name: string; readonly status: 'ready' }
 const volumes = new Map<string, FakeVolume>()
 let nextImage = 0
+let imageDeleteConflicts = scenario.imageDeleteConflicts ?? 0
 const newImage = (name: string, status: string, waits: string[] = ['ready'], error?: string) => ({ id: `img-${nextImage++}`, name, status, waits, error })
 const images = (scenario.images ?? []).map(([name, status, waits]) => newImage(name, status, waits))
 // Each volume's files (path inside the volume → bytes); a sandbox reads and
@@ -299,11 +306,21 @@ const fake = {
       // budgeted wait: it follows the image until it settles, or throws
       // RequestTimeoutError when it never does.
       record.imageWaits.push({ wait: options.wait, timeoutSeconds: options.timeoutSeconds })
-      const entry = images.find((candidate) => candidate.id === id)
-      if (entry === undefined || options.wait !== 'ready') return entry
+      // As the API: an image is read by its id or its name.
+      const entry = images.find((candidate) => candidate.id === id || candidate.name === id)
+      if (entry === undefined) throw new NotFoundError(`image ${id} not found`, { statusCode: 404, code: 'NOT_FOUND', source: 'API' })
+      if (options.wait !== 'ready') return entry
       const settled = (): boolean => ['ready', 'failed', 'error'].includes(entry.status)
       while (!settled() && entry.waits.length > 0) entry.status = entry.waits.shift() ?? entry.status
       if (!settled()) throw new RequestTimeoutError('image did not settle', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+      return entry
+    },
+    build: async (builder: { toDockerfile(): string }, options: { name?: string } = {}) => {
+      // As the SDK: the build is submitted and the image returned before it is ready.
+      record.builtDockerfiles.push(builder.toDockerfile())
+      const entry = newImage(options.name ?? 'anonymous', 'pending', [...(scenario.buildWaits ?? ['ready'])])
+      images.push(entry)
+      if (scenario.buildReplyLost) throw new Error('connection reset reading the built image')
       return entry
     },
     pull: async (ref: string, options: { name?: string } = {}) => {
@@ -317,6 +334,10 @@ const fake = {
       return entry
     },
     delete: async (id: string) => {
+      if (imageDeleteConflicts > 0) {
+        imageDeleteConflicts -= 1
+        throw new ConflictError(`image ${id} is in use`, { statusCode: 409, code: 'CONFLICT', source: 'API' })
+      }
       record.deletedImages.push(id)
       images.splice(images.findIndex((entry) => entry.id === id), 1)
     },

@@ -89,9 +89,13 @@ class FileSystemService:
         )
 
     def glob(self, path: str, pattern: str, /, *, timeout: Optional[float] = None) -> FileSearchResult[str]:
-        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
+        """Return the absolute paths under ``path`` whose base name matches the glob ``pattern``.
 
-        Directories below ``path`` that the sandbox user cannot read are not
+        The walk is recursive and matches every entry it visits: files,
+        directories, and ``path`` itself. ``pattern`` supports ``*`` (any run of
+        characters) and ``?`` (one character) only; there are no character
+        classes or braces, and ``**`` is the same as ``*``. Symbolic links are
+        not followed. Directories below ``path`` that the sandbox user cannot read are not
         searched; ``skipped`` lists their absolute paths (at most 1000). Only an
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
@@ -128,7 +132,13 @@ class FileSystemService:
         return self._bridge.call(lambda: self._impl.grep(path, pattern, timeout=timeout))
 
     def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
-        """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
+        """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``).
+
+        ``depth`` is how many levels to descend: omitted lists ``path``'s own
+        entries (``1``); the sandbox accepts 1 to 32 and refuses a recursive
+        listing of more than 10,000 entries with
+        :class:`~daytona.v2.errors.BadRequestError` (try a smaller depth).
+        """
         return self._bridge.call(lambda: self._impl.list(path, depth=depth))
 
     def mkdir(self, path: str, /, *, mode: str = "0755") -> None:

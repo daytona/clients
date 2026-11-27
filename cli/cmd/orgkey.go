@@ -22,7 +22,7 @@ func newOrgKeyCmd() *cobra.Command {
 		requireName:       true,
 		listShort:         "List organization API keys",
 		revokeShort:       "Revoke an organization API key",
-		permissionHelp:    "organization permission (repeatable or comma-separated)",
+		permissionHelp:    "organization permission (required, at least one; repeatable or comma-separated)",
 		revokeTargetLabel: "org key",
 		listHeaders:       []string{"ID", "NAME", "PERMISSIONS", "EXPIRES_AT", "REVOKED_AT"},
 		requireScope: func(a *app.App, ctx context.Context) (string, error) {

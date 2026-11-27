@@ -41,6 +41,13 @@ export interface ListImagesOptions {
   readonly name?: string
   readonly anonymous?: boolean
   readonly sandboxId?: string
+  /**
+   * `'false'` (the server default) lists the project's own images, `'true'`
+   * only the non-deprecated platform images the deployment publishes to every
+   * project (the default one, if the deployment has one, carries
+   * `default: true`), and `'any'` both. A deployment may publish no platform images, or no default:
+   * then create from an image you register with `pull()` or `build()`.
+   */
   readonly platform?: 'true' | 'false' | 'any'
 }
 

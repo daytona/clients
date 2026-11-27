@@ -43,7 +43,8 @@ func run(ctx context.Context) error {
 	}
 	defer client.Close()
 
-	// An empty image boots the platform default image (Python 3 included).
+	// An empty image boots the platform default image (Python 3 included),
+	// where the deployment configures one.
 	sandbox, err := client.Create(ctx, "", nil)
 	if sandbox != nil {
 		defer sandbox.Delete(context.WithoutCancel(ctx), nil)

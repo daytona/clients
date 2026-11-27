@@ -398,10 +398,13 @@ class AsyncImagesService:
         image you just created may be missing until the index catches up; :meth:`get`
         reads it at once) and, on a deployment without search, ``GET /images``.
 
-        ``platform`` picks the shared images Daytona publishes for every
-        project: ``"false"`` (the server default) lists the project's own
-        images, ``"true"`` lists only the non-deprecated platform images (the
-        default one carries ``default=True``), and ``"any"`` lists both.
+        ``platform`` picks the shared images the platform publishes to every
+        project of the deployment: ``"false"`` (the server default) lists the
+        project's own images, ``"true"`` lists only the non-deprecated
+        platform images (the default one, if the deployment has one, carries
+        ``default=True``), and ``"any"`` lists both. A deployment may publish
+        no platform images, or no default: then create from an image you
+        register with :meth:`pull` or :meth:`build`.
         """
         params = page_params(cursor, limit)
         if not isinstance(anonymous, bool):
@@ -1094,6 +1097,11 @@ class AsyncReservationsService:
             yield item
 
     async def get(self, reservation_id: str, /) -> MacReservation:
+        """Fetch one Mac reservation of the organization by its id.
+
+        A reservation that does not exist, or belongs to another organization,
+        raises :class:`NotFoundError`.
+        """
         return _mac_reservation(
             await self._transport.send(
                 RequestSpec("GET", f"/reservations/{_path(reservation_id, 'reservation_id')}")
@@ -1391,8 +1399,10 @@ class AsyncSecretsService:
 
         ``value`` must not be empty. ``allowed_domains``: The hosts where this
         secret's value may be sent (exact or ``*.`` wildcard), or ``["*"]`` for
-        any verified host. ``"*"`` lets the value reach any HTTPS host,
-        including one a compromised sandbox controls. ``description`` omitted
+        any verified host; it must not be empty (a :class:`Secret` read back
+        with no allowed domains is sent nowhere, but ``set()`` cannot create
+        one). ``"*"`` lets the value reach any HTTPS host, including one a
+        compromised sandbox controls. ``description`` omitted
         (or ``None``) keeps the stored description of an existing secret, read
         first with :meth:`get` (one more request, not atomic with the write; an
         error from it other than not-found fails the call; no read with

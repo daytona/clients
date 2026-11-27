@@ -799,7 +799,8 @@ export class Sandbox {
    * one 30-second long-poll read. A paused macOS sandbox keeps
    * its memory on its Mac. With auto-renew on, it keeps its reservation
    * renewing; otherwise the sandbox is stopped, with its disk, before the
-   * reservation ends.
+   * reservation ends. Only a persistent sandbox can pause (`persistent: true`
+   * on create); on one that is not, the API throws `ConflictError` (409).
    */
   public async pause(options: LifecycleWaitOptions = {}): Promise<void> {
     assertKnownOptions('LifecycleWaitOptions', options, LIFECYCLE_WAIT_KEYS)
@@ -838,7 +839,9 @@ export class Sandbox {
   }
 
   /**
-   * Fork this sandbox and return the fork handle.
+   * Fork this sandbox and return the fork handle. Only a persistent sandbox
+   * (`persistent: true` on create) without attached volumes can be forked;
+   * otherwise the API throws `ConflictError` (409).
    *
    * By default the fork continues from the source's memory (running processes
    * included). `memory: false` copies only the disk, after which the fork boots
@@ -1217,7 +1220,15 @@ export class Sandbox {
 
   /**
    * Capture this sandbox, memory and disk, as a new {@link Snapshot}
-   * (`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
+   * (`POST /sandboxes/{id}/snapshots`). Linux sandboxes only, and only while
+   * running: a macOS sandbox throws `NotSupportedForClassError` (409). For a
+   * persistent macOS sandbox, pausing it keeps its memory instead, and
+   * `captureImage()` captures its disk once it is stopped; a macOS sandbox
+   * that is not persistent has neither option.
+   * The API also refuses with `ConflictError` (409) a sandbox that is not
+   * running, one whose saved state is unavailable, one with an attached
+   * volume, and a snapshot name that already exists.
+   * The credential needs `write:sandboxes`
    * in addition to `write:snapshots`; without it the capture throws
    * `ForbiddenError` (403).
    * While the sandbox is still starting, submission retries

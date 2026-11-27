@@ -3,15 +3,19 @@
 The official TypeScript SDK for Daytona sandboxes. Ships ESM + CJS with type
 declarations. Node >= 22.15 (or a browser environment with `WebSocket`).
 
-> **Alpha.** This SDK is published as alpha prereleases under the `alpha`
-> dist-tag. Install with `npm install @daytona/sdk@alpha` (or pin an exact
-> `X.Y.Z-alpha.N` version). The API may still change between alphas.
-
 ## Install
 
 ```bash
-npm install @daytona/sdk@alpha
+npm install @daytona/sdk
 ```
+
+This installs the latest stable 2.x release (the `latest` dist-tag).
+A pre-release is published under its own dist-tag, `next` for a release
+candidate and `alpha` for an alpha; a dist-tag exists only once such a
+release has been published, and it can point at a release older than the
+current stable one. To try a pre-release, pin its exact `X.Y.Z-rc.N` /
+`X.Y.Z-alpha.N` version (`npm view @daytona/sdk dist-tags` lists the current
+tags).
 
 The legacy package `@daytonaio/sdk` is published only from the 0.x line:
 installing or upgrading it never gives you 2.x. Install `@daytona/sdk`.
@@ -143,9 +147,12 @@ imported from `@daytona/sdk/v0`; v2-only errors stay on `@daytona/sdk/v2`.
 `@daytona/sdk/v0` is the 0.x Daytona SDK, vendored into this package at a
 pinned release. It exports the 0.x resource types and errors, but not the
 client: the root client is the only way to build one (`new Daytona().v0`).
-`import { Daytona } from '@daytona/sdk/v0'` fails at build or import time, and
-`new (require('@daytona/sdk/v0').Daytona)()` throws an error naming the root
-form. Type
+`import { Daytona } from '@daytona/sdk/v0'` is a type error in TypeScript, and
+in Node.js an ES module import of it fails when the module loads. Where the
+CommonJS build exposes it (`require('@daytona/sdk/v0').Daytona`, and imports in
+runtimes such as Bun or Deno that see every CommonJS export), `Daytona` is a
+stub that throws an error naming the root form when it is called or
+constructed. Type
 a stored v0 client as `DaytonaV0Client` from `@daytona/sdk`.
 
 Need the 0.x SDK side-by-side while you migrate? Keep your existing type
@@ -162,10 +169,12 @@ await daytona.v2.create('py312')
 ```
 
 `daytona.v2.create()` with no image (or `create(options)`) boots the platform
-default image, a Linux image Daytona publishes for every project.
+default image, where the deployment configures one.
 `daytona.v2.images.list({ platform: 'true' })` lists the platform images; the
-default one has `default: true`. When no default is configured, the create
-throws `DEFAULT_IMAGE_NOT_CONFIGURED` (400).
+default one, if any, has `default: true`. When no default is configured, the
+create throws `DEFAULT_IMAGE_NOT_CONFIGURED` (400): register an image and
+create from it instead, `await daytona.v2.images.pull('python:3.12', { name:
+'py312' })` then `await daytona.v2.create('py312')`.
 
 SDK 2.x targets Daytona Cloud. For a custom API URL, stay on SDK 0.x: the root
 rejects `apiUrl`, and SDK 2.x (`daytona.v0` included) never routes with
@@ -216,8 +225,11 @@ Commands and files target the selected sandbox. When you select a regional
 API endpoint, use resources available through that endpoint.
 
 A region that is not currently available for creates throws
-`REGION_UNAVAILABLE` (409). Image creates require a specific region; a
-region covering too broad an area is rejected with 400.
+`REGION_UNAVAILABLE` (409). Some regions are groups of others (a geo area, or
+`earth`): a sandbox create may name one and lands in a region inside it, but
+image creates need a region that is not a group, and the API rejects a group
+with 400. The SDKs do not list regions or CPU types: use the CLI
+(`daytona region list`, `daytona cpu-type list --region <region>`).
 
 Every `create*()` sends an idempotency key: the one you pass as
 `idempotencyKey`, else one derived from `name` (next section), else a random
@@ -371,7 +383,11 @@ make asynchronous callback work cancellation-aware when needed.
   a `BadRequestError`. Timestamp filters are half-open:
   `createdStartAt` / `createdEndAt`, `updatedStartAt` / `updatedEndAt`, and
   `lastActivityStartAt` / `lastActivityEndAt`; each start is inclusive and
-  each end is exclusive.
+  each end is exclusive. The query text matches sandbox names and image
+  references (or one sandbox exactly, by its id), and results come in `sort` order (creation time by default),
+  not by relevance. Search, and `findByName()` with it, can lag a create,
+  delete or label change by a few seconds: a sandbox just deleted can still
+  appear, and one just labelled can still miss a label filter.
 - **Network policy** (Linux and macOS sandboxes; the API rejects unsupported
   sandbox configurations) — create-time `networkPolicy` on
   `create`, `createFromBuild` and `createMacos` (a full-snapshot restore and `sandbox.fork()` inherit the
@@ -382,7 +398,12 @@ make asynchronous callback work cancellation-aware when needed.
   or failed apply state, and the `appliedStartId` of the sandbox start that
   received the active policy. Writes are full
   replacement only; reset is an explicit JSON `null`; the SDK does not auto-GET
-  or auto-retry around stale `If-Match`. Domain allow-lists imply default-deny:
+  or auto-retry around stale `If-Match`. Pass `ifMatch` exactly as the last
+  read or update returned its `etag` (an opaque, quoted string): a stale one
+  throws `PreconditionFailedError` (412). The SDK refuses an empty `ifMatch`,
+  or one that is not printable ASCII or has leading or trailing spaces, with
+  `BadRequestError` (400) before sending; the API answers 400 for some other
+  malformed values (`'"bogus"'`, for one). Domain allow-lists imply default-deny:
   omitting `blockAll` while setting `allowDomains` lets the API normalize it to
   `true`, while an explicit `blockAll: false` is rejected locally with
   `NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL`. A non-empty `allowCidrs` needs
@@ -403,7 +424,8 @@ make asynchronous callback work cancellation-aware when needed.
   Responses expose desired secret names, desired/applied revisions, the quoted
   ETag, the apply `status` (`pending`/`applied`/`failed`) with its `error`, and
   capture metadata. Writes are full replacement only,
-  use caller-supplied `If-Match`, and never send or return secret values.
+  use caller-supplied `If-Match` (the same ETag rules and errors as the network
+  policy), and never send or return secret values.
 - **`Sandbox`** — a serializable handle with `fork()`, `wait()` and
   the `process`, `fs`, `git`, `interpreter`, `pty`, `ports`, `volumes`,
   `docker` and `computerUse` namespaces. Sandbox handles do not need explicit
@@ -456,6 +478,25 @@ For an automatically deleted temporary sandbox:
   console.log((await sandbox.exec('python -V')).output)
 } // waits for sandbox deletion
 ```
+
+### Account
+
+The client also reads what the credential can see about its project and
+organization:
+
+```ts
+const key = await daytona.v2.currentApiKey() // name, masked display parts, project, organization,
+                                             // permissions, expiry and last use; never the token
+const budget = await daytona.v2.getProjectBudget() // the project's monthly spend budget (read:spending)
+const limits = await daytona.v2.getLimits() // the organization's limits and usage (read:limits)
+const actions = await daytona.v2.listAuditActions() // the actions the audit log records, per target type
+```
+
+`getLimits()` defaults to the API key's own organization; with `jwtToken`
+authentication pass `{ organizationId }`. An undefined `limit` means
+unlimited, except on the deprecated sandbox and storage counts, where the
+limit is not returned. An unset budget comes back with its limit, period and spend
+fields undefined.
 
 ### Sandbox labels and entrypoint logs
 
@@ -522,7 +563,10 @@ Create a volume with `daytona.v2.volumes.create({ name: 'data' })`; the server
 chooses its type unless you pass `type: 'disk'` (sized with `sizeGib`) or
 `type: 'bucket'`. Delete one by name with `await daytona.v2.volumes.delete('data')`, or by ID with
 `await daytona.v2.volumes.delete(volume.id, { idOnly: true })`. `{ idOnly: true }`
-accepts an ID only and turns off the name lookup.
+accepts an ID only and turns off the name lookup. `volumeId` takes the volume's `vol_` ID or its name;
+`sandbox.volumes.pull()` takes only the ID (or UUID). With `{ idOnly: true }`
+a name is refused with `BadRequestError` (400). A deleted volume can still be
+read by its ID for a while, but no longer by its name.
 
 `daytona.v2.volumes.search(options)` filters with `q`, `name`, and
 `namePrefix`; `types` accepts `'disk'`, `'bucket'`, or an array of them (any
@@ -617,12 +661,20 @@ let image = await daytona.v2.images.buildFromContext('./service', { dockerfile: 
 image = await daytona.v2.images.get(image.id, { wait: 'ready', timeoutSeconds: 600 })
 ```
 
+A build that uploads a build context (local files, `buildFromContext()`)
+needs a region where the platform accepts build contexts; elsewhere it throws
+`ServiceUnavailableError` (503) naming the region. Pass `region` to
+`createFromBuild()`, `images.build()` or `images.buildFromContext()` to build
+in a region that does.
+
 `waitSeconds` is the create wait budget in whole seconds (default 60).
 `waitSeconds: 0` returns as soon as the create is accepted. Every `create*()`
 returns the handle when its wait expires or a terminal state is reached;
 check `sandbox.state` and `sandbox.error` before doing work. Request failures
 still throw. `createTimeoutSeconds` is the server-side queue/boot budget in
-seconds; `-1` asks the server to apply its maximum.
+whole seconds: `-1` asks the server to apply its maximum, and any other value
+must be from 1 to that maximum, which the deployment sets (a day by default);
+the API refuses `0`, and values above that maximum, with 400.
 
 Linux sizing uses only `resources: { cpu, cpuMax, memory, memoryMax, disk, diskMax }`.
 CPU is in cores; memory and disk are in GiB and must convert exactly to whole
@@ -643,8 +695,14 @@ above the timer maximum (about 24.8 days) waits without a deadline. An early
 non-terminal response pauses up to one second before retrying. Omitted or zero
 `timeoutSeconds` sends one hold of the server's default length and returns what
 the server reports.
-`sandbox.captureImage({ name, idleExpirySeconds })` captures an
-image from a sandbox, and `sandbox.createSnapshot(name)` a snapshot. Both need
+`sandbox.captureImage({ name: 'after-setup' })` captures a named, permanent
+image from a sandbox; `sandbox.captureImage({ idleExpirySeconds: 3600 })`
+captures an anonymous one that is deleted after that long unused (idle expiry
+applies only to anonymous images: passing both is a 400). Wait for either with
+`images.get(image.id, { wait: 'ready' })`. `sandbox.createSnapshot(name)` captures a snapshot of a running Linux sandbox, memory included. A macOS sandbox cannot be
+snapshotted (pausing a persistent one keeps its memory), and the API answers 409 for a
+sandbox with an attached volume or whose saved state is unavailable, and for a
+snapshot name that already exists. Both need
 `write:sandboxes` in addition to `write:images` / `write:snapshots`; without it
 they throw `ForbiddenError` (403).
 
@@ -819,8 +877,11 @@ deleted, and `'none'` keeps no log.
 (`toJSON()`, a `ProcessHandleJSON` the Python SDK reads too) and reconnect to
 on any worker (`process.connect(json or id)`); handles come from the SDK,
 never from a constructor. Handles offer cursor-replayable `logs()`,
-`streamLogs()` with resume, `wait()`, `writeStdin()` / `closeStdin()` for exec
-and pty handles, `delete()` (stopping it first if running; a running interpreter
+`streamLogs()` with resume, `wait()`, `writeStdin()` for exec and pty handles,
+`closeStdin()` (EOF) for exec handles (on a pty the sandbox answers
+`BadRequestError` (400): write `'\x04'`,
+Ctrl-D, to end its input in the terminal's default canonical mode at the start
+of a line; a raw-mode program reads the byte as data), `delete()` (stopping it first if running; a running interpreter
 execution, or a session command that does not stop within 5 s, is refused:
 delete its context or session), signal-aware `kill()` with escalation,
 `resize()` and a websocket `attach()`. `streamLogs()` yields one
@@ -839,12 +900,15 @@ deadline for server-managed runs that support one (omitted or `0`: no
 deadline), and
 `kill({ escalateAfterSeconds })` the escalation delay (at most 600; `escalateTo`
 needs it). Signals are bare names (`'TERM'`, not `'SIGTERM'`; `kill()` matches
-them case-insensitively), in `kill()` and in what `wait()` and `get()` report. Reconnected
+them case-insensitively), in `kill()` and in what `wait()` and `get()` report.
+`kill()` sends `TERM` by default, which an interactive shell (a pty's default
+shell, from `pty.start()` with no command) ignores: stop one with `{ signal: 'HUP' }` or `{ signal: 'KILL' }`, or pass
+`escalateAfterSeconds` to follow `TERM` with `KILL`. Reconnected
 `kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
 `kill()`), not a way to recover a parsed `InterpreterResult` on another worker.
 
-`pty.start(command?, { terminal: { cols, rows }, cwd, env, name, user, shell,
-login, stdin, executionTimeoutSeconds, keepLogs })` starts an interactive
+`pty.start(command?, { terminal: { cols, rows }, cwd, env, name, tag, user,
+shell, login, stdin, executionTimeoutSeconds, keepLogs })` starts an interactive
 terminal (80×24 when `terminal` is omitted; `cols` and `rows` are 1 to 65535, and a Windows sandbox refuses more than 32767;
 `TERM` is `xterm-256color` unless `env` sets it; `stdin` defaults to `'open'`,
 `keepLogs` to `'until_cleanup'`); `pty.attach()` takes the same options and also
@@ -859,10 +923,10 @@ at a time, in order; `cd`, exports, and functions carry over. Set `cwd`, `env`,
 `shell`, and `login` at creation, not on each command.
 
 ```ts
-const session = await sandbox.process.createSession({ cwd: '/app', env: { CI: '1' } })
+const session = await sandbox.process.createSession({ cwd: '/tmp', env: { CI: '1' } })
 await session.run('export GREETING=hello')
 const result = await session.run('echo "$GREETING"', { timeoutSeconds: 10, executionTimeoutSeconds: 30 })
-const handle = await session.start('npm run dev')
+const handle = await session.start('sleep 300')
 await handle.kill({ signal: 'INT' }) // interrupts this command; the session survives
 const info = await session.get() // includes the shell's current cwd
 const reconnected = sandbox.process.connectSession(session.toJSON()) // or session.id
@@ -876,7 +940,9 @@ timeout ends the session instead of blocking it). `await using session = ...` de
 the session on scope exit. List sessions with `process.list({ kind: 'session' })`
 or commands with `process.list({ sessionId: session.id })`. Plain `process.run()`,
 `process.start()`, and `sandbox.exec()` do not accept `sessionId`.
-Sessions survive pause/resume but not sandbox stop/start; reconnecting never
+Sessions survive pause/resume but not sandbox stop/start (pause, resume and
+stop need a persistent sandbox; see
+[Waiting for lifecycle states](#waiting-for-lifecycle-states)); reconnecting never
 creates a replacement for a missing or ended session.
 In dash, BusyBox `sh` and mksh, an interrupt leaves only the
 innermost shell function or sourced file; bash and zsh leave the whole command
@@ -893,8 +959,8 @@ do not support tags.
 ```ts
 await sandbox.process.start('python -m api_server', { tag: 'job-123' })
 await sandbox.process.start({ argv: ['node', 'worker.js'] }, { tag: 'job-123' })
-const shell = await sandbox.process.createSession({ cwd: '/app', tag: 'job-123' })
-await shell.run('nohup ./watcher.sh &') // inherits job-123
+const shell = await sandbox.process.createSession({ cwd: '/tmp', tag: 'job-123' })
+await shell.run('nohup sleep 600 &') // inherits job-123
 
 await sandbox.process.list({ tag: 'job-123' })
 const killed = await sandbox.process.killAll({ tag: 'job-123' })
@@ -903,6 +969,8 @@ const killed = await sandbox.process.killAll({ tag: 'job-123' })
 ```
 
 `process.run()`, `sandbox.exec()`, and `pty.start()` also accept `{ tag }`.
+A session created with a tag is itself a tagged process: `killAll()` ends its
+shell along with its commands, and the session cannot run more commands.
 `killAll()` keeps logs and records and returns the ids of the tagged processes
 that were running, or had running descendants, when it began; survivors of
 deleted or expired records are killed too but not listed. Its optional
@@ -942,7 +1010,7 @@ A recursive remove or a search over a large tree can take longer than
 the sandbox.
 
 `readBytes` / `readText`, `writeBytes` / `writeText`, bulk `readMany` / `writeMany`,
-`remove()`, `grep()` (file contents) / `glob()` (file names), `watchDir()` for directory watches, and
+`remove()`, `grep()` (file contents) / `glob()` (entry names), `watchDir()` for directory watches, and
 `presignedDownloadUrl` / `presignedUploadUrl` for direct transfers. The
 platform mints the link; `expiresInSeconds` (default 3600) must be between 1
 and `SIGNED_FILE_MAX_TTL_SECONDS` (7 days) — links always expire.
@@ -959,7 +1027,10 @@ return one `ListResult` page (`ListResult<FileInfo>`, `FileSearchResult<FileMatc
 run as the sandbox user; a `FileSearchResult` is a `ListResult` whose
 `skipped` array lists the absolute paths below the root that user cannot read
 (not searched; at most 1000); only an unreadable root throws
-`FileAccessDeniedError`. `readText()` decodes strictly as UTF-8 (invalid bytes throw)
+`FileAccessDeniedError`. `glob()` matches the base name of every entry it
+walks, directories and the root included, with `*` and `?` only (no character
+classes or braces); `list(path, { depth })` accepts a depth of 1 to 32.
+`readText()` decodes strictly as UTF-8 (invalid bytes throw)
 and keeps a leading byte-order mark. Writes take no `mode`; use `chmod()`.
 
 `move(source, destination, { timeoutSeconds })` moves or renames a file or
@@ -1023,7 +1094,10 @@ They are Node.js-only and throw `NotSupportedError` in browser builds.
 Downloads write to an exclusive random temp file in the destination directory
 and rename it over the destination on success; cancellation or failure removes
 that exact temp file. `signal` aborts the transfer with
-`TransferCancelledError`.
+`TransferCancelledError`. Without `atomic: true` an upload writes the
+destination in place, so a cancelled or failed upload can leave it truncated;
+use `atomic: true` when readers must see either the old file or the whole new
+one.
 
 ### Interpreter
 
@@ -1039,7 +1113,12 @@ sandbox.interpreter.createContext({ language: 'python' })` deletes the context o
 scope exit, as `ctx.close()` does. If an explicit named context
 vanished, `interpreter.run(..., { context })` / `context.run()` surface the typed
 `SessionNotFoundError`; recreate the context yourself and decide what to rerun.
-`timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded). Results are split into
+`timeoutSeconds` is enforced client-side (omitted or `0` waits unbounded): on
+expiry the SDK interrupts the kernel (like ^C) and waits up to about 10 more
+seconds for the run to stop before returning the interrupted result, so a run
+can take up to about 10 seconds longer than `timeoutSeconds` (up to about 20
+when the sandbox cannot take the interrupt at once and the SDK keeps retrying
+it). Results are split into
 `results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
@@ -1097,6 +1176,27 @@ failures throw typed errors: `GitAuthFailedError` (401),
 `GitBranchExistsError` (409), and `ConflictError` for an unmerged branch, a
 checked-out branch or a checkout that would overwrite local changes.
 
+The other operations: `init(path, { bare, initialBranch })`,
+`addRemote(path, name, url)`, `reset(path, { mode, target, files })` (`mode`
+is one of `mixed`, the default, `soft`, `hard`, `merge` or `keep`),
+`restore(path, files, { staged, worktree, source })`, and
+`getConfig(key, { path, scope })` / `setConfig(key, value, { path, scope })`
+(`scope` defaults to `'global'`). `history()` returns the whole log, newest
+first, in one page; there is no paging.
+
+`pull()` is fast-forward only: when the histories have diverged it fails
+instead of merging. Without `branch` it pulls the branch's configured
+upstream; with `branch` (which must name the checked-out branch, else
+`BadRequestError`) and for `push()` the remote defaults to `origin`. `remote` names a remote configured in the repository (see
+`listRemotes()` / `addRemote()`), not a URL. The SDK sends `username`
+and `password` as given, but the sandbox uses credentials only as a pair: with
+just one of them the git operation runs without credentials.
+
+A timeout ends the SDK's wait, not the operation in the sandbox: a clone that
+times out can keep running and leave its destination directory behind, and a
+retry into the same path then fails because the destination is not empty.
+Clone into a new path, or remove the old one first.
+
 ### Ports, computer use
 
 `ports` owns both listener discovery and preview exposure:
@@ -1114,6 +1214,9 @@ if an event is missed.
 To skip the preview warning page when a headless browser opens a preview URL,
 send `{ [PREVIEW_WARNING_SKIP_HEADER]: PREVIEW_WARNING_SKIP_HEADER_VALUE }` (both
 exported from `@daytona/sdk/v2`) with its requests.
+`computerUse` needs a sandbox where desktop automation is available (an image
+with a desktop, where the platform offers it); elsewhere its calls throw
+`AddonUnavailableError` (503, `ADDON_UNAVAILABLE`).
 `computerUse` stays lifecycle-flat (`status()`, `start()`, `stop()`, `restart()`) and
 splits actions into `service`, `mouse`, `keyboard`, `screen`, `display`,
 `a11y` and `recording`. An app that reaches the sandbox through its own
@@ -1146,7 +1249,9 @@ Docker failure never makes the sandbox itself unusable.
 Set `DAYTONA_DOCKER_START` in the sandbox env to choose how Docker starts:
 `auto` (default; start the image's `dockerd` when it ships one), `entrypoint`
 (the image's own entrypoint starts Docker) or
-`off` (Docker is not started; state `disabled`). If Docker status is unavailable,
+`off` (the platform does not start Docker: the state is `disabled`, or
+`unmanaged` with owner `entrypoint` when the image's own entrypoint starts it
+anyway). If Docker status is unavailable,
 `status()` and `waitUntilReady()` throw `NotFoundError` (404).
 
 Some environment variable names are reserved for the platform, among them
@@ -1229,7 +1334,11 @@ a requested state. `start()` on a sandbox that is already `starting`, because
 another caller started or resumed it, joins that operation and throws
 `SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
 once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,
-after up to one 30-second long-poll read. The server decides which lifecycle actions the sandbox supports.
+after up to one 30-second long-poll read. The server decides which
+lifecycle actions the sandbox supports: `stop()`, `pause()`, `resume()` and
+`fork()` need a persistent sandbox (`sandbox.persistent`), and on one that is
+not the API throws `ConflictError` (409). Create one with `persistent: true`
+(`create()`, `createFromBuild()` or `createMacos()`).
 
 `fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed,
 `0` skips waiting, and a value above about 24.8 days waits with no deadline. Once their create or fork request succeeds, these calls
@@ -1238,7 +1347,7 @@ read. Caller cancellation still propagates; a cancelled create may already
 have created a sandbox. A raised create or fork means the request itself failed, except for
 `SandboxCreateRequestTimeoutError` and `SandboxCreateConnectionError` (they
 carry the idempotency key because a sandbox may exist), caller cancellation,
-and an unexpected non-SDK error during the wait. A running Linux source produces a running fork; otherwise
+and an unexpected non-SDK error during the wait. A running persistent Linux source produces a running fork; otherwise
 the fork is paused if the source was paused and memory was retained, or
 stopped. macOS forks copy only disk: a running source waits for `started`;
 a paused or stopped source waits for `stopped`, within the same wait budget.
@@ -1299,10 +1408,21 @@ message plus an `ErrorOptions` object (`statusCode`, `code`, `source`,
 specialised errors build their own message from what identifies them instead:
 `SandboxTerminalStateError(sandboxId, state, options?)` (`options`:
 `{ rawState?, reason? }`),
-`SandboxCreateTimeoutError(sandboxId)`,
 `SandboxCreateRequestTimeoutError(idempotencyKey)`,
 `SandboxCreateConnectionError(idempotencyKey, detail)`,
 `DockerWaitTimeoutError(status?)` and `DockerNotReadyError(status)`.
+
+Ordinary API requests are not retried: a 429 or 5xx response throws its
+error at once, and the only automatic retry of one is the single retry after a
+401 that refreshes the credential. Retry yourself where the operation is safe
+to repeat. A few specialised paths do retry on their own, within their own
+budget: build-context uploads (each part and the completion request, up to 3
+attempts each), process waits (a long poll cut by a connection
+failure or a client timeout), and the build-log followers and sandbox events
+stream (they reconnect). An error's `retryAfterSeconds` comes from the
+`retry_after_seconds` field of the error body; a bare `Retry-After` response
+header does not set it. A client-side timeout ends the SDK's wait, not the
+work it started in the sandbox or on the platform.
 
 ```ts
 import { DaytonaError } from '@daytona/sdk'
