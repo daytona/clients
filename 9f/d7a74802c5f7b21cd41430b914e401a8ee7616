@@ -1,0 +1,43 @@
+sdk-typescript/src/v2/Daytona.ts
+  s_16e29cc1b88e81::t_78f5f0233cd50c 210-212
+sdk-go/README.md
+  s_16e29cc1b88e81::t_78f5f0233cd50c 119-121
+  s_16e29cc1b88e81::t_07e10d7aa62400 272-273,278-282
+sdk-go/sandbox_create.go
+  s_16e29cc1b88e81::t_78f5f0233cd50c 34-35
+  s_16e29cc1b88e81::t_b50c43054a074e 36-43
+AGENTS.md
+  s_16e29cc1b88e81::t_b50c43054a074e 1037-1040,1051-1052
+  s_16e29cc1b88e81::t_07e10d7aa62400 1035-1036,1096-1097
+sdk-python/README.md
+  s_16e29cc1b88e81::t_78f5f0233cd50c 549-552
+  s_16e29cc1b88e81::t_07e10d7aa62400 1428
+sdk-python/DEVELOPMENT.md
+  s_16e29cc1b88e81::t_07e10d7aa62400 163-167,171-174
+  s_16e29cc1b88e81::t_eceb995d2c9542 191-192
+changelog.d/sandbox-wait-no-read-after-event.changed.md
+  s_16e29cc1b88e81::t_78f5f0233cd50c 10,15-16
+sdk-python/src/daytona/v2/daytona.py
+  s_16e29cc1b88e81::t_78f5f0233cd50c 368-371
+sdk-typescript/README.md
+  s_16e29cc1b88e81::t_78f5f0233cd50c 456-459
+  s_16e29cc1b88e81::t_07e10d7aa62400 1346-1347
+sdk-python/src/daytona/v2/_sync/daytona.py
+  s_16e29cc1b88e81::t_b588962058801d 192-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9fd7a74802c5f7b21cd41430b914e401a8ee7616",
+  "prompts": {},
+  "sessions": {
+    "s_16e29cc1b88e81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de2d8e083ffeuCqMabC6O4aIw6",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
