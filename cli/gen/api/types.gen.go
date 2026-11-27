@@ -40,6 +40,7 @@ const (
 	CREATEBODYTOOLARGE                  ApiErrorCode = "CREATE_BODY_TOO_LARGE"
 	CREATETTLOUTOFRANGE                 ApiErrorCode = "CREATE_TTL_OUT_OF_RANGE"
 	DEFAULTIMAGENOTCONFIGURED           ApiErrorCode = "DEFAULT_IMAGE_NOT_CONFIGURED"
+	DELETELOCKTIMEOUT                   ApiErrorCode = "DELETE_LOCK_TIMEOUT"
 	DISKNOTREADY                        ApiErrorCode = "DISK_NOT_READY"
 	ECRACCOUNTMISMATCH                  ApiErrorCode = "ECR_ACCOUNT_MISMATCH"
 	ECRCREDENTIALSINVALID               ApiErrorCode = "ECR_CREDENTIALS_INVALID"
@@ -111,7 +112,6 @@ const (
 	ROLEINUSE                           ApiErrorCode = "ROLE_IN_USE"
 	RUNNERHASSANDBOXES                  ApiErrorCode = "RUNNER_HAS_SANDBOXES"
 	SANDBOXABUSEHOLD                    ApiErrorCode = "SANDBOX_ABUSE_HOLD"
-	SANDBOXTRANSITIONINPROGRESS         ApiErrorCode = "SANDBOX_TRANSITION_IN_PROGRESS"
 	SEARCHNOTCONFIGURED                 ApiErrorCode = "SEARCH_NOT_CONFIGURED"
 	SEARCHUNAVAILABLE                   ApiErrorCode = "SEARCH_UNAVAILABLE"
 	SECRETALREADYEXISTS                 ApiErrorCode = "SECRET_ALREADY_EXISTS"
@@ -199,6 +199,8 @@ func (e ApiErrorCode) Valid() bool {
 	case CREATETTLOUTOFRANGE:
 		return true
 	case DEFAULTIMAGENOTCONFIGURED:
+		return true
+	case DELETELOCKTIMEOUT:
 		return true
 	case DISKNOTREADY:
 		return true
@@ -341,8 +343,6 @@ func (e ApiErrorCode) Valid() bool {
 	case RUNNERHASSANDBOXES:
 		return true
 	case SANDBOXABUSEHOLD:
-		return true
-	case SANDBOXTRANSITIONINPROGRESS:
 		return true
 	case SEARCHNOTCONFIGURED:
 		return true
@@ -839,6 +839,60 @@ func (e CpuArchitecture) Valid() bool {
 	case Amd64:
 		return true
 	case Arm64:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataPolicy.
+const (
+	Standard DataPolicy = "standard"
+	Zdr      DataPolicy = "zdr"
+)
+
+// Valid indicates whether the value is a known member of the DataPolicy enum.
+func (e DataPolicy) Valid() bool {
+	switch e {
+	case Standard:
+		return true
+	case Zdr:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DataPolicyStatus.
+const (
+	DataPolicyStatusEffective DataPolicyStatus = "effective"
+	DataPolicyStatusPending   DataPolicyStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the DataPolicyStatus enum.
+func (e DataPolicyStatus) Valid() bool {
+	switch e {
+	case DataPolicyStatusEffective:
+		return true
+	case DataPolicyStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DesktopEnvironment.
+const (
+	Gnome DesktopEnvironment = "gnome"
+	Xfce  DesktopEnvironment = "xfce"
+)
+
+// Valid indicates whether the value is a known member of the DesktopEnvironment enum.
+func (e DesktopEnvironment) Valid() bool {
+	switch e {
+	case Gnome:
+		return true
+	case Xfce:
 		return true
 	default:
 		return false
@@ -1856,6 +1910,30 @@ func (e TimeoutSource) Valid() bool {
 	case TimeoutSourcePlatform:
 		return true
 	case TimeoutSourceProject:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UncoveredResourceKind.
+const (
+	UncoveredResourceKindImage    UncoveredResourceKind = "image"
+	UncoveredResourceKindSandbox  UncoveredResourceKind = "sandbox"
+	UncoveredResourceKindSnapshot UncoveredResourceKind = "snapshot"
+	UncoveredResourceKindVolume   UncoveredResourceKind = "volume"
+)
+
+// Valid indicates whether the value is a known member of the UncoveredResourceKind enum.
+func (e UncoveredResourceKind) Valid() bool {
+	switch e {
+	case UncoveredResourceKindImage:
+		return true
+	case UncoveredResourceKindSandbox:
+		return true
+	case UncoveredResourceKindSnapshot:
+		return true
+	case UncoveredResourceKindVolume:
 		return true
 	default:
 		return false
@@ -3116,6 +3194,11 @@ type CreateSandboxRequest struct {
 	// CreateTimeoutSeconds Seconds allowed for the sandbox to reach `running`. Defaults to 3600; `-1` uses the maximum.
 	CreateTimeoutSeconds *int64 `json:"create_timeout_seconds,omitempty"`
 
+	// Desktop Provision a Linux desktop. An empty object selects XFCE at 1280×720.
+	// Requires desktop creates to be enabled. Boot limits must be at least
+	// 1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME.
+	Desktop *DesktopConfig `json:"desktop,omitempty"`
+
 	// DiskMaxMib Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when
 	// restoring a snapshot, it must equal the captured disk size or be absent.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
@@ -3154,9 +3237,6 @@ type CreateSandboxRequest struct {
 
 	// NetworkPolicy Outbound network rules applied to the sandbox.
 	NetworkPolicy *SetSandboxNetworkPolicyRequest `json:"network_policy,omitempty"`
-
-	// Persistent Whether writable state persists across stops. Defaults to `false`.
-	Persistent *bool `json:"persistent,omitempty"`
 
 	// Ports Ports exposed when the sandbox starts.
 	Ports *[]PortMapping `json:"ports,omitempty"`
@@ -3241,10 +3321,57 @@ type CreateVolumeRequest struct {
 	Type *VolumeType `json:"type,omitempty"`
 }
 
+// DataPolicy The data policy of an organization, project or sandbox. `standard`: the default. `zdr`: zero data retention, which is not available yet: no sandbox can be created under it.
+type DataPolicy string
+
+// DataPolicyStatus Whether the current data policy applies in every region. `pending`: at least one region has not applied it yet; read it again to check. `effective`: every region applies it.
+type DataPolicyStatus string
+
 // DeclineInvitationRequest defines model for DeclineInvitationRequest.
 type DeclineInvitationRequest struct {
 	// Token The invitation token.
 	Token string `json:"token"`
+}
+
+// DesktopConfig Desktop settings. Omit a member for its default: xfce, 1280×720.
+type DesktopConfig struct {
+	// Environment Desktop session: xfce or gnome. Omitted = xfce.
+	Environment *DesktopConfig_Environment `json:"environment,omitempty"`
+
+	// Resolution Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+	Resolution *DesktopConfig_Resolution `json:"resolution,omitempty"`
+}
+
+// DesktopConfig_Environment Desktop session: xfce or gnome. Omitted = xfce.
+type DesktopConfig_Environment struct {
+	union json.RawMessage
+}
+
+// DesktopConfig_Resolution Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+type DesktopConfig_Resolution struct {
+	union json.RawMessage
+}
+
+// DesktopEnvironment Linux desktop session selected at create time.
+type DesktopEnvironment string
+
+// DesktopResolution Supported display geometry: 1024×768, 1280×720, or 1920×1080.
+type DesktopResolution struct {
+	// Height Height in pixels.
+	Height int32 `json:"height"`
+
+	// Width Width in pixels.
+	Width int32 `json:"width"`
+}
+
+// DesktopSettings Concrete create-time desktop settings. This records the request, not the
+// live guest state; GET /computeruse/display/info reports the live display size.
+type DesktopSettings struct {
+	// Environment Desktop session the sandbox was created with.
+	Environment DesktopEnvironment `json:"environment"`
+
+	// Resolution Exactly 1024×768, 1280×720, or 1920×1080.
+	Resolution DesktopResolution `json:"resolution"`
 }
 
 // EffectiveLifecyclePolicies defines model for EffectiveLifecyclePolicies.
@@ -4388,6 +4515,10 @@ type Organization struct {
 	// CreatedAt When the organization was created.
 	CreatedAt time.Time `json:"created_at"`
 
+	// DataPolicy The organization's data policy, set by Daytona. A project can be
+	// stricter than its organization, never looser.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
 	// FromV0 Whether the organization was migrated from Daytona v0.
 	FromV0 bool `json:"from_v0"`
 
@@ -4560,6 +4691,10 @@ type OrganizationListItem struct {
 
 	// CreatedAt When the organization was created.
 	CreatedAt time.Time `json:"created_at"`
+
+	// DataPolicy The organization's data policy, set by Daytona. A project can be
+	// stricter than its organization, never looser.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
 
 	// FromV0 Whether the organization was migrated from Daytona v0.
 	FromV0 bool `json:"from_v0"`
@@ -5111,6 +5246,10 @@ type Project struct {
 	// CreatedBy The user who created the project, when visible.
 	CreatedBy *openapi_types.UUID `json:"created_by,omitempty"`
 
+	// DataPolicy The project's own data policy. The policy new sandboxes are created
+	// under is `zdr` when the project or its organization is `zdr`.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
 	// Default Whether this is the organization's default project.
 	Default bool `json:"default"`
 
@@ -5356,6 +5495,37 @@ type ProjectBudget struct {
 	// UpdatedAt When a member last set the budget, or null when no budget is set.
 	// Spend evaluations do not change it.
 	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// ProjectDataPolicy A project's data policy.
+type ProjectDataPolicy struct {
+	// DataPolicy The project's own data policy.
+	DataPolicy DataPolicy `json:"data_policy"`
+
+	// EffectiveDataPolicy The policy new sandboxes in the project are created under: `zdr` when
+	// the project or its organization is `zdr`.
+	EffectiveDataPolicy DataPolicy `json:"effective_data_policy"`
+
+	// NotCovered Existing resources of the project the effective policy does not cover,
+	// at most 1000: a policy applies only to sandboxes created after it is
+	// set. These are the live sandboxes created under the standard policy,
+	// and every image, snapshot and volume of the project. The list holds
+	// the resources the organization's home region knows of.
+	NotCovered []UncoveredResource `json:"not_covered"`
+
+	// NotCoveredCount How many existing resources the effective policy does not cover; more
+	// than the length of `not_covered` when the list is cut at 1000.
+	NotCoveredCount int64 `json:"not_covered_count"`
+
+	// Notice What the effective policy means for sandbox creation, or null under the
+	// standard policy.
+	Notice *string `json:"notice"`
+
+	// ProjectId The project ID.
+	ProjectId openapi_types.UUID `json:"project_id"`
+
+	// Status Whether every region applies the project's current data policy.
+	Status DataPolicyStatus `json:"status"`
 }
 
 // ProjectImageBuildLimits The project's concurrent image-build limit and current usage.
@@ -5853,6 +6023,18 @@ type Sandbox struct {
 	// CreatedAt When the sandbox was created.
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 
+	// DataPolicy The data policy the sandbox was created under. It never changes: a
+	// later change to the project's or organization's policy applies only to
+	// sandboxes created after it.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
+	// Desktop Desktop settings this sandbox was created with: the create request, or for
+	// a restored or forked sandbox the settings captured from its source. Not
+	// live state: a desktop restart can change them. GET /computeruse/display/info
+	// reports the live display size. Omitted when the sandbox has no desktop, and
+	// from batch-wait (`GET /sandboxes/batch-wait`) snapshots.
+	Desktop *DesktopSettings `json:"desktop,omitempty"`
+
 	// DiskMaxMib Maximum writable disk size in MiB.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
 
@@ -6088,6 +6270,18 @@ type SandboxListItem struct {
 
 	// Cursor Opaque token that resumes immediately after this sandbox.
 	Cursor string `json:"cursor"`
+
+	// DataPolicy The data policy the sandbox was created under. It never changes: a
+	// later change to the project's or organization's policy applies only to
+	// sandboxes created after it.
+	DataPolicy *DataPolicy `json:"data_policy,omitempty"`
+
+	// Desktop Desktop settings this sandbox was created with: the create request, or for
+	// a restored or forked sandbox the settings captured from its source. Not
+	// live state: a desktop restart can change them. GET /computeruse/display/info
+	// reports the live display size. Omitted when the sandbox has no desktop, and
+	// from batch-wait (`GET /sandboxes/batch-wait`) snapshots.
+	Desktop *DesktopSettings `json:"desktop,omitempty"`
 
 	// DiskMaxMib Maximum writable disk size in MiB.
 	DiskMaxMib *int32 `json:"disk_max_mib,omitempty"`
@@ -6483,6 +6677,13 @@ type SetProjectBudgetRequest struct {
 	MonthlyLimitCents int64 `json:"monthly_limit_cents"`
 }
 
+// SetProjectDataPolicyRequest Body of the project data policy write. Unknown fields are rejected.
+type SetProjectDataPolicyRequest struct {
+	// DataPolicy The project's data policy. Only `zdr` will be accepted: switching a
+	// project back to `standard` is done by Daytona.
+	DataPolicy DataPolicy `json:"data_policy"`
+}
+
 // SetRegistryRequest Registry credentials. Passwords are encrypted at rest and are write-only.
 type SetRegistryRequest struct {
 	// Description An optional user-facing description.
@@ -6830,6 +7031,21 @@ type TokenExchange struct {
 	// TokenType Always `Bearer`.
 	TokenType string `json:"token_type"`
 }
+
+// UncoveredResource A resource of the project that the data policy does not cover.
+type UncoveredResource struct {
+	// Id The resource ID.
+	Id string `json:"id"`
+
+	// Kind The kind of the resource.
+	Kind UncoveredResourceKind `json:"kind"`
+
+	// Name The resource name, or null when the resource has none.
+	Name *string `json:"name"`
+}
+
+// UncoveredResourceKind The kind of a resource.
+type UncoveredResourceKind string
 
 // UpdateAuditConfigRequest defines model for UpdateAuditConfigRequest.
 type UpdateAuditConfigRequest struct {
@@ -7984,7 +8200,7 @@ type SearchSandboxesParams struct {
 	// may be at most 12,288 bytes; a longer one answers 400.
 	Labels *string `form:"labels,omitempty" json:"labels,omitempty"`
 
-	// Persistent Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes.
+	// Persistent Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes.
 	Persistent *bool `form:"persistent,omitempty" json:"persistent,omitempty"`
 
 	// Spot Spot-tier sandboxes only (`true`) or on-demand only (`false`).
@@ -8471,6 +8687,9 @@ type UpdateProjectApiKeyJSONRequestBody = UpdateProjectApiKeyRequest
 // SetProjectBudgetJSONRequestBody defines body for SetProjectBudget for application/json ContentType.
 type SetProjectBudgetJSONRequestBody = SetProjectBudgetRequest
 
+// SetProjectDataPolicyJSONRequestBody defines body for SetProjectDataPolicy for application/json ContentType.
+type SetProjectDataPolicyJSONRequestBody = SetProjectDataPolicyRequest
+
 // UpdateProjectLifecyclePolicyJSONRequestBody defines body for UpdateProjectLifecyclePolicy for application/json ContentType.
 type UpdateProjectLifecyclePolicyJSONRequestBody = UpdateProjectLifecyclePolicyRequest
 
@@ -8542,6 +8761,78 @@ type SetSecretJSONRequestBody = SetSecretRequest
 
 // CreateVolumeJSONRequestBody defines body for CreateVolume for application/json ContentType.
 type CreateVolumeJSONRequestBody = CreateVolumeRequest
+
+// AsDesktopEnvironment returns the union data inside the DesktopConfig_Environment as a DesktopEnvironment
+func (t DesktopConfig_Environment) AsDesktopEnvironment() (DesktopEnvironment, error) {
+	var body DesktopEnvironment
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDesktopEnvironment overwrites any union data inside the DesktopConfig_Environment as the provided DesktopEnvironment
+func (t *DesktopConfig_Environment) FromDesktopEnvironment(v DesktopEnvironment) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDesktopEnvironment performs a merge with any union data inside the DesktopConfig_Environment, using the provided DesktopEnvironment
+func (t *DesktopConfig_Environment) MergeDesktopEnvironment(v DesktopEnvironment) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DesktopConfig_Environment) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DesktopConfig_Environment) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsDesktopResolution returns the union data inside the DesktopConfig_Resolution as a DesktopResolution
+func (t DesktopConfig_Resolution) AsDesktopResolution() (DesktopResolution, error) {
+	var body DesktopResolution
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDesktopResolution overwrites any union data inside the DesktopConfig_Resolution as the provided DesktopResolution
+func (t *DesktopConfig_Resolution) FromDesktopResolution(v DesktopResolution) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeDesktopResolution performs a merge with any union data inside the DesktopConfig_Resolution, using the provided DesktopResolution
+func (t *DesktopConfig_Resolution) MergeDesktopResolution(v DesktopResolution) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t DesktopConfig_Resolution) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *DesktopConfig_Resolution) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // AsImageSourceValue0 returns the union data inside the ImageSourceValue as a ImageSourceValue0
 func (t ImageSourceValue) AsImageSourceValue0() (ImageSourceValue0, error) {

@@ -1823,6 +1823,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project_id}/data-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the project data policy
+         * @description Returns the project's data policy, the policy new sandboxes are created under, and the existing resources that policy does not cover. The read waits up to two seconds for every region to apply the current policy.
+         */
+        get: operations["get_project_data_policy"];
+        /**
+         * Set the project data policy
+         * @description Switching a project to the zero-data-retention data policy (`zdr`) is not available yet, so this operation refuses every request. Once available it will accept only `zdr` (only Daytona can switch a project back to `standard`), require the zero-data-retention entitlement, and list the existing resources the policy does not cover.
+         */
+        put: operations["set_project_data_policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/lifecycle-policy": {
         parameters: {
             query?: never;
@@ -2958,7 +2982,7 @@ export interface components {
          * @description Stable machine-readable error codes, returned as `ErrorBody.code`
          *     when `source` is `DAYTONA_API`.
          */
-        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "SANDBOX_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "VOLUME_NOT_FOUND" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
+        ApiErrorCode: ("ORG_SUSPENDED" | "SANDBOX_ABUSE_HOLD" | "PROJECT_BUDGET_EXCEEDED" | "FEATURE_NOT_ENABLED" | "ENTITLEMENT_REQUIRED" | "EMAIL_ACCESS_DENIED" | "GPU_ACCESS_UNDER_REVIEW" | "SIGNUP_NOT_INVITED" | "USER_SUSPENDED" | "OVERLOADED" | "DELETE_LOCK_TIMEOUT" | "RATE_LIMITED" | "LIMIT_EXCEEDED" | "IMAGE_TOO_LARGE" | "SNAPSHOT_TOO_LARGE" | "IF_MATCH_REQUIRED" | "STALE_SECRETS_REVISION" | "SECRETS_TRANSITION_IN_PROGRESS" | "STALE_NETWORK_POLICY_REVISION" | "SECRET_ALREADY_EXISTS" | "NETWORK_POLICY_DOMAINS_REQUIRE_BLOCK_ALL" | "NETWORK_POLICY_TRANSITION_IN_PROGRESS" | "BILLING_DISABLED" | "BILLING_UNREACHABLE" | "BILLING_UNAVAILABLE" | "BILLING_NOT_PROVISIONED" | "CHARGE_NOT_FOUND" | "INVOICE_NOT_FOUND" | "COUPON_NOT_FOUND" | "COUPON_EXPIRED" | "COUPON_LIMIT_REACHED" | "COUPON_ALREADY_REDEEMED" | "INVOICE_NOT_FINALIZED" | "INVOICE_NOT_PAYABLE" | "CHARGE_NOT_SUCCEEDED" | "PLAN_UNCHANGED" | "PLAN_CHANGE_PENDING" | "PLAN_MANAGED_BY_OPERATOR" | "PAYMENT_METHOD_REQUIRED" | "BILLING_ACCOUNT_CONFLICT" | "UNKNOWN_PLAN" | "PLAN_REQUIRES_SALES" | "AUTOMATIC_TOP_UP_NOT_AVAILABLE" | "SEARCH_NOT_CONFIGURED" | "SEARCH_UNAVAILABLE" | "UNSUPPORTED_VOLUME_TYPE" | "BUCKET_CREATE_FAILED" | "BUCKET_DELETE_FAILED" | "BUCKET_NOT_EMPTY" | "ORIGIN_IMPORT_ONLY" | "READ_ONLY_UNSUPPORTED" | "VOLUME_NOT_FOUND" | "WORKLOAD_PLANE_ELSEWHERE" | "MANAGEMENT_PLANE_ELSEWHERE" | "NOT_SUPPORTED_FOR_CLASS" | "INVALID_FOR_SOURCE" | "ROLE_IN_USE" | "MEMBERSHIP_EDITS_FROZEN" | "USAGE_UNAVAILABLE" | "BAD_RANGE" | "BAD_RESOLUTION" | "BILLING_FORBIDDEN" | "BILLING_ERROR" | "PLACEMENT_UNAVAILABLE" | "REGION_UNAVAILABLE" | "SOURCE_AMBIGUOUS" | "CREATE_BODY_TOO_LARGE" | "NO_ACTIVE_RESERVATION" | "NO_FREE_SLOT" | "RESERVATION_NOT_FOUND" | "NO_MAC_AVAILABLE" | "MAC_DISK_FULL" | "DISK_NOT_READY" | "AUTO_RESERVE_LIMIT_REACHED" | "IDEMPOTENCY_KEY_REUSED" | "INSUFFICIENT_BALANCE" | "CHARGE_FAILED" | "ECR_CREDENTIALS_INVALID" | "ECR_ACCOUNT_MISMATCH" | "ECR_OWNERSHIP_UNVERIFIABLE" | "IMAGE_NOT_FOUND" | "IMAGE_NOT_READY" | "IMAGE_BUILD_FAILED" | "DEFAULT_IMAGE_NOT_CONFIGURED" | "IMAGE_FORMAT_OUTDATED" | "IMAGE_CLASS_MISMATCH" | "IMAGE_NAME_TAKEN" | "IMAGE_NAME_RESERVED" | "IDLE_OUT_OF_RANGE" | "CREATE_TTL_OUT_OF_RANGE" | "SNAPSHOT_NOT_FOUND" | "SNAPSHOT_NOT_READY" | "SNAPSHOT_CLASS_MISMATCH" | "SNAPSHOT_IN_PROGRESS" | "IMPORTED_KEY_ALWAYS_SYNCED" | "KEY_SYNC_NOT_APPLICABLE" | "V0_BRIDGE_UNAVAILABLE" | "V0_SANDBOX_NOT_FOUND" | "V0_SANDBOX_NOT_IMPORTABLE" | "V0_BACKUP_REGISTRY_UNCONFIGURED" | "V0_MIGRATION_DEFAULT_PROJECT_ONLY" | "INVALID_PARENT_REGION" | "INVALID_SANDBOX_CIDR" | "INVALID_PREVIEW_DOMAIN" | "INVALID_TOOLBOX_PROXY_URL" | "REGION_NOT_FOUND" | "REGION_LIMIT_REACHED" | "REGION_NOT_EMPTY" | "REGION_SUBNETS_EXHAUSTED" | "RUNNER_HAS_SANDBOXES" | "NOT_FOUND" | "UNAUTHORIZED" | "FORBIDDEN" | "BAD_REQUEST" | "PAYMENT_REQUIRED" | "METHOD_NOT_ALLOWED" | "REQUEST_TIMEOUT" | "CONFLICT" | "GONE" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_ENTITY" | "TOO_MANY_REQUESTS" | "SERVICE_UNAVAILABLE" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "GATEWAY_TIMEOUT" | "INTERNAL_SERVER_ERROR") | (string & {});
         /** @description An accepted asynchronous operation. */
         AsyncOperation: {
             /** @description The ID of the resource the operation acts on. */
@@ -4059,6 +4083,12 @@ export interface components {
              */
             create_timeout_seconds?: number | null;
             /**
+             * @description Provision a Linux desktop. An empty object selects XFCE at 1280×720.
+             *     Requires desktop creates to be enabled. Boot limits must be at least
+             *     1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME.
+             */
+            desktop?: components["schemas"]["DesktopConfig"];
+            /**
              * Format: int32
              * @description Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when
              *     restoring a snapshot, it must equal the captured disk size or be absent.
@@ -4104,8 +4134,6 @@ export interface components {
             name?: string | null;
             /** @description Outbound network rules applied to the sandbox. */
             network_policy?: null | components["schemas"]["SetSandboxNetworkPolicyRequest"];
-            /** @description Whether writable state persists across stops. Defaults to `false`. */
-            persistent?: boolean;
             /** @description Ports exposed when the sandbox starts. */
             ports?: components["schemas"]["PortMapping"][];
             /**
@@ -4185,9 +4213,54 @@ export interface components {
             /** @description The volume type. Defaults to `disk`. */
             type?: null | components["schemas"]["VolumeType"];
         };
+        /** @description The data policy of an organization, project or sandbox. `standard`: the default. `zdr`: zero data retention, which is not available yet: no sandbox can be created under it. */
+        DataPolicy: ("standard" | "zdr") | (string & {});
+        /** @description Whether the current data policy applies in every region. `pending`: at least one region has not applied it yet; read it again to check. `effective`: every region applies it. */
+        DataPolicyStatus: ("pending" | "effective") | (string & {});
         DeclineInvitationRequest: {
             /** @description The invitation token. */
             token: string;
+        };
+        /** @description Desktop settings. Omit a member for its default: xfce, 1280×720. */
+        DesktopConfig: {
+            /**
+             * @description Desktop session: xfce or gnome. Omitted = xfce.
+             * @default xfce
+             */
+            environment: components["schemas"]["DesktopEnvironment"];
+            /**
+             * @description Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.
+             * @default {
+             *       "height": 720,
+             *       "width": 1280
+             *     }
+             */
+            resolution: components["schemas"]["DesktopResolution"];
+        };
+        /** @description Linux desktop session selected at create time. */
+        DesktopEnvironment: ("xfce" | "gnome") | (string & {});
+        /** @description Supported display geometry: 1024×768, 1280×720, or 1920×1080. */
+        DesktopResolution: {
+            /**
+             * Format: int32
+             * @description Height in pixels.
+             */
+            height: number;
+            /**
+             * Format: int32
+             * @description Width in pixels.
+             */
+            width: number;
+        };
+        /**
+         * @description Concrete create-time desktop settings. This records the request, not the
+         *     live guest state; GET /computeruse/display/info reports the live display size.
+         */
+        DesktopSettings: {
+            /** @description Desktop session the sandbox was created with. */
+            environment: components["schemas"]["DesktopEnvironment"];
+            /** @description Exactly 1024×768, 1280×720, or 1920×1080. */
+            resolution: components["schemas"]["DesktopResolution"];
         };
         EffectiveLifecyclePolicies: {
             /** @description Effective Linux sandbox policies. */
@@ -5417,6 +5490,11 @@ export interface components {
              * @description When the organization was created.
              */
             created_at: string;
+            /**
+             * @description The organization's data policy, set by Daytona. A project can be
+             *     stricter than its organization, never looser.
+             */
+            data_policy?: components["schemas"]["DataPolicy"];
             /** @description Whether the organization was migrated from Daytona v0. */
             from_v0: boolean;
             /**
@@ -6061,6 +6139,11 @@ export interface components {
              * @description The user who created the project, when visible.
              */
             created_by?: string | null;
+            /**
+             * @description The project's own data policy. The policy new sandboxes are created
+             *     under is `zdr` when the project or its organization is `zdr`.
+             */
+            data_policy?: components["schemas"]["DataPolicy"];
             /** @description Whether this is the organization's default project. */
             default: boolean;
             /**
@@ -6229,6 +6312,42 @@ export interface components {
              *     Spend evaluations do not change it.
              */
             updated_at: string | null;
+        };
+        /** @description A project's data policy. */
+        ProjectDataPolicy: {
+            /** @description The project's own data policy. */
+            data_policy: components["schemas"]["DataPolicy"];
+            /**
+             * @description The policy new sandboxes in the project are created under: `zdr` when
+             *     the project or its organization is `zdr`.
+             */
+            effective_data_policy: components["schemas"]["DataPolicy"];
+            /**
+             * @description Existing resources of the project the effective policy does not cover,
+             *     at most 1000: a policy applies only to sandboxes created after it is
+             *     set. These are the live sandboxes created under the standard policy,
+             *     and every image, snapshot and volume of the project. The list holds
+             *     the resources the organization's home region knows of.
+             */
+            not_covered: components["schemas"]["UncoveredResource"][];
+            /**
+             * Format: int64
+             * @description How many existing resources the effective policy does not cover; more
+             *     than the length of `not_covered` when the list is cut at 1000.
+             */
+            not_covered_count: number;
+            /**
+             * @description What the effective policy means for sandbox creation, or null under the
+             *     standard policy.
+             */
+            notice: string | null;
+            /**
+             * Format: uuid
+             * @description The project ID.
+             */
+            project_id: string;
+            /** @description Whether every region applies the project's current data policy. */
+            status: components["schemas"]["DataPolicyStatus"];
         };
         /** @description The project's concurrent image-build limit and current usage. */
         ProjectImageBuildLimits: {
@@ -6678,6 +6797,20 @@ export interface components {
              * @description When the sandbox was created.
              */
             created_at?: string | null;
+            /**
+             * @description The data policy the sandbox was created under. It never changes: a
+             *     later change to the project's or organization's policy applies only to
+             *     sandboxes created after it.
+             */
+            data_policy?: components["schemas"]["DataPolicy"];
+            /**
+             * @description Desktop settings this sandbox was created with: the create request, or for
+             *     a restored or forked sandbox the settings captured from its source. Not
+             *     live state: a desktop restart can change them. GET /computeruse/display/info
+             *     reports the live display size. Omitted when the sandbox has no desktop, and
+             *     from batch-wait (`GET /sandboxes/batch-wait`) snapshots.
+             */
+            desktop?: components["schemas"]["DesktopSettings"];
             /**
              * Format: int32
              * @description Maximum writable disk size in MiB.
@@ -7230,6 +7363,14 @@ export interface components {
              */
             monthly_limit_cents: number;
         };
+        /** @description Body of the project data policy write. Unknown fields are rejected. */
+        SetProjectDataPolicyRequest: {
+            /**
+             * @description The project's data policy. Only `zdr` will be accepted: switching a
+             *     project back to `standard` is done by Daytona.
+             */
+            data_policy: components["schemas"]["DataPolicy"];
+        };
         /** @description Registry credentials. Passwords are encrypted at rest and are write-only. */
         SetRegistryRequest: {
             /** @description An optional user-facing description. */
@@ -7531,6 +7672,17 @@ export interface components {
              */
             token_type: string;
         };
+        /** @description A resource of the project that the data policy does not cover. */
+        UncoveredResource: {
+            /** @description The resource ID. */
+            id: string;
+            /** @description The kind of the resource. */
+            kind: components["schemas"]["UncoveredResourceKind"];
+            /** @description The resource name, or null when the resource has none. */
+            name: string | null;
+        };
+        /** @description The kind of a resource. */
+        UncoveredResourceKind: ("sandbox" | "image" | "snapshot" | "volume") | (string & {});
         UpdateAuditConfigRequest: {
             /** @description Whether to disable audit capture. */
             disabled: boolean;
@@ -8221,7 +8373,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorBody"];
             };
         };
-        /** @description The request was rate limited, the service is overloaded, or a limit was reached (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `TOO_MANY_REQUESTS`) */
+        /** @description The request was rate limited, the service is overloaded, a limit was reached, or the sandbox is busy (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `DELETE_LOCK_TIMEOUT`, `TOO_MANY_REQUESTS`) */
         TooManyRequests: {
             headers: {
                 "Retry-After": components["headers"]["Retry-After"];
@@ -16006,6 +16158,111 @@ export interface operations {
             };
         };
     };
+    get_project_data_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project ID */
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project data policy */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDataPolicy"];
+                };
+            };
+            /** @description The project ID is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Project not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_project_data_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project ID */
+                project_id: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectDataPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description The project data policy */
+            200: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDataPolicy"];
+                };
+            };
+            /** @description The project ID or the request body is invalid (`BAD_REQUEST`) */
+            400: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller cannot change the project, or the request asks for the standard policy, which only Daytona can set (`FORBIDDEN`). Switching a project to zero data retention is not available yet (`FEATURE_NOT_ENABLED`). The organization's plan does not include zero data retention (`ENTITLEMENT_REQUIRED`). */
+            403: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Project not found */
+            404: {
+                headers: {
+                    "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     get_project_lifecycle_policy: {
         parameters: {
             query?: never;
@@ -17679,7 +17936,7 @@ export interface operations {
                  *     may be at most 12,288 bytes; a longer one answers 400.
                  */
                 labels?: string;
-                /** @description Filter by persistence: `true` for persistent sandboxes, `false` for ephemeral sandboxes. */
+                /** @description Filter by persistence: `true` for persistent macOS sandboxes, `false` for ephemeral sandboxes. */
                 persistent?: boolean;
                 /** @description Spot-tier sandboxes only (`true`) or on-demand only (`false`). */
                 spot?: boolean;
@@ -17868,6 +18125,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     mint_sandbox_access_token: {
@@ -18152,7 +18410,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox is still starting, stopping or pausing; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`). */
+            /** @description The sandbox class does not support forking, or a macOS fork asked for memory (`NOT_SUPPORTED_FOR_CLASS`). The sandbox state or configuration cannot be forked (`CONFLICT`). The sandbox's disk is not ready yet; retry the fork later (`DISK_NOT_READY`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -18224,7 +18482,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox is still starting (Linux, Windows) or stopping (macOS); retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`). */
+            /** @description The sandbox class does not support image capture (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running (`CONFLICT`), or the image name already exists (`IMAGE_NAME_TAKEN`). A macOS sandbox is not persistent or not stopped (`CONFLICT`). The sandbox's disk is not ready yet; retry the capture later (`DISK_NOT_READY`). The macOS image is larger than the organization's image size limit (`IMAGE_TOO_LARGE`). */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
@@ -19382,7 +19640,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox is still starting; retry after the delay in the Retry-After header (`SANDBOX_TRANSITION_IN_PROGRESS`) */
+            /** @description The sandbox class does not support snapshots (`NOT_SUPPORTED_FOR_CLASS`). The sandbox is not running, its saved state is unavailable, it has an attached volume, or the snapshot name already exists (`CONFLICT`). Sandbox secrets changed during the operation; retry (`SECRETS_TRANSITION_IN_PROGRESS`) */
             409: {
                 headers: {
                     "x-daytona-trace-id": components["headers"]["x-daytona-trace-id"];
