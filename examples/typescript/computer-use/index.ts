@@ -14,16 +14,32 @@ import { AddonUnavailableError, type Sandbox } from '@daytona/sdk/v2'
 import { assertStarted, client, fail, info, RUN, section, sleep } from '../_common'
 
 /**
- * Recording statuses whose file is usable. Any other one (`failed`,
- * `interrupted`, or a status this release does not know) is not.
+ * Statuses of a final recording (`stop()` returns one) whose file is usable.
+ * Any other one is not: `failed` has no file, `interrupted` may be partial,
+ * and a status this release does not know is treated the same way.
  */
 const USABLE_RECORDING: readonly string[] = ['completed', 'duration_limit_reached', 'size_limit_reached']
-const DESKTOP_WAIT_SECONDS = Number(process.env.EXAMPLE_DESKTOP_WAIT_SECONDS ?? '120')
-const POLL_SECONDS = Number(process.env.EXAMPLE_POLL_SECONDS ?? '2')
+
+interface Timing {
+  readonly waitSeconds: number
+  readonly pollSeconds: number
+}
+
+/** A duration from the environment; exits on a value that is not a finite, non-negative number. */
+function seconds(name: string, fallback: number): number {
+  const raw = process.env[name] ?? ''
+  if (raw === '') return fallback
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value < 0) {
+    console.error(`${name} must be a non-negative number of seconds, got ${JSON.stringify(raw)}`)
+    process.exit(2)
+  }
+  return value
+}
 
 /** Poll the desktop until it is ready; resolve to whether it got there. */
-async function waitForDesktop(sandbox: Sandbox): Promise<boolean> {
-  const deadline = Date.now() + DESKTOP_WAIT_SECONDS * 1000
+async function waitForDesktop(sandbox: Sandbox, timing: Timing): Promise<boolean> {
+  const deadline = Date.now() + timing.waitSeconds * 1000
   for (;;) {
     const status = await sandbox.computerUse.status()
     if (status.desktop === 'ready') return true
@@ -31,27 +47,32 @@ async function waitForDesktop(sandbox: Sandbox): Promise<boolean> {
       fail(`desktop is ${status.desktop}${status.cause ? `: ${status.cause.message}` : ''}`)
       return false
     }
-    await sleep(POLL_SECONDS)
+    await sleep(timing.pollSeconds)
   }
 }
 
 /** Record a few desktop actions; resolve to whether the recording is usable. */
-async function driveAndRecord(sandbox: Sandbox): Promise<boolean> {
+async function driveAndRecord(sandbox: Sandbox, timing: Timing): Promise<boolean> {
   section('desktop')
   await sandbox.computerUse.start()
-  if (!(await waitForDesktop(sandbox))) return false
+  if (!(await waitForDesktop(sandbox, timing))) return false
   info('desktop ready')
 
-  let recording = await sandbox.computerUse.recording.start({ label: `example-${RUN}` })
-  info(`recording ${recording.id} started`)
+  const started = await sandbox.computerUse.recording.start({ label: `example-${RUN}` })
+  info(`recording ${started.id} started`)
   try {
     await sandbox.computerUse.mouse.move({ x: 200, y: 200 })
     await sandbox.computerUse.keyboard.type({ text: 'hello from daytona' })
     const shot = await sandbox.computerUse.screen.screenshot()
     info(`screenshot: ${shot.sizeBytes} bytes`)
-  } finally {
-    recording = await sandbox.computerUse.recording.stop({ id: recording.id })
+  } catch (error) {
+    // Stop the recording, but keep the error that ended the actions.
+    await sandbox.computerUse.recording.stop({ id: started.id }).catch((stopError: unknown) => {
+      fail(`could not stop recording ${started.id}: ${String(stopError)}`)
+    })
+    throw error
   }
+  const recording = await sandbox.computerUse.recording.stop({ id: started.id })
 
   section('recording')
   // A stop that returns is not a usable file: check the status first.
@@ -70,6 +91,10 @@ async function main() {
     console.error('DAYTONA_DESKTOP_IMAGE is required (a project image with a desktop)')
     process.exit(2)
   }
+  const timing: Timing = {
+    waitSeconds: seconds('EXAMPLE_DESKTOP_WAIT_SECONDS', 120),
+    pollSeconds: seconds('EXAMPLE_POLL_SECONDS', 2),
+  }
   const daytona = client()
 
   const sandbox = await daytona.create(image, { name: `computer-use-${RUN}`, waitSeconds: 200 })
@@ -78,7 +103,7 @@ async function main() {
   let ok = false
   try {
     assertStarted(sandbox)
-    ok = await driveAndRecord(sandbox)
+    ok = await driveAndRecord(sandbox, timing)
   } catch (error) {
     if (!(error instanceof AddonUnavailableError)) throw error
     fail(`desktop automation is not available for this sandbox: ${error.message}`)

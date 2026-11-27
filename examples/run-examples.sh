@@ -13,9 +13,9 @@
 #     Dockerfile, so the deployment must support image builds. They are
 #     slower than the others: each waits for a real image build.
 #   - Volume examples are opt-in with DAYTONA_RUN_VOLUMES=1.
+#     volumes_share.{ts,py} are standalone persistence round-trip examples.
 #   - computer-use is opt-in: set DAYTONA_DESKTOP_IMAGE to a project image with a
 #     desktop (desktop automation must be available in its region).
-#     volumes_share.{ts,py} are standalone persistence round-trip examples.
 #   - Without API access you can still validate the examples statically:
 #       ./run-examples.sh check     # type checks + offline tests against a fake client
 set -uo pipefail

@@ -83,7 +83,7 @@ The examples exercise the V2 SDK surface in both languages.
 | pagination | `pagination` | ✅ `images.iter()` for lazy all-pages traversal plus manual `images.list(...)` cursor control. |
 | `secrets` (+ env) | `secrets-env` | ✅ `secrets.set/iter/delete` (a run-scoped name) + attach via `secrets: [name]`, alongside per-sandbox `env`. Shows the key contrast — **env vars carry real values into the sandbox; secrets show only a placeholder there** (the real value is used only in outgoing requests to the allowed domains). |
 | volumes | `volumes` | `volumes.get(name, { create: true })` / `volumes.get(name, create=True)` and mounts at different paths, including a subpath. See also `volumes_share.*`. |
-| computer use | `computer-use` | Opt-in: set `DAYTONA_DESKTOP_IMAGE` to a project image with a desktop, in a region where the platform offers desktop automation (elsewhere the calls raise `AddonUnavailableError`, 503 `ADDON_UNAVAILABLE`). Starts the desktop, waits for it, records a mouse move, typing and a screenshot, then checks the recording's `status` before downloading it (`failed` and `interrupted` recordings have no usable file). |
+| computer use | `computer-use` | Opt-in: set `DAYTONA_DESKTOP_IMAGE` to a project image with a desktop, in a region where the platform offers desktop automation (elsewhere the calls raise `AddonUnavailableError`, 503 `ADDON_UNAVAILABLE`). Starts the desktop, waits for it, records a mouse move, typing and a screenshot, then checks the recording's `status` before downloading it (a `failed` recording has no usable file, and an `interrupted` one may be partial or unplayable, so the example downloads neither). |
 
 Not covered here: network settings.
 

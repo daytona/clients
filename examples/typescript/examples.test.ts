@@ -474,6 +474,7 @@ test('computer-use reports unavailable desktop automation and deletes the sandbo
 test('computer-use skips the desktop and cleans up when create returns a non-started sandbox', () => {
   const { code, record } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, sandboxStates: ['creating'] }, DESKTOP)
   assert.equal(code, 1)
+  assert.equal(record.sandboxes.length, 1)
   assert.deepEqual(record.recordingsStopped, [])
   assertCleanedUp(record)
 })
@@ -483,3 +484,39 @@ test('computer-use needs DAYTONA_DESKTOP_IMAGE and creates nothing without it', 
   assert.equal(code, 2)
   assert.deepEqual(record.sandboxes, [])
 })
+
+test('computer-use stops the recording and keeps the error when a desktop action fails', () => {
+  const { code, record, output } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, desktopActionFails: true }, DESKTOP)
+  assert.equal(code, 1)
+  assert.match(output, /the mouse move failed/)
+  assert.deepEqual(record.recordingsStopped, ['rec-1'])
+  assert.deepEqual(record.recordingDownloads, [])
+  assert.equal(record.sandboxes.length, 1)
+  assertCleanedUp(record)
+})
+
+test('computer-use keeps the action error when stopping the recording also fails', () => {
+  const { code, record, output } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, desktopActionFails: true, recordingStopFails: true }, DESKTOP)
+  assert.equal(code, 1)
+  assert.match(output, /could not stop recording rec-1: Error: stop lost its connection/)
+  assert.match(output, /Error: Error: the mouse move failed/)
+  assert.equal(record.sandboxes.length, 1)
+  assertCleanedUp(record)
+})
+
+test('computer-use gives up on a desktop that never gets ready and deletes the sandbox', () => {
+  const { code, record } = runExample(example('computer-use'), { images: DESKTOP_IMAGES, desktopNeverReady: true }, { ...DESKTOP, EXAMPLE_DESKTOP_WAIT_SECONDS: '0' })
+  assert.equal(code, 1)
+  assert.deepEqual(record.recordingsStopped, [])
+  assert.equal(record.sandboxes.length, 1)
+  assertCleanedUp(record)
+})
+
+for (const value of ['soon', 'NaN', 'Infinity', '-1']) {
+  test(`computer-use refuses EXAMPLE_DESKTOP_WAIT_SECONDS=${value} before creating a sandbox`, () => {
+    const { code, record, output } = runExample(example('computer-use'), { images: DESKTOP_IMAGES }, { ...DESKTOP, EXAMPLE_DESKTOP_WAIT_SECONDS: value })
+    assert.equal(code, 2)
+    assert.match(output, /EXAMPLE_DESKTOP_WAIT_SECONDS must be a non-negative number of seconds/)
+    assert.deepEqual(record.sandboxes, [])
+  })
+}

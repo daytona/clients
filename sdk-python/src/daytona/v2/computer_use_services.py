@@ -416,22 +416,24 @@ class AsyncRecordingService:
         )
 
     async def stop(self, *, id: str) -> ComputerUseRecording:
-        """Stop a recording and return its final metadata.
+        """Stop a recording and return its final metadata (``end_time`` set).
 
         A successful return does not mean the file is usable: check
-        ``status`` first. ``completed`` (or ``duration_limit_reached`` /
-        ``size_limit_reached``, when a limit ended it) has a file at
-        ``file_path``; ``failed`` (the capture ended on its own or produced no
-        usable output) has none to use, and ``interrupted`` (the encoder had
-        to be killed) may leave a partial or unplayable file. The vocabulary
-        is open: treat any other value as not usable.
+        ``status`` first. A recording is final once ``end_time`` is set, and
+        only a final ``completed``, ``duration_limit_reached`` or
+        ``size_limit_reached`` recording has a usable file at ``file_path``.
+        ``failed`` (the capture ended on its own or produced no usable output)
+        has none, and ``interrupted`` (the encoder had to be killed) may leave
+        a partial or unplayable file. The vocabulary is open: treat any other
+        value as not usable.
 
         Example::
 
             rec = await sandbox.computer_use.recording.stop(id=rec.id)
-            if rec.status not in ("completed", "duration_limit_reached", "size_limit_reached"):
-                raise RuntimeError(f"recording {rec.id} ended {rec.status}")
-            data = await sandbox.computer_use.recording.download(rec.id)
+            if rec.status in ("completed", "duration_limit_reached", "size_limit_reached"):
+                data = await sandbox.computer_use.recording.download(rec.id)
+            else:
+                print(f"recording {rec.id} ended {rec.status}")
         """
         return parse_computer_use_recording(
             expect_computer_use_recording(
@@ -448,8 +450,11 @@ class AsyncRecordingService:
     async def list(self) -> ComputerUseRecordingList:
         """List the live and retained recordings (one response, not paginated).
 
-        Failed recordings stay in the list with ``status`` ``failed``; check
-        each recording's ``status`` as described on ``stop()``.
+        Failed recordings stay in the list with ``status`` ``failed``. A
+        recording without ``end_time`` is still live, whatever its ``status``
+        (``duration_limit_reached`` and ``size_limit_reached`` are also
+        reported while a limit-ended recording is being finalized); check a
+        final recording's ``status`` as described on ``stop()``.
         """
         return parse_computer_use_recording_list(
             expect_computer_use_recordings_response(
@@ -458,11 +463,15 @@ class AsyncRecordingService:
         )
 
     async def get(self, id: str, /) -> ComputerUseRecording:
-        """Read one recording, a live one included (``recording``, ``stopping``).
+        """Read one recording, a live one included.
 
-        A recording whose capture failed is still returned, with ``status``
-        ``failed``; check ``status`` as described on ``stop()`` before using
-        its file.
+        A recording is live until ``end_time`` is set: its ``status`` is then
+        ``recording``, ``stopping``, ``duration_limit_reached`` or
+        ``size_limit_reached`` (a limit was hit and the file is still being
+        finalized), so do not use its file yet. A recording whose capture
+        failed is still returned, with ``status`` ``failed``; check a final
+        recording's ``status`` as described on ``stop()`` before using its
+        file.
         """
         return parse_computer_use_recording(
             expect_computer_use_recording(

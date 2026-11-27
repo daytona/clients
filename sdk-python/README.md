@@ -601,9 +601,10 @@ times with `created_start_at` / `updated_start_at` (inclusive) and
 `sort` (`name`, `created_at`, or `updated_at`), `order`, `limit`, and `cursor`
 for ordering and paging. The returned `SearchResult` includes `total` and
 `total_relation` (`"eq"` for an exact count, `"gte"` for a lower bound).
-Without `sort`, secrets come back by name, ascending; sandbox, image, snapshot
-and volume searches (and the `list()` calls that read them) default to newest
-first instead.
+With neither `sort` nor `order`, secrets come back by name, ascending; sandbox,
+image, snapshot and volume searches (and the `list()` calls that read them)
+default to newest first instead. `sort` and `order` default independently, so
+`order` alone reverses the default field.
 
 Search is eventually consistent. Use `d.v2.secrets.get(name)` when a secret
 must be visible immediately after a write. `secrets.list()` now reads search
@@ -1351,19 +1352,23 @@ the root (`max_depth`, an integer from 0 to 256, default 256); a deeper UI
 comes back cut at that depth with `truncated` set.
 
 `recording.stop()`, `get()` and `list()` also return recordings that did not
-produce a usable file, so check `status` before using one: `completed`,
-`duration_limit_reached` and `size_limit_reached` have a file at `file_path`;
-`failed` (the capture ended on its own or produced no usable output) has none,
-and `interrupted` (the encoder had to be killed) may be partial. The vocabulary
-is open; treat any other value as not usable. `recording.start()` raises
-`DesktopNotReadyError` (409) while the desktop is not ready.
+produce a usable file, so check before using one. A recording is final once
+`end_time` is set (`stop()` always returns a final one); until then it is live,
+whatever its `status` (`duration_limit_reached` and `size_limit_reached` are
+also reported while a limit-ended recording is being finalized). A final
+`completed`, `duration_limit_reached` or `size_limit_reached` recording has a
+file at `file_path`; `failed` (the capture ended on its own or produced no
+usable output) has none, and `interrupted` (the encoder had to be killed) may
+be partial. The vocabulary is open; treat any other value as not usable.
+`recording.start()` raises `DesktopNotReadyError` (409) while the desktop is
+not ready.
 
 ```python
-rec = await sandbox.computer_use.recording.start(label="demo")
+rec = sandbox.computer_use.recording.start(label="demo")
 # ... drive the desktop ...
-rec = await sandbox.computer_use.recording.stop(id=rec.id)
+rec = sandbox.computer_use.recording.stop(id=rec.id)
 if rec.status in ("completed", "duration_limit_reached", "size_limit_reached"):
-    await sandbox.fs.download_file(rec.file_path, "demo.mp4")
+    sandbox.fs.download_file(rec.file_path, "demo.mp4")
 else:
     print(f"recording {rec.id} ended {rec.status}")
 ```

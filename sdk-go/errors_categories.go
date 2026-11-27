@@ -32,7 +32,9 @@ var (
 	// ErrConnection matches network failures without an HTTP response.
 	ErrConnection errorCategory = "connection"
 	// ErrPreconditionFailed matches revision conflicts (412): a stale If-Match
-	// ETag on a conditional write. A malformed ETag is ErrBadRequest instead.
+	// ETag on a conditional write, or a create-only secret write that finds the
+	// secret (which also matches ErrSecretAlreadyExists). A malformed ETag is
+	// ErrBadRequest instead.
 	ErrPreconditionFailed errorCategory = "precondition failed"
 	// ErrMethodNotAllowed matches unavailable HTTP methods (405).
 	ErrMethodNotAllowed errorCategory = "method not allowed"

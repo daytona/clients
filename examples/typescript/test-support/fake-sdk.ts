@@ -61,6 +61,12 @@ export interface Scenario {
   readonly recordingStatus?: string
   /** Desktop automation is unavailable: computerUse.start() throws AddonUnavailableError. */
   readonly computerUseUnavailable?: boolean
+  /** The desktop never reports ready. */
+  readonly desktopNeverReady?: boolean
+  /** The first desktop action (a mouse move) throws. */
+  readonly desktopActionFails?: boolean
+  /** recording.stop() throws. */
+  readonly recordingStopFails?: boolean
 }
 
 export interface Record {
@@ -280,14 +286,20 @@ function computerUse() {
       started = true
       return { message: 'started', status: {} }
     },
-    status: async () => (started ? { status: 'active', desktop: 'ready' } : { status: 'inactive', desktop: 'not_started' }),
-    mouse: { move: async ({ x, y }: { x: number; y: number }) => ({ x, y }) },
+    status: async () => (started && !scenario.desktopNeverReady ? { status: 'active', desktop: 'ready' } : { status: 'inactive', desktop: 'not_started' }),
+    mouse: {
+      move: async ({ x, y }: { x: number; y: number }) => {
+        if (scenario.desktopActionFails) throw new Error('the mouse move failed')
+        return { x, y }
+      },
+    },
     keyboard: { type: async () => undefined },
     screen: { screenshot: async () => ({ screenshot: '', sizeBytes: 42 }) },
     recording: {
       start: async () => recording('rec-1', 'recording'),
       stop: async ({ id }: { id: string }) => {
         record.recordingsStopped.push(id)
+        if (scenario.recordingStopFails) throw new Error('stop lost its connection')
         return recording(id, scenario.recordingStatus ?? 'completed')
       },
       download: async (id: string) => {

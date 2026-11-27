@@ -25,12 +25,14 @@ type ComputerUseRecording struct {
 	StartTime time.Time
 	// EndTime is zero until reported.
 	EndTime time.Time
-	// Status is the server's open recording status: "recording" or
-	// "stopping" while live; "completed", "duration_limit_reached" or
-	// "size_limit_reached" when the file at FilePath is usable; "failed" when
-	// the capture ended on its own or produced no usable output; "interrupted"
-	// when the encoder had to be killed and the file may be partial. Treat any
-	// other value as not usable.
+	// Status is the server's open recording status. A recording is live
+	// until EndTime is set: then Status is "recording", "stopping",
+	// "duration_limit_reached" or "size_limit_reached" (a limit was hit and
+	// the file is still being finalized). Once final, "completed",
+	// "duration_limit_reached" and "size_limit_reached" mean the file at
+	// FilePath is usable; "failed" means the capture ended on its own or
+	// produced no usable output; "interrupted" means the encoder had to be
+	// killed and the file may be partial. Treat any other value as not usable.
 	Status string
 	// Duration is absent until reported.
 	Duration *time.Duration
@@ -72,8 +74,8 @@ func (s *ComputerUseRecordings) Start(
 	return parseDesktopRecording(raw)
 }
 
-// Stop stops the specified recording and returns its final metadata. A nil
-// error does not mean the file is usable: check Status first (see
+// Stop stops the specified recording and returns its final metadata (EndTime
+// set). A nil error does not mean the file is usable: check Status first (see
 // ComputerUseRecording.Status), for example
 //
 //	rec, err := recordings.Stop(ctx, id)
@@ -100,7 +102,8 @@ func (s *ComputerUseRecordings) Stop(ctx context.Context, id string) (*ComputerU
 }
 
 // List returns every recording. The server does not paginate this list.
-// Failed recordings stay listed with Status "failed".
+// Failed recordings stay listed with Status "failed"; one with a zero EndTime
+// is still live (see ComputerUseRecording.Status).
 func (s *ComputerUseRecordings) List(ctx context.Context) ([]ComputerUseRecording, error) {
 	raw, err := desktopRead(ctx, s.s, toolboxRequest{Path: "/computeruse/recordings"})
 	if err != nil {
@@ -122,8 +125,9 @@ func (s *ComputerUseRecordings) List(ctx context.Context) ([]ComputerUseRecordin
 	return result, nil
 }
 
-// Get reads one recording. Invalid path IDs return ErrBadRequest. A recording
-// whose capture failed is still returned, with Status "failed".
+// Get reads one recording, a live one included (zero EndTime; see
+// ComputerUseRecording.Status). Invalid path IDs return ErrBadRequest. A
+// recording whose capture failed is still returned, with Status "failed".
 func (s *ComputerUseRecordings) Get(ctx context.Context, id string) (*ComputerUseRecording, error) {
 	segment, err := pathSegment(id)
 	if err != nil {

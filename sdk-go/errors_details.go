@@ -4,8 +4,8 @@
 package daytona
 
 // SandboxTerminalStateError reports a terminal state reached before a wait target.
-// State can be the one the operation started from: a Pause that fails reports
-// started, and a Resume that cannot finish reports stopped.
+// State can be one the operation fell back to rather than its target: a Pause
+// that fails reports started, and a Resume that cannot finish reports stopped.
 // Either way, the operation did not complete.
 type SandboxTerminalStateError struct {
 	// SDKError is the underlying conflict error.
