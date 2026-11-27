@@ -7152,7 +7152,7 @@ async def test_pty_delete_refuses_non_pty_processes() -> None:
     transport = RecordingTransport([_process_payload("p1", "exec", "running")])
     pty = AsyncPtyService(AsyncProcessService("sbx", transport))
     with pytest.raises(
-        UnsupportedOperationError, match="process.delete\\(\\) is only supported for pty handles"
+        UnsupportedOperationError, match="pty.delete\\(\\) is only supported for pty handles"
     ):
         await pty.delete("p1")
     # Only the metadata lookup was sent — no signal, no cleanup.

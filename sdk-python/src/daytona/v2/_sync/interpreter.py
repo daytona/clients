@@ -43,7 +43,12 @@ class InterpreterService:
     def connect_context(
         self, context: str | InterpreterContext | InterpreterContextJSON, /, *, language: str | None = None
     ) -> InterpreterContext:
-        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
+        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request.
+
+        With a handle or ``to_json()`` identity, ``language`` is optional; one
+        that differs from the context's language raises
+        :class:`~daytona.v2.errors.BadRequestError`.
+        """
         from .types import InterpreterContext
 
         return InterpreterContext(
@@ -115,7 +120,9 @@ class InterpreterService:
         :meth:`create_context`. With a context handle or ``to_json()``
         identity, a ``language`` that differs from the context's language
         raises :class:`~daytona.v2.errors.BadRequestError` before any request;
-        a bare context id takes ``language`` as the context's language.
+        a bare context id takes ``language`` as the context's language. A
+        ``code`` that is not a string, or an empty ``language``, raises
+        :class:`~daytona.v2.errors.BadRequestError` before any request.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on

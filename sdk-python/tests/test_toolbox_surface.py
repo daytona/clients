@@ -1654,7 +1654,7 @@ def test_timestamp_field_ranges_match_the_typescript_sdk_exactly(value: str) -> 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     ("escalate_after", "message"),
-    [(-1, "escalate_after must be a non-negative"), (1e13, "escalate_after is too large")],
+    [(-1, "escalate_after must be a non-negative"), (1e13, "escalate_after must be at most 600 seconds")],
 )
 async def test_kill_names_escalate_after_in_its_errors(escalate_after: float, message: str) -> None:
     transport = Transport()

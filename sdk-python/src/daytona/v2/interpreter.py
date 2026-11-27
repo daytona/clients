@@ -14,6 +14,8 @@ from ._core import (
     RequestSpec,
     bounded_request_timeout,
     expect_object,
+    interpreter_code,
+    interpreter_language,
     is_json_value,
     loads_json,
     path_segment,
@@ -87,6 +89,16 @@ def _session_identity(value: object, *, requested_id: Optional[str] = None) -> t
         problem = "is required" if kernel is None else "must be a string"
         raise create_error(f"expected {description}: kernel {problem}", 400, codes.BAD_REQUEST, "SDK")
     return context_id, kernel
+
+
+def _check_context_language(language: Optional[str], context_language: str) -> None:
+    if language is not None and language != context_language:
+        raise create_error(
+            f"language {language!r} does not match the context's language {context_language!r}",
+            400,
+            codes.BAD_REQUEST,
+            "SDK",
+        )
 
 
 def _timed_out_result() -> InterpreterResult:
@@ -220,7 +232,9 @@ class AsyncInterpreterService:
         supported language's kernel failed to install or start. ``cwd`` and
         ``env`` apply to every run in the context.
         """
-        return await self._create_context(language=language, context_id=context_id, cwd=cwd, env=env)
+        return await self._create_context(
+            language=interpreter_language(language), context_id=context_id, cwd=cwd, env=env
+        )
 
     async def _create_context(
         self,
@@ -260,9 +274,27 @@ class AsyncInterpreterService:
         *,
         language: str | None = None,
     ) -> AsyncInterpreterContext:
-        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
+        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request.
+
+        With a handle or ``to_json()`` identity, ``language`` is optional; one
+        that differs from the context's language raises
+        :class:`~daytona.v2.errors.BadRequestError`.
+        """
+        if language is not None and (not isinstance(language, str) or not language):
+            raise create_error(
+                "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
+            )
         if isinstance(context, (AsyncInterpreterContext, Mapping)):
-            return self._bind_context(*self._context_identity(context))
+            context_id, context_language = self._context_identity(context)
+            _check_context_language(language, context_language)
+            return self._bind_context(context_id, context_language)
+        if not isinstance(context, str) or not context:
+            raise create_error(
+                "interpreter context id must be a non-empty string",
+                400,
+                codes.BAD_REQUEST,
+                "SDK",
+            )
         if language is None:
             raise create_error(
                 "language is required when reconnecting an interpreter context by id",
@@ -334,7 +366,9 @@ class AsyncInterpreterService:
         :meth:`create_context`. With a context handle or ``to_json()``
         identity, a ``language`` that differs from the context's language
         raises :class:`~daytona.v2.errors.BadRequestError` before any request;
-        a bare context id takes ``language`` as the context's language.
+        a bare context id takes ``language`` as the context's language. A
+        ``code`` that is not a string, or an empty ``language``, raises
+        :class:`~daytona.v2.errors.BadRequestError` before any request.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on
@@ -343,6 +377,9 @@ class AsyncInterpreterService:
         context and what to rerun. ``timeout`` is the caller wait budget in
         seconds; ``0`` waits unbounded.
         """
+        interpreter_code(code)
+        if language is not None:
+            interpreter_language(language)
         timeout = wait_budget(timeout)
         if isolated and context is not None:
             raise create_error(
@@ -353,13 +390,7 @@ class AsyncInterpreterService:
             )
         if context is not None:
             rebound_context = self.connect_context(context, language=language)
-            if language is not None and language != rebound_context.language:
-                raise create_error(
-                    f"language {language!r} does not match the context's language {rebound_context.language!r}",
-                    400,
-                    codes.BAD_REQUEST,
-                    "SDK",
-                )
+            _check_context_language(language, rebound_context.language)
             if env is not None:
                 raise create_error(
                     "env is only supported when creating a context or running without an explicit context",
@@ -435,6 +466,7 @@ class AsyncInterpreterService:
             cwd: Optional[str],
             timeout: Optional[float],
         ) -> InterpreterResult:
+            interpreter_code(code)
             return await gate.run(
                 wait_budget(timeout),
                 lambda remaining_timeout: self._run_bound_context(

@@ -6,6 +6,7 @@ package daytona
 import (
 	"context"
 	"net/http"
+	"strings"
 )
 
 // Kill sends a signal (TERM by default), with optional escalation. INT interrupts
@@ -19,7 +20,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 	if signal == "" {
 		signal = ProcessSignalTerminate
 	}
-	wire, err := processSignalWire(signal)
+	wire, err := processSignalWire(signal, "Signal")
 	if err != nil {
 		return err
 	}
@@ -28,6 +29,10 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 		EscalateAfterMs *int64 `json:"escalateAfterMs,omitempty"`
 		EscalateTo      string `json:"escalateTo,omitempty"`
 	}{Signal: wire}
+	if options.EscalateAfter == nil && options.EscalateTo != "" {
+		// The target would never be sent without a delay.
+		return badRequest("EscalateTo needs EscalateAfter")
+	}
 	if options.EscalateAfter != nil {
 		if *options.EscalateAfter < 0 {
 			return badRequest("EscalateAfter must be non-negative")
@@ -41,7 +46,7 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 		if target == "" {
 			target = ProcessSignalKill
 		}
-		body.EscalateTo, err = processSignalWire(target)
+		body.EscalateTo, err = processSignalWire(target, "EscalateTo")
 		if err != nil {
 			return err
 		}
@@ -49,9 +54,22 @@ func (h *ProcessHandle) Kill(ctx context.Context, opts *KillProcessOptions) erro
 	return h.request(ctx, toolboxRequest{Method: http.MethodPost, Path: "/signals", Body: body})
 }
 
-func processSignalWire(signal ProcessSignal) (string, error) {
-	if processSignal(string(signal)) == ProcessSignalUnknown || signal == "" {
-		return "", badRequest("Signal must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
+// processSignalWire spells a bare signal name (matched case-insensitively) as
+// the wire does, with the SIG prefix.
+func processSignalWire(signal ProcessSignal, field string) (string, error) {
+	// ASCII only: Unicode case mapping would read "kıll" as KILL.
+	name := asciiUpper(string(signal))
+	if processSignal(name) == ProcessSignalUnknown || name == "" {
+		return "", badRequest(field + " must be TERM, KILL, INT, HUP, QUIT, USR1 or USR2 without a SIG prefix")
 	}
-	return "SIG" + string(signal), nil
+	return "SIG" + name, nil
+}
+
+func asciiUpper(value string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' {
+			return r - ('a' - 'A')
+		}
+		return r
+	}, value)
 }

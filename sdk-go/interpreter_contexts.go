@@ -21,12 +21,16 @@ type interpreterContextRequest struct {
 }
 
 // CreateContext creates independent kernel state. Language is case-sensitive
-// and server-defined; unsupported languages return ErrUnsupportedOperation.
+// and server-defined; unsupported languages return ErrUnsupportedOperation, and
+// an empty one returns ErrBadRequest before any request.
 // If a named context's response cannot be parsed or bound, the error identifies
 // the context that may exist and preserves the failure as its cause.
 func (s *Interpreter) CreateContext(
 	ctx context.Context, language string, opts *CreateInterpreterContextOptions,
 ) (*InterpreterContext, error) {
+	if language == "" {
+		return nil, badRequest("language must be a non-empty string")
+	}
 	body := interpreterContextRequest{Kernel: language}
 	if opts != nil {
 		body.ID, body.Cwd, body.Env = opts.ContextID, opts.Cwd, maps.Clone(opts.Env)
