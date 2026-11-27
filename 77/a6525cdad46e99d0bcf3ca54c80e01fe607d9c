@@ -1,0 +1,68 @@
+cli/internal/input/request_fields_test.go
+  s_a7224bd237a8ff::t_4f3e43a93233d6 62-64
+  s_a7224bd237a8ff::t_11461c9490691c 94-114
+changelog.d/bucket-role-codes.added.md
+  s_10413bdfe4b841::t_540d9d093fdfdc 1
+changelog.d/delete-lock-timeout-code.added.md
+  s_10413bdfe4b841::t_7bb8d28744930a 1
+cli/gen/api/types.gen.go
+  s_10413bdfe4b841::t_e2e6ae37155c38 32-33,117,184-187,354-355,2539-2540,2543-2548,2551,2556-2557,3257-3259,8222
+contract/api-openapi.json
+  s_e076afea96ab81::t_c9e2e4475c5914 433,492-493,1366,1371-1382,1387-1390,1399,3053-3056,27414,28354,28480,30236,30488,32976-32985,33367-33373
+sdk-go/internal/gen/api/models.gen.go
+  s_10413bdfe4b841::t_fabfa6c6aaf12c 32-33,45,184-187,210-211,857-910,1928-1951,2539-2540,2543-2548,2551,2556-2557,3213-3217,3343-3348,3355-3395,4537-4540,4714-4717,5268-5271,5519-5549,6045-6056,6293-6304,6699-6705,7054-7068,8709-8711,8784-8855
+sdk-python/src/daytona/v2/_gen/api/models/api_error_code.py
+  s_10413bdfe4b841::t_51d5e42c1e7a35 51,110-111
+sdk-python/src/daytona/v2/_gen/api/models/bucket_credentials.py
+  s_10413bdfe4b841::t_6622fcf3322399 21,35,37-39,41,91-105,118-120
+sdk-python/src/daytona/v2/_gen/api/models/bucket_options.py
+  s_10413bdfe4b841::t_9cb8224dc7f8a5 39
+sdk-python/src/daytona/v2/_gen/api/models/create_sandbox_request.py
+  s_10413bdfe4b841::t_8de2812f369d80 22,47,67,110-112,235
+sdk-typescript/src/v2/gen/api-enums.ts
+  s_10413bdfe4b841::t_b1f2854558a508 3
+sdk-typescript/src/v2/gen/api.ts
+  s_10413bdfe4b841::t_ed694db535cfda 2985,3298-3301,3307-3314,3319,3323-3326,4150-4151,17954,18428,18500,19510,19658
+cli/internal/input/request_fields_gen.go
+  s_181d7feb0c2369::t_26a23637fd0ac1 108-120,159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77a6525cdad46e99d0bcf3ca54c80e01fe607d9c",
+  "prompts": {},
+  "sessions": {
+    "s_10413bdfe4b841": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_df0f6bff9ffeyFbpRNyY6NmNUG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_181d7feb0c2369": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_de3ccdf88ffej1U3E7iyK3AOnG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_a7224bd237a8ff": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de3ccdf88ffej1U3E7iyK3AOnG",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    },
+    "s_e076afea96ab81": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e2ad56025ffeFOFYA6jiCKnD6x",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
