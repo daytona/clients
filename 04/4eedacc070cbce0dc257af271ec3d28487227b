@@ -1,0 +1,204 @@
+AGENTS.md
+  h_e7759ddd73fa65 625-633,789-801,1023-1040
+changelog.d/538-process-run-wait.fixed.md
+  h_e7759ddd73fa65 2-4
+changelog.d/751-process-interpreter-git-inputs.fixed.md
+  h_e7759ddd73fa65 1-16
+changelog.d/751-process-signal-inputs.fixed.md
+  h_e7759ddd73fa65 1-11
+changelog.d/755-create-handle-docs.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/755-first-run-docs.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/755-interpreter-setup-failure.fixed.md
+  h_e7759ddd73fa65 1-7
+changelog.d/755-resource-visibility-docs.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/fs-move-timeout.added.md
+  h_e7759ddd73fa65 1-15
+changelog.d/joined-start-failure.fixed.md
+  h_e7759ddd73fa65 1-6
+changelog.d/process-wait-rounds.fixed.md
+  h_e7759ddd73fa65 1-18
+changelog.d/resume-errors-docs.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/sandbox-wait-target-revalidation.fixed.md
+  h_e7759ddd73fa65 1-9
+changelog.d/volume-bucket-role-arn.added.md
+  h_e7759ddd73fa65 1
+cli/cmd/volume.go
+  h_e7759ddd73fa65 44,48,77-79,107,144,147
+cli/cmd/volume_helpers.go
+  h_e7759ddd73fa65 19,56,83,85,88-101,178-184
+cli/cmd/volume_more_test.go
+  h_e7759ddd73fa65 38-41,62-71
+sdk-go/README.md
+  h_e7759ddd73fa65 111-120,251-262,286-300
+sdk-go/exec.go
+  h_e7759ddd73fa65 51-52
+sdk-go/exec_run.go
+  h_e7759ddd73fa65 29-34,36-37,42
+sdk-go/exec_test.go
+  h_e7759ddd73fa65 35,84-86
+sdk-go/fs.go
+  h_e7759ddd73fa65 49-56,163-172,176-185,188-189
+sdk-go/fs_move_timeout_test.go
+  h_e7759ddd73fa65 1-79
+sdk-go/interpreter.go
+  h_e7759ddd73fa65 62-64
+sdk-go/interpreter_contexts.go
+  h_e7759ddd73fa65 24-25,31-33
+sdk-go/interpreter_r3_contexts_test.go
+  h_e7759ddd73fa65 36-37,39
+sdk-go/process_cubic_wait_test.go
+  h_e7759ddd73fa65 15,17-18,35-57
+sdk-go/process_options.go
+  h_e7759ddd73fa65 58,64-65
+sdk-go/process_signal.go
+  h_e7759ddd73fa65 9,23,32-35,49,57-63,65-74
+sdk-go/process_signal_inputs_test.go
+  h_e7759ddd73fa65 1-80
+sdk-go/process_wait.go
+  h_e7759ddd73fa65 15-22,24-31,97-101,117-119,121-123,125-126
+sdk-go/process_wait_r3_test.go
+  h_e7759ddd73fa65 8-9,11,17-37,39-40,42-85
+sdk-go/process_wait_rounds_test.go
+  h_e7759ddd73fa65 1-154
+sdk-go/process_wait_test.go
+  h_e7759ddd73fa65 31
+sdk-go/run_code.go
+  h_e7759ddd73fa65 20-24,61-77,85-87
+sdk-go/run_code_collect.go
+  h_e7759ddd73fa65 31,108
+sdk-go/run_code_output.go
+  h_e7759ddd73fa65 17,49-53,88-108
+sdk-go/run_code_setup_failure_test.go
+  h_e7759ddd73fa65 1-138
+sdk-go/sandbox_create.go
+  h_e7759ddd73fa65 28-37
+sdk-go/sandbox_lifecycle.go
+  h_e7759ddd73fa65 21-22,34-44
+sdk-go/sandbox_lifecycle_start.go
+  h_e7759ddd73fa65 14-17,68-71,76
+sdk-go/sandbox_wait.go
+  h_e7759ddd73fa65 123-131,133,136
+sdk-go/sandbox_wait_events.go
+  h_e7759ddd73fa65 136-139,164-167,173-178,181,184-198
+sdk-go/sandbox_wait_events_test.go
+  h_e7759ddd73fa65 68-70,77-79,92-93,95-97
+sdk-go/sandbox_wait_revalidation_test.go
+  h_e7759ddd73fa65 1-419
+sdk-go/wait_options.go
+  h_e7759ddd73fa65 120-122
+sdk-python/DEVELOPMENT.md
+  h_e7759ddd73fa65 163-172
+sdk-python/README.md
+  h_e7759ddd73fa65 501-509,730-733,895-898,924-930,951-953,1075-1084,1160-1182,1307-1315
+sdk-python/src/daytona/v2/_core.py
+  h_e7759ddd73fa65 111,1144-1166,1201-1206,1211-1218,1287-1291,1300,1399-1420,1588-1594,1598-1599,1908-1929,1933-1935,1937-1939,1942-1960,1962-1963
+sdk-python/src/daytona/v2/_sync/daytona.py
+  h_e7759ddd73fa65 172-197
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 138-154
+sdk-python/src/daytona/v2/_sync/interpreter.py
+  h_e7759ddd73fa65 46-51,76-78,124-126,134-155
+sdk-python/src/daytona/v2/_sync/process.py
+  h_e7759ddd73fa65 80,82-89,138-145,267-272
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 322-323,375-389,417,457-462,555-556,560-567
+sdk-python/src/daytona/v2/_sync/types.py
+  h_e7759ddd73fa65 77-81
+sdk-python/src/daytona/v2/_transport.py
+  h_e7759ddd73fa65 1240-1241,1247,1324
+sdk-python/src/daytona/v2/daytona.py
+  h_e7759ddd73fa65 346-371
+sdk-python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 39,41,629-651,653-656
+sdk-python/src/daytona/v2/git.py
+  h_e7759ddd73fa65 79,91,161,207,209,225,280,393-394,396
+sdk-python/src/daytona/v2/interpreter.py
+  h_e7759ddd73fa65 17-18,26,94-116,245-247,249-251,291-300,302-311,383-385,393-414,416-418,429,505,556-557
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 30-31,285-292,308,312-316,322-324,341-342,416,418-425,427,704-709,772,938
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 160-165,753,1012-1023,1037-1041,1202,1206-1211,1221-1251,1255-1261,1377-1378,1382-1389,1413-1418,1458-1461,1487-1488,1504-1518
+sdk-python/src/daytona/v2/session.py
+  h_e7759ddd73fa65 12,95,122
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 432-435,1502-1506
+sdk-python/tests/test_client_lifecycle_contract.py
+  h_e7759ddd73fa65 631,636-638
+sdk-python/tests/test_core.py
+  h_e7759ddd73fa65 6352,6370,6372,6375,7040-7044,7155,8685,8696,8737,8742-8743,8745-8746,8749,8768-8770
+sdk-python/tests/test_filesystem_move_timeout.py
+  h_e7759ddd73fa65 1-156
+sdk-python/tests/test_interpreter_setup_failure.py
+  h_e7759ddd73fa65 1-170
+sdk-python/tests/test_process_inputs.py
+  h_e7759ddd73fa65 1-222
+sdk-python/tests/test_process_wait_rounds.py
+  h_e7759ddd73fa65 1-271
+sdk-python/tests/test_toolbox_surface.py
+  h_e7759ddd73fa65 592-594,1050,1053,1058,1060-1065,1662
+sdk-python/tests/test_wait_target_revalidation.py
+  h_e7759ddd73fa65 1-391
+sdk-typescript/README.md
+  h_e7759ddd73fa65 428-436,629-633,777-780,806-812,840-842,965-974,1045-1069,1221-1230
+sdk-typescript/src/v2/Daytona.ts
+  h_e7759ddd73fa65 204-214
+sdk-typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 163-173,202,500-513,516-521
+sdk-typescript/src/v2/Git.ts
+  h_e7759ddd73fa65 117,124,135,165-166,199,226,279,281,297-302
+sdk-typescript/src/v2/Interpreter.ts
+  h_e7759ddd73fa65 21-22,185-190,252-254,273-286,419-422,426,537-541,544,554-558,560-563,565,568,581-583,598-619,623-624,631
+sdk-typescript/src/v2/Process.ts
+  h_e7759ddd73fa65 130-135,179-181,191-192,195,321
+sdk-typescript/src/v2/ProcessHandle.ts
+  h_e7759ddd73fa65 15,22,145-151,158-162,165-166,172-176,179,185,195-201,204,286-307
+sdk-typescript/src/v2/ProcessRun.ts
+  h_e7759ddd73fa65 12-13,62-66,71
+sdk-typescript/src/v2/ProcessWire.ts
+  h_e7759ddd73fa65 66-88,132-149,194,196,216-218,225,229-246,287-290,292,295
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 54,546,720-724,771-774,797-799,815-829,1171-1177
+sdk-typescript/src/v2/Session.ts
+  h_e7759ddd73fa65 15,110,116
+sdk-typescript/src/v2/index.ts
+  h_e7759ddd73fa65 27
+sdk-typescript/src/v2/sandboxWait.ts
+  h_e7759ddd73fa65 19-24,99-100,209,211,268-303
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 253-256,494-505,1188,1190,1192
+sdk-typescript/tests/filesystem-move-timeout.test.ts
+  h_e7759ddd73fa65 1-80
+sdk-typescript/tests/interpreter-setup-failure.test.ts
+  h_e7759ddd73fa65 1-116
+sdk-typescript/tests/lifecycle-observed-state.test.ts
+  h_e7759ddd73fa65 48-50,54-56
+sdk-typescript/tests/process-inputs.test.ts
+  h_e7759ddd73fa65 1-153
+sdk-typescript/tests/process-wait-rounds.test.ts
+  h_e7759ddd73fa65 1-184
+sdk-typescript/tests/sessions.test.ts
+  h_e7759ddd73fa65 126,128,169
+sdk-typescript/tests/toolbox-frozen-results.test.ts
+  h_e7759ddd73fa65 188-189
+sdk-typescript/tests/unit.test.ts
+  h_e7759ddd73fa65 5086-5087,5119-5121,5123,5127-5132,5424,5431,5467,5474,5509,5580,5587,5635,5642,5685,5859-5861,5903,5913,6609,8895-8898,8950-8953,9083,9126,9136,9138-9139,9152-9156,12904-12906,12910-12912,13521-13522
+sdk-typescript/tests/wait-read-retries.test.ts
+  h_e7759ddd73fa65 522-523,526
+sdk-typescript/tests/wait-target-revalidation.test.ts
+  h_e7759ddd73fa65 1-281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "044eedacc070cbce0dc257af271ec3d28487227b",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
