@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -117,7 +118,9 @@ func newCPUTypeListCommand() *cobra.Command {
 		Long: "List CPU types from the CPU catalog.\n\n" +
 			"With --region, also show which types are available in that region:\n" +
 			"AVAILABLE is \"exact\" when the requested type is available, \"fallback\" when a\n" +
-			"higher tier of the same architecture serves it, and \"-\" when nothing does.\n" +
+			"higher tier of the same architecture serves it, and \"-\" when nothing does.\n\n" +
+			"Under the table, each covered region's default architecture and type for a create\n" +
+			"that names no CPU type; JSON and YAML carry the catalog's regions and arches next to items.\n" +
 			"Examples:\n" +
 			"  daytona cpu-type list\n" +
 			"  daytona cpu-type list --region region-a",
@@ -138,40 +141,48 @@ func newCPUTypeListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			client := home
+			var query url.Values
 			if slug != "" {
-				client, err := catalogClient(cmd.Context(), home, workload.NewCatalogCache(), slug)
-				if err != nil {
+				if client, err = catalogClient(cmd.Context(), home, workload.NewCatalogCache(), slug); err != nil {
 					return err
 				}
-				var body json.RawMessage
-				query := url.Values{"region_ids": {slug}}
-				if err := client.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", query, nil, &body); err != nil {
-					return err
-				}
-				resp, err := decodeRaw[gen.CpuCatalog]("GET /cpu-catalog", body)
-				if err != nil {
-					return err
-				}
-				if err := requireCatalogRegion("/cpu-catalog", cpuCatalogRegionIDs(resp), slug); err != nil {
-					return err
-				}
-				page, err := api.DecodePage[gen.CpuType](body, "cpu_types")
-				if err != nil {
-					return err
-				}
-				return listOutRaw(a.Printer(), output.List[api.Raw[gen.CpuType]]{Items: page.Items}, func(items []gen.CpuType) output.Table { return cpuCatalogTable(items, slug) })
+				query = url.Values{"region_ids": {slug}}
 			}
-			list, err := getRawWhole[gen.CpuType](cmd.Context(), home, "/cpu-catalog", nil, "cpu_types")
+			var body json.RawMessage
+			if err := client.Do(cmd.Context(), http.MethodGet, "/cpu-catalog", query, nil, &body); err != nil {
+				return err
+			}
+			resp, err := decodeRaw[gen.CpuCatalog]("GET /cpu-catalog", body)
 			if err != nil {
 				return err
 			}
-			return listOutRaw(a.Printer(), list, func(items []gen.CpuType) output.Table {
+			if slug != "" {
+				if err := requireCatalogRegion("/cpu-catalog", cpuCatalogRegionIDs(resp), slug); err != nil {
+					return err
+				}
+			}
+			out, err := newCPUCatalogOutput(body)
+			if err != nil {
+				return err
+			}
+			items := api.Values(out.Items)
+			table := cpuCatalogTable(items, slug)
+			if slug == "" {
 				rows := make([][]string, 0, len(items))
 				for _, item := range items {
 					rows = append(rows, []string{item.Id, item.Name, string(item.CpuArch), strconv.Itoa(int(item.Tier))})
 				}
-				return output.Table{Headers: []string{"ID", "NAME", "ARCH", "TIER"}, Rows: rows}
-			})
+				table = output.Table{Headers: []string{"ID", "NAME", "ARCH", "TIER"}, Rows: rows}
+			}
+			p := a.Printer()
+			if err := p.TableOf(out, table); err != nil {
+				return err
+			}
+			if p.Format == output.FormatTable {
+				printCPURegionDefaults(p.W, resp.Regions)
+			}
+			return nil
 		},
 	}
 	addRegionFlag(list, "region slug: show availability from GET /cpu-catalog")
@@ -372,6 +383,46 @@ func cpuCatalogRegionIDs(resp gen.CpuCatalog) []string {
 		ids = append(ids, r.Id)
 	}
 	return ids
+}
+
+// cpuCatalogOutput is the list envelope of `GET /cpu-catalog`'s CPU types plus
+// the catalog-level `regions` (each region's default architecture and type)
+// and `arches`, as the API sent them.
+type cpuCatalogOutput struct {
+	output.List[api.Raw[gen.CpuType]]
+	Regions json.RawMessage `json:"regions"`
+	Arches  json.RawMessage `json:"arches"`
+}
+
+func newCPUCatalogOutput(body json.RawMessage) (cpuCatalogOutput, error) {
+	page, err := api.DecodePage[gen.CpuType](body, "cpu_types")
+	if err != nil {
+		return cpuCatalogOutput{}, cerr.Wrap(cerr.ExitFailure, err, "GET /cpu-catalog: decode response: %v", err)
+	}
+	var catalog struct {
+		Regions json.RawMessage `json:"regions"`
+		Arches  json.RawMessage `json:"arches"`
+	}
+	if err := json.Unmarshal(body, &catalog); err != nil {
+		return cpuCatalogOutput{}, cerr.Wrap(cerr.ExitFailure, err, "GET /cpu-catalog: decode response: %v", err)
+	}
+	return cpuCatalogOutput{List: output.List[api.Raw[gen.CpuType]]{Items: page.Items}, Regions: catalog.Regions, Arches: catalog.Arches}, nil
+}
+
+// printCPURegionDefaults writes, under the table, what a create that names
+// no CPU type gets in each region the catalog covers.
+func printCPURegionDefaults(w io.Writer, regionDefaults []gen.CpuCatalogRegion) {
+	if len(regionDefaults) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "\nDefaults for a create that names no CPU type:")
+	for _, r := range regionDefaults {
+		line := fmt.Sprintf("  %s: %s", r.Id, r.DefaultArch)
+		if r.DefaultType != nil && *r.DefaultType != "" {
+			line += ", " + *r.DefaultType
+		}
+		fmt.Fprintln(w, output.SanitizeLine(line))
+	}
 }
 
 // requireCatalogRegion refuses a catalog answer whose regions (`ids`) do not

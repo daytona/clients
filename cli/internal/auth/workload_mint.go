@@ -75,6 +75,12 @@ func (m keyMint) mint(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := refuseIssuedCredential("the minted project API key", resp.V.Token); err != nil {
+		// The key exists on the server: revoke it (by id; the refused token is
+		// never sent) rather than leave it valid until it expires.
+		revokeKeys(ctx, a, m.client, []config.WorkloadKey{{ProjectID: m.project, KeyID: resp.V.Id.String(), Name: resp.V.Name}})
+		return "", err
+	}
 	if resp.V.ExpiresAt != nil {
 		exp = *resp.V.ExpiresAt
 	}

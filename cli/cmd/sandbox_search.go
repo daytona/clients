@@ -56,8 +56,10 @@ type sandboxSearchFlags struct {
 func newSandboxSearchCommand() *cobra.Command {
 	flags := sandboxSearchFlags{}
 	cmd := &cobra.Command{
-		Use:   "search [query]",
-		Short: "Search sandboxes across regions",
+		Use: "search [query]",
+		// An empty query is meaningful: filters alone select a set.
+		Annotations: map[string]string{annotationFreeTextFrom: "0"},
+		Short:       "Search sandboxes across regions",
 		Long: "Search sandboxes across regions. The query is optional: filters alone select a set.\n" +
 			"Search is eventually consistent: a sandbox just created may not appear yet, and one just changed or deleted can show its old state, for a few seconds.\n" +
 			"--status takes the API's statuses (running, stopped, ...), not the SDKs' sandbox states (started, destroyed, ...).\n" +

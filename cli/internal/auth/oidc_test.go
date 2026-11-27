@@ -351,3 +351,20 @@ func TestLoopback_stateLessErrorRedirectIsRefusedLoudly(t *testing.T) {
 		t.Fatal("a state-less error redirect must not be delivered as a result")
 	}
 }
+
+// An access token the identity provider issues that is not printable ASCII is
+// refused before anything saves it, without quoting it.
+func TestTokenEndpointRefusesAnAccessTokenThatIsNotPrintableASCII(t *testing.T) {
+	srv, p := idp(t, func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(TokenSet{AccessToken: "at-secret\n", RefreshToken: "rt2", ExpiresIn: 100})
+	})
+	_, err := Refresh(context.Background(), srv.Client(), p, "rt")
+	if err == nil || !strings.Contains(err.Error(), "the identity provider's access token contains a control character") ||
+		!strings.Contains(err.Error(), "not saved") || strings.Contains(err.Error(), "at-secret") {
+		t.Fatalf("refresh: %v", err)
+	}
+	pk, _ := NewPKCE()
+	if _, err := ExchangeCode(context.Background(), srv.Client(), p, pk, "code1", "http://127.0.0.1:9/callback"); err == nil {
+		t.Fatal("code exchange accepted a malformed access token")
+	}
+}

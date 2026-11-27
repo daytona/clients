@@ -255,3 +255,17 @@ func TestInfo_keepsServerTextOnOneLine(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// A login access token that is not printable ASCII is refused with a hint to
+// sign in again, never quoting the token.
+func TestCredential_refusesALoginTokenThatIsNotPrintableASCII(t *testing.T) {
+	t.Parallel()
+	a := &App{Profile: &config.Profile{Name: "default", APIURL: DefaultAPIURL}}
+	a.SetCredentialResolver("profile-oidc", staticCred("jwt-secret\n"))
+	a.savedAPIURL = DefaultAPIURL
+	_, err := a.Credential(context.Background())
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+	require.Contains(t, err.Error(), "the login's access token contains a control character")
+	require.Contains(t, cerr.DetailsOf(err).Hint, "daytona login")
+	require.NotContains(t, err.Error()+cerr.DetailsOf(err).Hint, "jwt-secret")
+}

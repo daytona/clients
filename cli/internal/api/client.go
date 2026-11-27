@@ -4,7 +4,8 @@
 // Package api is the handwritten HTTP transport over the generated wire types
 // (gen/api). Credentials are opaque bearers: the client
 // sends `Authorization: Bearer <credential>` and maps the server's answer to
-// the CLI's exit-code vocabulary; it never inspects the token.
+// the CLI's exit-code vocabulary. It only refuses a bearer that is not
+// printable ASCII (CredentialProblem) and never inspects it otherwise.
 package api
 
 import (
@@ -59,6 +60,41 @@ func New(baseURL, credential, version string) *Client {
 		UserAgent:  Source + "/" + version,
 		Version:    version,
 	}
+}
+
+// CredentialProblem says why cred breaks the CLI's bearer rule, or "" when
+// it does not: a credential sent as `Authorization: Bearer <cred>` must be
+// printable ASCII (spaces allowed), as every Daytona credential is. A control
+// character (a line break or tab left over from a file) or a non-ASCII
+// character is refused before any request; Go's HTTP client would send a tab
+// or non-ASCII bytes, and fail on a line break as a network error. The answer
+// never contains the credential.
+func CredentialProblem(cred string) string {
+	for i := 0; i < len(cred); i++ {
+		switch b := cred[i]; {
+		case b >= 0x80:
+			return "a non-ASCII character"
+		case b < 0x20 || b == 0x7f:
+			return "a control character (such as a line break or a tab)"
+		}
+	}
+	return ""
+}
+
+// credentialError is the backstop for a bearer no caller checked (one the
+// server minted): a usage error naming the problem, never the value.
+func credentialError(cred string) error {
+	problem := CredentialProblem(cred)
+	if problem == "" {
+		return nil
+	}
+	return cerr.Usage("the request credential contains %s; a credential must be printable ASCII", problem).
+		WithHint("check --api-key / DAYTONA_API_KEY, or sign in again with `daytona login`")
+}
+
+// CheckCredential returns credentialError for c's bearer.
+func (c *Client) CheckCredential() error {
+	return credentialError(c.Credential)
 }
 
 // SetIdentityHeaders stamps the client-identity triple onto req.
@@ -173,6 +209,9 @@ func (c *Client) StreamNoTimeout(ctx context.Context, method, path string, query
 }
 
 func (c *Client) raw(ctx context.Context, method, path string, query url.Values, headers http.Header, body io.Reader, contentType string, noClientTimeout bool) (*http.Response, error) {
+	if err := c.CheckCredential(); err != nil {
+		return nil, err
+	}
 	u := c.BaseURL + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()

@@ -6,12 +6,15 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	gen "github.com/daytona/clients/cli/gen/api"
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/output"
 	"github.com/spf13/cobra"
@@ -40,7 +43,7 @@ func newRegionCommand() *cobra.Command {
 	list := &cobra.Command{
 		Use:   "list",
 		Short: "List regions",
-		Long:  "List your regions, indenting each region under its parent.\nColumns are NAME, ID, PRICE MULTIPLIER and AVAILABLE.\nAVAILABLE says whether a create can name the region; a create can still fail for lack of capacity.\nPRICE MULTIPLIER is the region's rate relative to the base price. It needs a login with read:billing in the selected organization, and shows - otherwise (null in JSON and YAML).\nExample:\n  daytona region list",
+		Long:  "List your regions, indenting each region under its parent.\nColumns are NAME, ID, PRICE MULTIPLIER and AVAILABLE.\nThe region a create that names no region goes to is marked (default); JSON and YAML name it in default_region_id (null when it is not listed).\nAVAILABLE says whether a create can name the region; a create can still fail for lack of capacity.\nPRICE MULTIPLIER is the region's rate relative to the base price. It needs a login with read:billing in the selected organization, and shows - otherwise (null in JSON and YAML).\nExample:\n  daytona region list",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
@@ -48,27 +51,51 @@ func newRegionCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			page, err := getRawWhole[gen.Region](cmd.Context(), client, "/regions", nil, "regions")
-			if err != nil {
+			var body json.RawMessage
+			if err := client.Do(cmd.Context(), http.MethodGet, "/regions", nil, nil, &body); err != nil {
 				return err
+			}
+			page, err := api.DecodePage[gen.Region](body, "regions")
+			if err != nil {
+				return fmt.Errorf("decode GET /regions response: %w", err)
+			}
+			var envelope struct {
+				DefaultRegionID *string `json:"default_region_id"`
+			}
+			if err := json.Unmarshal(body, &envelope); err != nil {
+				return fmt.Errorf("decode GET /regions response: %w", err)
 			}
 			multipliers := regionMultipliers(cmd.Context(), a)
 			rows := make([]regionListRow, 0, len(page.Items))
 			for _, region := range page.Items {
 				rows = append(rows, regionListRow{Region: region.V, PriceMultiplier: multiplierFor(multipliers, region.V.Id), raw: region.JSON})
 			}
-			return output.ListOut(a.Printer(), wholeList(rows), func(items []regionListRow) output.Table {
-				table := make([][]string, 0, len(items))
-				for _, item := range items {
-					name := strings.Repeat("  ", len(item.ParentRegionIds)) + item.Name
-					table = append(table, []string{name, item.Id, formatMultiplier(item.PriceMultiplier), strconv.FormatBool(item.Available)})
-				}
-				return output.Table{Headers: []string{"NAME", "ID", "PRICE MULTIPLIER", "AVAILABLE"}, Rows: table}
-			})
+			out := regionListOutput{List: wholeList(rows), DefaultRegionID: envelope.DefaultRegionID}
+			return a.Printer().TableOf(out, regionListTable(rows, envelope.DefaultRegionID))
 		},
 	}
 	cmd.AddCommand(list)
 	return cmd
+}
+
+// regionListOutput is the list envelope plus the catalog's default region:
+// the region a create that names none is sent to, or null when it is not
+// listed.
+type regionListOutput struct {
+	output.List[regionListRow]
+	DefaultRegionID *string `json:"default_region_id"`
+}
+
+func regionListTable(items []regionListRow, defaultRegionID *string) output.Table {
+	table := make([][]string, 0, len(items))
+	for _, item := range items {
+		name := strings.Repeat("  ", len(item.ParentRegionIds)) + item.Name
+		if defaultRegionID != nil && item.Id == *defaultRegionID {
+			name += " (default)"
+		}
+		table = append(table, []string{name, item.Id, formatMultiplier(item.PriceMultiplier), strconv.FormatBool(item.Available)})
+	}
+	return output.Table{Headers: []string{"NAME", "ID", "PRICE MULTIPLIER", "AVAILABLE"}, Rows: table}
 }
 
 // regionMultiplierTimeout bounds the optional multiplier lookup, so a slow

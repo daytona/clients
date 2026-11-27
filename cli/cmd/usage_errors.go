@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -13,7 +14,8 @@ import (
 )
 
 // usageArgs wraps a command's positional-argument validator so that every
-// arity mistake is a usage error (exit 2).
+// arity mistake is a usage error (exit 2), and so that a blank argument in a
+// position the command's Use line names is one too (see refuseBlankArgs).
 func usageArgs(validate cobra.PositionalArgs) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
 		if validate == nil {
@@ -26,8 +28,67 @@ func usageArgs(validate cobra.PositionalArgs) cobra.PositionalArgs {
 			}
 			return cerr.Usage("%s", err.Error()).WithHint("run `%s --help` for usage", cmd.CommandPath())
 		}
+		return refuseBlankArgs(cmd, args)
+	}
+}
+
+// annotationFreeTextFrom marks a command whose positionals from this index
+// on are free text a blank value is meaningful for, or that the command
+// checks itself (`sandbox search [query]`, `config set <key> <value>`).
+const annotationFreeTextFrom = "daytona/free-text-from"
+
+// refuseBlankArgs refuses an empty or whitespace-only argument given for a
+// named positional (an id, a name, a host, a path): no command accepts one,
+// and sent as given it would reach the API as a collection path or an
+// unknown name. Not checked: positionals annotationFreeTextFrom marks, and
+// the positions from the Use line's `--` or variadic placeholder on (ssh and
+// exec arguments may be legitimately empty). A `--` on the command line only
+// ends the options: `get -- ""` still gives the <id>, so it is checked.
+func refuseBlankArgs(cmd *cobra.Command, args []string) error {
+	placeholders := namedPositionals(cmd)
+	for i, arg := range args {
+		if i >= len(placeholders) {
+			break
+		}
+		if strings.TrimSpace(arg) == "" {
+			return cerr.Usage("argument %s is empty", placeholders[i]).WithHint("run `%s --help` for usage", cmd.CommandPath())
+		}
+	}
+	return nil
+}
+
+// namedPositionals returns the placeholders refuseBlankArgs checks: the
+// positionals of cmd's Use line (usePositionals) before the index
+// annotationFreeTextFrom names.
+func namedPositionals(cmd *cobra.Command) []string {
+	out := usePositionals(cmd.Use)
+	if from, err := strconv.Atoi(cmd.Annotations[annotationFreeTextFrom]); err == nil && from < len(out) {
+		out = out[:from]
+	}
+	return out
+}
+
+// usePositionals reads the positional placeholders of a Use line in order
+// ("get <id>" → ["<id>"], "use [id|name]" → ["<id|name>"]), stopping at the
+// first flag, `--` or variadic placeholder; `[flags]` is skipped.
+func usePositionals(use string) []string {
+	fields := strings.Fields(use)
+	if len(fields) < 2 {
 		return nil
 	}
+	var out []string
+	for _, field := range fields[1:] {
+		switch {
+		case field == "[flags]":
+			continue
+		case strings.HasPrefix(field, "-"), strings.Contains(field, "..."):
+			return out
+		case strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]"):
+			field = "<" + field[1:len(field)-1] + ">"
+		}
+		out = append(out, field)
+	}
+	return out
 }
 
 // rejectUnknownSubcommand is the argument validator of a command group: any

@@ -153,7 +153,10 @@ AVAILABLE. PRICE MULTIPLIER is what
 a create naming the region is billed at, relative to `earth`. It is read for
 the selected organization after `daytona login` with `read:billing`; with an
 API key or without that permission the table shows `-` and JSON/YAML output
-carries `"price_multiplier": null`. `--region` keeps its name on create,
+carries `"price_multiplier": null`. The region a create that names no region
+goes to is marked `(default)`; JSON/YAML output carries it as
+`default_region_id` next to `items` (`null` when it is not listed).
+`--region` keeps its name on create,
 search and catalog commands. On a sandbox create, omitting it falls back to the
 project's default, then the organization's, then `earth`; `earth` means
 anywhere and may land in any geography. A known unavailable region returns
@@ -593,7 +596,10 @@ than the configured duration. While a sandbox is stopped, commands that work ins
   "trace_id", "message"}]`, absent fields omitted) when a region failed; `items` is
   always an array. `sandbox search` asks one API and prints
   `{"items": [...], "total": N, "total_relation": "eq" | "gte"}` plus
-  `next_cursor` when another page exists (no `incomplete`). `cpu-type list` and `mac-model list` print the same
+  `next_cursor` when another page exists (no `incomplete`). `region list` adds
+  `default_region_id`, and `cpu-type list` adds the catalog's `regions` (each
+  region's `default_arch` and `default_type`) and `arches`, as the API sent
+  them. `cpu-type list` and `mac-model list` print the same
   envelope with or without `--region` (with `--region`, `mac-model list` items
   are the region's catalog entries: `model`, `available`, `price`).
 - `--follow` with `-o json` streams NDJSON, one object per line:
@@ -679,7 +685,7 @@ than the configured duration. While a sandbox is stopped, commands that work ins
 |---|---|
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
-| `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
+| `2` | usage: wrong number of arguments, an empty or blank id, name or other named argument (not the `sandbox search` query or `config set`'s value), unknown command, flag or help topic, an invalid flag value or `--file` body, a credential with a control or non-ASCII character, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
 | `3` | authentication: no credential, a static credential on a command that needs a `daytona login` session, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE`, or the configuration's `active_profile`, that names a profile that does not exist (on the commands that use the selected profile) |
@@ -703,15 +709,20 @@ status apart from the CLI's own:
 
 ### Request bodies (`--file`)
 
-`--file PATH` (or `--file -` for stdin) takes one JSON object; explicit flags
-override its fields. Keys name the API's request fields exactly, at any
-depth, as the API does: an unknown key, including one that differs from a
-field only in case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map
-values such as `env` and `labels` are names of your own and are sent as
-given. A field whose value is one of several shapes (`image create`'s
-`source`) is checked by its `type`: an unknown `type`, or a key the chosen
-shape does not have, is refused too. The bodies use the API's request
-fields:
+`--file PATH` (or `--file -` for stdin) takes one JSON object (an array or
+another JSON value is refused, exit 2); explicit flags override its fields. A
+field of the wrong JSON type is refused (exit 2), naming the field, and the
+key or index of the first entry of the wrong JSON type when the field holds a
+map or an array of plain values. A number an integer field cannot hold says
+why: it is not whole (`1.5`), out of the field's range (`1e30`), or a whole
+number written with a fraction or an exponent (`2.0`, `1e3`), which the CLI
+does not convert. Keys name the API's request fields exactly, at any depth, as
+the API does: an unknown key, including one that differs from a field only in
+case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map values such as
+`env` and `labels` are names of your own and are sent as given. A field whose
+value is one of several shapes (`image create`'s `source`) is checked by its
+`type`: an unknown `type`, or a key the chosen shape does not have, is refused
+too. The bodies use the API's request fields:
 
 | Command | Body |
 |---|---|
@@ -751,6 +762,15 @@ command that acts in a project (sandbox, image, snapshot, volume, secret,
 registry, reservation, region and catalog commands) and on `whoami`, instead
 of being ignored; the CLI reads the key's project once per command
 (`GET /api-keys/current`) when a project is named.
+
+A credential must be printable ASCII: one that contains a control character
+(such as a line break or tab) or a non-ASCII character is refused before any
+request (exit 2); the error names where it came from (the flag, the variable,
+the saved profile, or the login's access token), never the value. A malformed
+credential the server or the identity provider issues (a login access token, a
+minted project key, a platform token) is refused (exit 1) before the CLI saves
+it. With no credential at all, a command that needs an organization or project
+reports "not logged in" (exit 3) before asking for either.
 
 A saved credential (a login or `login --token`) belongs to the API URL it was
 saved with. With `--api-url` or `DAYTONA_V2_API_URL` naming another API, the

@@ -26,10 +26,25 @@ func (a *App) RequireOrg(ctx context.Context, pick func(ctx context.Context) (st
 		}
 		return a.Profile.OrgID, nil
 	}
+	if err := a.requireSomeCredential(ctx); err != nil {
+		return "", err
+	}
 	if a.Mode.Interactive && pick != nil {
 		return pick(ctx)
 	}
 	return "", cerr.MissingArg("an organization", "--org (or `daytona org use`)")
+}
+
+// requireSomeCredential reports "not logged in" (exit 3) when the invocation
+// has no credential at all, so that it comes before asking for a missing
+// organization or project (exit 2): the picker could not list them, and the
+// caller's first fix is to sign in.
+func (a *App) requireSomeCredential(ctx context.Context) error {
+	if a.credentialFn != nil {
+		return nil
+	}
+	_, err := a.Credential(ctx)
+	return err
 }
 
 func looksLikeUUID(s string) bool {
@@ -57,6 +72,9 @@ func (a *App) RequireProject(ctx context.Context, pick func(ctx context.Context)
 		return "", err
 	} else if project != "" {
 		return project, nil
+	}
+	if err := a.requireSomeCredential(ctx); err != nil {
+		return "", err
 	}
 	if a.Mode.Interactive && pick != nil {
 		return pick(ctx)

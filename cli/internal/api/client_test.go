@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -143,5 +144,29 @@ func TestWithTimeoutAtLeast_onlyLengthensABoundedTimeout(t *testing.T) {
 	c.HTTP.Timeout = 0
 	if got := c.WithTimeoutAtLeast(time.Minute).HTTP.Timeout; got != 0 {
 		t.Fatalf("unbounded timeout became %v", got)
+	}
+}
+
+// A bearer no header can carry (one the server minted, which no caller
+// checked) is refused before the request as a usage error that does not
+// contain it, instead of the HTTP client's error reported as a network
+// failure with "check the API URL". Neither the message nor the hint holds it.
+func TestDoRefusesACredentialAHeaderCannotCarry(t *testing.T) {
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests.Add(1) }))
+	defer srv.Close()
+	for _, cred := range []string{"tok-secret\n", "tok-secret\x00", "tok-secreté"} {
+		err := New(srv.URL, cred, "test").Do(context.Background(), "GET", "/x", nil, nil, nil)
+		hint := cerr.DetailsOf(err).Hint
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "must be printable ASCII") ||
+			strings.Contains(err.Error(), "tok-secret") || strings.Contains(hint, "tok-secret") || strings.Contains(hint, "network") {
+			t.Fatalf("%q: %v (hint %q)", cred, err, cerr.DetailsOf(err).Hint)
+		}
+	}
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("%d requests sent", n)
+	}
+	if got := CredentialProblem("dtn_abc DEF~"); got != "" {
+		t.Fatalf("printable ASCII refused: %q", got)
 	}
 }

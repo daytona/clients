@@ -9,9 +9,14 @@ package input
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -41,19 +46,39 @@ func Load(path string, stdin io.Reader, stdinIsPayload bool) (Body, error) {
 		defer f.Close()
 		r = f
 	}
-	var b Body
+	var v any
 	dec := json.NewDecoder(r)
 	dec.UseNumber()
-	if err := dec.Decode(&b); err != nil {
-		return nil, cerr.Usage("--file %s: invalid JSON object: %v", path, err)
+	if err := dec.Decode(&v); err != nil {
+		return nil, cerr.Usage("--file %s: invalid JSON: %v", path, err)
 	}
-	if b == nil {
-		return nil, cerr.Usage("--file %s: JSON object required", path)
+	b, ok := v.(map[string]any)
+	if !ok {
+		return nil, cerr.Usage("--file %s must contain a JSON object, got %s", path, jsonKind(v))
 	}
-	if err := dec.Decode(new(struct{})); err != io.EOF {
+	if err := dec.Decode(new(json.RawMessage)); err != io.EOF {
 		return nil, cerr.Usage("--file %s: trailing data after the JSON object", path)
 	}
-	return b, nil
+	return Body(b), nil
+}
+
+// jsonKind names the JSON type of a decoded value, for messages.
+func jsonKind(v any) string {
+	switch v.(type) {
+	case nil:
+		return "null"
+	case []any:
+		return "an array"
+	case string:
+		return "a string"
+	case bool:
+		return "a boolean"
+	case json.Number, float64:
+		return "a number"
+	case map[string]any:
+		return "an object"
+	}
+	return fmt.Sprintf("%T", v)
 }
 
 // Set writes a field unconditionally.
@@ -147,7 +172,124 @@ func Decode[T any](b Body) (T, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&out); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) && typeErr.Field != "" {
+			if problem := numberProblem(fmt.Sprint(typeErr.Type), typeErr.Value); problem != "" {
+				return out, cerr.Usage("invalid request body: field %q %s", typeErr.Field, problem)
+			}
+			return out, cerr.Usage("invalid request body: field %q cannot be %s", elementPath(b, typeErr.Field, typeErr.Value), jsonValueKind(typeErr.Value))
+		}
 		return out, cerr.Usage("invalid request body: %v", err)
 	}
 	return out, nil
+}
+
+// elementPath names the value encoding/json refused more precisely when it
+// can: encoding/json names a map or array field ("env") for a wrong value
+// inside it, so when field holds a map or an array of scalars in b, the
+// first entry of the refused JSON kind is named ("env.A", "ports[1]").
+// Otherwise field is returned as given.
+func elementPath(b Body, field, value string) string {
+	var current any = map[string]any(b)
+	for _, segment := range strings.Split(field, ".") {
+		object, ok := current.(map[string]any)
+		if !ok {
+			return field
+		}
+		current = object[segment]
+	}
+	kind, _, _ := strings.Cut(value, " ")
+	switch container := current.(type) {
+	case map[string]any:
+		keys := make([]string, 0, len(container))
+		for key := range container {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			if jsonKind(container[key]) == jsonValueKind(kind) {
+				return field + "." + key
+			}
+		}
+	case []any:
+		for i, item := range container {
+			if jsonKind(item) == jsonValueKind(kind) {
+				return fmt.Sprintf("%s[%d]", field, i)
+			}
+		}
+	}
+	return field
+}
+
+// integerRanges are the bounds of the integer types request fields use.
+var integerRanges = map[string][2]string{
+	"int":    {"-9223372036854775808", "9223372036854775807"},
+	"int8":   {"-128", "127"},
+	"int16":  {"-32768", "32767"},
+	"int32":  {"-2147483648", "2147483647"},
+	"int64":  {"-9223372036854775808", "9223372036854775807"},
+	"uint":   {"0", "18446744073709551615"},
+	"uint8":  {"0", "255"},
+	"uint16": {"0", "65535"},
+	"uint32": {"0", "4294967295"},
+	"uint64": {"0", "18446744073709551615"},
+}
+
+// numberProblem says what is wrong with a JSON number encoding/json could not
+// store in a numeric field of goType ("int64", "*int32", "float64"), or ""
+// when the value is not a number or the field is not numeric, which the
+// generic "cannot be <kind>" message covers.
+func numberProblem(goType, value string) string {
+	number, ok := strings.CutPrefix(value, "number ")
+	if !ok {
+		return ""
+	}
+	goType = strings.TrimLeft(goType, "*")
+	if goType == "float32" || goType == "float64" {
+		return fmt.Sprintf("is out of range for a number, got %s", number)
+	}
+	bounds, ok := integerRanges[goType]
+	if !ok {
+		return ""
+	}
+	parsed, _, err := big.ParseFloat(number, 10, 256, big.ToNearestEven)
+	// An exponent beyond big.Float's range is an error (or rounds to 0 or
+	// ±Inf), so the sign of the exponent and a zero mantissa decide.
+	mantissa, exponent, _ := strings.Cut(strings.ToLower(number), "e")
+	zero := !strings.ContainsAny(mantissa, "123456789")
+	negativeExponent := strings.HasPrefix(exponent, "-")
+	if (errors.Is(err, strconv.ErrRange) || err == nil && parsed.Sign() == 0) && negativeExponent && !zero {
+		return fmt.Sprintf("must be a whole number, got %s", number)
+	}
+	if errors.Is(err, strconv.ErrRange) && zero {
+		return fmt.Sprintf("must be written as a whole number without a fraction or exponent, got %s", number)
+	}
+	if errors.Is(err, strconv.ErrRange) || (err == nil && parsed.IsInf()) {
+		return fmt.Sprintf("is out of range (%s to %s), got %s", bounds[0], bounds[1], number)
+	}
+	if err != nil || !parsed.IsInt() {
+		return fmt.Sprintf("must be a whole number, got %s", number)
+	}
+	n, _ := parsed.Int(nil)
+	lo, _ := new(big.Int).SetString(bounds[0], 10)
+	hi, _ := new(big.Int).SetString(bounds[1], 10)
+	if n.Cmp(lo) < 0 || n.Cmp(hi) > 0 {
+		return fmt.Sprintf("is out of range (%s to %s), got %s", bounds[0], bounds[1], number)
+	}
+	return fmt.Sprintf("must be written as a whole number without a fraction or exponent, got %s", number)
+}
+
+// jsonValueKind names the JSON value encoding/json reports in
+// UnmarshalTypeError.Value ("string", "number 1.5", "array", ...).
+func jsonValueKind(value string) string {
+	kind, _, _ := strings.Cut(value, " ")
+	switch kind {
+	case "array", "object":
+		return "an " + kind
+	case "bool":
+		return "a boolean"
+	case "":
+		return "another type"
+	}
+	return "a " + kind
 }

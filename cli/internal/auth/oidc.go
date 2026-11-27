@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/cerr"
 )
 
@@ -169,6 +170,11 @@ func postForm(ctx context.Context, hc *http.Client, endpoint string, form url.Va
 		if err := json.Unmarshal(body, out); err != nil {
 			return nil, cerr.Wrap(cerr.ExitFailure, err, "POST %s: bad JSON", endpoint)
 		}
+		if ts, ok := out.(*TokenSet); ok {
+			if err := refuseIssuedCredential("the identity provider's access token", ts.AccessToken); err != nil {
+				return nil, err
+			}
+		}
 		return nil, nil
 	}
 	var te tokenError
@@ -176,6 +182,17 @@ func postForm(ctx context.Context, hc *http.Client, endpoint string, form url.Va
 		return nil, cerr.New(cerr.ExitAuth, "POST %s: HTTP %d: %s", endpoint, resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return &te, nil
+}
+
+// refuseIssuedCredential refuses a bearer the server or identity provider
+// issued that breaks the printable-ASCII rule (api.CredentialProblem) before
+// it is saved: cached, it would fail every later command locally until it
+// expires. The message never contains the value.
+func refuseIssuedCredential(what, token string) error {
+	if problem := api.CredentialProblem(token); problem != "" {
+		return cerr.New(cerr.ExitFailure, "%s contains %s; a credential must be printable ASCII, so it was not saved", what, problem)
+	}
+	return nil
 }
 
 // Refresh exchanges a refresh token.
