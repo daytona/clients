@@ -80,7 +80,7 @@ func (source regionalListSource) fetchImagePage(ctx context.Context, request lis
 // imageListQuery adds the image list filters to query; the search and the
 // list route take the same names.
 func imageListQuery(query url.Values, filters imageListFilters) url.Values {
-	if filters.name != "" {
+	if filters.name != "" || filters.nameSet {
 		query.Set("name", filters.name)
 	}
 	if filters.anonymous != "" {

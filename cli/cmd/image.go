@@ -11,6 +11,7 @@ import (
 	gen "github.com/daytona/clients/cli/gen/api"
 	"github.com/daytona/clients/cli/internal/api"
 	"github.com/daytona/clients/cli/internal/app"
+	"github.com/daytona/clients/cli/internal/cerr"
 	"github.com/daytona/clients/cli/internal/workload"
 	"github.com/spf13/cobra"
 )
@@ -90,8 +91,33 @@ func newImageDeleteCommand() *cobra.Command {
 // imageNameRulesHelp is the name rule every command that names an image shows.
 const imageNameRulesHelp = "A name may not start with a resource id prefix (img_, snap_, sbx_, vol_, fn_): 400 IMAGE_NAME_RESERVED.\n"
 
+// imageIdleExpiryHelp describes --idle-expiry on the commands that create an
+// anonymous image.
+const imageIdleExpiryHelp = "idle retention of an anonymous image (Go duration in whole seconds, or max): it is deleted once that long passes without a sandbox created from it; omitted or max uses the longest the platform allows (7 days by default). Not with a name: a named image is permanent"
+
+// newIdleExpiryFlag returns the --idle-expiry value; max sends -1, the API's
+// "longest allowed".
+func newIdleExpiryFlag() *secondsFlag {
+	return &secondsFlag{keywords: map[string]int64{"max": -1}}
+}
+
+// setImageIdleExpiry puts --idle-expiry into body, refusing it beside a name
+// (the API answers 400 for a named image, which is permanent).
+func setImageIdleExpiry(cmd *cobra.Command, body map[string]any, idle *secondsFlag) error {
+	if !cmd.Flags().Changed("idle-expiry") {
+		return nil
+	}
+	if name, ok := body["name"]; ok && name != nil {
+		return cerr.Usage("--idle-expiry applies only to an anonymous image; a named image is permanent").
+			WithHint("drop the name to create an anonymous image, or drop --idle-expiry")
+	}
+	body["idle_expiry_seconds"] = idle.seconds
+	return nil
+}
+
 func newImageCaptureCommand() *cobra.Command {
 	var name string
+	idle := newIdleExpiryFlag()
 	cmd := &cobra.Command{
 		Use:   "capture <sandbox>",
 		Short: "Capture a sandbox filesystem as an image",
@@ -104,19 +130,22 @@ func newImageCaptureCommand() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
+			body := map[string]any{}
+			if cmd.Flags().Changed("name") {
+				body["name"] = name
+			}
+			if err := setImageIdleExpiry(cmd, body, idle); err != nil {
+				return err
+			}
+			req, err := workload.DecodeBody[gen.CreateSandboxImageRequest](body)
+			if err != nil {
+				return err
+			}
 			home, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
 			}
 			resolved, err := workload.ResolveSandbox(cmd.Context(), home, workload.NewCatalogCache(), args[0])
-			if err != nil {
-				return err
-			}
-			body := map[string]any{}
-			if cmd.Flags().Changed("name") {
-				body["name"] = name
-			}
-			req, err := workload.DecodeBody[gen.CreateSandboxImageRequest](body)
 			if err != nil {
 				return err
 			}
@@ -140,7 +169,8 @@ func newImageCaptureCommand() *cobra.Command {
 			return a.Printer().Object(final, imageKV(final.V))
 		},
 	}
-	cmd.Flags().StringVar(&name, "name", "", "image name")
+	cmd.Flags().StringVar(&name, "name", "", "image name (omitted: an anonymous image, kept for --idle-expiry)")
+	addSecondsFlag(cmd.Flags(), idle, "idle-expiry", "", imageIdleExpiryHelp)
 	addWaitFlags(cmd)
 	return cmd
 }

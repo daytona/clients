@@ -20,15 +20,19 @@ import (
 
 func newImageImportCommand() *cobra.Command {
 	ref := ""
+	idle := newIdleExpiryFlag()
 	cmd := &cobra.Command{
-		Use:   "create <name>",
+		Use:   "create [name]",
 		Short: "Import an image from a registry ref",
 		Long: "Import an image from a registry ref.\n" +
 			imageNameRulesHelp +
 			"A name that already exists for different content or import options (ref, region, CPU architecture) answers\n" +
 			"409 IMAGE_NAME_TAKEN and changes nothing; repeating an identical import returns the existing image.\n" +
-			"Example:\n  daytona image create my-base --ref python:3.12",
-		Args: cobra.ExactArgs(1),
+			"Without a name (here or in --file) the image is anonymous: it is kept for --idle-expiry after its last use\n" +
+			"(omitted, the longest the platform allows: 7 days by default);\n" +
+			"`daytona image promote` names it and makes it permanent.\n" +
+			"Examples:\n  daytona image create my-base --ref python:3.12\n  daytona image create --ref python:3.12 --idle-expiry 24h",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			if cmd.Flags().Changed("ref") && strings.TrimSpace(ref) == "" {
@@ -42,7 +46,12 @@ func newImageImportCommand() *cobra.Command {
 				return cerr.Usage("--file: \"dockerfile\" is not a field of image create").
 					WithHint("build from a Dockerfile with `daytona image build <name> --context DIR`")
 			}
-			body.Set("name", args[0])
+			if len(args) == 1 {
+				body.Set("name", args[0])
+			}
+			if err := setImageIdleExpiry(cmd, body, idle); err != nil {
+				return err
+			}
 			if a.Globals.Region != "" {
 				body.Set("region_id", a.Globals.Region)
 			}
@@ -66,6 +75,7 @@ func newImageImportCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&ref, "ref", "", "registry ref to import")
+	addSecondsFlag(cmd.Flags(), idle, "idle-expiry", "", imageIdleExpiryHelp)
 	// Not MarkFlagRequired: `source` may come from --file (the RunE checks
 	// the merged body).
 	addRegionFlag(cmd, "region to create the image in (default: the project's, then the organization's, then the platform's)")

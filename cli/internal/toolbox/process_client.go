@@ -4,11 +4,14 @@
 package toolbox
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -157,6 +160,45 @@ func (c *Client) ListPorts(ctx context.Context) ([]int32, error) {
 		return nil, err
 	}
 	return out.Ports, nil
+}
+
+// KillTagged kills every process created with tag (POST /processes:kill)
+// and returns the toolbox's answer. timeout is how long the sandbox waits for
+// the killed processes to exit (0 keeps the toolbox default); the request is
+// bounded by ctx only, since the toolbox holds it for up to that long.
+func (c *Client) KillTagged(ctx context.Context, tag string, timeout time.Duration) (api.Raw[tbgen.KillProcessesResponse], error) {
+	body := tbgen.KillProcessesRequest{Tag: tag}
+	if timeout > 0 {
+		ms := timeout.Milliseconds()
+		if timeout%time.Millisecond != 0 {
+			ms++ // a positive sub-millisecond wait must not become zero
+		}
+		body.TimeoutMs = &ms
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return api.Raw[tbgen.KillProcessesResponse]{}, fmt.Errorf("encode request: %w", err)
+	}
+	resp, err := c.do(ctx, http.MethodPost, "/processes:kill", nil, bytes.NewReader(payload), "application/json", true)
+	if err != nil {
+		return api.Raw[tbgen.KillProcessesResponse]{}, err
+	}
+	defer resp.Body.Close()
+	var out api.Raw[tbgen.KillProcessesResponse]
+	if err := decodeJSON(resp.Body, &out); err != nil {
+		return api.Raw[tbgen.KillProcessesResponse]{}, err
+	}
+	return out, nil
+}
+
+// PortInUse reports whether a TCP port is in use inside the sandbox
+// (GET /port/{port}/in-use; the toolbox checks ports 3000-9999).
+func (c *Client) PortInUse(ctx context.Context, port int) (api.Raw[tbgen.IsPortInUseResponse], error) {
+	var out api.Raw[tbgen.IsPortInUseResponse]
+	if err := c.GetJSON(ctx, "/port/"+strconv.Itoa(port)+"/in-use", nil, &out); err != nil {
+		return api.Raw[tbgen.IsPortInUseResponse]{}, err
+	}
+	return out, nil
 }
 
 func (c *Client) waitOnce(ctx context.Context, id string, step time.Duration) (api.Raw[tbgen.ExitResult], bool, error) {

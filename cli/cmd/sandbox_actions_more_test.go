@@ -647,3 +647,54 @@ func TestSandboxStart_macosPendingReservationsAreLive(t *testing.T) {
 		})
 	}
 }
+
+// --memory is sent as given (false included), and decides what a paused
+// Linux source's fork rests in: paused for a memory fork, stopped for a
+// disk-only one, as in the SDKs.
+func TestSandboxFork_memoryFlag(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	fork := "22222222-2222-2222-2222-222222222222"
+	for _, tc := range []struct {
+		flag, body, wait string
+	}{
+		{"--memory=false", `{"memory":false}`, "wait_exact=stopped"},
+		{"--memory", `{"memory":true}`, "wait=paused"},
+	} {
+		_, _, err := runCLI(t, []string{"sandbox", "fork", id, tc.flag}, []expectedRequest{
+			{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", "paused")},
+			{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: tc.body, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
+			{method: http.MethodGet, path: "/sandboxes/" + fork, status: 200, response: sandboxDetailFixture(fork, "linux", strings.TrimPrefix(strings.TrimPrefix(tc.wait, "wait_exact="), "wait=")), check: func(t *testing.T, r *http.Request, _ []byte) {
+				key, value, _ := strings.Cut(tc.wait, "=")
+				assert.Equal(t, value, r.URL.Query().Get(key))
+			}},
+		})
+		require.NoError(t, err, tc.flag)
+	}
+}
+
+func TestSandboxFork_memoryIsRefusedForMacOS(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	_, _, err := runCLI(t, []string{"sandbox", "fork", id, "--memory"}, []expectedRequest{
+		{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "macos", "stopped")},
+	})
+	require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err))
+}
+
+// Without --memory the fork's resting state follows the source, as in the
+// SDKs: a stopped Linux source gives a stopped (disk-only) fork, a paused
+// one a paused (memory) fork.
+func TestSandboxFork_defaultMemoryWaitTarget(t *testing.T) {
+	id := "11111111-1111-1111-1111-111111111111"
+	fork := "22222222-2222-2222-2222-222222222222"
+	for _, tc := range []struct{ source, query, status string }{
+		{"stopped", "wait_exact=stopped&timeout_ms=55000", "stopped"},
+		{"paused", "wait=paused&timeout_ms=55000", "paused"},
+	} {
+		_, _, err := runCLI(t, []string{"sandbox", "fork", id}, []expectedRequest{
+			{method: http.MethodGet, path: "/sandboxes/" + id, status: 200, response: sandboxDetailFixture(id, "linux", tc.source)},
+			{method: http.MethodPost, path: "/sandboxes/" + id + "/fork", status: 202, bodyJSON: `null`, response: `{"toolbox_proxy_url":"https://proxy.example/test-tools","forked_from":"` + id + `","status":"pending","id":"` + fork + `"}`},
+			{method: http.MethodGet, path: "/sandboxes/" + fork, query: tc.query, status: 200, response: sandboxDetailFixture(fork, "linux", tc.status)},
+		})
+		require.NoError(t, err, tc.source)
+	}
+}

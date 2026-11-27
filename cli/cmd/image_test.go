@@ -9,11 +9,15 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/daytona/clients/cli/internal/cerr"
 )
 
 func TestImageCommands_routeAndRenderJSON(t *testing.T) {
@@ -52,6 +56,29 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			},
 		},
 		{
+			name: "list images with an empty name filter",
+			args: []string{"image", "list", "--name", "", "--limit", "1"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/images/search", query: "limit=1&name=", status: 200, response: withSearchTotals(t, `{"images":[],"next_cursor":null}`)},
+			},
+		},
+		{
+			name: "list images by a padded source sandbox id, sent trimmed",
+			args: []string{"image", "list", "--sandbox", " 22222222-2222-2222-2222-222222222222 ", "--limit", "1"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/images/search", query: "limit=1&sandbox_id=22222222-2222-2222-2222-222222222222", status: 200, response: withSearchTotals(t, `{"images":[],"next_cursor":null}`)},
+			},
+		},
+		{
+			name: "list images with an empty name filter without search",
+			args: []string{"image", "list", "--name", "", "--limit", "1"},
+			expected: []expectedRequest{
+				searchNotConfiguredRequest("/images/search"),
+				{method: http.MethodGet, path: "/regions", status: 200, response: `{"regions":[],"default_region_id":null}`},
+				{method: http.MethodGet, path: "/images", query: "limit=1&name=", status: 200, response: `{"images":[],"next_cursor":null}`},
+			},
+		},
+		{
 			name: "list platform images",
 			args: []string{"image", "list", "--platform", "true", "--limit", "1"},
 			expected: []expectedRequest{
@@ -71,6 +98,19 @@ func TestImageCommands_routeAndRenderJSON(t *testing.T) {
 			name:     "get image",
 			args:     []string{"image", "get", "11111111-1111-1111-1111-111111111111"},
 			expected: []expectedRequest{{method: http.MethodGet, path: "/images/11111111-1111-1111-1111-111111111111", status: 200, response: imageFixture("11111111-1111-1111-1111-111111111111", "ready")}},
+		},
+		{
+			name:     "import an anonymous image with an idle expiry",
+			args:     []string{"image", "create", "--ref", "python:3.12", "--idle-expiry", "24h", "--no-wait"},
+			expected: []expectedRequest{{method: http.MethodPost, path: "/images", status: 202, bodyJSON: `{"idle_expiry_seconds":86400,"source":{"type":"registry","ref":"python:3.12"}}`, response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`}},
+		},
+		{
+			name: "capture an anonymous image with the longest idle expiry",
+			args: []string{"image", "capture", "22222222-2222-2222-2222-222222222222", "--idle-expiry", "max", "--no-wait"},
+			expected: []expectedRequest{
+				{method: http.MethodGet, path: "/sandboxes/22222222-2222-2222-2222-222222222222", status: 200, response: sandboxDetailFixture("22222222-2222-2222-2222-222222222222", "linux", "running")},
+				{method: http.MethodPost, path: "/sandboxes/22222222-2222-2222-2222-222222222222/images", status: 202, bodyJSON: `{"idle_expiry_seconds":-1}`, response: `{"id":"11111111-1111-1111-1111-111111111111","status":"pending"}`},
+			},
 		},
 		{
 			name:     "promote image",
@@ -169,4 +209,20 @@ func runCLIWithResponseReplacement(t *testing.T, args []string, expected []expec
 		require.Equal(t, len(expected), index)
 	}
 	return stdout.String(), stderr.String(), err
+}
+
+// A named image is permanent: --idle-expiry beside a name is refused before
+// any request, whether the name comes from the argument, --name or --file.
+func TestImageIdleExpiryNeedsAnAnonymousImage(t *testing.T) {
+	body := filepath.Join(t.TempDir(), "body.json")
+	require.NoError(t, os.WriteFile(body, []byte(`{"name":"from-file","source":{"type":"registry","ref":"python:3.12"}}`), 0o600))
+	for _, args := range [][]string{
+		{"image", "create", "named", "--ref", "python:3.12", "--idle-expiry", "1h"},
+		{"image", "create", "--file", body, "--idle-expiry", "1h"},
+		{"image", "capture", "22222222-2222-2222-2222-222222222222", "--name", "kept", "--idle-expiry", "1h"},
+		{"image", "capture", "22222222-2222-2222-2222-222222222222", "--idle-expiry", "1.5s"},
+	} {
+		_, _, err := runCLI(t, args, nil)
+		require.Equal(t, cerr.ExitUsage, cerr.ExitCode(err), "%v: %v", args, err)
+	}
 }

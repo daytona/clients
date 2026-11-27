@@ -17,14 +17,26 @@ import (
 
 func newSandboxForkCommand() *cobra.Command {
 	name := ""
+	memory := false
 	cmd := newSandboxActionCommand("fork", func(cmd *cobra.Command, resolved workload.ResolvedSandbox) (any, string, string, error) {
 		macos := resolved.Detail.Class == workload.ClassMacOS
 		if resolved.Detail.Class != workload.ClassLinux && !macos {
 			return nil, "", "", cerr.New(cerr.ExitConflict, "cannot fork sandbox %s with unknown class %s", resolved.Detail.Id, resolved.Detail.Class)
 		}
+		memorySet := cmd.Flags().Changed("memory")
+		if macos && memorySet && memory {
+			return nil, "", "", cerr.Usage("a macOS fork copies the disk only; --memory is not supported for macOS").
+				WithHint("omit --memory, or pass --memory=false")
+		}
 		body := (*gen.ForkSandboxRequest)(nil)
-		if cmd.Flags().Changed("name") {
-			body = &gen.ForkSandboxRequest{Name: &name}
+		if cmd.Flags().Changed("name") || memorySet {
+			body = &gen.ForkSandboxRequest{}
+			if cmd.Flags().Changed("name") {
+				body.Name = &name
+			}
+			if memorySet {
+				body.Memory = &memory
+			}
 		}
 		attempts := 0
 		var resp api.Raw[gen.ForkSandboxOperation]
@@ -44,17 +56,20 @@ func newSandboxForkCommand() *cobra.Command {
 			}
 			status = source.Status
 		}
-		// Running sources bring the fork up; other sources leave Linux forks
-		// paused and macOS forks stopped after disk preparation.
-		waitFor := "paused"
-		if status == "running" {
+		// Running sources bring the fork up. A memory fork of a paused Linux
+		// source rests paused; every other fork (disk only: macOS,
+		// --memory=false, a stopped source) rests stopped, as in the SDKs.
+		waitFor := "stopped"
+		switch {
+		case status == "running":
 			waitFor = "running"
-		} else if macos {
-			waitFor = "stopped"
+		case !macos && status == "paused" && (!memorySet || memory):
+			waitFor = "paused"
 		}
 		return resp, resp.V.Id, waitFor, nil
 	})
 	cmd.Flags().StringVar(&name, "name", "", "fork name")
+	cmd.Flags().BoolVar(&memory, "memory", false, "include the source's memory, so the fork continues its running processes (the default on Linux); --memory=false copies only the disk and does not pause the source; a macOS fork is always disk only")
 	cmd.Long = "Fork a sandbox.\nA sandbox still starting, stopping or pausing is retried for up to 30 seconds before the fork is accepted." +
 		sandboxActionPersistenceNote("fork") + "\nA sandbox with attached volumes cannot fork (409).\nExample:\n  daytona sandbox fork <id>"
 	return cmd

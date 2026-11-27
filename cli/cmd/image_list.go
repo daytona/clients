@@ -20,6 +20,9 @@ type imageListFilters struct {
 	anonymous string
 	platform  string
 	name      string
+	// nameSet keeps an explicit --name '' (sent as name=, as the Python and
+	// TypeScript SDKs send it) apart from an omitted --name.
+	nameSet   bool
 	sandboxID string
 }
 
@@ -40,6 +43,11 @@ func newImageListCommand() *cobra.Command {
 				return err
 			}
 			flags.anonymous = anonymous
+			flags.nameSet = cmd.Flags().Changed("name")
+			flags.sandboxID = strings.TrimSpace(flags.sandboxID)
+			if cmd.Flags().Changed("sandbox") && flags.sandboxID == "" {
+				return cerr.Usage("--sandbox is empty").WithHint("pass a sandbox id, or omit --sandbox")
+			}
 			if cmd.Flags().Changed("platform") {
 				switch flags.platform {
 				case "true", "false", "any":
@@ -94,7 +102,7 @@ func newImageListCommand() *cobra.Command {
 	}
 	addPageFlags(cmd, &flags.pageFlags)
 	addRegionFlag(cmd, "list only the images available in this region or a region inside it (region_id or region_ids; default: every region); a page can then hold fewer than --limit items")
-	cmd.Flags().StringVar(&flags.name, "name", "", "filter by exact image name")
+	cmd.Flags().StringVar(&flags.name, "name", "", "filter by exact image name (an explicit empty name is sent as name=, as the Python and TypeScript SDKs send it)")
 	cmd.Flags().StringVar(&flags.anonymous, "anonymous", "", "true lists only anonymous images, false only named ones (the default)")
 	cmd.Flags().StringVar(&flags.platform, "platform", "", "platform images: true (only platform images)|false (only the project's, the default)|any (both)")
 	cmd.Flags().StringVar(&flags.sandboxID, "sandbox", "", "filter captures by source sandbox id")

@@ -152,6 +152,7 @@ Get started:
 	root.InitDefaultCompletionCmd()
 	normalizeTree(root)
 	documentLoginOnly(root)
+	installCompletions(root)
 	return root
 }
 

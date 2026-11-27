@@ -37,7 +37,8 @@ func newSecretSetCmd() *cobra.Command {
 	var allowedDomains []string
 	var description string
 	cmd := &cobra.Command{Use: "set <name>", Short: "Create or update a project secret", Long: "Create or update a project secret and print it (never its value). The value is always required (--value, --from-file or --stdin): the API replaces the whole secret and never returns the stored value.\n" +
-		"Creating a secret also requires --allowed-domain. On an existing secret the command reads it first, so the metadata options you do not pass (--allowed-domain, --description) keep their stored values (an existing secret with no allowed domains needs --allowed-domain too): it needs read as well as write access to secrets.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		"Creating a secret also requires --allowed-domain. On an existing secret the command reads it first, so the metadata options you do not pass (--allowed-domain, --description) keep their stored values (an existing secret with no allowed domains needs --allowed-domain too): it needs read as well as write access to secrets.\n" +
+		"Concurrent updates: a create fails with 412 SECRET_ALREADY_EXISTS if another caller created the secret since it was read, or with 409 CONFLICT while another caller is creating it; run the command again. An update of an existing secret is not conditional: of two concurrent updates the last one wins, including the metadata it kept from its read.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if err := refuseResourceSearchName("secret", args[0]); err != nil {
 			return err
 		}
@@ -93,8 +94,17 @@ func newSecretSetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
+		// A secret that did not exist when it was read is created only if it
+		// still does not exist: a concurrent `secret set` that created it in
+		// the meantime is reported (412 SECRET_ALREADY_EXISTS), not
+		// overwritten. The API has no conditional update of an existing
+		// secret, so two concurrent updates still end with the last one.
+		var headers http.Header
+		if current == nil {
+			headers = http.Header{"If-None-Match": {"*"}}
+		}
 		var stored api.Raw[gen.Secret]
-		if err := client.Do(ctx, http.MethodPut, path, nil, putReq, &stored); err != nil {
+		if err := client.DoWithHeaders(ctx, http.MethodPut, path, nil, headers, putReq, &stored); err != nil {
 			return err
 		}
 		return printSecret(a, stored)
