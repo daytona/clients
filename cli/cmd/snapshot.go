@@ -102,8 +102,7 @@ func newSnapshotListCommand() *cobra.Command {
 			}
 			query := func(cursor string) url.Values {
 				q := listQuery(flags, cursor)
-				// An explicit --name '' is sent (it matches no snapshot), as
-				// the SDKs send name=.
+				// An explicit --name '' is sent as name=, as the SDKs send it.
 				if cmd.Flags().Changed("name") {
 					q.Set("name", name)
 				}
@@ -139,7 +138,7 @@ func newSnapshotListCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags)
-	cmd.Flags().StringVar(&name, "name", "", "filter by exact snapshot name (an empty name matches no snapshot)")
+	cmd.Flags().StringVar(&name, "name", "", "filter by exact snapshot name (an explicit empty name is sent as name=, as the SDKs send it)")
 	cmd.Flags().StringVar(&sandboxID, "sandbox", "", "filter by source sandbox id")
 	return cmd
 }
