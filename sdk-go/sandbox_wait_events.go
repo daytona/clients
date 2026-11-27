@@ -148,11 +148,13 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 			"sandbox "+w.sandbox.id+" is no longer present; its final state was not retained")
 	}
 	reported := event
-	if reported.Reason == "" {
+	success := w.target(event.State)
+	// A target event's error message, or its absence, stands; only a terminal
+	// event borrows the reason of a matching full read.
+	if reported.Reason == "" && !success {
 		reported.Reason = w.sandbox.readReasonFor(event)
 	}
 	w.sandbox.observeWait(reported)
-	success := w.target(event.State)
 	if success && !w.readAfterTarget {
 		return true, nil
 	}

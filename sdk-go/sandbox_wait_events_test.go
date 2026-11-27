@@ -83,6 +83,26 @@ func TestWait_whenTargetEventObserved_readsNothing(t *testing.T) {
 	require.Empty(t, fake.requests())
 }
 
+func TestWait_whenTargetEventHasNoReason_clearsAReadReason(t *testing.T) {
+	// Given: a full read that showed the target state with an error message.
+	fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
+		detail := sandboxFixture("sbx")
+		detail["error"] = "an earlier failure"
+		writeJSON(t, w, detail)
+	}})
+	sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
+	require.NoError(t, err)
+	require.NoError(t, sandbox.Refresh(t.Context()))
+	require.Equal(t, "an earlier failure", sandbox.Info().Error)
+	sandbox.client.stateSource = eventSource(stateObservation{State: SandboxStateStarted, RawState: "running"})
+	// When
+	err = sandbox.Wait(t.Context(), nil)
+	// Then: the event's absent message clears the read's.
+	require.NoError(t, err)
+	require.Empty(t, sandbox.Info().Error)
+	require.Len(t, reads(fake), 1)
+}
+
 func TestResume_whenMacOSTargetEventObserved_refreshIsBestEffort(t *testing.T) {
 	for _, status := range []string{"stopping", "500"} {
 		t.Run(status, func(t *testing.T) {
