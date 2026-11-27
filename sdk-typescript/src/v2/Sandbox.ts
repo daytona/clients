@@ -543,7 +543,7 @@ export class Sandbox {
     return this.process.run(command, options)
   }
 
-  /** Execute code and return its result: an alias for {@link InterpreterService.run}, same options. */
+  /** Execute code and return its result: an alias for {@link InterpreterService.run}, same options and errors. */
   public async runCode(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
     return this.interpreter.run(code, options)
   }

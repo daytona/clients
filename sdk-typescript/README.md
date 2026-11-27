@@ -425,10 +425,15 @@ make asynchronous callback work cancellation-aware when needed.
   `memoryMax`, `disk`, `diskMax`, `sandboxClass`, `region`,
   `persistent`, `spot`, `spotEvictedAt`,
   `lifecyclePolicy`, `forkedFrom`, `user`, and `error` (network policy is read through `getNetworkPolicy()`).
-  A handle from `create*()` or `fork()` whose wait did not read the sandbox
-  (`waitSeconds: 0`, or a wait that ended early) holds only what the create
-  response carries: fields it does not report are `undefined` (unknown),
-  `labels` included, until `refreshData()` reads them; `state` is `'unknown'` before a
+  A handle from `create*()` holds only what the create response carries (id,
+  name, state, image, reservation and, when reported, the lifecycle policy)
+  plus what the request fixed (`sandboxClass`, `region`, an `img_` / `snap_`
+  id you passed) until something reads the sandbox, and a sandbox that is already started when the create
+  answers (the usual case) is not read: call `refreshData()` before reading
+  `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
+  response does not report. Until then they are `undefined` (unknown). A
+  `fork()` handle whose wait did not read the sandbox (`waitSeconds: 0`, or a
+  failed read) is the same. `state` is `'unknown'` before a
   status is known. Absent values are `undefined` throughout the SDK's models,
   never `null`.
 
@@ -621,7 +626,11 @@ seconds; `-1` asks the server to apply its maximum.
 
 Linux sizing uses only `resources: { cpu, cpuMax, memory, memoryMax, disk, diskMax }`.
 CPU is in cores; memory and disk are in GiB and must convert exactly to whole
-MiB. Readback preserves exact GiB values. `createFromSnapshot()` inherits the
+MiB. Readback preserves exact GiB values. Inside the sandbox, `nproc` reports
+the CPU limit (`cpuMax * 2` vCPUs), while memory can start near the guaranteed `memory`
+and grow on demand up to `memoryMax`: `/proc/meminfo` and `free` show the
+memory present now, and `sandbox.metrics()` reports the limit as the total.
+`createFromSnapshot()` inherits the
 snapshot's configuration and accepts no resources, CPU selectors, environment,
 volumes, secrets or network policy options.
 
@@ -1011,6 +1020,31 @@ vanished, `interpreter.run(..., { context })` / `context.run()` surface the type
 `results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
+
+The first run of a language in a sandbox starts its kernel and installs it when
+the image does not ship it, which adds a few seconds: Python installs
+`ipykernel` from PyPI (`pypi.org`, `files.pythonhosted.org`) unless the image's
+Python already has it and its `venv` module, and TypeScript / JavaScript download Deno from
+`dl.deno.land` unless `deno` is on the image's `PATH`. A sandbox whose network
+policy blocks those hosts needs an image that ships the kernel, or those
+domains in `allowDomains`. When the kernel cannot be installed or started, the
+code does not run and `runCode()` throws `KernelUnavailableError` with the
+sandbox's setup diagnostic:
+
+```ts
+import { KernelUnavailableError } from '@daytona/sdk/v2'
+
+try {
+  await sandbox.runCode('console.log(1)', { language: 'typescript' })
+} catch (error) {
+  if (!(error instanceof KernelUnavailableError)) throw error
+  console.error(error.message) // ... allow egress to dl.deno.land ...
+}
+```
+
+A kernel that stops during a run returns the output produced so far with
+`result.process.reason === 'lost'`; its state is gone, and the next run starts
+a new kernel.
 
 ### Git
 

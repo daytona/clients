@@ -14,6 +14,7 @@ type runCodeOutput struct {
 	result  RunCodeResult
 	stdout  strings.Builder
 	stderr  strings.Builder
+	setup   strings.Builder
 	seen    map[string]struct{}
 }
 
@@ -45,8 +46,11 @@ func (o *runCodeOutput) append(frame LogFrame) error {
 		return o.appendOutput(frame)
 	case LogChannelError:
 		return o.appendError(frame.Data)
-	case LogChannelSetup, LogChannelPTY, LogChannelUnknown:
-		// Provisioning narration and future channels are exposed only by OnLog.
+	case LogChannelSetup:
+		// Provisioning narration: exposed by OnLog, and the diagnostic of a failed run.
+		o.setup.WriteString(frame.Data)
+	case LogChannelPTY, LogChannelUnknown:
+		// Future channels are exposed only by OnLog.
 	}
 	return nil
 }
@@ -79,6 +83,27 @@ func (o *runCodeOutput) appendError(payload string) error {
 		}
 	}
 	return nil
+}
+
+// setupFailure is the error of a run that ended failed: the sandbox could not
+// provision, start or reach the kernel, so the code did not run.
+func (o *runCodeOutput) setupFailure(processID string) error {
+	diagnostic := strings.TrimSpace(o.setup.String())
+	if diagnostic == "" {
+		diagnostic = "the sandbox reported no setup diagnostic"
+	}
+	return newSDKError(CodeKernelUnavailable, 503,
+		"the interpreter did not run the code (process "+processID+"): "+diagnostic)
+}
+
+// complete returns the result of a finished run, with the setup failure of a
+// run that ended failed.
+func (o *runCodeOutput) complete(processID string, wait WaitResult) (*RunCodeResult, error) {
+	result := o.finish(InterpreterProcess{ProcessID: processID, WaitResult: wait})
+	if wait.Reason == ProcessReasonFailed {
+		return result, o.setupFailure(processID)
+	}
+	return result, nil
 }
 
 func (o *runCodeOutput) finish(process InterpreterProcess) *RunCodeResult {
