@@ -31,7 +31,10 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   // Only name-derived keys await hashing; explicit/random keys post immediately.
   const key = createIdempotencyKey(body)
   const idempotencyKey = typeof key === 'string' ? key : await key
-  if (body.idempotency_key === undefined) body.idempotency_key = idempotencyKey
+  // The key travels as the `Idempotency-Key` header only, as the Python and
+  // Go SDKs send it (the API reads the header first).
+  const wireBody: Record<string, unknown> = { ...body }
+  delete wireBody.idempotency_key
   // The create response first associates the sandbox id with its regional
   // API endpoint for the events hub.
   let createdEventDestination: string | undefined
@@ -43,7 +46,7 @@ export async function createSandbox(context: SandboxClientContext, request: Prep
   const unbounded = wait > MAX_WIRE_WAIT_SECONDS
   const holdTimeout = wait <= 0 || typeof rootMs !== 'number' || rootMs <= 0 ? undefined
     : unbounded ? 0 : Math.max(rootMs, wait * 1000 + WAIT_READ_SLACK_MS)
-  const created = await context.api.post<CreateSandboxResponse>(path, body, {
+  const created = await context.api.post<CreateSandboxResponse>(path, wireBody, {
     ...(holdTimeout === undefined ? {} : { timeout: holdTimeout }),
     headers: { 'Idempotency-Key': idempotencyKey, ...(region ? { 'x-daytona-region': region } : {}) },
   }).then((response) => {

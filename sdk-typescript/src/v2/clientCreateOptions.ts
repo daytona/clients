@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { badRequest, headerText, MAX_INT32 } from './options.js'
+import { badRequest, idempotencyKeyText, MAX_INT32 } from './options.js'
 import { selectRegion } from './region.js'
 import { gibToMib } from './resources.js'
 export { gibToMib } from './resources.js'
@@ -133,8 +133,7 @@ export function macosMib(gib: number | undefined, axis: 'memory' | 'disk', floor
  */
 export function resolveIdempotencyKey(idempotencyKey: string | undefined): string | undefined {
   if (idempotencyKey == null) return undefined
-  if (typeof idempotencyKey !== 'string') throw badRequest('idempotencyKey must be a string')
-  return headerText(idempotencyKey, 'idempotencyKey')
+  return idempotencyKeyText(idempotencyKey)
 }
 
 /**

@@ -40,7 +40,7 @@ func prepareCreateIdentity(body *createBody, opts CreateFromSnapshotOptions) err
 		body.Region = opts.Region
 	}
 	if opts.IdempotencyKey != "" {
-		if err := headerText(opts.IdempotencyKey, "IdempotencyKey"); err != nil {
+		if err := idempotencyKeyText(opts.IdempotencyKey); err != nil {
 			return err
 		}
 	}
@@ -55,7 +55,7 @@ func createPorts(input []PortMapping) (*[]createPort, error) {
 	ports := make([]createPort, len(input))
 	for index, port := range input {
 		if port.Port < 1 || port.Port > 65535 {
-			return nil, badRequest("ports[].port must be in 1..65535")
+			return nil, badRequest("ports[].port must be an integer in 1..65535")
 		}
 		protocol := port.Protocol
 		switch protocol {
@@ -63,7 +63,7 @@ func createPorts(input []PortMapping) (*[]createPort, error) {
 			protocol = "tcp"
 		case "tcp", "udp":
 		default:
-			return nil, badRequest("ports[].protocol must be tcp or udp")
+			return nil, badRequest("ports[].protocol must be 'tcp' or 'udp'")
 		}
 		ports[index] = createPort{Port: port.Port, Protocol: protocol}
 	}

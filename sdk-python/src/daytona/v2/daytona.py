@@ -47,17 +47,21 @@ from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES, validated_max_response_byte
 from ._core import (
     INT32_MAX,
     MAX_BOUNDED_TIMEOUT_SECONDS,
+    MAX_IDEMPOTENCY_KEY_BYTES,
     MAX_SAFE_INTEGER,
     MAX_WIRE_WAIT_SECONDS,
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
+    check_env_key,
+    check_env_value,
     check_labels,
     expect_object,
     finite_number,
     gib_to_mib,
     header_text,
+    idempotency_key_text,
     image_options_body,
     lifecycle_body,
     page_params,
@@ -438,7 +442,7 @@ class AsyncDaytona:
             source_kind="image",
             source=image,
             name=name,
-            env=_dict_or_none(env, "env"),
+            env=_create_env(env),
             labels=_dict_or_none(labels, "labels"),
             resources=resources,
             ports=ports,
@@ -592,7 +596,7 @@ class AsyncDaytona:
             source_kind="image",
             source=resolved_image,
             name=name,
-            env=_dict_or_none(env, "env"),
+            env=_create_env(env),
             labels=_dict_or_none(labels, "labels"),
             secrets=secrets,
             ports=ports,
@@ -1536,18 +1540,26 @@ def _resolve_config(config: Optional[DaytonaConfig]) -> _ResolvedConfig:
     jwt_token = _credential("jwt_token", config.jwt_token, "DAYTONA_JWT_TOKEN", read_ambient=not explicit)
     if api_key and jwt_token:
         raise create_error(
-            "exactly one of api_key or jwt_token must be configured",
+            "configure exactly one of api_key or jwt_token (in DaytonaConfig or as DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)",
             400,
             "BAD_REQUEST",
             "SDK",
         )
     if not api_key and not jwt_token:
         raise AuthenticationError(
-            "api_key or jwt_token is required", status_code=401, code="UNAUTHORIZED", source="SDK"
+            "configure api_key or jwt_token (in DaytonaConfig or as DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)",
+            status_code=401,
+            code="UNAUTHORIZED",
+            source="SDK",
         )
     project_id = config.project_id if config.project_id is not None else _ambient("DAYTONA_PROJECT_ID")
     if jwt_token and not project_id:
-        raise create_error("jwt_token requires project_id", 400, "BAD_REQUEST", "SDK")
+        raise create_error(
+            "jwt_token requires project_id (in DaytonaConfig or as DAYTONA_PROJECT_ID)",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
     otel_enabled = (
         config.otel_enabled if config.otel_enabled is not None else _env_truthy("DAYTONA_OTEL_ENABLED")
     )
@@ -1613,7 +1625,7 @@ def _non_negative_seconds(name: str, value: object) -> float | int:
     )
     if not valid:
         raise create_error(
-            f"{name} must be a non-negative number of seconds (0 = no limit)", 400, "BAD_REQUEST", "SDK"
+            f"{name} must be a non-negative finite number of seconds", 400, "BAD_REQUEST", "SDK"
         )
     assert isinstance(value, (int, float))
     return value
@@ -1679,6 +1691,17 @@ def _dict_or_none(value: Optional[Mapping[str, str]], label: str) -> Optional[di
     return dict(value)
 
 
+def _create_env(env: Optional[Mapping[str, str]]) -> Optional[dict[str, str]]:
+    """``create*(env=...)``: a string mapping whose names and values follow
+    ``update_env``'s rule, refused before any request otherwise."""
+    copied = _dict_or_none(env, "env")
+    if copied is not None:
+        for key, value in copied.items():
+            check_env_key(key)
+            check_env_value(value)
+    return copied
+
+
 def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
     merged: CreateConfig = {}
     for key, value in overrides.items():
@@ -1736,8 +1759,6 @@ def _macos_mib(gib: object, *, axis: str, floor_mib: int) -> Optional[int]:
 # ``labels == {"name": name, …}``. ``AsyncDaytona.find_by_name`` reads it back.
 _NAME_LABEL: Final = "name"
 
-#: Longest idempotency key the API accepts, in characters.
-_MAX_IDEMPOTENCY_KEY_LEN: Final = 256
 _NAME_KEY_PREFIX: Final = "name:"
 _NAME_KEY_HASH_PREFIX: Final = "name:sha256:"
 
@@ -1759,7 +1780,7 @@ def _idempotency_key_for_name(name: str) -> str:
     literal = _NAME_KEY_PREFIX + name
     if (
         name == name.strip()
-        and len(literal) <= _MAX_IDEMPOTENCY_KEY_LEN
+        and len(literal) <= MAX_IDEMPOTENCY_KEY_BYTES
         and all(" " <= char <= "~" for char in name)
     ):
         return literal
@@ -1789,9 +1810,7 @@ def _check_connect_options(toolbox_url: object, access_token: object) -> None:
 
 def _resolve_idempotency_key(idempotency_key: Optional[str], name: CreateConfigValue | None = None) -> str:
     if idempotency_key is not None:
-        if not isinstance(idempotency_key, str):
-            raise create_error("idempotency_key must be a string", 400, "BAD_REQUEST", "SDK")
-        return header_text(idempotency_key, "idempotency_key")
+        return idempotency_key_text(idempotency_key)
     named = _named_create(name)
     if named is not None:
         return _idempotency_key_for_name(named)
@@ -2128,14 +2147,15 @@ def _is_volume_mount(item: object) -> bool:
 
 
 def _is_port_mapping(item: object) -> bool:
-    return (
-        isinstance(item, PortMapping)
-        and isinstance(item.port, int)
-        and not isinstance(item.port, bool)
-        and 1 <= item.port <= 65535
-        # The contract's PortProtocol values only: SDK inputs are closed.
-        and item.proto in ("tcp", "udp")
-    )
+    if not isinstance(item, PortMapping):
+        return False
+    # Each field gets its own message, as in TypeScript and Go.
+    if isinstance(item.port, bool) or not isinstance(item.port, int) or not 1 <= item.port <= 65535:
+        raise _bad_create_value("ports[].port must be an integer in 1..65535")
+    # The contract's PortProtocol values only: SDK inputs are closed.
+    if item.proto not in ("tcp", "udp"):
+        raise _bad_create_value("ports[].proto must be 'tcp' or 'udp'")
+    return True
 
 
 def _volume_mounts(value: CreateConfigValue | None) -> Sequence[VolumeMount] | None:
@@ -2146,9 +2166,7 @@ def _volume_mounts(value: CreateConfigValue | None) -> Sequence[VolumeMount] | N
 
 
 def _port_requests(value: CreateConfigValue | None) -> Sequence[PortMapping] | None:
-    items = _list_items(
-        value, _is_port_mapping, "ports must be a list of PortMapping(port=...) with a port in 1..65535"
-    )
+    items = _list_items(value, _is_port_mapping, "ports must be a list of PortMapping(port=...)")
     return None if items is None else [item for item in items if isinstance(item, PortMapping)]
 
 

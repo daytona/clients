@@ -143,13 +143,13 @@ export function clientConnectionConfig(config: DaytonaConfig): ClientConnectionC
   const poolMaxsize = connectionPoolMaxsize(config.connectionPoolMaxsize)
   const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', config.maxResponseBytes) ?? DEFAULT_MAX_RESPONSE_BYTES
   if (!apiKey && !jwtToken) {
-    throw new AuthenticationError('configure apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
+    throw new AuthenticationError('configure apiKey or jwtToken (in DaytonaConfig or as DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 401, code: 'UNAUTHORIZED', source: 'SDK' })
   }
   if (apiKey && jwtToken) {
-    throw new BadRequestError('configure exactly one of apiKey or jwtToken (set config.* or DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw new BadRequestError('configure exactly one of apiKey or jwtToken (in DaytonaConfig or as DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   if (jwtToken && !projectId) {
-    throw new BadRequestError('projectId is required when jwtToken is set (set config.projectId or DAYTONA_PROJECT_ID)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    throw new BadRequestError('jwtToken requires projectId (in DaytonaConfig or as DAYTONA_PROJECT_ID)', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const base = apiUrl.replace(/\/+$/, '') || DEFAULT_V2_API_URL
   // Hub registry identity: the API key, or for JWT auth the project plus an

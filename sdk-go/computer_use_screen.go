@@ -73,6 +73,9 @@ func (s *ComputerUseScreen) Screenshot(
 		options = *opts
 	}
 	if options.Region != nil {
+		if err := checkScreenshotRegion(*options.Region); err != nil {
+			return nil, err
+		}
 		spec.Path += "/region"
 		spec.Query.Set("x", strconv.Itoa(options.Region.X))
 		spec.Query.Set("y", strconv.Itoa(options.Region.Y))
@@ -113,4 +116,16 @@ func (s *ComputerUseScreen) Screenshot(
 		return nil, d.err
 	}
 	return result, nil
+}
+
+// checkScreenshotRegion refuses an empty region before any request, as the
+// Python and TypeScript SDKs do.
+func checkScreenshotRegion(region ComputerUseRegion) error {
+	if region.Width <= 0 {
+		return badRequest("Region.Width must be greater than 0")
+	}
+	if region.Height <= 0 {
+		return badRequest("Region.Height must be greater than 0")
+	}
+	return nil
 }

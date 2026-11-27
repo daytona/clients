@@ -25,7 +25,8 @@ type CreateOptions struct {
 	// zero is sent explicitly, and WaitForever selects the server maximum.
 	CreateTimeout *time.Duration
 	// IdempotencyKey identifies a retry with identical options. Empty derives
-	// a key from Name or generates a random key. Keys are sent in body and header.
+	// a key from Name or generates a random UUID. The key is sent as the
+	// Idempotency-Key header; a key over 256 bytes returns ErrBadRequest.
 	IdempotencyKey string
 	// Volumes attaches volumes. Mount-path restrictions are enforced by the API.
 	Volumes []VolumeMount

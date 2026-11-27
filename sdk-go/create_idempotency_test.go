@@ -33,12 +33,12 @@ func TestCreateIdempotencyNamesRoundTripDeterministically(t *testing.T) {
 			request := fake.requests()[0]
 			require.Equal(t, expected, request.Header.Get("Idempotency-Key"))
 			var body struct {
-				Key    string            `json:"idempotency_key"`
+				Key    *string           `json:"idempotency_key"`
 				Name   string            `json:"name"`
 				Labels map[string]string `json:"labels"`
 			}
 			require.NoError(t, json.Unmarshal(request.Body, &body))
-			require.Equal(t, expected, body.Key)
+			require.Nil(t, body.Key, "the key is sent as the header only")
 			require.Equal(t, name, body.Name)
 			require.Equal(t, name, body.Labels["name"])
 		})

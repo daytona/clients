@@ -54,12 +54,38 @@ def too_large_error(status_code: int, limit: int) -> DaytonaError:
             status_code,
         )
     return create_error(
-        f"the response body is larger than the {limit}-byte max_response_bytes limit; pass a higher "
-        "max_response_bytes for this call (0 = no limit), or use download_file() for large files",
+        f"the response body is larger than the {limit}-byte max_response_bytes limit{CLIENT_CAP_HINT}",
         413,
         "PAYLOAD_TOO_LARGE",
         "SDK",
     )
+
+
+#: How a refused success response says to read it: most calls take the
+#: client's cap only. The calls with a per-call ``max_response_bytes`` replace
+#: this hint through :func:`with_per_call_hint`.
+CLIENT_CAP_HINT: Final = "; raise the client's max_response_bytes (0 = no limit)"
+#: The hint of the in-memory file reads, which take a per-call cap and have a
+#: streaming alternative.
+FILE_READ_HINT: Final = (
+    "; pass a higher max_response_bytes for this call (0 = no limit), or use download_file() for large files"
+)
+#: The hint of the recording download, which takes a per-call cap.
+PER_CALL_HINT: Final = "; pass a higher max_response_bytes for this call (0 = no limit)"
+
+
+def with_per_call_hint(error: DaytonaError, hint: str) -> DaytonaError:
+    """``error`` with ``hint`` in place of :data:`CLIENT_CAP_HINT` when it is the
+    cap's own refusal of a success response, else ``error`` itself."""
+    if (
+        error.code != "PAYLOAD_TOO_LARGE"
+        or error.source != "SDK"
+        or not error.message.endswith(CLIENT_CAP_HINT)
+    ):
+        return error
+    rewritten = create_error(error.message[: -len(CLIENT_CAP_HINT)] + hint, 413, "PAYLOAD_TOO_LARGE", "SDK")
+    rewritten.__cause__ = error.__cause__
+    return rewritten
 
 
 def _declared_too_large(response: httpx.Response, limit: int) -> bool:

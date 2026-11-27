@@ -54,7 +54,7 @@ func TestCreate_whenAllLinuxOptionsAreGiven(t *testing.T) {
 	require.Equal(t, "region-a", requests[0].Header.Get("X-Daytona-Region"))
 	require.JSONEq(t, `{
 		"name":"worker","image":"img_base","labels":{"team":"sdk","name":"worker"},
-		"region_id":"region-a","wait_seconds":0,"create_timeout_seconds":120,"idempotency_key":"request-123",
+		"region_id":"region-a","wait_seconds":0,"create_timeout_seconds":120,
 		"env":{"MODE":"test"},"user":"worker","cpu_arch":"arm64","cpu_type":"performance","spot":false,
 		"cpu":1.25,"cores_max":2.5,"memory_mib":1536,"memory_max_mib":2304,"disk_mib":10240,"disk_max_mib":10752,
 		"ports":[{"port":8080,"proto":"tcp"},{"port":53,"proto":"udp"}],
@@ -88,7 +88,7 @@ func TestCreateFromSnapshot_whenOptionsAreGiven(t *testing.T) {
 	require.Equal(t, "name:restored", request.Header.Get("Idempotency-Key"))
 	require.JSONEq(t, `{"name":"restored","labels":{"name":"restored"},"region_id":"region-b",
 		"snapshot":"snap_base","wait_seconds":1,"ports":[],"create_timeout_seconds":-1,
-		"idempotency_key":"name:restored","lifecycle_policy":{"idle_expiry_seconds":-1}}`, string(request.Body))
+		"lifecycle_policy":{"idle_expiry_seconds":-1}}`, string(request.Body))
 }
 
 func TestCreateMacOS_whenOptionsAreGiven(t *testing.T) {
@@ -116,7 +116,7 @@ func TestCreateMacOS_whenOptionsAreGiven(t *testing.T) {
 	require.Equal(t, SandboxClassMacOS, sandbox.Info().Class)
 	require.Equal(t, "res", sandbox.Info().ReservationID)
 	require.JSONEq(t, `{"name":"mac","image":"base-macos","labels":{"name":"mac"},"region_id":"region-c",
-		"wait_seconds":0,"create_timeout_seconds":0,"idempotency_key":"name:mac",
+		"wait_seconds":0,"create_timeout_seconds":0,
 		"persistent":true,"reservation":"new","auto_renew":false,"cores":6,"memory_mib":8704,"disk_mib":82432,
 		"env":{},"secrets":[],"volumes":[],"ports":[{"port":5900,"proto":"tcp"}],"network_policy":null,
 		"lifecycle_policy":{"timeout_seconds":3600,"on_timeout":"stop"}}`, string(fake.requests()[0].Body))
@@ -137,10 +137,10 @@ func TestCreate_whenDefaultsAreUsed(t *testing.T) {
 	request := fake.requests()[0]
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(request.Body, &body))
-	require.Len(t, body, 2)
+	require.Len(t, body, 1)
 	require.InDelta(t, 60, body["wait_seconds"], 0)
-	require.NotEmpty(t, request.Header.Get("Idempotency-Key"))
-	require.Equal(t, request.Header.Get("Idempotency-Key"), body["idempotency_key"])
+	require.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
+		request.Header.Get("Idempotency-Key"))
 }
 
 func TestCreate_whenExplicitEmptyCollectionsAreGiven(t *testing.T) {
@@ -159,6 +159,6 @@ func TestCreate_whenExplicitEmptyCollectionsAreGiven(t *testing.T) {
 
 	// Then
 	require.NoError(t, err)
-	require.JSONEq(t, `{"idempotency_key":"empty","wait_seconds":0,"ports":[],"volumes":[],
+	require.JSONEq(t, `{"wait_seconds":0,"ports":[],"volumes":[],
 		"secrets":[],"env":{},"labels":{},"network_policy":{}}`, string(fake.requests()[0].Body))
 }

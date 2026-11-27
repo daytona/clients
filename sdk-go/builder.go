@@ -27,6 +27,10 @@ type ImageBuilder struct {
 // multiline references produce ErrBadRequest when compiled or built.
 func NewImageBuilder(base string) *ImageBuilder {
 	ref, err := builderLine(base, "image base")
+	// An image reference has no whitespace: "FROM python 3" is no image.
+	if err == nil && strings.ContainsFunc(ref, builderSpace) {
+		err = badRequest("image base must not contain whitespace")
+	}
 	return &ImageBuilder{base: ref, err: err}
 }
 

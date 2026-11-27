@@ -4,7 +4,7 @@
  */
 
 import { createDaytonaError } from './errors/DaytonaError.js'
-import { runtimeUniqueId } from './http.js'
+import { randomIdempotencyKey } from './http.js'
 import { assertLabels, badRequest } from './options.js'
 import { hasLoneSurrogate, isBlank, strip } from './pyText.js'
 
@@ -79,7 +79,7 @@ function namedCreate(name: unknown): string | undefined {
 /** @internal */
 export function createIdempotencyKey(body: { readonly name?: string | null; readonly idempotency_key?: string | null }): string | Promise<string> {
   const named = namedCreate(body.name)
-  return typeof body.idempotency_key === 'string' ? body.idempotency_key : named !== undefined ? idempotencyKeyForName(named) : runtimeUniqueId()
+  return typeof body.idempotency_key === 'string' ? body.idempotency_key : named !== undefined ? idempotencyKeyForName(named) : randomIdempotencyKey()
 }
 
 /**

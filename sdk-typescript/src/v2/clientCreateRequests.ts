@@ -25,8 +25,9 @@ export interface PreparedSandboxCreate {
     readonly name?: string | null
     readonly wait_seconds?: number | null
     readonly region_id?: string | null
-    // Submission fills the generated key when the caller omitted it.
-    idempotency_key?: string | null
+    // The caller's key; submission sends it (or a generated one) as the
+    // `Idempotency-Key` header and drops it from the body.
+    readonly idempotency_key?: string | null
   }
   readonly metadata: {
     readonly autoDelete: boolean

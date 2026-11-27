@@ -66,7 +66,7 @@ import type {
   ComputerUseScrollResponse,
   ComputerUseStatusResponse,
 } from './ComputerUseTypes.js'
-import { maxResponseBytesOption } from './bodyLimit.js'
+import { maxResponseBytesOption, PER_CALL_HINT, withPerCallHint } from './bodyLimit.js'
 import { pathSegment } from './pathSegment.js'
 
 /** Options of `recording.download()`; see its documentation. */
@@ -237,13 +237,13 @@ export class ScreenService {
   public async screenshot(options: ComputerUseScreenshotOptions = {}): Promise<ComputerUseScreenshotResponse> {
     assertKnownOptions('ComputerUseScreenshotOptions', options, SCREENSHOT_KEYS)
     const { region, format, quality, scale, showCursor } = options
-    if (region != null) assertKnownOptions('ComputerUseRegion', region, REGION_KEYS)
+    const area = region == null ? undefined : screenshotRegion(region)
     const compressed = format !== undefined || quality !== undefined || scale !== undefined
     const query = {
-      x: region == null ? undefined : String(region.x),
-      y: region == null ? undefined : String(region.y),
-      width: region == null ? undefined : String(region.width),
-      height: region == null ? undefined : String(region.height),
+      x: area?.x,
+      y: area?.y,
+      width: area?.width,
+      height: area?.height,
       format,
       quality: quality === undefined ? undefined : String(quality),
       scale: scale === undefined ? undefined : String(scale),
@@ -254,6 +254,21 @@ export class ScreenService {
       : (compressed ? '/computeruse/screenshot/compressed' : '/computeruse/screenshot')
     return mapComputerUseScreenshot(await this.transport.get<toolbox.ComputerUseScreenshotResponse>(route, { params: dropUndefined(query) }))
   }
+}
+
+/**
+ * `screenshot({ region })`'s query: four safe integers, `width` and `height`
+ * above zero, refused before any request otherwise (Python checks the same).
+ */
+function screenshotRegion(region: ComputerUseRegion): { readonly x: string; readonly y: string; readonly width: string; readonly height: string } {
+  assertKnownOptions('ComputerUseRegion', region, REGION_KEYS)
+  const field = (name: keyof ComputerUseRegion): string => {
+    const value: unknown = region[name]
+    if (typeof value !== 'number' || !Number.isSafeInteger(value)) throw badRequest(`region.${name} must be an integer`)
+    if ((name === 'width' || name === 'height') && value <= 0) throw badRequest(`region.${name} must be greater than 0`)
+    return String(value)
+  }
+  return { x: field('x'), y: field('y'), width: field('width'), height: field('height') }
 }
 
 export class DisplayService {
@@ -378,7 +393,9 @@ export class RecordingService {
     const maxResponseBytes = maxResponseBytesOption('maxResponseBytes', options?.maxResponseBytes)
     const path = `/computeruse/recordings/${pathSegment(id, 'recording id')}/download`
     // The one-argument call unless this call overrides the client's cap.
-    return new Uint8Array(await (maxResponseBytes === undefined ? this.transport.getBytes(path) : this.transport.getBytes(path, { maxResponseBytes })))
+    const bytes = await (maxResponseBytes === undefined ? this.transport.getBytes(path) : this.transport.getBytes(path, { maxResponseBytes }))
+      .catch((error: unknown) => { throw withPerCallHint(error, PER_CALL_HINT) })
+    return new Uint8Array(bytes)
   }
 
   public async delete(id: string): Promise<void> {

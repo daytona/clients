@@ -67,12 +67,12 @@ def test_a_list_page_maps_each_unknown_source_and_checks_the_known_ones() -> Non
 @pytest.mark.parametrize(
     ("source", "field"),
     [
-        ({"type": "registry"}, "source.ref: Field required"),
-        ({"type": "registry", "ref": 5}, "source.ref: must be a string"),
-        ({"type": "dockerfile", "dockerfile": "Dockerfile"}, "source.context_object: Field required"),
-        ({"type": 7}, "source.type: must be a non-empty string"),
-        ({"type": ""}, "source.type: must be a non-empty string"),
-        ({"ref": "alpine"}, "source.type: must be a non-empty string"),
+        ({"type": "registry"}, "source.ref is required"),
+        ({"type": "registry", "ref": 5}, "source.ref must be a string"),
+        ({"type": "dockerfile", "dockerfile": "Dockerfile"}, "source.context_object is required"),
+        ({"type": 7}, "source.type must be a non-empty string"),
+        ({"type": ""}, "source.type must be a non-empty string"),
+        ({"ref": "alpine"}, "source.type must be a non-empty string"),
     ],
 )
 def test_a_malformed_source_is_still_the_malformed_response_error(
@@ -85,7 +85,7 @@ def test_a_malformed_source_is_still_the_malformed_response_error(
 
 
 def test_a_malformed_source_in_a_list_page_names_its_item() -> None:
-    with pytest.raises(BadRequestError, match=r"images\.1\.source\.name: Field required"):
+    with pytest.raises(BadRequestError, match=r"images\.1\.source\.name is required"):
         expect_images_page(
             {"images": [_image("a"), _image("b", source={"type": "named"})], "next_cursor": None}
         )

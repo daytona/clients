@@ -386,9 +386,9 @@ const PATH_CALLS: ReadonlyArray<readonly [string, string, (client: Daytona, api:
   ['secrets.get', 'name', (client, _api, value) => client.v2.secrets.get(value)],
   ['secrets.set', 'name', (client, _api, value) => client.v2.secrets.set(value, 'value', { allowedDomains: ['*'] })],
   ['secrets.delete', 'name', (client, _api, value) => client.v2.secrets.delete(value)],
-  ['reservations.get', 'id', (client, _api, value) => client.v2.reservations.get(value)],
-  ['reservations.renew', 'id', (client, _api, value) => client.v2.reservations.renew(value)],
-  ['reservations.update', 'id', (client, _api, value) => client.v2.reservations.update(value, { autoRenew: true })],
+  ['reservations.get', 'reservationId', (client, _api, value) => client.v2.reservations.get(value)],
+  ['reservations.renew', 'reservationId', (client, _api, value) => client.v2.reservations.renew(value)],
+  ['reservations.update', 'reservationId', (client, _api, value) => client.v2.reservations.update(value, { autoRenew: true })],
   ['getLimits', 'organizationId', (client, _api, value) => client.v2.getLimits({ organizationId: value })],
   ['createSnapshot', 'name', (_client, api, value) => handle(api).createSnapshot(value)],
   ['sandbox.volumes.pull', 'volumeId', (_client, api, value) => withToolbox(api).volumes.pull(value, { requestId: 'r' })],
@@ -741,8 +741,8 @@ it.each([
   ['volumes.delete', (client: Daytona) => client.v2.volumes.delete('', { idOnly: 'x' as never }), 'nameOrId'],
   // An unknown key too: Python has no such check (an unknown keyword is a TypeError).
   ['volumes.delete with an unknown key', (client: Daytona) => client.v2.volumes.delete('', { bogus: 1 } as never), 'nameOrId'],
-  ['reservations.renew', (client: Daytona) => client.v2.reservations.renew('', { idempotencyKey: ' k' }), 'id'],
-  ['reservations.update', (client: Daytona) => client.v2.reservations.update('', { autoRenew: 'x' as never }), 'id'],
+  ['reservations.renew', (client: Daytona) => client.v2.reservations.renew('', { idempotencyKey: ' k' }), 'reservationId'],
+  ['reservations.update', (client: Daytona) => client.v2.reservations.update('', { autoRenew: 'x' as never }), 'reservationId'],
   ['secrets.set', (client: Daytona) => client.v2.secrets.set('K', 5 as never, { allowedDomains: 5 as never }), 'value'],
 ] as const)('%s names the first bad argument as Python does', async (_name, call, argument) => {
   const api = await startFakeApi([])

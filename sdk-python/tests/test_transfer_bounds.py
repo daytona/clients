@@ -327,7 +327,7 @@ def _chunked(
 def _assert_too_large(error: PayloadTooLargeError, limit: int) -> None:
     assert (error.status_code, error.code, error.source) == (413, "PAYLOAD_TOO_LARGE", "SDK")
     assert f"{limit}-byte" in str(error)
-    assert "max_response_bytes" in str(error) and "download_file" in str(error)
+    assert "max_response_bytes" in str(error)
 
 
 @pytest.mark.anyio

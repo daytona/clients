@@ -4,7 +4,7 @@
  */
 
 import { isBlank } from './pyText.js'
-import { assertKnownOptions, assertLabels, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys } from './options.js'
+import { assertKnownOptions, assertLabels, assertOptionsObject, badRequest, envKey, envValue, isPlainStringRecord, optionKeys } from './options.js'
 import type {
   CreateRequestBaseOptions, CreateSandboxOptions, CreateSandboxFromSnapshotOptions,
   CreateMacosSandboxOptions, CreateFromBuildOptions, FindByNameOptions, GetLimitsOptions,
@@ -165,7 +165,14 @@ export function assertCreateNestedOptions(options: CreateValueOptions): void {
   for (const secret of arrayOf(options.secrets, 'secrets must be an array of secret names') ?? []) {
     if (typeof secret !== 'string' || secret === '') throw badRequest('secrets must be an array of secret names')
   }
-  if (options.env !== undefined && !isPlainStringRecord(options.env)) throw badRequest('env must be a plain object of string to string')
+  if (options.env !== undefined) {
+    if (!isPlainStringRecord(options.env)) throw badRequest('env must be a plain object of string to string')
+    // The names and values `updateEnv` takes.
+    for (const [key, value] of Object.entries(options.env)) {
+      envKey(key)
+      envValue(value)
+    }
+  }
   if (options.labels !== undefined) assertLabels(options.labels)
   if (options.name !== undefined && typeof options.name !== 'string') throw badRequest('name must be a string')
   for (const key of ['user', 'cpuArch', 'cpuType', 'reservation'] as const) optionalTyped(options, key, 'string')

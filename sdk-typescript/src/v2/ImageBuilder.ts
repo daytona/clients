@@ -5,7 +5,7 @@
 
 import type * as api from './gen/api-types.js'
 import { badRequest, isPlainRecord } from './options.js'
-import { strip } from './pyText.js'
+import { hasSpace, strip } from './pyText.js'
 import { deepFrozen } from './frozen.js'
 import { assertTextList, dockerfileEscape, endsWithContinuation, envName, envValue, lineText, rawText, renderStep, shellQuote } from './builderText.js'
 import type { BuilderSource, BuilderStep } from './builderText.js'
@@ -41,7 +41,11 @@ export class ImageBuilder {
   }
 
   public static fromRegistry(ref: string): ImageBuilder {
-    return new ImageBuilder({ type: 'registry', ref: lineText(ref, 'ImageBuilder.fromRegistry ref') })
+    const label = 'ImageBuilder.fromRegistry ref'
+    const text = lineText(ref, label)
+    // An image reference has no whitespace: `FROM python 3` is no image.
+    if (hasSpace(text)) throw badRequest(`${label} ${JSON.stringify(text)} must not contain whitespace`)
+    return new ImageBuilder({ type: 'registry', ref: text })
   }
 
   public static fromDockerfile(dockerfile: string): ImageBuilder {

@@ -342,16 +342,16 @@ def _check_known_source(item: object, description: str, path: str = "source") ->
     kind = source.get("type")
     if not isinstance(kind, str) or not kind:
         raise create_error(
-            f"expected {description}: {path}.type: must be a non-empty string", 400, "BAD_REQUEST", "SDK"
+            f"expected {description}: {path}.type must be a non-empty string", 400, "BAD_REQUEST", "SDK"
         )
     for field in _IMAGE_SOURCE_FIELDS.get(kind, ()):
         if field not in source:
-            problem = "Field required"
+            problem = "is required"
         elif not isinstance(source[field], str):
             problem = "must be a string"
         else:
             continue
-        raise create_error(f"expected {description}: {path}.{field}: {problem}", 400, "BAD_REQUEST", "SDK")
+        raise create_error(f"expected {description}: {path}.{field} {problem}", 400, "BAD_REQUEST", "SDK")
 
 
 def _unknown_source_type(item: object) -> Optional[str]:

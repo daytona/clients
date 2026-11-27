@@ -31,7 +31,7 @@ from urllib.parse import quote
 
 from typing_extensions import Buffer
 
-from ._body_limit import validated_max_response_bytes
+from ._body_limit import FILE_READ_HINT, validated_max_response_bytes, with_per_call_hint
 from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
@@ -54,7 +54,7 @@ from ._core import (
     stream_event_too_large,
     wait_budget,
 )
-from ._filesystem_inputs import buffer_bytes, path_sequence, sandbox_path
+from ._filesystem_inputs import boolean_option, buffer_bytes, path_sequence, sandbox_path, transfer_options
 from ._filesystem_watch_events import (
     check_overflow_event as _check_overflow_event,
 )
@@ -68,7 +68,7 @@ from ._timestamps import parse_timestamp
 from ._transfer_cancel import raise_if_transfer_cancelled as _raise_if_transfer_cancelled
 from ._transfer_cancel import transfer_scope
 from ._transport import AsyncTransport
-from .errors import ConnectionError, DaytonaError, TransferCancelledError, create_error
+from .errors import ConnectionError, DaytonaError, PayloadTooLargeError, TransferCancelledError, create_error
 from .types import (
     BulkReadResult,
     BulkWriteResult,
@@ -369,7 +369,10 @@ class AsyncFileSystemService:
                 spec,
                 max_response_bytes=validated_max_response_bytes("max_response_bytes", max_response_bytes),
             )
-        return await self._transport.raw(spec)
+        try:
+            return await self._transport.raw(spec)
+        except PayloadTooLargeError as error:
+            raise with_per_call_hint(error, FILE_READ_HINT) from error.__cause__
 
     async def read_text(self, path: str, /, *, max_response_bytes: Optional[int] = None) -> str:
         """Read a UTF-8 text file (see :meth:`read_bytes` for its bounds).
@@ -382,7 +385,10 @@ class AsyncFileSystemService:
     async def write_bytes(self, path: str, content: Buffer, /, *, atomic: bool = False) -> None:
         """Write a bytes-like buffer to an absolute path, optionally atomically."""
         spec = file_upload_spec(
-            sandbox_path(path), buffer_bytes(content, "content"), timeout=None, atomic=atomic
+            sandbox_path(path),
+            buffer_bytes(content, "content"),
+            timeout=None,
+            atomic=boolean_option(atomic, "atomic"),
         )
         await self._transport.send(spec)
 
@@ -418,7 +424,7 @@ class AsyncFileSystemService:
             sandbox_path(path, "files key"): buffer_bytes(content, f"files[{path!r}]")
             for path, content in files.items()
         }
-        spec = file_bulk_upload_spec(contents, timeout=None, atomic=atomic)
+        spec = file_bulk_upload_spec(contents, timeout=None, atomic=boolean_option(atomic, "atomic"))
         payload = await self._transport.send(spec)
         if isinstance(payload, bytes):
             raise create_error("expected JSON object", 400, "BAD_REQUEST", "SDK")
@@ -447,9 +453,14 @@ class AsyncFileSystemService:
                 "SDK",
             )
         sandbox_path(remote_path, "remote_path")
-        _raise_if_transfer_cancelled(cancel, operation="upload")
+        transfer_options(cancel, on_progress)
+        boolean_option(atomic, "atomic")
+        _raise_if_transfer_cancelled(cancel)
         source_path = Path(local_path)
-        total_bytes = source_path.stat().st_size
+        source_stat = source_path.stat()
+        if not stat.S_ISREG(source_stat.st_mode):
+            raise create_error("local_path must be a regular file", 400, "BAD_REQUEST", "SDK")
+        total_bytes = source_stat.st_size
         filename = source_path.name or "file"
         boundary = _multipart_boundary()
         preamble = _multipart_preamble(boundary, filename)
@@ -479,7 +490,6 @@ class AsyncFileSystemService:
                         cancel=cancel,
                     ),
                 ),
-                operation="upload",
             )
 
     async def download_file(
@@ -505,15 +515,15 @@ class AsyncFileSystemService:
         the transfer waits on the network.
         """
         sandbox_path(remote_path, "remote_path")
+        transfer_options(cancel, on_progress)
         destination_path = Path(local_path)
         bytes_written = 0
         progress_calls = 0
         temporary_path: Path | None = None
-        _raise_if_transfer_cancelled(cancel, operation="download")
+        _raise_if_transfer_cancelled(cancel)
         async with transfer_scope(cancel) as watch:
             stream = await watch.run(
                 self._transport.open_stream(file_download_spec(remote_path, timeout=None)),
-                operation="download",
             )
             total_bytes = _content_length(stream.headers)
             try:
@@ -522,17 +532,17 @@ class AsyncFileSystemService:
                     iterator = stream.iter_bytes().__aiter__()
                     while True:
                         try:
-                            chunk = await watch.run(anext(iterator), operation="download")
+                            chunk = await watch.run(anext(iterator))
                         except StopAsyncIteration:
                             break
-                        _raise_if_transfer_cancelled(cancel, operation="download")
+                        _raise_if_transfer_cancelled(cancel)
                         await asyncio.to_thread(handle.write, chunk)
                         bytes_written += len(chunk)
                         if on_progress is not None:
                             _report_transfer_progress(on_progress, bytes_written, total_bytes)
                             progress_calls += 1
                     _raise_if_length_mismatch(bytes_written, total_bytes)
-                    _raise_if_transfer_cancelled(cancel, operation="download")
+                    _raise_if_transfer_cancelled(cancel)
                     await asyncio.to_thread(_preserve_replaced_file_mode, handle.fileno(), destination_path)
                 if (
                     on_progress is not None
@@ -582,12 +592,17 @@ class AsyncFileSystemService:
         request_kwargs = {"json": spec.json_body}
         if spec.timeout is not None:
             request_kwargs["timeout"] = spec.timeout
-        if limit is None:
-            response = await self._transport.request(spec.method, spec.path, transfer=True, **request_kwargs)
-        else:
-            response = await self._transport.request(
-                spec.method, spec.path, transfer=True, max_response_bytes=limit, **request_kwargs
-            )
+        try:
+            if limit is None:
+                response = await self._transport.request(
+                    spec.method, spec.path, transfer=True, **request_kwargs
+                )
+            else:
+                response = await self._transport.request(
+                    spec.method, spec.path, transfer=True, max_response_bytes=limit, **request_kwargs
+                )
+        except PayloadTooLargeError as error:
+            raise with_per_call_hint(error, FILE_READ_HINT) from error.__cause__
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
     async def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
@@ -1095,7 +1110,7 @@ async def _upload_multipart_content(
     progress_calls = 0
     with source_path.open("rb") as handle:
         while sent < total_bytes:
-            _raise_if_transfer_cancelled(cancel, operation="upload")
+            _raise_if_transfer_cancelled(cancel)
             remaining = total_bytes - sent
             chunk = await asyncio.to_thread(handle.read, min(_FILE_TRANSFER_CHUNK_BYTES, remaining))
             if not chunk:
@@ -1114,7 +1129,7 @@ async def _upload_multipart_content(
     # the closing boundary so a callback that cancels can still stop the request.
     if on_progress is not None and (progress_calls == 0 or sent != total_bytes):
         on_progress(sent, total_bytes)
-    _raise_if_transfer_cancelled(cancel, operation="upload")
+    _raise_if_transfer_cancelled(cancel)
     yield closing
 
 

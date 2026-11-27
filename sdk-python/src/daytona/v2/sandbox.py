@@ -50,6 +50,8 @@ from ._core import (
     TransportPayload,
     artifact_ref_from_wire,
     assert_lifecycle_class_support,
+    check_env_key,
+    check_env_value,
     check_labels,
     enum_str,
     expect_object,
@@ -183,9 +185,6 @@ class _SandboxTokenAuth:
 
     async def on_unauthorized(self, failed_token: Optional[str]) -> Optional[str]:
         return await self._sandbox._sandbox_token_remint(failed_token)
-
-
-_INVALID_ENV_KEY_REASON: Final = "env key is not a valid variable name"
 
 
 class _Unset(enum.Enum):
@@ -2478,34 +2477,13 @@ def _validated_env_map(env: Optional[Mapping[str, str]]) -> Dict[str, str]:
         return {}
     if not isinstance(env, MappingABC):
         raise create_error("env must be a mapping of string keys to string values", 400, "BAD_REQUEST", "SDK")
-    validated: Dict[str, str] = {}
-    for key, value in env.items():
-        _validate_env_key(key)
-        if not isinstance(value, str):
-            raise create_error("env values must be strings", 400, "BAD_REQUEST", "SDK")
-        if "\0" in value:
-            raise create_error("env values must not contain NUL", 400, "BAD_REQUEST", "SDK")
-        validated[key] = value
-    return validated
+    return {check_env_key(key): check_env_value(value) for key, value in env.items()}
 
 
 def _validated_env_unset(unset: Sequence[str]) -> list[str]:
     if isinstance(unset, (str, bytes)) or not isinstance(unset, SequenceABC):
         raise create_error("env unset must be a non-string sequence of strings", 400, "BAD_REQUEST", "SDK")
-    validated: list[str] = []
-    for key in unset:
-        _validate_env_key(key)
-        validated.append(key)
-    return validated
-
-
-def _validate_env_key(key: str) -> None:
-    if not isinstance(key, str):
-        raise create_error("env keys must be strings", 400, "BAD_REQUEST", "SDK")
-    # Reject invalid environment names locally. The API rejects reserved
-    # names with a 400 naming the key.
-    if not key or any(invalid in key for invalid in ("=", "\0", "\n", "\r")):
-        raise create_error(_INVALID_ENV_KEY_REASON, 400, "BAD_REQUEST", "SDK")
+    return [check_env_key(key) for key in unset]
 
 
 def _sandbox_lifecycle_handle_json(value: SandboxLifecycle, wire: Mapping[str, str]) -> SandboxLifecycleJSON:

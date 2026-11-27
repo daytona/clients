@@ -53,6 +53,7 @@ from .computer_use_types import (
     ComputerUseProcessRestartResult,
     ComputerUseReadyStatus,
     ComputerUseRecordingList,
+    ComputerUseRegion,
     ComputerUseScreenshot,
     ComputerUseScrollResult,
     ComputerUseStartingStatus,
@@ -83,6 +84,23 @@ ComputerUseProcessStatusMap = dict[str, ComputerUseProcessStatus]
 
 def computer_use_params(**kwargs: JsonValue) -> Dict[str, JsonValue]:
     return {key: value for key, value in kwargs.items() if value is not None}
+
+
+def screenshot_region_params(region: object) -> Dict[str, JsonValue]:
+    """``screenshot(region=...)``'s query: a :class:`ComputerUseRegion` of
+    integers, ``width`` and ``height`` above zero, refused before any request
+    otherwise (TypeScript checks the same)."""
+    if not isinstance(region, ComputerUseRegion):
+        raise create_error("region must be a ComputerUseRegion", 400, "BAD_REQUEST", "SDK")
+    params: Dict[str, JsonValue] = {}
+    for name in ("x", "y", "width", "height"):
+        value = getattr(region, name)
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise create_error(f"region.{name} must be an integer", 400, "BAD_REQUEST", "SDK")
+        if name in ("width", "height") and value <= 0:
+            raise create_error(f"region.{name} must be greater than 0", 400, "BAD_REQUEST", "SDK")
+        params[name] = value
+    return params
 
 
 # The deepest accessibility tree the SDK reads: tree() asks the sandbox for at

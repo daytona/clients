@@ -48,12 +48,38 @@ func prepareCreateCommon(opts CreateFromSnapshotOptions) (preparedCreate, error)
 	return result, nil
 }
 
+// maxIdempotencyKeyBytes is the longest idempotency key the API accepts.
+const maxIdempotencyKeyBytes = 256
+
+// idempotencyKeyText checks an explicit idempotency key (sandbox creates,
+// reservations) as the Python and TypeScript SDKs do: a header value of at
+// most 256 bytes.
+func idempotencyKeyText(key string) error {
+	if err := headerText(key, "IdempotencyKey"); err != nil {
+		return err
+	}
+	if len(key) > maxIdempotencyKeyBytes {
+		return badRequest("IdempotencyKey must be at most 256 bytes")
+	}
+	return nil
+}
+
+// randomIdempotencyKey is a lowercase UUID v4, the random key every SDK sends.
+func randomIdempotencyKey() string {
+	var raw [16]byte
+	_, _ = rand.Read(raw[:])
+	raw[6] = raw[6]&0x0f | 0x40
+	raw[8] = raw[8]&0x3f | 0x80
+	text := hex.EncodeToString(raw[:])
+	return text[0:8] + "-" + text[8:12] + "-" + text[12:16] + "-" + text[16:20] + "-" + text[20:]
+}
+
 func createIdempotencyKey(name, key string) string {
 	if key != "" {
 		return key
 	}
 	if name == "" {
-		return rand.Text()
+		return randomIdempotencyKey()
 	}
 	literal := "name:" + name
 	if len(literal) <= 256 && headerText(name, "name") == nil {
@@ -70,9 +96,26 @@ func createTrim(value string) string {
 	})
 }
 
+// createEnv copies a create's Env, checked with UpdateEnv's rule.
+func createEnv(input map[string]string) (map[string]string, error) {
+	env := maps.Clone(input)
+	for key, value := range env {
+		if err := sandboxEnvKey(key); err != nil {
+			return nil, err
+		}
+		if err := sandboxEnvValue(value); err != nil {
+			return nil, err
+		}
+	}
+	return env, nil
+}
+
 func prepareCreateAttachments(body *createBody, opts *CreateOptions) error {
 	if opts.Env != nil {
-		env := maps.Clone(opts.Env)
+		env, err := createEnv(opts.Env)
+		if err != nil {
+			return err
+		}
 		body.Env = &env
 	}
 	if opts.Volumes != nil {

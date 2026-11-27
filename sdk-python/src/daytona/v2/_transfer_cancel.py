@@ -44,11 +44,11 @@ POLL_SECONDS: Final[float] = 0.05
 _THREAD_EVENT_CHECKED_THROUGH: Final[tuple[int, int]] = (3, 15)
 
 
-def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal], *, operation: str) -> None:
+def raise_if_transfer_cancelled(cancel: Optional[TransferCancelSignal]) -> None:
+    """Raise ``TransferCancelledError`` (its default message, the same in every
+    SDK) once ``cancel`` is set."""
     if cancel is not None and cancel.is_set():
-        raise TransferCancelledError(
-            f"{operation} transfer cancelled", status_code=499, code="REQUEST_CANCELLED", source="SDK"
-        )
+        raise TransferCancelledError()
 
 
 async def _first_done(task: asyncio.Task[_T], notified: asyncio.Future[object]) -> None:
@@ -157,7 +157,7 @@ class TransferCancelWatch:
     """Watches one transfer's cancel signal for as long as the transfer runs.
 
     Use as ``async with TransferCancelWatch(cancel) as watch`` and await each
-    network step through ``watch.run(step, operation=...)``.
+    network step through ``watch.run(step)``.
     """
 
     def __init__(self, cancel: Optional[TransferCancelSignal]) -> None:
@@ -224,7 +224,7 @@ class TransferCancelWatch:
             notified.cancel()
             await _settle(notified)
 
-    async def run(self, step: Awaitable[_T], *, operation: str) -> _T:
+    async def run(self, step: Awaitable[_T]) -> _T:
         """Await ``step``; once the signal is set, cancel it and raise ``TransferCancelledError``."""
         if self.cancel is None:
             return await step
@@ -238,7 +238,7 @@ class TransferCancelWatch:
                     await _first_done(task, notified)
                 if task.done():
                     return task.result()
-                raise_if_transfer_cancelled(self.cancel, operation=operation)
+                raise_if_transfer_cancelled(self.cancel)
                 if notified is not None and notified.done():
                     # The notification fired but the signal reads unset (set and
                     # cleared again): check it by polling from here on.

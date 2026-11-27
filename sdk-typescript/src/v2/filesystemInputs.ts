@@ -13,6 +13,30 @@ export function sandboxPath(name: string, value: unknown): string {
   return value
 }
 
+/** An optional boolean option: omitted is `undefined`, anything but a boolean is refused (never truth-tested). */
+export function optionalBoolean(name: string, value: unknown): boolean | undefined {
+  if (value !== undefined && typeof value !== 'boolean') throw badRequest(`${name} must be a boolean`)
+  return value
+}
+
+/**
+ * A file transfer's `signal` and `onProgress`, checked before any I/O. The
+ * signal is any `AbortSignal`, including one from another realm: an object
+ * with a boolean `aborted` and `addEventListener` / `removeEventListener`.
+ */
+export function transferOptions(signal: unknown, onProgress: unknown): void {
+  if (signal !== undefined) {
+    const candidate = signal as { aborted?: unknown; addEventListener?: unknown; removeEventListener?: unknown } | null
+    if (
+      typeof candidate !== 'object' || candidate === null || typeof candidate.aborted !== 'boolean'
+      || typeof candidate.addEventListener !== 'function' || typeof candidate.removeEventListener !== 'function'
+    ) {
+      throw badRequest('signal must be an AbortSignal')
+    }
+  }
+  if (onProgress !== undefined && typeof onProgress !== 'function') throw badRequest('onProgress must be a function')
+}
+
 /** Snapshot a path list, refusing iterable scalars and non-string entries. */
 export function pathSequence(name: string, value: unknown): string[] {
   if (!Array.isArray(value)) throw badRequest(`${name} must be an array of strings`)

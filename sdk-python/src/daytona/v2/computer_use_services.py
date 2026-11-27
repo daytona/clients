@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Optional, Sequence, overload
 
-from ._body_limit import validated_max_response_bytes
+from ._body_limit import PER_CALL_HINT, validated_max_response_bytes, with_per_call_hint
 from ._core import RequestSpec, path_segment, timeout_millis_from_seconds
 from ._transport import AsyncTransport
 from .computer_use_core import (
@@ -37,6 +37,7 @@ from .computer_use_core import (
     parse_computer_use_screenshot,
     parse_computer_use_scroll,
     parse_computer_use_windows,
+    screenshot_region_params,
 )
 from .computer_use_types import (
     ComputerUseA11yFindResult,
@@ -61,6 +62,7 @@ from .computer_use_types import (
     ComputerUseScrollDirection,
     ComputerUseScrollResult,
 )
+from .errors import PayloadTooLargeError
 from .types import JsonValue
 
 
@@ -275,9 +277,7 @@ class AsyncScreenService:
         compressed = format is not None or quality is not None or scale is not None
         params: dict[str, JsonValue] = {}
         if region is not None:
-            params.update(
-                computer_use_params(x=region.x, y=region.y, width=region.width, height=region.height)
-            )
+            params.update(screenshot_region_params(region))
         if compressed:
             params.update(computer_use_params(format=format, quality=quality, scale=scale))
         if show_cursor is not None:
@@ -454,14 +454,17 @@ class AsyncRecordingService:
             if max_response_bytes is None
             else validated_max_response_bytes("max_response_bytes", max_response_bytes)
         )
-        return await self._transport.raw(
-            RequestSpec(
-                "GET",
-                f"/computeruse/recordings/{_quote_path_segment(id, 'recording id')}/download",
-                transfer=True,
-                max_response_bytes=limit,
+        try:
+            return await self._transport.raw(
+                RequestSpec(
+                    "GET",
+                    f"/computeruse/recordings/{_quote_path_segment(id, 'recording id')}/download",
+                    transfer=True,
+                    max_response_bytes=limit,
+                )
             )
-        )
+        except PayloadTooLargeError as error:
+            raise with_per_call_hint(error, PER_CALL_HINT) from error.__cause__
 
     async def delete(self, id: str, /) -> None:
         await self._transport.send(

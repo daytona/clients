@@ -14,11 +14,11 @@ import type { Internal } from './internal.js'
 import type { CreateReservationOptions, CreateReservationsBulkOptions, ListReservationsOptions, MacReservation, MacReservationBatch, RenewReservationOptions, UpdateReservationOptions } from './macTypes.js'
 import type { ListResult } from './types.js'
 import type * as api from './gen/api-types.js'
-import { runtimeUniqueId } from './http.js'
+import { randomIdempotencyKey } from './http.js'
 import { MacReservationEndReason as END_REASONS, MacReservationOrigin as ORIGINS, MacReservationStatus as STATUSES } from './gen/api-enums.js'
 import { knownOrUnknown } from './knownValue.js'
 import { mapMacResources } from './macMappers.js'
-import { assertKnownOptions, assertOptionsObject, badRequest, headerText, optionKeys, snapshotOptions } from './options.js'
+import { assertKnownOptions, assertOptionsObject, badRequest, idempotencyKeyText, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse, MAC_RESERVATION, nested } from './responseFields.js'
 import { iterPages } from './pages.js'
 
@@ -149,17 +149,17 @@ export class ReservationsService {
    * that does not exist, or belongs to another organization, throws
    * `NotFoundError`.
    */
-  public async get(id: string): Promise<MacReservation> {
-    const { data } = await this.http.get<api.MacReservation>(`/reservations/${pathSegment(id, 'id')}`)
+  public async get(reservationId: string): Promise<MacReservation> {
+    const { data } = await this.http.get<api.MacReservation>(`/reservations/${pathSegment(reservationId, 'reservationId')}`)
     return reservation(data)
   }
 
   /**
    * Renew the reservation for its next period, which the server charges. The request always carries an Idempotency-Key: idempotencyKey when given, otherwise a random key the SDK generates for this call. Pass your own key if you may retry, so a retry after a lost response does not pay for a second period. Throws LimitExceededError (a RateLimitError) with limit === 'max_mac_reservations' when the renewal would keep the organization over its Mac reservation limit.
    */
-  public async renew(id: string, options: RenewReservationOptions = {}): Promise<MacReservation> {
+  public async renew(reservationId: string, options: RenewReservationOptions = {}): Promise<MacReservation> {
     assertKnownOptions('RenewReservationOptions', options, RENEW_RESERVATION_KEYS)
-    const { data } = await this.http.post<api.MacReservation>(`/reservations/${pathSegment(id, 'id')}/renew`, undefined, idempotencyHeaders(options.idempotencyKey))
+    const { data } = await this.http.post<api.MacReservation>(`/reservations/${pathSegment(reservationId, 'reservationId')}/renew`, undefined, idempotencyHeaders(options.idempotencyKey))
     return reservation(data)
   }
 
@@ -169,8 +169,8 @@ export class ReservationsService {
    * without that access, so an organization can stop a reservation renewing. Fails with
    * `ConflictError` when the reservation is no longer live.
    */
-  public async update(id: string, options: UpdateReservationOptions): Promise<MacReservation> {
-    const path = `/reservations/${pathSegment(id, 'id')}`
+  public async update(reservationId: string, options: UpdateReservationOptions): Promise<MacReservation> {
+    const path = `/reservations/${pathSegment(reservationId, 'reservationId')}`
     assertOptionsObject('UpdateReservationOptions', options)
     assertKnownOptions('UpdateReservationOptions', options, UPDATE_RESERVATION_KEYS)
     // The one field to change is required: no empty PATCH is sent.
@@ -183,8 +183,5 @@ export class ReservationsService {
 
 // Every purchase and renewal carries a key: the caller's, or a fresh one per call.
 function idempotencyHeaders(idempotencyKey: string | undefined) {
-  if (idempotencyKey != null && typeof idempotencyKey !== 'string') {
-    throw badRequest('idempotencyKey must be a string')
-  }
-  return { headers: { 'Idempotency-Key': idempotencyKey == null ? runtimeUniqueId() : headerText(idempotencyKey, 'idempotencyKey') } }
+  return { headers: { 'Idempotency-Key': idempotencyKey == null ? randomIdempotencyKey() : idempotencyKeyText(idempotencyKey) } }
 }

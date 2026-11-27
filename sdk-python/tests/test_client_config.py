@@ -50,7 +50,7 @@ def test_ambient_credentials_are_trimmed(clean_env: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
 def test_a_blank_ambient_api_key_is_unset(clean_env: pytest.MonkeyPatch, blank: str) -> None:
     clean_env.setenv("DAYTONA_API_KEY", blank)
-    with pytest.raises(AuthenticationError, match="api_key or jwt_token is required"):
+    with pytest.raises(AuthenticationError, match="configure api_key or jwt_token"):
         _v2(DaytonaConfig())
 
 
@@ -207,7 +207,9 @@ def test_the_request_timeout_defaults_to_sixty_seconds() -> None:
 
 @pytest.mark.parametrize("bad", [-1, float("inf"), float("nan"), True, "60"])
 def test_an_invalid_request_timeout_is_rejected(bad: object) -> None:
-    with pytest.raises(BadRequestError, match="request_timeout must be a non-negative number") as excinfo:
+    with pytest.raises(
+        BadRequestError, match="request_timeout must be a non-negative finite number of seconds"
+    ) as excinfo:
         _v2(DaytonaConfig(api_key="k", request_timeout=bad))  # type: ignore[arg-type]
     assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
         400,
@@ -578,7 +580,9 @@ def test_invalid_events_durations_are_rejected(field: str, bad: object) -> None:
     from daytona.v2 import SandboxEventsConfig
 
     events = SandboxEventsConfig(**{field: bad})  # type: ignore[arg-type]
-    with pytest.raises(BadRequestError, match=f"events.{field} must be a non-negative number") as excinfo:
+    with pytest.raises(
+        BadRequestError, match=f"events.{field} must be a non-negative finite number of seconds"
+    ) as excinfo:
         _v2(DaytonaConfig(api_key="k", events=events))
     assert (excinfo.value.status_code, excinfo.value.code, excinfo.value.source) == (
         400,

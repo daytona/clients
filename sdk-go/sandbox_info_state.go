@@ -3,6 +3,8 @@
 
 package daytona
 
+import "strconv"
+
 // SandboxState is the normalized lifecycle state; RawState keeps the wire value.
 type SandboxState string
 
@@ -87,8 +89,8 @@ func stateWire(state SandboxState) ([]string, error) {
 	case SandboxStateError:
 		return []string{"failed", "lost"}, nil
 	case SandboxStateUnknown:
-		return nil, badRequest("unknown is not a searchable sandbox state")
+		return nil, badRequest(`states entries must be known sandbox states, got "unknown"`)
 	default:
-		return nil, badRequest("invalid sandbox state " + string(state))
+		return nil, badRequest("states entries must be known sandbox states, got " + strconv.Quote(string(state)))
 	}
 }

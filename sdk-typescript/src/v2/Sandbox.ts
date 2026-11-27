@@ -45,7 +45,7 @@ import {
 import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
-import { assertIfMatchOptions, assertKnownOptions, assertLabelKeys, assertOptionsObject, badRequest, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
+import { assertIfMatchOptions, assertKnownOptions, assertLabelKeys, assertOptionsObject, badRequest, envKey, envValue, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
 import type { IfMatchOptions } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { assertSandboxResponse, isSandboxInfo, metadataFromInfo, metadataFromSandbox, parseLabels, sandboxHandleJSON } from './sandboxMetadata.js'
@@ -236,34 +236,17 @@ function labelsBody(labels: unknown): Record<string, string> {
   return output
 }
 
-// Only names no environment can hold are refused here; which names are
-// reserved for the platform is checked by the API, which answers as a 400
-// naming the key.
-function validateEnvKey(key: string): string {
-  if (key.length === 0 || key.includes('=') || key.includes('\0') || key.includes('\n') || key.includes('\r')) {
-    throw new BadRequestError('env key is not a valid variable name', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
-  return key
-}
-
-function validateEnvValue(value: string): string {
-  if (value.includes('\0')) {
-    throw new BadRequestError('environment values must not contain NUL', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
-  }
-  return value
-}
-
 function updateEnvBody(env: Record<string, string>, options: UpdateEnvOptions): toolbox.EnvRequest {
   if (typeof env !== 'object' || env === null || Array.isArray(env)) {
     throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const outputEnv = emptyStringMap()
   for (const [key, value] of Object.entries(env)) {
-    validateEnvKey(key)
+    envKey(key)
     if (typeof value !== 'string') {
       throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
     }
-    outputEnv[key] = validateEnvValue(value)
+    outputEnv[key] = envValue(value)
   }
   const unset = options.unset ?? []
   if (!Array.isArray(unset) || unset.some((key) => typeof key !== 'string')) {
@@ -271,7 +254,7 @@ function updateEnvBody(env: Record<string, string>, options: UpdateEnvOptions): 
   }
   return {
     env: outputEnv,
-    unset: unset.map((key) => validateEnvKey(key)),
+    unset: unset.map((key) => envKey(key)),
   }
 }
 
