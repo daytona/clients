@@ -416,16 +416,18 @@ class AsyncProcessHandle:
         *,
         signal: ProcessSignal = "TERM",
         escalate_after: Optional[float] = None,
-        escalate_to: ProcessSignal = "KILL",
+        escalate_to: Optional[ProcessSignal] = None,
     ) -> None:
-        """Send a signal and optional escalation signal."""
+        """Send a signal, optionally escalating to ``escalate_to`` (default
+        ``KILL``) after ``escalate_after`` seconds.
+
+        Signals are bare names (``TERM``, not ``SIGTERM``; case-insensitive).
+        ``escalate_after`` is at most 600 seconds, and ``escalate_to`` needs
+        ``escalate_after``; anything else raises ``BadRequestError`` before
+        any request.
+        """
         await self._send(
-            signal_spec(
-                self.id,
-                signal=signal,
-                escalate_after_ms=timeout_millis_from_seconds(escalate_after, "escalate_after"),
-                escalate_to=escalate_to,
-            )
+            signal_spec(self.id, signal=signal, escalate_after=escalate_after, escalate_to=escalate_to)
         )
 
     async def resize(self, cols: int, rows: int, /) -> None:
@@ -935,7 +937,7 @@ class AsyncPtyService:
         info = await handle.get()
         if info.kind != "pty":
             raise UnsupportedOperationError(
-                f"process.delete() is only supported for pty handles; handle kind is {info.kind}",
+                f"pty.delete() is only supported for pty handles; handle kind is {info.kind}",
                 status_code=400,
                 code=codes.UNSUPPORTED_OPERATION,
                 source="SDK",

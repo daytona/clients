@@ -12872,11 +12872,15 @@ describe('toolbox surface', () => {
       expect(thrown).toMatchObject({ ...refused, message })
     }
     check(() => process.connect(''), 'process handle identity needs a non-empty string processId')
-    check(() => process.connect(5 as never), 'process handle identity needs a non-empty string sandboxId')
+    // Anything but an identity object is read as an id, as Python does.
+    check(() => process.connect(5 as never), 'process handle identity needs a non-empty string processId')
+    check(() => process.connect(null as never), 'process handle identity needs a non-empty string processId')
     check(() => process.connect({ sandboxId: 'sbx' } as never), 'process handle identity needs a non-empty string processId')
     check(() => process.connect({ sandboxId: 'other', processId: 'p' }), 'process handle belongs to a different sandbox')
     check(() => process.connectSession(''), 'session identity needs a non-empty string sessionId')
-    check(() => process.connectSession(5 as never), 'session identity needs a non-empty string sandboxId')
+    check(() => process.connectSession(5 as never), 'session identity needs a non-empty string sessionId')
+    check(() => process.connectSession(null as never), 'session identity needs a non-empty string sessionId')
+    check(() => process.connectSession({ sessionId: 's' } as never), 'session identity needs a non-empty string sandboxId')
     check(() => process.connectSession({ sandboxId: 'other', sessionId: 's' }), 'session belongs to a different sandbox')
     expect(process.connect({ sandboxId: 'sbx', processId: 'p', kind: 'future' as never }).toJSON()).toEqual({ sandboxId: 'sbx', processId: 'p' })
     expect(process.connectSession({ sandboxId: 'sbx', sessionId: 's' }).id).toBe('s')

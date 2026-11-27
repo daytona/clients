@@ -107,6 +107,7 @@ from .types import (
     NamedImageSource,
     ProcessInfo,
     ProcessKind,
+    ProcessSignal,
     ProcessStateFilter,
     RegistryImageSource,
     ReplaceResult,
@@ -1164,11 +1165,24 @@ def process_create_spec(
     request_timeout: Optional[float] = None,
     tag: Optional[str] = None,
 ) -> RequestSpec:
+    if command is not None:
+        process_command(command)
+    if code is not None:
+        interpreter_code(code)
+    if language is not None:
+        interpreter_language(language)
     chosen = [command is not None, argv is not None, code is not None]
     if kind in ("pty", "session") and sum(1 for item in chosen if item) == 0:
         pass
     elif sum(1 for item in chosen if item) != 1:
-        raise create_error("provide exactly one of command, argv, or code", 400, "BAD_REQUEST", "SDK")
+        # Named after the public method's own parameters: without code this
+        # is exec / start, which take command or argv.
+        message = (
+            "provide exactly one of command or argv"
+            if code is None
+            else "provide exactly one of command, argv, or code"
+        )
+        raise create_error(message, 400, "BAD_REQUEST", "SDK")
     if code is not None and user is not None:
         raise UnsupportedOperationError(
             "user is not supported for code processes; the kernel runs as the sandbox user",
@@ -1348,6 +1362,28 @@ _PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
 # (``timeoutMs`` 1-60000), in seconds.
 KILL_ALL_DEFAULT_TIMEOUT_SECONDS: Final = 10
 KILL_ALL_MAX_TIMEOUT_SECONDS: Final = 60
+
+
+def process_command(command: object) -> str:
+    """A shell command string, refused before any request otherwise."""
+    if not isinstance(command, str):
+        raise create_error("command must be a string", 400, "BAD_REQUEST", "SDK")
+    return command
+
+
+def interpreter_code(code: object) -> str:
+    """Interpreter source code: a string (empty is allowed)."""
+    if not isinstance(code, str):
+        raise create_error("code must be a string", 400, "BAD_REQUEST", "SDK")
+    return code
+
+
+def interpreter_language(language: object) -> str:
+    """An interpreter language: any non-empty string (the sandbox decides
+    which languages it supports)."""
+    if not isinstance(language, str) or not language:
+        raise create_error("language must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    return language
 
 
 def process_tag(value: object) -> str:
@@ -1840,19 +1876,62 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/stdin", json_body=body)
 
 
+PROCESS_SIGNALS: Final[tuple[str, ...]] = get_args(ProcessSignal)
+
+# The longest escalation delay the toolbox takes (``escalateAfterMs``).
+ESCALATE_AFTER_MAX_MS: Final = 600_000
+
+
+def process_signal_name(value: object, name: str) -> str:
+    """A signal the SDK can send: a bare name (``TERM``, not ``SIGTERM``),
+    matched case-insensitively and sent upper-case."""
+    # ASCII only: Unicode case mapping would read "kıll" as KILL.
+    signal = value.upper() if isinstance(value, str) and value.isascii() else None
+    if signal not in PROCESS_SIGNALS:
+        raise create_error(
+            f"{name} must be one of {', '.join(PROCESS_SIGNALS)} (a bare name, without the SIG prefix), "
+            f"got {value!r}",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return signal
+
+
 def signal_spec(
     process_id: str,
     *,
-    signal: str,
-    escalate_after_ms: Optional[int],
-    escalate_to: str,
+    signal: object,
+    escalate_after: Optional[float],
+    escalate_to: object,
 ) -> RequestSpec:
+    """``kill()``'s request. ``escalate_to`` is ``None`` when the caller
+    omitted it (``KILL`` when escalating); naming it without
+    ``escalate_after`` is refused, as it would never be sent."""
     # The wire takes SIGTERM-style names; the SDK surface uses bare names
     # (TERM/INT/...) in both languages, so the prefix is added here.
-    body: JsonObject = {"signal": f"SIG{signal}"}
-    if escalate_after_ms is not None:
+    body: JsonObject = {"signal": f"SIG{process_signal_name(signal, 'signal')}"}
+    if escalate_after is None:
+        if escalate_to is not None:
+            raise create_error("escalate_to needs escalate_after", 400, "BAD_REQUEST", "SDK")
+    else:
+        seconds = checked_seconds(escalate_after, "escalate_after")
+        # Rounded up to whole milliseconds, as sent, before the cap applies.
+        escalate_after_ms = (
+            ESCALATE_AFTER_MAX_MS + 1
+            if seconds > ESCALATE_AFTER_MAX_MS
+            else timeout_millis_from_seconds(seconds, "escalate_after")
+        )
+        if escalate_after_ms is None or escalate_after_ms > ESCALATE_AFTER_MAX_MS:
+            raise create_error(
+                f"escalate_after must be at most {ESCALATE_AFTER_MAX_MS // 1000} seconds",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         body["escalateAfterMs"] = escalate_after_ms
-        body["escalateTo"] = f"SIG{escalate_to}"
+        target = "KILL" if escalate_to is None else process_signal_name(escalate_to, "escalate_to")
+        body["escalateTo"] = f"SIG{target}"
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 

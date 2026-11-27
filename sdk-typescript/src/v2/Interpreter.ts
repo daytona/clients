@@ -19,7 +19,7 @@ import type {
 } from './types.js'
 import type * as toolbox from './gen/toolbox-types.js'
 import { DaytonaError, KernelUnavailableError, createDaytonaError } from './errors/DaytonaError.js'
-import { secondsToMs } from './ProcessWire.js'
+import { interpreterCode, interpreterLanguage, secondsToMs } from './ProcessWire.js'
 import { envelopeList, interpreterSessionFromWire, malformedResponse } from './toolboxModels.js'
 import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
@@ -180,6 +180,12 @@ function contextIdentity(context: InterpreterContextReference | InterpreterConte
     throw badRequest('interpreter context identity needs string sandboxId, contextId and language')
   }
   return { sandboxId: context.sandboxId, contextId: context.contextId, language: context.language }
+}
+
+function checkContextLanguage(language: string | undefined, contextLanguage: string): void {
+  if (language !== undefined && language !== contextLanguage) {
+    throw badRequest(`language '${language}' does not match the context's language '${contextLanguage}'`)
+  }
 }
 
 function assertContextBelongsToSandbox(
@@ -417,6 +423,7 @@ export class InterpreterContext {
    */
   public async run(code: string, options: InterpreterContextRunOptions = {}): Promise<InterpreterResult> {
     assertKnownOptions('InterpreterContextRunOptions', options, CONTEXT_RUN_OPTION_KEYS)
+    interpreterCode(code)
     return this.#runMs(code, options.cwd, secondsToMs('timeoutSeconds', options.timeoutSeconds))
   }
 
@@ -534,6 +541,7 @@ export class InterpreterService {
    */
   public async createContext(options: InterpreterContextOptions): Promise<InterpreterContext> {
     assertKnownOptions('InterpreterContextOptions', options, CONTEXT_OPTION_KEYS)
+    interpreterLanguage(options.language)
     const session = await this.transport.post<toolbox.SessionDto>('/sessions', {
       id: options.contextId,
       kernel: options.language,
@@ -543,12 +551,21 @@ export class InterpreterService {
     return this.bindContext(interpreterSessionFromWire(session, options.contextId).id, options.language)
   }
 
-  /** Reconnect a context by id (with `language`), handle or `toJSON()` identity, without a request. */
+  /**
+   * Reconnect a context by id (with `language`), handle or `toJSON()` identity, without a request.
+   * With a handle or identity, `language` is optional; one that differs from
+   * the context's language throws `BadRequestError`.
+   */
   public connectContext(context: string | InterpreterContextReference | InterpreterContextJSON, language?: string): InterpreterContext {
-    if (typeof context !== 'string') {
+    if (language !== undefined && (typeof language !== 'string' || language === '')) {
+      throw badRequest('interpreter context language must be a non-empty string')
+    }
+    if (typeof context === 'object' && context !== null) {
       const identity = assertContextBelongsToSandbox(context, this.sandboxId)
+      checkContextLanguage(language, identity.language)
       return this.bindContext(identity.contextId, identity.language)
     }
+    if (typeof context !== 'string' || context === '') throw badRequest('interpreter context id must be a non-empty string')
     if (language === undefined) throw badRequest('language is required when reconnecting an interpreter context by id')
     return this.bindContext(context, language)
   }
@@ -561,9 +578,9 @@ export class InterpreterService {
   }
 
   public async deleteContext(context: string | InterpreterContextReference | InterpreterContextJSON): Promise<void> {
-    const contextId = typeof context === 'string'
-      ? context
-      : assertContextBelongsToSandbox(context, this.sandboxId).contextId
+    const contextId: unknown = typeof context === 'object' && context !== null
+      ? assertContextBelongsToSandbox(context, this.sandboxId).contextId
+      : context
     if (typeof contextId !== 'string' || contextId === '') throw badRequest('interpreter context id must be a non-empty string')
     await this.deleteContextQueue(contextId, this.contextQueues.get(contextId), false)
   }
@@ -597,18 +614,21 @@ export class InterpreterService {
    * way and throws this error. A kernel that stops during the run returns
    * the output produced so far with `process.reason === 'lost'`; its state
    * is gone and the next run starts a new kernel.
+   *
+   * A `code` that is not a string, or an empty `language`, throws
+   * `BadRequestError` before any request.
    */
   public async run(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult> {
     assertKnownOptions('InterpreterRunOptions', options, RUN_OPTION_KEYS)
+    interpreterCode(code)
+    if (options.language !== undefined) interpreterLanguage(options.language)
     const timeoutMs = secondsToMs('timeoutSeconds', options.timeoutSeconds)
     if (options.isolated && options.context !== undefined) {
       throw badRequest('isolated runs cannot also target an explicit interpreter context')
     }
     if (options.context !== undefined) {
       const context = this.connectContext(options.context, options.language)
-      if (options.language !== undefined && options.language !== context.language) {
-        throw badRequest(`language '${options.language}' does not match the context's language '${context.language}'`)
-      }
+      checkContextLanguage(options.language, context.language)
       if (options.env !== undefined) {
         throw badRequest('env is only supported when creating a context or running without an explicit context')
       }
