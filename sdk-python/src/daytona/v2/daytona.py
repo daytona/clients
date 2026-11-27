@@ -368,14 +368,14 @@ class AsyncDaytona:
         ``None`` (unknown, not empty) until a detail read. A create returns
         with no wait and no read when its response already reports the sandbox
         started, when ``wait_seconds=0``, or when the server's hold
-        (``wait_cap_seconds``) used up a finite ``wait_seconds``. Otherwise its wait reads as every wait does: a wait decided
-        by a target event from the sandbox events stream makes no further
-        request; a terminal event (``error``, ``destroying``) gets one
-        confirming read, except after a ``destroyed`` report or once the
-        budget is spent, and when that read is skipped or fails the handle
-        carries the reported state; a wait the stream leaves undecided reads
-        the sandbox while it polls. So call
-        :meth:`AsyncSandbox.refresh_data` before reading them. The same holds
+        (``wait_cap_seconds``) used up a finite ``wait_seconds``. Otherwise
+        its wait reads as every wait does: a wait decided by a target event
+        from the sandbox events stream makes no further request; a terminal
+        event (``error``, ``destroying``) gets one confirming read, except
+        after a ``destroyed`` report or once the budget is spent, and when
+        that read is skipped or fails the handle carries the reported state;
+        a wait the stream leaves undecided reads the sandbox while it polls.
+        So call :meth:`AsyncSandbox.refresh_data` before reading them. The same holds
         for :meth:`create_from_snapshot`, :meth:`create_from_build` and
         :meth:`create_macos`.
 

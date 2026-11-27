@@ -209,12 +209,13 @@ export class Daytona {
    * `user`, ...) is `undefined` (unknown, not empty) until a detail read.
    * A create returns with no wait and no read when its response already
    * reports the sandbox started, when `waitSeconds` is 0, or when the server's
-   * hold (`wait_cap_seconds`) used up a finite `waitSeconds`. Otherwise its wait reads as every wait does: a wait
-   * decided by a target event from the sandbox events stream makes no further
-   * request; a terminal event (`error`, `destroying`) gets one confirming read,
-   * except after a `destroyed` report or once the budget is spent, and when
-   * that read is skipped or fails the handle carries the reported state; a
-   * wait the stream leaves undecided reads the sandbox while it polls. So call
+   * hold (`wait_cap_seconds`) used up a finite `waitSeconds`. Otherwise its
+   * wait reads as every wait does: a wait decided by a target event from the
+   * sandbox events stream makes no further request; a terminal event
+   * (`error`, `destroying`) gets one confirming read, except after a
+   * `destroyed` report or once the budget is spent, and when that read is
+   * skipped or fails the handle carries the reported state; a wait the stream
+   * leaves undecided reads the sandbox while it polls. So call
    * `sandbox.refreshData()` before reading them. The
    * same holds for {@link createFromSnapshot}, {@link createFromBuild} and
    * {@link createMacos}.
