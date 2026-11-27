@@ -4,9 +4,6 @@ Sandboxes, images, snapshots, and your organization, from the terminal. Built
 for people at a keyboard and for coding agents driving a shell: interactive at
 a terminal, strict and scriptable when piped.
 
-> Alpha. The 2.x line targets the Daytona V2 platform. Versions are
-> `2.0.0-alpha.N` until launch.
-
 ## Install
 
 macOS / Linux (script — verifies the release checksum):
@@ -21,10 +18,11 @@ Windows (PowerShell):
 irm https://raw.githubusercontent.com/daytona/clients/main/cli/install.ps1 | iex
 ```
 
-The installer installs the highest stable 2.x release. Until `2.0.0` is
-out there is none, so it installs the highest pre-release and names it; from
-`2.0.0` on the default is the highest stable release, and `--channel alpha`
-or `rc` opts into pre-releases. Pick a channel or an exact version explicitly:
+The installer installs the highest stable 2.x release. Pre-releases are
+installed only when you ask for them, with a channel (`--channel rc` or
+`--channel alpha`) or an exact version; a channel also takes a stable release
+when it is the highest, so it installs a pre-release only while one is newer
+than the latest stable release:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/daytona/clients/main/cli/install.sh | sh -s -- --channel alpha
@@ -42,14 +40,13 @@ Homebrew (macOS / Linux):
 
 | Formula | Installs |
 |---|---|
-| `daytonaio/cli/daytona` | stable 2.x releases as `daytona` (until `2.0.0` is out, the 0.x CLI) |
-| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona`, from the first 2.x rc on |
-| `daytonaio/cli/daytona-alpha` | 2.x alpha releases as `daytona` |
+| `daytonaio/cli/daytona` | stable 2.x releases as `daytona` |
+| `daytonaio/cli/daytona-rc` | 2.x release candidates as `daytona`, once a 2.x release candidate has been published to it (until then it still installs a 0.x CLI) |
+| `daytonaio/cli/daytona-alpha` | 2.x alpha releases as `daytona` (the latest alpha can be older than the latest stable release) |
 | `daytonaio/cli/daytona@0` | the 0.x CLI as `daytona-v0`, beside any of the above |
 
 ```sh
-brew install daytonaio/cli/daytona-alpha   # before 2.0.0
-brew install daytonaio/cli/daytona         # from 2.0.0
+brew install daytonaio/cli/daytona
 ```
 
 The first three formulae install the same `daytona` binary, so install one of
@@ -98,7 +95,7 @@ profile is active, and the CLI asks you to select one or log in.
 ```sh
 daytona image create py312 --ref python:3.12
 daytona sandbox create --image py312 --cpu 2 --memory 2048   # CPU in cores (1 core = 2 vCPUs)
-daytona sandbox create                   # no --image: boots the platform default image
+daytona sandbox create                   # no --image: boots the platform default image, where the deployment has one
 daytona sandbox create --persistent      # keep disk on stop/start, memory on pause/resume
 daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete
 daytona image list --platform true       # the platform images every project can boot
@@ -112,7 +109,7 @@ daytona sandbox cp ./data.csv <id>:/work/data.csv
 daytona sandbox port expose <id> 8080 --public   # a preview URL anyone can open, with no credential
 daytona sandbox port preview-url <id> 8080 --signed --ttl 10m
 daytona volume create shared --type bucket
-daytona sandbox create --image py312 --volume shared:/models:ro
+daytona sandbox create --image py312 --volume shared:/models:ro   # read-only: bucket volumes only; needs a region that can mount buckets
 daytona snapshot create <id> --name saved-state
 daytona sandbox create-from-snapshot saved-state --name resumed   # resume a memory snapshot
 daytona image build my-app --context .  # honours .dockerignore
@@ -156,7 +153,10 @@ AVAILABLE. PRICE MULTIPLIER is what
 a create naming the region is billed at, relative to `earth`. It is read for
 the selected organization after `daytona login` with `read:billing`; with an
 API key or without that permission the table shows `-` and JSON/YAML output
-carries `"price_multiplier": null`. `--region` keeps its name on create,
+carries `"price_multiplier": null`. The region a create that names no region
+goes to is marked `(default)`; JSON/YAML output carries it as
+`default_region_id` next to `items` (`null` when it is not listed).
+`--region` keeps its name on create,
 search and catalog commands. On a sandbox create, omitting it falls back to the
 project's default, then the organization's, then `earth`; `earth` means
 anywhere and may land in any geography. A known unavailable region returns
@@ -387,7 +387,9 @@ never prompts:
   --auto-renew=true`) prompt at a
   terminal; in non-interactive mode (no terminal, `-o json|yaml`, or `CI`
   set) they refuse unless `--yes` or `DAYTONA_YES=1` is given, before
-  anything reaches the server. `daytona config set confirm false`
+  anything reaches the server. `CI` makes the CLI non-interactive but does not
+  change the output format: at a terminal the default is still a table
+  (`--output` still wins), so scripts pass `-o json` explicitly. `daytona config set confirm false`
   turns the terminal prompts off; it never consents off a terminal.
 - Every list returns one page and prints the list envelope. `--limit` (1 to
   200, default 100; the billing lists have their own: `billing balances`,
@@ -414,7 +416,10 @@ never prompts:
   images); the list API has no region filter and regions can share an API,
   so a page can then hold fewer than `--limit` items while the cursor still
   advances over each API's page. Saved cursors resume
-  unfinished pages.
+  unfinished pages. A `--cursor` token is opaque and belongs to the command
+  and filters that printed it: pass it back to the same command with the same
+  flags. A regional token (several regions' cursors in one) is not an SDK
+  `cursor`, and the SDKs' cursors are not CLI tokens.
   Results merge regional cursors and de-duplicate resources by ID. The
   catalogs (`region`, `cpu-type`, `mac-model`, `role`, `billing plan`) and the
   in-sandbox lists (`sandbox port list`, `sandbox process list`) are returned
@@ -429,6 +434,23 @@ never prompts:
   `--created-end-at`, `--updated-start-at` / `--updated-end-at`, and
   `--last-activity-start-at` / `--last-activity-end-at`. Start bounds are
   inclusive; end bounds are exclusive. Values are RFC3339 timestamps.
+- `sandbox search --status` takes the API's statuses (`running`, `stopped`,
+  `paused`, …), not the SDKs' sandbox states (`started`, `destroyed`, …),
+  which the SDKs map to these statuses. Search is eventually consistent: for a
+  few seconds a sandbox just created may not appear yet, and one just changed
+  can still show its old status or labels. The platform currently leaves deleted sandboxes
+  out of search results, so `--status deleted` returns none; `deleting`, `failed` and `lost` ones are returned until the
+  platform removes their records. `--image-ref` and `--image-ref-prefix`
+  match the project image the sandbox was created from (by its name; the
+  snapshot name for a sandbox created from a snapshot), not the registry
+  reference that image was pulled or built from. `--spot`
+  selects spot sandboxes and `--spot=false` on-demand ones.
+- Sizes are MiB in the CLI (`--memory`, `--disk`, `--memory-max`,
+  `--disk-max`, and `sandbox search --min-memory` / `--max-disk` …), while
+  the SDKs take GiB (`--memory 2048` is `memory=2` / `memory: 2`). Volume
+  sizes are GiB everywhere (`volume create --size-gib`). Linux sandboxes take
+  `--cpu` (cores, 1 core = 2 vCPUs); macOS sandboxes take `--cores` (one Mac
+  CPU each).
 - Sandbox search accepts `--persistent` to select persistent sandboxes and
   `--persistent=false` to select ephemeral sandboxes; omitting the flag leaves
   both kinds.
@@ -451,7 +473,8 @@ never prompts:
   refused: the stored value cannot be read back, so an unset variable or an
   empty file would otherwise erase it silently. `--allowed-domain` rejects
   empty entries, including in comma-separated lists. Omit it to preserve an
-  existing scope; use `--allowed-domain '*'` to remove domain restrictions
+  existing scope (creating a secret requires it, and so does an existing
+  secret with no scope); use `--allowed-domain '*'` to remove domain restrictions
   (the value can then reach any verified HTTPS host). An empty scope is not
   supported by the API; delete the secret to remove it entirely.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
@@ -486,7 +509,13 @@ never prompts:
 - `audit list --start-at` and `--end-at` require RFC3339 timestamps and reject
   invalid values locally, before any request.
 - `sandbox create --volume` accepts `VOLUME:MOUNT_PATH`,
-  `VOLUME:MOUNT_PATH:ro`, or `VOLUME:MOUNT_PATH:SUBPATH[:ro]`.
+  `VOLUME:MOUNT_PATH:ro`, or `VOLUME:MOUNT_PATH:SUBPATH[:ro]`. Read-only
+  (`:ro`) is for bucket volumes: a disk volume refuses it, and a bucket mount
+  needs a region that can mount buckets. A third segment `ro` (any case)
+  always means read-only, so a subpath named `ro` is
+  `VOLUME:MOUNT_PATH:ro:ro` read-only, and read-write only through the
+  `volumes` array of `--file`; there is no `:rw` (a third segment `rw` is a
+  subpath named `rw`, and a fourth segment other than `ro` is refused).
   `sandbox create-macos --volume` takes `VOLUME:MOUNT_PATH[:SUBPATH]`:
   a macOS sandbox mounts disk volumes read-write only. Use the `volumes`
   array in `--file` JSON for the same options; an explicit `--volume`
@@ -546,7 +575,9 @@ persistent non-GPU sandbox, and `pause` on a persistent Linux sandbox.
 A known unsupported action is a usage error before any write;
 `sandbox create-from-snapshot` checks action names locally but leaves its
 inherited persistence for the server to check.
-While a sandbox is stopped, commands that work inside it
+A lifecycle or idle timeout is when the action becomes due, not an exact
+time: the platform runs it on its next check, so it can fire somewhat later
+than the configured duration. While a sandbox is stopped, commands that work inside it
 (`sandbox exec`, `sandbox cp`, `sandbox process …`) and its preview URLs answer 409
 `SANDBOX_NOT_RUNNING` (exit code `6`, with a hint to start it), not 404.
 
@@ -565,7 +596,10 @@ While a sandbox is stopped, commands that work inside it
   "trace_id", "message"}]`, absent fields omitted) when a region failed; `items` is
   always an array. `sandbox search` asks one API and prints
   `{"items": [...], "total": N, "total_relation": "eq" | "gte"}` plus
-  `next_cursor` when another page exists (no `incomplete`). `cpu-type list` and `mac-model list` print the same
+  `next_cursor` when another page exists (no `incomplete`). `region list` adds
+  `default_region_id`, and `cpu-type list` adds the catalog's `regions` (each
+  region's `default_arch` and `default_type`) and `arches`, as the API sent
+  them. `cpu-type list` and `mac-model list` print the same
   envelope with or without `--region` (with `--region`, `mac-model list` items
   are the region's catalog entries: `model`, `available`, `price`).
 - `--follow` with `-o json` streams NDJSON, one object per line:
@@ -651,7 +685,7 @@ While a sandbox is stopped, commands that work inside it
 |---|---|
 | `0` | success |
 | `1` | failure: a network error, HTTP 5xx (except 501 and 504), HTTP 429 other than `LIMIT_EXCEEDED`, anything not listed below |
-| `2` | usage: wrong number of arguments, unknown command, flag or help topic, an invalid flag value or `--file` body, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
+| `2` | usage: wrong number of arguments, an empty or blank id, name or other named argument (not the `sandbox search` query or `config set`'s value), unknown command, flag or help topic, an invalid flag value or `--file` body, a credential with a control or non-ASCII character, an invalid API URL, a missing local file, a saved credential used with another API URL, a `--project` other than a project API key's own, a missing `--yes` or selection off a terminal; HTTP 400 and 422 |
 | `3` | authentication: no credential, a static credential on a command that needs a `daytona login` session, or HTTP 401 |
 | `4` | permission denied: HTTP 403 |
 | `5` | not found: HTTP 404, or a `--profile` / `DAYTONA_PROFILE`, or the configuration's `active_profile`, that names a profile that does not exist (on the commands that use the selected profile) |
@@ -675,15 +709,20 @@ status apart from the CLI's own:
 
 ### Request bodies (`--file`)
 
-`--file PATH` (or `--file -` for stdin) takes one JSON object; explicit flags
-override its fields. Keys name the API's request fields exactly, at any
-depth, as the API does: an unknown key, including one that differs from a
-field only in case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map
-values such as `env` and `labels` are names of your own and are sent as
-given. A field whose value is one of several shapes (`image create`'s
-`source`) is checked by its `type`: an unknown `type`, or a key the chosen
-shape does not have, is refused too. The bodies use the API's request
-fields:
+`--file PATH` (or `--file -` for stdin) takes one JSON object (an array or
+another JSON value is refused, exit 2); explicit flags override its fields. A
+field of the wrong JSON type is refused (exit 2), naming the field, and the
+key or index of the first entry of the wrong JSON type when the field holds a
+map or an array of plain values. A number an integer field cannot hold says
+why: it is not whole (`1.5`), out of the field's range (`1e30`), or a whole
+number written with a fraction or an exponent (`2.0`, `1e3`), which the CLI
+does not convert. Keys name the API's request fields exactly, at any depth, as
+the API does: an unknown key, including one that differs from a field only in
+case (`Name`, `CORES_MAX`), is refused (exit 2). Keys of map values such as
+`env` and `labels` are names of your own and are sent as given. A field whose
+value is one of several shapes (`image create`'s `source`) is checked by its
+`type`: an unknown `type`, or a key the chosen shape does not have, is refused
+too. The bodies use the API's request fields:
 
 | Command | Body |
 |---|---|
@@ -723,6 +762,15 @@ command that acts in a project (sandbox, image, snapshot, volume, secret,
 registry, reservation, region and catalog commands) and on `whoami`, instead
 of being ignored; the CLI reads the key's project once per command
 (`GET /api-keys/current`) when a project is named.
+
+A credential must be printable ASCII: one that contains a control character
+(such as a line break or tab) or a non-ASCII character is refused before any
+request (exit 2); the error names where it came from (the flag, the variable,
+the saved profile, or the login's access token), never the value. A malformed
+credential the server or the identity provider issues (a login access token, a
+minted project key, a platform token) is refused (exit 1) before the CLI saves
+it. With no credential at all, a command that needs an organization or project
+reports "not logged in" (exit 3) before asking for either.
 
 A saved credential (a login or `login --token`) belongs to the API URL it was
 saved with. With `--api-url` or `DAYTONA_V2_API_URL` naming another API, the

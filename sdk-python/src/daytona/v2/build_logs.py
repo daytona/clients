@@ -43,6 +43,7 @@ from ._core import (
     is_json_media_type,
     loads_json,
     parse_error_payload,
+    path_segment,
     query_text,
     wait_budget_seconds,
 )
@@ -430,6 +431,22 @@ def _messages(chunks: Iterable[bytes]) -> Iterator[tuple[str, str | None, dict[s
         yield from decoder.feed(chunk)
 
 
+_LONE_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def _control_text(kind: str, fields: Mapping[str, JsonValue]) -> str:
+    """The line ``on_logs`` receives for a control event when no ``on_event``
+    is given: ``[build logs: <type>] `` and the event's wire fields as compact
+    JSON (``type`` first, absent fields left out), the same text in both SDKs."""
+    body: dict[str, JsonValue] = {"type": kind}
+    body.update((key, value) for key, value in fields.items() if value is not None)
+    text = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
+    # A surrogate code point left in a decoded string is a lone one (JSON
+    # decoding joins pairs): escaped as JSON.stringify escapes it.
+    text = _LONE_SURROGATE.sub(lambda match: f"\\u{ord(match[0]):04x}", text)
+    return f"[build logs: {kind}] {text}\n"
+
+
 class _Observer:
     """Sans-I/O protocol/decoder state, retained through reconnections."""
 
@@ -443,16 +460,19 @@ class _Observer:
         self.decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self.gap = False
 
-    async def _emit(self, event: BuildLogEvent, text: str = "") -> None:
+    async def _emit(
+        self, event: BuildLogEvent, text: str = "", control: Mapping[str, JsonValue] | None = None
+    ) -> None:
         # Callbacks may be plain functions or return an awaitable (the
         # filesystem watch convention); either way they run on this loop.
+        # ``control`` is a control event's wire fields, the fallback text's source.
         try:
             if text:
                 await _invoke(self.on_logs(text))
             if self.on_event:
                 await _invoke(self.on_event(event))
-            elif event.type in ("state", "gap", "unavailable", "source_changed", "error"):
-                await _invoke(self.on_logs(f"[build logs: {event.type}] {event}\n"))
+            elif control is not None:
+                await _invoke(self.on_logs(_control_text(event.type, control)))
         except Exception as exc:
             raise _CallbackError("build log callback failed") from exc
 
@@ -480,7 +500,10 @@ class _Observer:
             expires = (
                 None if deadline is None else parse_wire_timestamp(deadline, "build log state: deadline_at")
             )
-            await self._emit(BuildLogStateEvent(status=status, error=error, deadline_at=expires))
+            await self._emit(
+                BuildLogStateEvent(status=status, error=error, deadline_at=expires),
+                control={"status": status, "error": error, "deadline_at": deadline},
+            )
         elif event == "log":
             raw = _bytes(data.get("data_base64"))
             start, end = _offset(data.get("start_offset")), _offset(data.get("next_offset"))
@@ -521,22 +544,30 @@ class _Observer:
                     raw_reason=reason,
                 ),
                 carry,
+                control={
+                    "reason": reason,
+                    "requested_offset": str(requested),
+                    "first_available_offset": str(first),
+                    "dropped_bytes": str(dropped),
+                    "cursor": _text(ident),
+                },
             )
             self.decoder.reset()
             self.cursor, self.offset, self.gap = checkpoint, first, True
         elif event == "unavailable":
-            await self._emit(BuildLogUnavailableEvent(reason=_text(data.get("reason"))))
+            reason = _text(data.get("reason"))
+            await self._emit(BuildLogUnavailableEvent(reason=reason), control={"reason": reason})
         elif event == "source_changed":
             reason = _text(data.get("reason"))
-            await self._emit(BuildLogSourceChangedEvent(reason=reason))
+            await self._emit(BuildLogSourceChangedEvent(reason=reason), control={"reason": reason})
             raise BuildLogInterruptedError(reason, cursor=self.cursor, code="BUILD_LOG_SOURCE_CHANGED")
         elif event == "error":
             error = _text(data.get("error"))
             code, retryable = _text(data.get("code")), _bool(data.get("retryable"))
+            trace_id = _optional_text(data.get("trace_id"))
             await self._emit(
-                BuildLogErrorEvent(
-                    error=error, code=code, retryable=retryable, trace_id=_optional_text(data.get("trace_id"))
-                )
+                BuildLogErrorEvent(error=error, code=code, retryable=retryable, trace_id=trace_id),
+                control={"error": error, "code": code, "retryable": retryable, "trace_id": trace_id},
             )
             if retryable:
                 raise _Retry(error)
@@ -609,7 +640,16 @@ def _same_resource(collection: str, requested: str, actual: str) -> bool:
     )
 
 
-def _destination(api: AsyncTransport, payload: object, discovery_path: str) -> AsyncTransport:
+class _IdentityMismatch(_ProtocolError):
+    """The destination names another resource than the one discovery asked about."""
+
+
+def _destination(
+    api: AsyncTransport, payload: object, discovery_path: str, canonical_id: str | None = None
+) -> AsyncTransport:
+    """The validated destination of ``payload``'s URL. Its resource id must be
+    the one ``discovery_path`` names, or ``canonical_id`` when the caller
+    resolved that value (an image name) to its id."""
     try:
         data = _object(BuildLogsUrl.model_validate(payload).model_dump(mode="json"))
     except ValueError as exc:
@@ -631,11 +671,54 @@ def _destination(api: AsyncTransport, payload: object, discovery_path: str) -> A
         actual = re.search(r"/build-logs/[^/%]+/([^/%]+)$", target.path)
         if requested is None or actual is None:
             raise ValueError("unexpected build log route")
-        if not _same_resource(requested[1], unquote(requested[2]), actual[1]):
-            raise ValueError("unexpected build log route")
+        identity = canonical_id if canonical_id is not None else unquote(requested[2])
+        same = _same_resource(requested[1], identity, actual[1])
     except ValueError as exc:
         raise _ProtocolError("invalid build log URL") from exc
+    if not same:
+        raise _IdentityMismatch("invalid build log URL")
     return api.scoped(url, api.token)
+
+
+async def _resolved_destination(
+    api: AsyncTransport, payload: object, discovery_path: str, timeout: float | None
+) -> AsyncTransport:
+    """``_destination``, for a discovery that may name an image by its name.
+
+    Discovery answers with the image's canonical id, which a name never
+    matches: on an identity mismatch the value is resolved with the API
+    (``GET /images/{value}``, as every image method resolves names) and the URL
+    is held to the id it answers with, just as strictly."""
+    try:
+        return _destination(api, payload, discovery_path)
+    except _IdentityMismatch:
+        # The discovery path's segment, already encoded.
+        resource = re.fullmatch(r"/images/([^/]+)/build-logs-url", discovery_path)
+        if resource is None:
+            raise
+    # An ordinary image read (the client's body cap, the transport's
+    # malformed-response errors), as TypeScript and Go read it.
+    try:
+        image = await api.send(RequestSpec("GET", f"/images/{resource[1]}", timeout=timeout))
+    except DaytonaError as exc:
+        if _retryable_http(exc):
+            raise _Retry(
+                f"build log image lookup HTTP {exc.status_code}", exc.retry_after_seconds or 0
+            ) from exc
+        raise
+    return _destination(api, payload, discovery_path, _image_lookup_id(image))
+
+
+def _image_lookup_id(image: object) -> str:
+    """The id an image lookup answered with, checked as every response id a
+    request path will carry is (the messages of TypeScript's ``acknowledgedId``)."""
+    if not isinstance(image, dict):
+        raise create_error("image response is not a JSON object", 400, "BAD_REQUEST", "SDK")
+    canonical = image.get("id")
+    if not isinstance(canonical, str) or not canonical.strip():
+        raise create_error("image response is missing its id", 400, "BAD_REQUEST", "SDK")
+    path_segment(canonical, "image response id")
+    return canonical
 
 
 def _retry_after(headers: Mapping[str, str]) -> float:
@@ -886,6 +969,9 @@ async def follow_build_logs(
                     if target is None:
                         try:
                             discovery = await _discover(api, discovery_path, request_timeout())
+                            target = await _resolved_destination(
+                                api, discovery, discovery_path, request_timeout()
+                            )
                         except DaytonaError as exc:
                             # An HTTP error of the discovery request (a 404 for an
                             # unknown image, a 401, ...) is the caller's answer:
@@ -896,7 +982,6 @@ async def follow_build_logs(
                             ):
                                 raise
                             raise _DiscoveryFailure(exc) from exc
-                        target = _destination(api, discovery, discovery_path)
                     params: dict[str, JsonValue] = {"follow": "true", "format": "sse"}
                     if state.cursor is not None:
                         params["cursor"] = state.cursor

@@ -31,6 +31,7 @@ from ._core import (
     preview_port,
 )
 from ._gen.api import SandboxPort as PreviewEndpointDto
+from ._pages import iter_pages
 from ._transport import AsyncTransport
 from .errors import create_error
 from .types import ListResult, PreviewEndpoint, PreviewLink, SandboxAccessToken, SignedPreviewLink
@@ -170,18 +171,10 @@ class AsyncPortsService:
     async def iter_endpoints(
         self, *, cursor: Optional[str] = None, limit: Optional[int] = None
     ) -> AsyncIterator[PreviewEndpoint]:
-        seen: set[str] = set()
-        current = cursor
-        if current is not None:
-            seen.add(current)
-        while True:
-            page = await self.list_endpoints(cursor=current, limit=limit)
-            for item in page.items:
-                yield item
-            if not page.next_cursor or page.next_cursor == current or page.next_cursor in seen:
-                return
-            seen.add(page.next_cursor)
-            current = page.next_cursor
+        async for item in iter_pages(
+            lambda page_cursor: self.list_endpoints(cursor=page_cursor, limit=limit), cursor
+        ):
+            yield item
 
     async def expose(self, port: int, /, *, public: bool = False) -> PreviewEndpoint:
         """Register a sandbox port as a preview endpoint.

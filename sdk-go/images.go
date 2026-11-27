@@ -131,6 +131,10 @@ func (s *Images) Delete(ctx context.Context, id string) error {
 // Promote names an anonymous image, making it permanent. It does not rename
 // named images. Name conflicts and reserved prefixes are reported by the API.
 // A blank or invalid UTF-8 name returns ErrBadRequest before any request.
+// The image is then read again by the ID the promotion answered with, so the
+// result reports its current state (regions included), as Get does. The name
+// is applied once the promotion succeeds; a failed read afterwards returns its
+// error.
 func (s *Images) Promote(ctx context.Context, id, name string) (*Image, error) {
 	segment, err := pathSegment(id)
 	if err != nil {
@@ -149,5 +153,22 @@ func (s *Images) Promote(ctx context.Context, id, name string) (*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseImage(raw)
+	promoted, err := parseImage(raw)
+	if err != nil {
+		return nil, err
+	}
+	// By ID: the caller's value may be a name (even "search", which Get
+	// refuses). Checked as a response ID before the read.
+	if err = checkResponseID(promoted.ID); err != nil {
+		return nil, err
+	}
+	segment, err = pathSegment(promoted.ID)
+	if err != nil {
+		return nil, err
+	}
+	var current JSONValue
+	if err = s.client.api().do(ctx, apiRequest{Path: "/images/" + segment, Result: &current}); err != nil {
+		return nil, err
+	}
+	return parseImage(current)
 }

@@ -163,7 +163,7 @@ func (c *Client) FindByName(ctx context.Context, name string, opts *FindByNameOp
 		}
 		return &Page[*Sandbox]{Items: handles, NextCursor: page.cursor}, nil
 	}
-	for sandbox, iterErr := range paginate(ctx, "", fetch) {
+	for sandbox, iterErr := range walkPages(ctx, "", fetch) {
 		if iterErr != nil {
 			return nil, iterErr
 		}

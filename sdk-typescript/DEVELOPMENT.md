@@ -46,7 +46,8 @@ sources wait for `stopped`. macOS forks wait for `started` or `stopped`.
 `createFromBuild()` always waits for the image build with its independent
 `buildTimeoutSeconds` budget (omitted or `0` is unbounded), then creates with
 the caller's full `waitSeconds`. Build failure throws `ImageBuildFailedError`
-with `imageId` and `buildError`; build timeout throws `RequestTimeoutError`.
+with `imageId` and `buildError`; build timeout throws `ImageBuildTimeoutError`
+(a `RequestTimeoutError`) with `imageId`.
 Build submission and its initial lookup are ordinary requests; the build wait
 budget begins afterwards. Long polls (sandbox waits, image pulls, artifact
 gets) are governed by the wait budget, not the request timeout: each hold is
@@ -192,7 +193,7 @@ wire carries `null`; only the public result reads it as `undefined`).
   is drift-tested against the committed error catalogs under `../contract/`
   and exported as the frozen `codes` namespace. The standard errors take
   `(message, options?: ErrorOptions)`; a subclass with extra fields extends
-  `ErrorOptions` (`ImageBuildFailedErrorOptions`,
+  `ErrorOptions` (`ImageBuildFailedErrorOptions`, `ImageBuildTimeoutErrorOptions`,
   `BuildLogInterruptedErrorOptions`), and the specialised errors that build
   their own message take their identity positionally plus options of their
   own (`SandboxTerminalStateError(sandboxId, state,

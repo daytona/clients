@@ -12,14 +12,14 @@ import type * as toolbox from './gen/toolbox-types.js'
 import { ConnectionError, ClientTimeoutError, UnsupportedOperationError } from './errors/DaytonaError.js'
 import {
   base64Encode, frameFromWire, invalidPtyVerbError, invalidStdinVerbError, processFromWire,
-  remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
+  processRecordReadTimeoutMs, processWaitHoldMs, remainingWaitBudgetMs, exactMs, signalWire, streamEvent, terminalDimension, waitResult,
   WAIT_READ_SLACK_MS, WAIT_TRANSPORT_RETRY_LIMIT,
 } from './ProcessWire.js'
 import type { LogFrameWire, LogsWire } from './ProcessWire.js'
 import { assertInternal } from './internal.js'
 import { logPageFromWire } from './toolboxModels.js'
 import type { Internal } from './internal.js'
-import { assertKnownOptions, optionKeys, waitDeadline } from './options.js'
+import { assertKnownOptions, badRequest, optionKeys, waitDeadline } from './options.js'
 import { deepFrozen } from './frozen.js'
 import { pathSegment } from './pathSegment.js'
 
@@ -133,7 +133,16 @@ export class ProcessHandle {
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, body)
   }
 
-  /** Close the stdin of an exec or pty process (EOF). */
+  /**
+   * Close the stdin of an exec process (EOF). On a code or session handle it
+   * throws `UnsupportedOperationError` before any request. A pty has no
+   * end-of-input signal of its own: on a pty handle the sandbox answers `BadRequestError` (400,
+   * "send ^D (0x04) as data instead"). Write `'\x04'`
+   * (Ctrl-D) with {@link writeStdin} instead: in the terminal's default
+   * (canonical) mode, at the start of a line, the program reads it as end of
+   * input; a program that puts the terminal in raw mode receives the byte as
+   * data.
+   */
   public async closeStdin(): Promise<void> {
     if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('closeStdin', this.kind)
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, { data: '', eof: true })
@@ -142,35 +151,47 @@ export class ProcessHandle {
   /**
    * Wait until the process ends. `timeoutSeconds` is the caller's wait budget
    * (omitted or `0` waits until it ends); on expiry the result is
-   * `{ reason: 'timed_out' }` and the process keeps running.
+   * `{ reason: 'timed_out' }` and the process keeps running. The wait is a
+   * series of requests the sandbox holds for at most 30 seconds each (each
+   * read is bounded at 35 seconds), so no single request stays open for the
+   * whole budget; a dropped or stalled round is retried within the budget. A
+   * timed-out wait may return a few seconds past the budget: the process
+   * record is read once after the last round, so a process that ended with it
+   * is reported.
    */
   public async wait(options: WaitProcessOptions = {}): Promise<WaitResult> {
     assertKnownOptions('WaitProcessOptions', options, WAIT_OPTION_KEYS)
     const deadline = waitDeadline(options.timeoutSeconds)
     let consecutiveTransportFailures = 0
     for (;;) {
-      const requestTimeout = deadline === undefined ? 0 : remainingWaitBudgetMs(deadline)
-      if (deadline !== undefined && requestTimeout <= 0) return deepFrozen({ reason: 'timed_out' })
+      const remaining = deadline === undefined ? undefined : remainingWaitBudgetMs(deadline)
+      if (remaining !== undefined && remaining <= 0) return deepFrozen({ reason: 'timed_out' })
+      // One bounded round: its read ends with the hold plus slack, so a
+      // stalled request costs one round, never the whole wait.
+      const holdMs = processWaitHoldMs(remaining)
       try {
         const data = await this.transport.get<toolbox.ExitResult>(
-          `/processes/${pathSegment(this.id, 'process id')}/wait${encodeQuery({ timeoutMs: requestTimeout })}`,
-          { timeout: deadline === undefined ? 0 : requestTimeout + WAIT_READ_SLACK_MS },
+          `/processes/${pathSegment(this.id, 'process id')}/wait${encodeQuery({ timeoutMs: holdMs })}`,
+          { timeout: holdMs + WAIT_READ_SLACK_MS },
         )
         // One retried unit: the long-poll plus, on `timed_out`, the record
         // read; the failure streak resets only when both succeed.
         const result = waitResult(data)
         if (result.reason !== 'timed_out') return result
-        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return deepFrozen({ reason: 'timed_out' })
-        // Budget left: `timed_out` is either an expired long-poll or a command
-        // its own deadline stopped, and the record says which.
+        // `timed_out` is either an expired long-poll or a command its own
+        // deadline stopped, and the record says which. It is read after the
+        // round that spends the budget too, so a process that ended with that
+        // round is reported, not `timed_out`. The read is bounded like a
+        // round, never by the whole budget.
         const record = await this.transport.get<toolbox.ProcessDto>(
           `/processes/${pathSegment(this.id, 'process id')}`,
-          deadline === undefined ? undefined : { timeout: remainingWaitBudgetMs(deadline) + WAIT_READ_SLACK_MS },
+          { timeout: processRecordReadTimeoutMs(deadline === undefined ? undefined : remainingWaitBudgetMs(deadline)) },
         )
         consecutiveTransportFailures = 0
         // Checked in full, as everywhere a process record is read: a record
         // without `state` is malformed, never "still running".
         if (processFromWire(record).state === 'terminal') return waitResult(record)
+        if (deadline !== undefined && remainingWaitBudgetMs(deadline) <= 0) return deepFrozen({ reason: 'timed_out' })
       } catch (error) {
         if (!(error instanceof ConnectionError || error instanceof ClientTimeoutError)) throw error
         consecutiveTransportFailures += 1
@@ -180,15 +201,16 @@ export class ProcessHandle {
     }
   }
 
-  /** Send a signal (default `TERM`), optionally escalating to `escalateTo` after `escalateAfterSeconds`. */
+  /**
+   * Send a signal (default `TERM`), optionally escalating to `escalateTo`
+   * (default `KILL`) after `escalateAfterSeconds`. Signals are bare names
+   * (`TERM`, not `SIGTERM`; case-insensitive). `escalateAfterSeconds` is at
+   * most 600, and `escalateTo` needs `escalateAfterSeconds`; anything else
+   * throws `BadRequestError` before any request.
+   */
   public async kill(options: KillOptions = {}): Promise<void> {
     assertKnownOptions('KillOptions', options, KILL_OPTION_KEYS)
-    const escalateAfterMs = exactMs('escalateAfterSeconds', options.escalateAfterSeconds)
-    const body: toolbox.SignalRequest = {
-      signal: signalWire(options.signal ?? 'TERM'),
-      ...(escalateAfterMs === undefined ? {} : { escalateAfterMs, escalateTo: signalWire(options.escalateTo ?? 'KILL') }),
-    }
-    await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/signals`, body)
+    await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/signals`, signalRequest(options))
   }
 
   /**
@@ -268,6 +290,28 @@ export class ProcessHandle {
       close: () => socket.close(),
     }
   }
+}
+
+/** The longest escalation delay the toolbox takes (`escalateAfterMs`). */
+const ESCALATE_AFTER_MAX_MS = 600_000
+
+/** `kill()`'s request body; an `escalateTo` without `escalateAfterSeconds` would never be sent, so it is refused. */
+function signalRequest(options: KillOptions): toolbox.SignalRequest {
+  const signal = signalWire(options.signal === undefined ? 'TERM' : options.signal, 'signal')
+  const seconds = options.escalateAfterSeconds
+  if (seconds === undefined) {
+    if (options.escalateTo !== undefined) throw badRequest('escalateTo needs escalateAfterSeconds')
+    return { signal }
+  }
+  // Rounded up to whole milliseconds, as sent, before the cap applies.
+  const escalateAfterMs = typeof seconds === 'number' && Number.isFinite(seconds) && seconds > ESCALATE_AFTER_MAX_MS
+    ? ESCALATE_AFTER_MAX_MS + 1
+    : exactMs('escalateAfterSeconds', seconds)
+  if (escalateAfterMs === undefined || escalateAfterMs > ESCALATE_AFTER_MAX_MS) {
+    throw badRequest(`escalateAfterSeconds must be at most ${ESCALATE_AFTER_MAX_MS / 1000} seconds`)
+  }
+  const escalateTo = signalWire(options.escalateTo === undefined ? 'KILL' : options.escalateTo, 'escalateTo')
+  return { signal, escalateAfterMs, escalateTo }
 }
 
 function bytesFromMessage(data: unknown): Uint8Array {

@@ -1146,3 +1146,47 @@ def test_a_post_from_another_thread_after_close_raises_bridge_error() -> None:
     bridge.close()
     with pytest.raises(ClientClosedError, match="is closed"):
         bridge.post(lambda: None)
+
+
+@pytest.mark.parametrize("from_loop", [False, True], ids=["thread", "own-loop"])
+def test_close_runs_its_interrupt_before_draining_in_flight_calls(from_loop: bool) -> None:
+    """The interrupt (the owner waking calls that would otherwise wait on, such
+    as a retry pause) runs on the loop before the drain, from a thread and from
+    a callback the loop is running, so the drain does not wait on them."""
+    instance = SyncBridge()
+    order: list[str] = []
+    started = threading.Event()
+    woken: list[asyncio.Event] = []
+
+    async def waiting() -> None:
+        woken.append(asyncio.Event())
+        started.set()
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(woken[0].wait(), 3)
+        order.append("woken" if woken[0].is_set() else "drained without interrupt")
+
+    def interrupt() -> None:
+        order.append("interrupt")
+        woken[0].set()
+
+    async def finalizer() -> None:
+        order.append("finalizer")
+
+    async def callback_on_loop() -> str:
+        instance.close(finalizer, interrupt=interrupt)
+        return "returned"
+
+    waiter = threading.Thread(target=lambda: instance.call(waiting))
+    waiter.start()
+    assert started.wait(5)
+    began = time.monotonic()
+    if from_loop:
+        assert instance.call(callback_on_loop) == "returned"
+    else:
+        instance.close(finalizer, interrupt=interrupt)
+    waiter.join(timeout=5)
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and "finalizer" not in order:
+        time.sleep(0.02)
+    assert order == ["interrupt", "woken", "finalizer"]
+    assert time.monotonic() - began < 2

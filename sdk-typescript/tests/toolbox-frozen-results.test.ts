@@ -185,6 +185,8 @@ describe('toolbox results are frozen at run time', () => {
       case '/processes/w1/wait': json({ reason: 'timed_out' }); return true
       case '/processes/w1': later(() => json(running('w1'))); return true
       case '/processes/w2/wait': later(() => json({ reason: 'timed_out' })); return true
+      // The record read after the round that spent the budget: still running.
+      case '/processes/w2': json(running('w2')); return true
       case '/processes/w3/wait': later(() => response.socket?.destroy()); return true
       case '/slow/processes':
         if (request.method !== 'POST') return false

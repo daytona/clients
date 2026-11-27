@@ -265,10 +265,8 @@ async def test_zero_disables_the_request_timeout() -> None:
 @pytest.mark.anyio
 @respx.mock
 async def test_waits_with_their_own_budget_are_not_cut_by_the_request_timeout() -> None:
-    respx.get(f"{BASE}/processes/p/wait").mock(side_effect=lambda _request: _late(0.3))
     respx.get(f"{BASE}/hold").mock(side_effect=lambda _request: _late(0.3))
     transport = AsyncTransport(BASE, "k", request_timeout=0.1)
-    assert await transport.send(RequestSpec("GET", "/processes/p/wait")) == {"ok": True}
     assert await transport.send(RequestSpec("GET", "/hold", timeout=5.0)) == {"ok": True}
     assert await transport.send(RequestSpec("GET", "/hold", unbounded_read=True)) == {"ok": True}
     await transport.close()

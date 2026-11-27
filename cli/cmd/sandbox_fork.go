@@ -55,6 +55,7 @@ func newSandboxForkCommand() *cobra.Command {
 		return resp, resp.V.Id, waitFor, nil
 	})
 	cmd.Flags().StringVar(&name, "name", "", "fork name")
-	cmd.Long = "Fork a sandbox.\nA sandbox still starting, stopping or pausing is retried for up to 30 seconds before the fork is accepted.\nExample:\n  daytona sandbox fork <id>"
+	cmd.Long = "Fork a sandbox.\nA sandbox still starting, stopping or pausing is retried for up to 30 seconds before the fork is accepted." +
+		sandboxActionPersistenceNote("fork") + "\nA sandbox with attached volumes cannot fork (409).\nExample:\n  daytona sandbox fork <id>"
 	return cmd
 }

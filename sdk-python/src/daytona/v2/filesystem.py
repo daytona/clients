@@ -36,7 +36,9 @@ from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
     TransportPayload,
+    above_timer_maximum,
     bulk_download_spec,
+    checked_seconds,
     expect_file_info,
     file_bulk_upload_spec,
     file_download_spec,
@@ -176,6 +178,10 @@ class AsyncWatchHandle:
     # synchronous twin's stop() / wait_for_exit() use these non-blocking
     # methods instead of blocking on the loop they run on.
     _SYNC_LOOP_VARIANTS: Mapping[str, str] = {"stop": "_stop_nowait", "wait_for_exit": "_exit_error_now"}
+    # Called on the caller's thread as the synchronous twin's stop() is
+    # handed to the loop: a blocking callback holds the loop, so the stop
+    # coroutine itself only runs once the loop is free again.
+    _SYNC_ON_SUBMIT: Mapping[str, str] = {"stop": "_request_stop"}
 
     def __init__(self, _stream: _ByteStream, _on_exit: Optional[WatchExitCallback] = None) -> None:
         self._stream = _stream
@@ -302,6 +308,12 @@ class AsyncWatchHandle:
         self._published.set()
         if self._stop_task is None:
             self._stop_task = asyncio.ensure_future(self.stop())
+
+    def _request_stop(self) -> None:
+        """Mark the watch stopped from any thread: the reader delivers nothing
+        after the callback in flight. Touches no loop state (one attribute
+        write); ``stop()``, running on the loop next, does the rest."""
+        self._stopped = True
 
     def _exit_error_now(self) -> Exception | None:
         self._refuse_other_watch("wait_for_exit")
@@ -579,7 +591,13 @@ class AsyncFileSystemService:
         return parse_bulk_read_result(response.content, content_type=response.headers.get("content-type"))
 
     async def list(self, path: str, /, *, depth: Optional[int] = None) -> ListResult[FileInfo]:
-        """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``)."""
+        """List directory entries as typed ``FileInfo`` items (``items``, ``next_cursor``).
+
+        ``depth`` is how many levels to descend: omitted lists ``path``'s own
+        entries (``1``); the sandbox accepts 1 to 32 and refuses a recursive
+        listing of more than 10,000 entries with
+        :class:`~daytona.v2.errors.BadRequestError` (try a smaller depth).
+        """
         params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if depth is not None:
             if isinstance(depth, bool) or not isinstance(depth, int):
@@ -624,18 +642,34 @@ class AsyncFileSystemService:
             )
         )
 
-    async def move(self, source: str, destination: str, /) -> None:
-        """Move or rename files."""
-        await self._transport.send(
-            RequestSpec(
-                "POST",
-                "/files/move",
-                params={
-                    "source": sandbox_path(source, "source"),
-                    "destination": sandbox_path(destination, "destination"),
-                },
-            )
+    async def move(self, source: str, destination: str, /, *, timeout: Optional[float] = None) -> None:
+        """Move or rename a file or directory.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which a move to another file system (a copy in the sandbox) can
+        outlast: a total deadline in seconds; ``0``, or a value above
+        2,147,483.647 (about 24.8 days), means no limit; omitted, the client's
+        request timeout applies. A negative, non-finite or boolean value
+        raises ``BadRequestError`` before any request.
+
+        The SDK does not retry a move that timed out or failed (only a 401,
+        which the sandbox refuses before moving anything, is re-sent once with
+        a fresh token). A timeout ends the call, not the move: the move may
+        still be running in the sandbox, or have finished, so check the
+        destination (for example with :meth:`stat`) before moving again.
+        """
+        spec = RequestSpec(
+            "POST",
+            "/files/move",
+            params={
+                "source": sandbox_path(source, "source"),
+                "destination": sandbox_path(destination, "destination"),
+            },
         )
+        if timeout is not None:
+            seconds = checked_seconds(timeout)
+            spec = replace(spec, timeout=0 if seconds == 0 or above_timer_maximum(seconds) else seconds)
+        await self._transport.send(spec)
 
     async def grep(
         self, path: str, pattern: str, /, *, timeout: Optional[float] = None
@@ -670,9 +704,13 @@ class AsyncFileSystemService:
     async def glob(
         self, path: str, pattern: str, /, *, timeout: Optional[float] = None
     ) -> FileSearchResult[str]:
-        """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
+        """Return the absolute paths under ``path`` whose base name matches the glob ``pattern``.
 
-        Directories below ``path`` that the sandbox user cannot read are not
+        The walk is recursive and matches every entry it visits: files,
+        directories, and ``path`` itself. ``pattern`` supports ``*`` (any run of
+        characters) and ``?`` (one character) only; there are no character
+        classes or braces, and ``**`` is the same as ``*``. Symbolic links are
+        not followed. Directories below ``path`` that the sandbox user cannot read are not
         searched; ``skipped`` lists their absolute paths (at most 1000). Only an
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
@@ -836,6 +874,10 @@ class AsyncFileSystemService:
                 except Exception as exc:
                     callback_error.append(exc)
                     raise
+                # A plain callback never suspends, and a buffered backlog is
+                # read without suspending either: hand the loop to its other
+                # tasks (an external stop(), other calls) between deliveries.
+                await asyncio.sleep(0)
 
         client_limit = self._transport.max_response_bytes
 

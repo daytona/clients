@@ -20,6 +20,7 @@ import { knownOrUnknown } from './knownValue.js'
 import { mapMacResources } from './macMappers.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, headerText, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse, MAC_RESERVATION, nested } from './responseFields.js'
+import { iterPages } from './pages.js'
 
 const CREATE_RESERVATION_KEYS = optionKeys<CreateReservationOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true })
 const CREATE_RESERVATIONS_BULK_KEYS = optionKeys<CreateReservationsBulkOptions>()({ region: true, model: true, autoRenew: true, idempotencyKey: true, count: true, minCount: true })
@@ -140,18 +141,14 @@ export class ReservationsService {
 
   public async *iter(options: ListReservationsOptions = {}): AsyncIterable<MacReservation> {
     options = snapshotOptions('ListReservationsOptions', options, LIST_RESERVATIONS_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
+  /**
+   * Fetch one Mac reservation of the organization by its id. A reservation
+   * that does not exist, or belongs to another organization, throws
+   * `NotFoundError`.
+   */
   public async get(id: string): Promise<MacReservation> {
     const { data } = await this.http.get<api.MacReservation>(`/reservations/${pathSegment(id, 'id')}`)
     return reservation(data)

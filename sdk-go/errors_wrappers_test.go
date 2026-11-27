@@ -77,6 +77,9 @@ func sdkErrorWrappers() []struct {
 		{"ImageBuildFailedError", func(e *Error) error {
 			return &ImageBuildFailedError{SDKError: e}
 		}},
+		{"ImageBuildTimeoutError", func(e *Error) error {
+			return &ImageBuildTimeoutError{SDKError: e}
+		}},
 		{"SandboxCreateRequestTimeoutError", func(e *Error) error {
 			return &SandboxCreateRequestTimeoutError{SDKError: e}
 		}},

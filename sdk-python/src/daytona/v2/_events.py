@@ -42,10 +42,12 @@ from . import _clock
 from ._auth import ProjectTokenAuth
 from ._body_limit import DEFAULT_MAX_RESPONSE_BYTES
 from ._core import RequestSpec, expect_object, loads_json, sandbox_state
+from ._read_retry import ReadRetry, retryable_read_error
 from ._transport import AsyncTransport, _request_deadline
 from ._wait import WAIT_FOR_STATE_MIN_INTERVAL_S
 from .errors import (
     AuthenticationError,
+    ClientClosedError,
     DaytonaError,
     ForbiddenError,
     NotFoundError,
@@ -718,6 +720,7 @@ class WaitHub:
         region_hint: Optional[str] = None,
         sandbox_poll_fn: Optional[Callable[[], Awaitable[WaitOutcome]]] = None,
         on_observed: Optional[Callable[[WaitOutcome], None]] = None,
+        read_retry: Optional[ReadRetry] = None,
     ) -> WaitOutcome:
         """Wait for a predicate on sandbox_id.
 
@@ -725,6 +728,9 @@ class WaitHub:
         ``sandbox_poll_fn`` — if provided — is used as the fallback poller
         instead of the hub's own HTTP client, so callers can supply the
         sandbox's own transport-aware ``refresh_data`` as the poll source.
+        ``read_retry`` lets the fallback poll loop retry ``sandbox_poll_fn``'s
+        transient failures (:mod:`._read_retry`); the hub's own fallback
+        (without ``sandbox_poll_fn``) does not use it.
         """
         deadline = None if (timeout is None or timeout == 0) else _clock.monotonic() + timeout
 
@@ -734,7 +740,9 @@ class WaitHub:
         async def _use_fallback() -> WaitOutcome:
             rem = _remaining()
             if sandbox_poll_fn is not None:
-                return await _run_poll_loop(sandbox_id, predicate, deadline=deadline, fn=sandbox_poll_fn)
+                return await _run_poll_loop(
+                    sandbox_id, predicate, deadline=deadline, fn=sandbox_poll_fn, retry=read_retry
+                )
             return await self._fallback_wait(sandbox_id, predicate, timeout=rem)
 
         # A closed hub runs no socket loop, so a waiter registered on it would
@@ -984,7 +992,8 @@ class WaitHub:
         except Exception as exc:
             if not self._waiter_still_pending(waiter):
                 return
-            if isinstance(exc, (NotFoundError, AuthenticationError, ForbiddenError)):
+            # A closed client ends its waits, as a refused credential does.
+            if isinstance(exc, (NotFoundError, AuthenticationError, ForbiddenError, ClientClosedError)):
                 self._cancel_waiter_probe(waiter)
                 _remove_waiter(self._waiters, waiter)
                 self._maybe_unsubscribe_for_id(waiter.sandbox_id)
@@ -1756,6 +1765,7 @@ async def _run_poll_loop(
     *,
     deadline: Optional[float],
     fn: Callable[[], Awaitable[WaitOutcome]],
+    retry: Optional[ReadRetry] = None,
 ) -> WaitOutcome:
     while True:
         remaining = None if deadline is None else deadline - _clock.monotonic()
@@ -1765,8 +1775,15 @@ async def _run_poll_loop(
                 status_code=408,
                 code="REQUEST_TIMEOUT",
                 source="SDK",
-            )
-        outcome = await fn()
+            ) from (None if retry is None else retry.last_error)
+        try:
+            outcome = await fn()
+        except DaytonaError as error:
+            # ``fn`` records its failure in ``retry`` and waits out the
+            # back-off before its next read.
+            if retry is None or not retryable_read_error(error):
+                raise
+            continue
         result = _evaluate(predicate, outcome.state, sandbox_id)
         if result == "resolve":
             return outcome

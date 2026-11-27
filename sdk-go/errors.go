@@ -36,8 +36,15 @@ type Error struct {
 	// Err is the underlying cause, including context cancellation.
 	Err error
 	// Details holds optional server error data; absent fields are zero.
-	Details  ErrorDetails
-	category errorCategory
+	Details ErrorDetails
+	// PageCursor is set on an error that ends a ListAll / SearchAll /
+	// ListEndpointsAll walk: the cursor of the page whose read failed, or of
+	// the next page when the context was cancelled between pages (empty for
+	// the walk's first page without a cursor, and after a cancellation while a
+	// page's items were being yielded). Pass it as the Cursor option of the
+	// same call to resume with that page.
+	PageCursor string
+	category   errorCategory
 }
 
 // ErrorDetails is optional server error data, typically set by the codes named

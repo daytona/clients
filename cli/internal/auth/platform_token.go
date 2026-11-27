@@ -103,6 +103,9 @@ func PlatformToken(ctx context.Context, a *app.App, projectID, rejected string) 
 		}
 		return "", false, err
 	}
+	if err := refuseIssuedCredential("the exchanged platform token", resp.AccessToken); err != nil {
+		return "", false, err
+	}
 	origin := a.APIURL()
 	minted := config.PlatformToken{
 		ProjectID: projectID,

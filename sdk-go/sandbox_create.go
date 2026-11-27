@@ -9,7 +9,9 @@ import (
 )
 
 // Create creates a Linux sandbox from an image of this project, by name or
-// img_ ID. Empty image boots the platform default image (Python 3 included).
+// img_ ID. Empty image boots the platform default image (Python 3 included),
+// where the deployment configures one; otherwise the create fails with
+// DEFAULT_IMAGE_NOT_CONFIGURED, so register an image first.
 // A registry reference such as "python:3.12" is not a create source: import it
 // once with client.Images().Pull and create from the returned image's name or
 // ID (an unknown image returns ErrImageNotFound). Whitespace-only images return
@@ -25,6 +27,16 @@ import (
 // SandboxCreateConnectionError can also report a failure before the POST was
 // sent, such as bearer exchange failure or client closure. Retrying with the
 // carried key and identical options is safe in either case.
+//
+// The handle holds what the create response reports (ID, name, state, image,
+// reservation and, when reported, the lifecycle policy) plus what the request
+// fixed (class, region, an img_ ID you passed) until something reads the
+// sandbox; a sandbox already started when the create answers (the usual case)
+// is not read. Call Refresh before reading Info().Resources, Info().Labels or
+// other detail fields. Inside the sandbox, nproc reports the CPU limit
+// (Resources.CPUMax * 2 vCPUs), while memory can start near
+// the guarantee and grow on demand up to the memory limit: /proc/meminfo shows
+// the memory present now, and Metrics reports the limit as the total.
 func (c *Client) Create(ctx context.Context, image string, opts *CreateOptions) (*Sandbox, error) {
 	if err := c.ensureOpen(); err != nil {
 		return nil, err

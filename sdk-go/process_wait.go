@@ -12,9 +12,23 @@ import (
 	"time"
 )
 
+// processWaitRound is the longest server hold of one process wait request: the
+// create hold of a blocking run and every /wait round. A longer budget, or
+// none, is waited out in rounds, so no request stays open (and quiet) for the
+// whole wait. A /wait round (or the record read after it) that an
+// intermediary drops costs one round, which Wait retries; the create request
+// of a blocking run is never retried.
+const processWaitRound = 30 * time.Second
+
 // Wait observes completion. Nil options wait indefinitely; a positive Timeout
-// returns reason timed_out without stopping execution. Cancellation and transport
-// errors return err. Non-zero exit codes are successful observations, not errors.
+// returns reason timed_out without stopping execution. The wait is a series of
+// requests the sandbox holds for at most 30 seconds each (each read is bounded
+// at 35 seconds), so no single request stays open for the whole budget; a
+// dropped or stalled round is retried within the budget. A timed-out wait may
+// return a few seconds past the budget: the process record is read once after
+// the last round, so a process that ended with it is reported.
+// Cancellation and transport errors return err. Non-zero exit codes are
+// successful observations, not errors.
 func (h *ProcessHandle) Wait(ctx context.Context, opts *WaitProcessOptions) (*WaitResult, error) {
 	var value time.Duration
 	if opts != nil {
@@ -80,14 +94,12 @@ func (h *ProcessHandle) waitOnce(ctx context.Context, deadline time.Time) (*Wait
 	if result.Reason != ProcessReasonTimedOut {
 		return result, true, nil
 	}
-	if processWaitExpired(deadline) {
-		return &WaitResult{Reason: ProcessReasonTimedOut}, true, nil
-	}
-	// timed_out can mean a server execution deadline, not only an expired hold.
+	// timed_out can mean a server execution deadline, not only an expired
+	// hold, and the record says which. It is read after the round that spends
+	// the budget too, so a process that ended with that round is reported. The
+	// read is bounded like a round (the slack alone once the budget is spent),
+	// never by the whole budget or the client request timeout.
 	_, requestTimeout = processWaitBudget(deadline)
-	if deadline.IsZero() {
-		requestTimeout = 0 // Ordinary metadata reads retain the client request timeout.
-	}
 	if err = h.request(ctx, toolboxRequest{Result: &raw, Timeout: requestTimeout}); err != nil {
 		return nil, false, err
 	}
@@ -102,10 +114,14 @@ func processWaitExpired(deadline time.Time) bool {
 	return !deadline.IsZero() && time.Until(deadline) <= 0
 }
 
+// processWaitBudget returns the server hold of one wait round in wire
+// milliseconds, at most processWaitRound, and the request timeout that bounds
+// the round: the hold plus slack, so a stalled request ends with its round.
 func processWaitBudget(deadline time.Time) (int64, time.Duration) {
-	if deadline.IsZero() {
-		return 0, NoTimeout
+	hold := processWaitRound
+	if !deadline.IsZero() {
+		hold = min(hold, time.Until(deadline))
 	}
-	milliseconds := max(1, wireMilliseconds(time.Until(deadline)))
-	return milliseconds, time.Duration(milliseconds)*time.Millisecond + 5*time.Second
+	milliseconds := max(1, wireMilliseconds(hold))
+	return milliseconds, time.Duration(milliseconds)*time.Millisecond + waitReadSlack
 }

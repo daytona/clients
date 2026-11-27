@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -441,4 +442,23 @@ func TestClient_do_noCredentialHeader(t *testing.T) {
 	// Empty credential → no Authorization header.
 	c := New(api.New(srv.URL, "", "test"))
 	_ = c.GetJSON(context.Background(), "/test", nil, &bytes.Buffer{})
+}
+
+// The toolbox client refuses a bearer that is not printable ASCII before the
+// request, like the API client, and never prints it.
+func TestToolboxClientRefusesACredentialThatIsNotPrintableASCII(t *testing.T) {
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests.Add(1) }))
+	defer srv.Close()
+	for _, cred := range []string{"tok-secret\n", "tok-secreté"} {
+		err := New(api.New(srv.URL, cred, "test")).GetJSON(context.Background(), "/files", nil, nil)
+		hint := cerr.DetailsOf(err).Hint
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), "must be printable ASCII") ||
+			strings.Contains(err.Error(), "tok-secret") || strings.Contains(hint, "tok-secret") {
+			t.Fatalf("%q: %v (hint %q)", cred, err, hint)
+		}
+	}
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("%d requests sent", n)
+	}
 }

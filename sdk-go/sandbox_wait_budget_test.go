@@ -41,15 +41,16 @@ func TestWait_whenBudgetExpires_returnsRequestTimeout(t *testing.T) {
 
 func TestWait_whenReadStalls_capsSliceAndDeadline(t *testing.T) {
 	for _, test := range []struct {
-		budget, root, elapsed time.Duration
-		wire                  string
-		clientTimeout         bool
+		budget, root, elapsed, caller time.Duration
+		wire                          string
+		clientTimeout                 bool
 	}{
-		{50 * time.Millisecond, time.Minute, 50 * time.Millisecond, "50", false},
-		{31 * time.Second, time.Minute, 31 * time.Second, "30000", false},
-		{time.Minute, time.Minute, 35 * time.Second, "30000", true},
-		{WaitForever, time.Millisecond, 35 * time.Second, "30000", true},
-		{time.Nanosecond, time.Minute, time.Nanosecond, "1", false},
+		{50 * time.Millisecond, time.Minute, 50 * time.Millisecond, 0, "50", false},
+		{31 * time.Second, time.Minute, 31 * time.Second, 0, "30000", false},
+		// A stalled slice is retried; the wait deadline then wraps that client timeout.
+		{time.Minute, time.Minute, time.Minute, 0, "24800", true},
+		{WaitForever, time.Millisecond, 40 * time.Second, 40 * time.Second, "4800", true},
+		{time.Nanosecond, time.Minute, time.Nanosecond, 0, "1", false},
 	} {
 		t.Run(test.budget.String(), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -60,9 +61,15 @@ func TestWait_whenReadStalls_capsSliceAndDeadline(t *testing.T) {
 					<-r.Context().Done()
 				})
 				sandbox.client.config.timeout = test.root
+				ctx := t.Context()
+				if test.caller > 0 {
+					var cancel context.CancelFunc
+					ctx, cancel = context.WithTimeout(ctx, test.caller)
+					defer cancel()
+				}
 				began := time.Now()
 				// When
-				err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: test.budget})
+				err := sandbox.Wait(ctx, &WaitOptions{Timeout: test.budget})
 				// Then: only the SDK wait deadline converts an earlier client timer.
 				require.ErrorIs(t, err, ErrRequestTimeout)
 				require.Equal(t, test.elapsed, time.Since(began))

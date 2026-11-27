@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, RequestTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, TransferCancelledError } from './errors/DaytonaError.js'
+import { ClientTimeoutError, ConnectionError, DaytonaError, ImageBuildFailedError, ImageBuildTimeoutError, SandboxCreateConnectionError, SandboxCreateRequestTimeoutError, TransferCancelledError } from './errors/DaytonaError.js'
 import { sandboxState, sleep } from './http.js'
 import { eventDestinationFromHeaders } from './events.js'
 import { createdLifecyclePolicy, scopedProxyToolboxUrl } from './Sandbox.js'
@@ -12,7 +12,7 @@ import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { artifactRefOf, imageOptionsBody, isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
-import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitDeadline } from './options.js'
+import { MAX_TIMER_DELAY_MS, assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitDeadline } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS, withoutNullOptions } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, MAX_WIRE_WAIT_SECONDS, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
@@ -152,15 +152,24 @@ export async function buildSandboxImage(images: ImagesService, builder: ImageBui
   return { image: readyImage, createOptions }
 }
 
+/** The build budget ran out; the server keeps building, and the id lets the caller follow, wait on or delete the image. */
+function buildTimedOut(imageId: string, cause?: unknown): ImageBuildTimeoutError {
+  return new ImageBuildTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', imageId, cause })
+}
+
+/** A wait budget above the timer maximum: repeat holds without a deadline. */
+const UNBOUNDED_WAIT_SECONDS = MAX_TIMER_DELAY_MS / 1000 + 1
+
 async function waitForBuiltImage(images: ImagesService, initial: Image, deadline: number | undefined): Promise<Image> {
   let image = initial
   for (;;) {
     if (image.status === 'ready') return image
     if (image.status === 'failed' || image.status === 'error') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
-    const remainingTimeout = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
-    if (deadline !== undefined && remainingTimeout <= 0) {
-      throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
-    }
+    // Without a build budget, holds repeat without a deadline (a value above
+    // the timer maximum), retrying transient reads, never the single hold a
+    // zero budget makes.
+    const remainingTimeout = deadline === undefined ? UNBOUNDED_WAIT_SECONDS : (deadline - Date.now()) / 1000
+    if (deadline !== undefined && remainingTimeout <= 0) throw buildTimedOut(image.id)
     try {
       const started = Date.now()
       image = await images.get(image.id, { wait: 'ready', timeoutSeconds: remainingTimeout })
@@ -173,7 +182,7 @@ async function waitForBuiltImage(images: ImagesService, initial: Image, deadline
       // deadline running out: the wait shares it.
       const waitRanOut = !(error instanceof ClientTimeoutError) || (deadline !== undefined && Date.now() >= deadline)
       if (error instanceof DaytonaError && error.source === 'SDK' && error.code === 'REQUEST_TIMEOUT' && deadline !== undefined && waitRanOut) {
-        throw new RequestTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+        throw buildTimedOut(image.id, error)
       }
       throw error
     }

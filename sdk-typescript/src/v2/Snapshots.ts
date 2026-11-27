@@ -18,6 +18,7 @@ import { getArtifact } from './artifactOptions.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
+import { iterPages } from './pages.js'
 
 export type { GetArtifactOptions } from './artifactOptions.js'
 
@@ -62,16 +63,7 @@ export class SnapshotsService {
 
   public async *iter(options: ListSnapshotsOptions = {}): AsyncIterable<Snapshot> {
     options = snapshotOptions('ListSnapshotsOptions', options, LIST_SNAPSHOTS_OPTION_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
   /**

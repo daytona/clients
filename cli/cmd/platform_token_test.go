@@ -383,3 +383,53 @@ func TestProjectKeyCacheKeyedByCanonicalProjectID(t *testing.T) {
 		t.Fatalf("expected one mint per project, got %v", mints)
 	}
 }
+
+// A platform token the exchange returns that is not printable ASCII is not
+// cached: the command fails without sending it, and the next one exchanges
+// again instead of failing on a stored bad token until it expires.
+func TestMalformedPlatformTokenIsNotCached(t *testing.T) {
+	f := newFakeAPI(t)
+	f.on("GET", "/.well-known/oauth-authorization-server", 200, map[string]any{"issuer": f.srv.URL, "jwks_uri": f.srv.URL + "/.well-known/jwks.json", "token_endpoint": f.srv.URL + "/auth/token"})
+	exchanges := 0
+	f.handle("POST", "/auth/token", func(w http.ResponseWriter, _ *http.Request) {
+		exchanges++
+		_, _ = w.Write([]byte(`{"access_token":"pt_secret\u00e9","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":300}`))
+	})
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+	for i := 0; i < 2; i++ {
+		_, errb, code := run(t, d, nil, "sandbox", "list", "-o", "json")
+		require.Equal(t, cerr.ExitFailure, code, errb)
+		require.Contains(t, errb, "the exchanged platform token contains a non-ASCII character")
+		require.NotContains(t, errb, "pt_secret")
+	}
+	require.Equal(t, 2, exchanges)
+	st, _ := config.Open(d)
+	cr, _ := st.LoadCredentials()
+	require.Empty(t, cr.Profiles["default"].PlatformTokens)
+	for _, r := range f.requests {
+		require.NotEqual(t, "/sandboxes", r.Path)
+	}
+}
+
+// The same for a project key the login mints: it is not cached, and the key
+// the server created is revoked by id with the login's credential, so it does
+// not stay valid until it expires.
+func TestMalformedMintedProjectKeyIsNotCached(t *testing.T) {
+	f := newFakeAPI(t)
+	f.on("GET", "/orgs", 200, organizationsFixture())
+	f.on("POST", "/projects/"+testProjP1+"/api-keys", 201, apiKeyFixture("8", testProjP1, `dtn_secret\n`, []string{"read:sandboxes"}))
+	revokePath := "/projects/" + testProjP1 + "/api-keys/88888888-8888-8888-8888-888888888888"
+	f.handle("DELETE", revokePath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	d := cfgDir(t)
+	oidcProfile(t, d, f.srv.URL, time.Hour)
+	_, errb, code := run(t, d, nil, "sandbox", "list", "-o", "json")
+	require.Equal(t, cerr.ExitFailure, code, errb)
+	require.Contains(t, errb, "the minted project API key contains a control character")
+	require.NotContains(t, errb, "dtn_secret")
+	st, _ := config.Open(d)
+	cr, _ := st.LoadCredentials()
+	require.Empty(t, cr.Profiles["default"].WorkloadKeys)
+	revoke := findRequest(t, f, "DELETE", revokePath)
+	require.Equal(t, "Bearer jwt", revoke.Auth)
+}

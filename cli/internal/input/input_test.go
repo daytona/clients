@@ -171,6 +171,125 @@ func TestDecode_mapKeysAreKeptAsGiven(t *testing.T) {
 	}
 }
 
+// A --file that is valid JSON but not an object names what it holds, in JSON
+// terms; syntax and trailing-data errors keep their own messages.
+func TestLoad_nonObjectNamesTheJSONType(t *testing.T) {
+	for body, kind := range map[string]string{
+		`[]`:        "an array",
+		`[{"a":1}]`: "an array",
+		`null`:      "null",
+		`"x"`:       "a string",
+		`3`:         "a number",
+		`true`:      "a boolean",
+	} {
+		_, err := loadBody(t, body)
+		if cerr.ExitCode(err) != cerr.ExitUsage {
+			t.Fatalf("%s: exit %d (%v)", body, cerr.ExitCode(err), err)
+		}
+		if msg := err.Error(); !strings.Contains(msg, "must contain a JSON object, got "+kind) || strings.Contains(msg, "Go value") || strings.Contains(msg, "input.Body") {
+			t.Fatalf("%s: %q", body, msg)
+		}
+	}
+	if _, err := loadBody(t, `{"a":`); err == nil || !strings.Contains(err.Error(), "invalid JSON") {
+		t.Fatalf("syntax error: %v", err)
+	}
+	if _, err := loadBody(t, `{"a":1} []`); err == nil || !strings.Contains(err.Error(), "trailing data") {
+		t.Fatalf("trailing array: %v", err)
+	}
+}
+
+// A field of the wrong JSON type is named with the JSON type it was given,
+// not the Go type it decodes into.
+func TestDecode_typeMismatchNamesTheField(t *testing.T) {
+	registerFields[caseRequest](t)
+	for body, want := range map[string]string{
+		`{"cores_max":"1"}`:                        `field "cores_max" cannot be a string`,
+		`{"labels":["a"]}`:                         `field "labels" cannot be an array`,
+		`{"volumes":[{"volume":1}]}`:               `field "volumes.volume" cannot be a number`,
+		`{"lifecycle_policy":{"on_timeout":true}}`: `field "lifecycle_policy.on_timeout" cannot be a boolean`,
+	} {
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+		_, err = Decode[caseRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), want) || strings.Contains(err.Error(), "Go struct") {
+			t.Fatalf("Decode %s: %v", body, err)
+		}
+	}
+}
+
+type numberRequest struct {
+	Seconds *int64   `json:"idle_expiry_seconds,omitempty"`
+	DiskMib int32    `json:"disk_mib"`
+	Count   *uint16  `json:"count,omitempty"`
+	Ratio   *float64 `json:"ratio,omitempty"`
+}
+
+// A number an integer field cannot hold says why, instead of claiming the
+// field "cannot be a number": a fraction, a value out of the field's range,
+// or a whole number written with a fraction or exponent.
+func TestDecode_numberMismatchSaysWhy(t *testing.T) {
+	registerFields[numberRequest](t)
+	for body, want := range map[string]string{
+		`{"idle_expiry_seconds":1.5}`:                    `field "idle_expiry_seconds" must be a whole number, got 1.5`,
+		`{"idle_expiry_seconds":1e30}`:                   `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e30`,
+		`{"disk_mib":3000000000}`:                        `field "disk_mib" is out of range (-2147483648 to 2147483647), got 3000000000`,
+		`{"count":-1}`:                                   `field "count" is out of range (0 to 65535), got -1`,
+		`{"disk_mib":2.0}`:                               `field "disk_mib" must be written as a whole number without a fraction or exponent, got 2.0`,
+		`{"disk_mib":1e3}`:                               `field "disk_mib" must be written as a whole number without a fraction or exponent, got 1e3`,
+		`{"ratio":1e400}`:                                `field "ratio" is out of range for a number, got 1e400`,
+		`{"idle_expiry_seconds":1e1000000000}`:           `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got 1e1000000000`,
+		`{"idle_expiry_seconds":1e-1000000000}`:          `field "idle_expiry_seconds" must be a whole number, got 1e-1000000000`,
+		`{"idle_expiry_seconds":1e-9999999999999999999}`: `field "idle_expiry_seconds" must be a whole number, got 1e-9999999999999999999`,
+		`{"idle_expiry_seconds":0e-9999999999999999999}`: `field "idle_expiry_seconds" must be written as a whole number without a fraction or exponent, got 0e-9999999999999999999`,
+		`{"idle_expiry_seconds":-1e1000000000}`:          `field "idle_expiry_seconds" is out of range (-9223372036854775808 to 9223372036854775807), got -1e1000000000`,
+		`{"disk_mib":"2"}`:                               `field "disk_mib" cannot be a string`,
+	} {
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+		_, err = Decode[numberRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), want) {
+			t.Fatalf("Decode %s: %v", body, err)
+		}
+	}
+	b, err := loadBody(t, `{"idle_expiry_seconds":60,"disk_mib":1024,"count":3,"ratio":0.5}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode[numberRequest](b); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type elementRequest struct {
+	Env   map[string]string `json:"env,omitempty"`
+	Ports []int32           `json:"ports,omitempty"`
+}
+
+// A wrong value inside a map or an array is named by its key or index, not
+// only by the field that holds it.
+func TestDecode_typeMismatchInsideAMapOrArrayNamesTheEntry(t *testing.T) {
+	registerFields[elementRequest](t)
+	for body, want := range map[string]string{
+		`{"env":{"A":"1","B":2}}`: `field "env.B" cannot be a number`,
+		`{"ports":[80,"x"]}`:      `field "ports[1]" cannot be a string`,
+		`{"ports":[80,1.5]}`:      `field "ports" must be a whole number, got 1.5`,
+		`{"env":["A"]}`:           `field "env" cannot be an array`,
+	} {
+		b, err := loadBody(t, body)
+		if err != nil {
+			t.Fatalf("Load %s: %v", body, err)
+		}
+		_, err = Decode[elementRequest](b)
+		if cerr.ExitCode(err) != cerr.ExitUsage || !strings.Contains(err.Error(), want) {
+			t.Fatalf("Decode %s: %v", body, err)
+		}
+	}
+}
+
 // A type without a table is a bug, reported rather than decoded unchecked.
 func TestDecode_needsAFieldTable(t *testing.T) {
 	type unregistered struct{}

@@ -10,7 +10,6 @@ from typing import AsyncIterator, List, Optional, Sequence, Union
 from . import _clock
 from . import _codes as codes
 from ._core import (
-    WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     delete_process_spec,
     enum_str,
@@ -28,6 +27,8 @@ from ._core import (
     process_create_spec,
     process_kill_spec,
     process_list_spec,
+    process_record_read_timeout,
+    process_wait_hold,
     refuse_dot_segment,
     resize_spec,
     signal_spec,
@@ -115,11 +116,6 @@ def _run_stdin(stdin: StdinMode) -> StdinMode:
             "SDK",
         )
     return stdin
-
-
-# Wait budget for run() when the caller set no process timeout: the server's
-# long-poll cap, after which run() re-issues the wait.
-RUN_WAIT_SECONDS = 60.0
 
 
 def _remaining_timeout(timeout: Optional[float], started: float) -> Optional[float]:
@@ -286,8 +282,14 @@ class AsyncProcessHandle:
     async def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
         """Wait for terminal state using the process long-poll contract.
 
-        ``timeout`` is the caller wait budget in seconds; ``0`` waits
-        unbounded.
+        ``timeout`` is the caller wait budget in seconds; omitted or ``0``
+        waits until the process ends. The wait is a series of requests the
+        sandbox holds for at most 30 seconds each (each read is bounded at 35
+        seconds), so no single request stays open for the whole budget; a
+        dropped or stalled round is retried within the budget. A timed-out
+        wait may return a few seconds past the budget: the process record is
+        read once after the last round, so a process that ended with it is
+        reported.
         """
         timeout = wait_budget(timeout)
         deadline = None if timeout is None or timeout == 0 else _clock.monotonic() + timeout
@@ -303,30 +305,23 @@ class AsyncProcessHandle:
             # record read; the failure streak resets only when both succeed.
             try:
                 result = parse_wait(
-                    expect_exit_result(
-                        await self._send(
-                            wait_spec(
-                                self.id,
-                                timeout=remaining_timeout,
-                                unbounded=deadline is None,
-                            )
-                        )
-                    )
+                    expect_exit_result(await self._send(wait_spec(self.id, timeout=remaining_timeout)))
                 )
                 if result.reason != "timed_out":
                     return result
-                if deadline is not None and _clock.monotonic() >= deadline:
-                    return WaitResult(reason="timed_out")
-                # Budget left: `timed_out` is either an expired long-poll or
-                # a command its own deadline stopped, and the record says which.
+                # `timed_out` is either an expired long-poll or a command its
+                # own deadline stopped, and the record says which. It is read
+                # after the round that spends the budget too, so a process that
+                # ended with that round is reported, not `timed_out`. The read
+                # is bounded like a round, never by the whole budget.
                 record = expect_process_dto(
                     await self._send(
                         RequestSpec(
                             "GET",
                             f"/processes/{path_segment(self.id, 'process id')}",
-                            timeout=None
-                            if deadline is None
-                            else deadline - _clock.monotonic() + WAIT_READ_SLACK_SECONDS,
+                            timeout=process_record_read_timeout(
+                                None if deadline is None else deadline - _clock.monotonic()
+                            ),
                         )
                     )
                 )
@@ -343,6 +338,8 @@ class AsyncProcessHandle:
             parse_process(record)
             if enum_str(record.state) == "terminal":
                 return parse_wait(record)
+            if deadline is not None and _clock.monotonic() >= deadline:
+                return WaitResult(reason="timed_out")
 
     async def logs(
         self,
@@ -407,7 +404,17 @@ class AsyncProcessHandle:
         await self._send(stdin_spec(self.id, data, eof=False))
 
     async def close_stdin(self) -> None:
-        """Close the stdin of an exec or PTY process (EOF)."""
+        """Close the stdin of an exec process (EOF).
+
+        On a code or session handle it raises
+        :class:`~daytona.v2.errors.UnsupportedOperationError` before any
+        request. A PTY has no end-of-input signal of its own: on a PTY handle
+        the sandbox answers :class:`~daytona.v2.errors.BadRequestError` (400,
+        "send ^D (0x04) as data instead"). Write ``"\\x04"`` (Ctrl-D) with
+        :meth:`write_stdin` instead: in the terminal's default (canonical) mode, at the start of a
+        line, the program reads it as end of input; a program that puts the
+        terminal in raw mode receives the byte as data.
+        """
         self._require_stdin_kind("close_stdin")
         await self._send(stdin_spec(self.id, "", eof=True))
 
@@ -416,16 +423,18 @@ class AsyncProcessHandle:
         *,
         signal: ProcessSignal = "TERM",
         escalate_after: Optional[float] = None,
-        escalate_to: ProcessSignal = "KILL",
+        escalate_to: Optional[ProcessSignal] = None,
     ) -> None:
-        """Send a signal and optional escalation signal."""
+        """Send a signal, optionally escalating to ``escalate_to`` (default
+        ``KILL``) after ``escalate_after`` seconds.
+
+        Signals are bare names (``TERM``, not ``SIGTERM``; case-insensitive).
+        ``escalate_after`` is at most 600 seconds, and ``escalate_to`` needs
+        ``escalate_after``; anything else raises ``BadRequestError`` before
+        any request.
+        """
         await self._send(
-            signal_spec(
-                self.id,
-                signal=signal,
-                escalate_after_ms=timeout_millis_from_seconds(escalate_after, "escalate_after"),
-                escalate_to=escalate_to,
-            )
+            signal_spec(self.id, signal=signal, escalate_after=escalate_after, escalate_to=escalate_to)
         )
 
     async def resize(self, cols: int, rows: int, /) -> None:
@@ -702,9 +711,12 @@ class AsyncProcessService:
         """Start a process, wait for its shell to exit, and collect its output.
 
         The common case is one round trip: the sandbox starts the process, holds
-        the request until it exits (or ``timeout`` expires), and returns the
-        output inline. A process that outlives the wait window or produces more
-        output than fits in one page falls back to split calls automatically.
+        the request until it exits (for at most 30 seconds, or ``timeout`` if
+        shorter), and returns the output inline. A process that outlives that
+        window is waited for in further rounds of at most 30 seconds each until
+        ``timeout``, and output larger than one page is read in further calls.
+        The start request itself is never retried: a failed start may still
+        have started the process.
 
         The result holds the output available when the call returns:
         its per-process log is bounded, so very large output loses its oldest
@@ -767,9 +779,7 @@ class AsyncProcessService:
             execution_timeout=execution_timeout,
             terminal=None,
             keep_logs=_run_keep_logs(keep_logs),
-            wait_ms=timeout_millis_from_seconds(timeout)
-            if timeout is not None
-            else int(RUN_WAIT_SECONDS * 1000),
+            wait_ms=timeout_millis_from_seconds(process_wait_hold(timeout or None)),
             inline_logs=True,
         )
         started = _clock.monotonic()
@@ -935,7 +945,7 @@ class AsyncPtyService:
         info = await handle.get()
         if info.kind != "pty":
             raise UnsupportedOperationError(
-                f"process.delete() is only supported for pty handles; handle kind is {info.kind}",
+                f"pty.delete() is only supported for pty handles; handle kind is {info.kind}",
                 status_code=400,
                 code=codes.UNSUPPORTED_OPERATION,
                 source="SDK",

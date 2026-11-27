@@ -33,6 +33,7 @@ import { attachHub, detachHub, eventsHubConfig } from './events.js'
 import type { EventsHubConfig, WaitHub } from './events.js'
 import type { AuditActionList, ProjectApiKey, CreateFromBuildOptions, FindByNameOptions, LifecycleWaitOptions, CreateMacosSandboxOptions, CreateSandboxFromSnapshotOptions, CreateSandboxOptions, DaytonaConfig, GetLimitsOptions, ListResult, ListSandboxesOptions, OrganizationLimits, ProjectBudget, SandboxConnectOptions, SandboxInfo, SearchResult, SearchSandboxesOptions, SandboxDto } from './types.js'
 import { isBlank } from './pyText.js'
+import { iterPages } from './pages.js'
 
 export { DEFAULT_V2_API_URL } from './clientConfig.js'
 
@@ -57,6 +58,8 @@ export class Daytona {
   private hub: WaitHub | undefined
   private readonly hubApi: AxiosInstance
   private closed = false
+  // Aborted by close(): a wait pausing to retry a failed read ends at once.
+  private readonly closing = new AbortController()
   // Remembers a deployment that does not serve sandbox search (list()).
   private readonly sandboxSearchProbe = new SearchProbe()
 
@@ -65,7 +68,7 @@ export class Daytona {
     this.apiKey = connection.apiKey
     this.apiUrl = connection.apiUrl
     this.hubIdentityKey = connection.hubIdentityKey
-    this.httpOptions = { ...connection.httpOptions, ensureOpen: () => {
+    this.httpOptions = { ...connection.httpOptions, closed: this.closing.signal, ensureOpen: () => {
       if (this.closed) throw new ClientClosedError()
     } }
     this.maxResponseBytes = connection.maxResponseBytes
@@ -115,6 +118,7 @@ export class Daytona {
    * `ClientClosedError`; closing the root lets `root.v2` build a fresh client. */
   public async close(): Promise<void> {
     this.closed = true
+    this.closing.abort()
     const hub = this.hub
     if (hub !== undefined) {
       this.hub = undefined
@@ -197,6 +201,17 @@ export class Daytona {
    * no default is configured the create fails with
    * `DEFAULT_IMAGE_NOT_CONFIGURED` (400). An empty or whitespace-only image is
    * still an error, thrown before any request.
+   *
+   * **Returned metadata.** The handle holds what the create response reports
+   * (id, name, state, image, reservation, and the lifecycle policy when the
+   * response carries one) plus what the request fixed (the class, the region,
+   * an `img_` / `snap_` id you passed). The rest (`cpu`, `memory`, `disk` and their limits, `labels`,
+   * `user`, ...) is `undefined` (unknown, not empty) until a detail read.
+   * `create()` does not read the sandbox itself when the create response
+   * already reports it started (the usual case), so call
+   * `sandbox.refreshData()` before reading them. The
+   * same holds for {@link createFromSnapshot}, {@link createFromBuild} and
+   * {@link createMacos}.
    *
    * When Linux sandboxes are not enabled for the organization, the API answers
    * `403` `FEATURE_NOT_ENABLED` (thrown as `FeatureNotEnabledError`).
@@ -326,16 +341,7 @@ export class Daytona {
 
   public async *iter(options: ListSandboxesOptions = {}): AsyncIterable<Sandbox> {
     options = snapshotOptions('ListSandboxesOptions', options, LIST_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
   /**

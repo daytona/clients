@@ -92,6 +92,9 @@ func (c *Client) Stream(ctx context.Context, method, path string, query url.Valu
 }
 
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body io.Reader, contentType string, noClientTimeout bool) (*http.Response, error) {
+	if err := c.inner.CheckCredential(); err != nil {
+		return nil, err
+	}
 	reqURL := c.inner.BaseURL + path
 	if len(query) > 0 {
 		reqURL += "?" + query.Encode()

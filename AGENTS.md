@@ -622,11 +622,15 @@ skipping exist only in the TypeScript tool).
   browser, the in-memory reads (under their cap) and a pre-signed download
   URL (`presignedDownloadUrl`), which the browser fetches directly, are the
   options.
-  A per-call timeout (a wait's budget plus its slack; a create POST that
-  asks the server to hold, bounded by max(request timeout, hold + 5 s) so a
-  healthy hold is never cut, with no bound when the request timeout is `0`
-  or the hold is above the timer maximum, while a create with no hold stays
-  an ordinary request; a git remote call, the
+  A per-call timeout (a wait's budget plus its slack, for a process wait
+  its round's hold plus the slack, the `run()` / `session.run()` create
+  hold included; a sandbox create POST that asks the server to hold,
+  bounded by max(request timeout, hold + 5 s) so a healthy hold is never
+  cut, with no bound when the request timeout is `0` or the hold is above
+  the timer maximum, while a create with no hold stays
+  an ordinary request; a git remote call, `fs.move()`'s `timeout` /
+  `timeoutSeconds` (Go `MoveOptions.Timeout`, where zero keeps the request
+  timeout and `NoTimeout` is no limit), the
   Docker status poll, the events ticket mint; Python `RequestSpec(timeout=…)`
   / `transport.request(..., timeout=seconds)`, TS `config.timeout` / `fetch`'s
   `timeout`) replaces the request timeout for that call with the same
@@ -782,6 +786,19 @@ skipping exist only in the TypeScript tool).
   `SDK`, no HTTP status) for every new request through it or its handles, in
   Python sync, async and TypeScript; `root.v2` after `root.close()` builds a
   fresh client. A shared events hub is not closed by one of its clients.
+- **Process waits hold at most 30 s per request** (the server hold; reads
+  are bounded at the round's hold plus 5 s, at most 35 s). Go runs with
+  `Stdout` / `Stderr` writers are the exception: they follow one log stream
+  for the whole run. The create hold of
+  `run()` / `session.run()` (`waitMs`) and every `/wait` round (`timeoutMs`)
+  are capped at one round (Python `PROCESS_WAIT_ROUND_SECONDS`, TS
+  `PROCESS_WAIT_ROUND_MS`, Go `processWaitRound`), each read bounded by its
+  hold plus the wait slack; a longer or unlimited caller budget is waited out
+  in rounds, and a dropped round is retried within the wait's transport retry
+  limit. The process-record read after a `timed_out` round is bounded the same
+  way (one round plus slack, never the whole budget or the client's request
+  timeout) and also follows the round that spends the budget, so a process
+  that ended with it is reported. The create request is never retried.
 - **Blocking runs refuse `stdin="open"`**; `start()` / `session.start()` send
   `keep_logs` `on_exit_ttl` when none is given; an execution timeout of `0` is
   omitted (no deadline); PTYs get `TERM=xterm-256color` unless `env` sets it.
@@ -944,6 +961,14 @@ skipping exist only in the TypeScript tool).
   belong to `search()`, whose `states` take SDK states and map to the API's
   status vocabulary at the boundary. `find_by_name` / `findByName` returns
   every match and is the one documented exception to the one-page rule.
+  Every iterator walks through one helper per SDK (Python `_pages.py`, TS
+  `pages.ts`, Go `page.go`): a page read is retried after a dropped
+  connection or HTTP 429 (not `LIMIT_EXCEEDED`) / 502 / 503 / 504, at most
+  three reads, waiting at least the retry hint (body or `Retry-After`; a
+  hint above 10 s ends the walk), and the error that ends a walk carries
+  the failed page's input cursor (`page_cursor` / `pageCursor` /
+  `PageCursor`) on a copy, never on the caught error, which
+  concurrent walks can share. A new iterator uses that helper.
 - **SDK request attribution uses the Daytona header triple.** `X-Daytona-Source`
   (`sdk-typescript`, `sdk-python`, `sdk-python-async`),
   `X-Daytona-SDK-Version`, and `User-Agent: <source>/<version>` on every request.
@@ -1003,7 +1028,24 @@ skipping exist only in the TypeScript tool).
   the read's error as its cause (a server's 408 included), except a 401 /
   403 and a 404, which are raised (a 404 in a delete is `destroyed`). Once the
   target was observed, a failed
-  metadata refresh afterwards does not turn that success into an error.
+  metadata refresh afterwards does not turn that success into an error; a
+  refresh that succeeds decides too: a target returns, a state terminal for
+  that wait that no lag can show (`destroyed`, `error`, and `destroying`
+  unless the wait targets `destroyed`) raises with the read's reason, and
+  any other state polls on under the same deadline, so a lifecycle wait
+  never returns a handle outside its targets (create and fork still return
+  theirs however the wait ends). An operation's own failure state (`started`
+  for a pause, `stopped` / `paused` for a joined start) is also the state
+  before it, which a lagging plain read shows; on this read and on the read
+  that confirms a terminal state the events hub reports, it is left to the
+  long-poll reads that follow. The server holds a loose `wait=paused` on
+  `started` and `wait=running` on `paused` for the whole slice, so such a
+  failure is reported up to one 30-second slice later; a loose
+  `wait=running` answers `stopped` at once, so a lagging `stopped` row can
+  still fail a joined start (an accepted residual risk). `start()` that finds the sandbox `starting` (a start or resume
+  another caller sent) sends nothing and waits with `stopped` and `paused`
+  as terminal states too; a `start()` that sends start keeps the default
+  terminal states, since its first reads may still show `stopped`.
   Once the create or fork REQUEST has succeeded, `create*()` and `fork()`
   return the handle however their `wait_seconds` / `waitSeconds` wait ends:
   budget spent, terminal state, or a failed read (any `DaytonaError`). A

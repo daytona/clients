@@ -48,6 +48,8 @@ type ExecOptions struct {
 	// and unknown Reason, including without writers. Non-writer failures do not
 	// stop the process or retry the stream. Reconnect ProcessID
 	// to wait, resume logs from the last delivered cursor, or stop the process.
+	// With Stdout or Stderr set, the run follows its output on one log stream for
+	// the whole run, bounded only by Timeout and ctx, not in 30-second wait rounds.
 	Stdout io.Writer
 	// Stderr receives live stderr, serialized with Stdout calls (the same writer is safe).
 	// Writer failures have the same result and best-effort cleanup semantics as Stdout.

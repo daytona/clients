@@ -4,6 +4,7 @@
 package daytona
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 	"testing/synctest"
@@ -75,9 +76,9 @@ func TestWait_whenReasonBearingTerminalEventIsStale_acceptsAuthoritativeRead(t *
 	require.Empty(t, requests[0].Query)
 }
 
-func TestWait_whenPollIsRateLimited_returnsServerErrorWithRetryHint(t *testing.T) {
+func TestWait_whenPollIsRateLimited_retriesAfterTheRetryHint(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		// Given: the server supplies a retry hint on the first read.
+		// Given: the server supplies a retry hint on every read.
 		reads := 0
 		sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, _ *http.Request) {
 			reads++
@@ -91,15 +92,16 @@ func TestWait_whenPollIsRateLimited_returnsServerErrorWithRetryHint(t *testing.T
 		began := time.Now()
 
 		// When
-		err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: time.Minute})
+		err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: 5 * time.Second})
 
-		// Then: direct polling preserves the TypeScript waiter's error policy.
+		// Then: reads at 0, 2 and 4 s honor the hint; the wait timeout wraps the 429.
+		require.ErrorIs(t, err, ErrRequestTimeout)
 		var detail *Error
-		require.ErrorAs(t, err, &detail)
+		require.ErrorAs(t, errors.Unwrap(err), &detail)
 		require.Equal(t, http.StatusTooManyRequests, detail.StatusCode)
 		require.Equal(t, "DAYTONA_API", detail.Source)
 		require.Equal(t, 2*time.Second, detail.RetryAfter)
-		require.Equal(t, 1, reads)
-		require.Zero(t, time.Since(began))
+		require.Equal(t, 3, reads)
+		require.Equal(t, 5*time.Second, time.Since(began))
 	})
 }

@@ -16,6 +16,15 @@ import (
 // without waiting for readiness. Use ImageFromDockerfile for Dockerfile text.
 // Invalid options and builder inputs return ErrBadRequest before submission.
 func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildImageOptions) (*Image, error) {
+	return s.build(ctx, builder, opts, nil)
+}
+
+// build is Build whose lookup after the submission is made by lookup, when
+// given (a waiting pull retries it); the submission itself is never repeated.
+func (s *Images) build(
+	ctx context.Context, builder *ImageBuilder, opts *BuildImageOptions,
+	lookup func(context.Context, string) (*Image, error),
+) (*Image, error) {
 	options := BuildImageOptions{}
 	if opts != nil {
 		options = *opts
@@ -42,14 +51,14 @@ func (s *Images) Build(ctx context.Context, builder *ImageBuilder, opts *BuildIm
 			return nil, uploadErr
 		}
 		request.ContextUploadID, request.Region = upload.ID, upload.Region
-		return s.submit(ctx, apiRequest{Body: request})
+		return s.submit(ctx, apiRequest{Body: request}, lookup)
 	}
 	if ref, registry := builder.registrySource(); registry {
 		request.Source = &imageRegistrySource{Type: "registry", Ref: ref}
 	} else {
 		request.Dockerfile = text
 	}
-	return s.submit(ctx, apiRequest{Body: request})
+	return s.submit(ctx, apiRequest{Body: request}, lookup)
 }
 
 // BuildFromContext archives a local directory or snapshots an existing tar file,
@@ -123,10 +132,12 @@ func (s *Images) buildFromContext(
 		return nil, err
 	}
 	request.ContextUploadID, request.Region = upload.ID, upload.Region
-	return s.submit(ctx, apiRequest{Body: request, Timeout: options.Timeout})
+	return s.submit(ctx, apiRequest{Body: request, Timeout: options.Timeout}, nil)
 }
 
-func (s *Images) submit(ctx context.Context, request apiRequest) (*Image, error) {
+func (s *Images) submit(
+	ctx context.Context, request apiRequest, lookup func(context.Context, string) (*Image, error),
+) (*Image, error) {
 	var raw JSONValue
 	request.Method, request.Path, request.Result = http.MethodPost, "/images", &raw
 	if err := s.client.api().do(ctx, request); err != nil {
@@ -135,6 +146,9 @@ func (s *Images) submit(ctx context.Context, request apiRequest) (*Image, error)
 	id, err := imageAcknowledgedID(raw)
 	if err != nil {
 		return nil, err
+	}
+	if lookup != nil {
+		return lookup(ctx, id)
 	}
 	return s.Get(ctx, id, nil)
 }

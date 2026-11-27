@@ -96,7 +96,7 @@ class Daytona:
 
     def close(self) -> None:
         """Close HTTP resources, then stop the bridge loop. Idempotent; safe from any thread."""
-        self._bridge.close(self._impl.close)
+        self._bridge.close(self._impl.close, interrupt=self._impl._begin_close)
 
     def create(
         self,
@@ -169,13 +169,32 @@ class Daytona:
         parameters. An explicit ``idempotency_key`` always wins.
 
         **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
-        see :class:`Resources`). Burstable sandboxes start with the burst
-        ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment cap
-        when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
-        not the guaranteed ``cpu``. Tools that size themselves from the CPU
-        count (``pytest -n auto``, ``make -j$(nproc)``) start one worker per
-        visible CPU. Pass an explicit worker count when you need the guarantee
-        instead of the ceiling.
+        see :class:`Resources`). A sandbox boots with its CPU limit,
+        ``resources.cpu_max * 2`` vCPUs (the deployment cap when omitted), so
+        ``nproc`` reports that, not the guaranteed ``cpu``. Tools that
+        size themselves from the CPU count (``pytest -n auto``,
+        ``make -j$(nproc)``) start one worker per visible CPU; pass an explicit
+        worker count when you need the guarantee instead of the limit. Memory
+        can instead start small and grow on demand up to ``memory_max`` (the
+        deployment cap when omitted):
+        ``/proc/meminfo`` and ``free`` then show the memory present now (about
+        the guaranteed ``memory`` plus some headroom at first), not the limit,
+        while :meth:`Sandbox.metrics` reports the limit as the total.
+        Programs that size themselves from total memory at startup (a JVM's
+        default heap, for example) see the smaller figure; size them
+        explicitly.
+
+        **Returned metadata.** The handle holds what the create response
+        reports (id, name, state, image, reservation, and the lifecycle policy
+        when the response carries one) plus what the request fixed (the class,
+        the region, an ``img_`` / ``snap_`` id you passed). The rest (``cpu``,
+        ``memory``, ``disk`` and their limits, ``labels``, ``user``, ...) is
+        ``None`` (unknown, not empty) until a detail read. ``create()`` does
+        not read the sandbox itself when the create response already reports
+        it started (the usual case), so call
+        :meth:`Sandbox.refresh_data` before reading them. The same holds
+        for :meth:`create_from_snapshot`, :meth:`create_from_build` and
+        :meth:`create_macos`.
 
         ``network_policy`` sets the sandbox's egress policy from its first boot
         (``None`` sends an explicit "no policy"); change it later with
@@ -254,9 +273,11 @@ class Daytona:
         24.8 days = no deadline). A failed
         build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
-        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
-        no sandbox exists. Then the sandbox is created exactly as by
-        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        ``build_timeout`` raises :class:`ImageBuildTimeoutError` (a
+        :class:`RequestTimeoutError`); both carry the image's ``image_id``, and
+        in both cases no sandbox exists (the timed-out build keeps running).
+        Then the sandbox is created exactly as by :meth:`create` with the same
+        keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
         ``persistent=True`` keeps disk across stop/start and memory and processes
@@ -542,7 +563,16 @@ class Daytona:
         return self._bridge.call(lambda: self._impl.get_project_budget())
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Sandbox]:
-        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size).
+
+        A page read that fails transiently (a dropped connection, or HTTP
+        429 other than ``LIMIT_EXCEEDED``, 502, 503 or 504) is tried again,
+        up to three reads; a server retry hint above 10 seconds ends the walk
+        without a retry. The error the walk itself raises carries
+        ``page_cursor``, the cursor of the page that failed:
+        ``iter(cursor=error.page_cursor)`` resumes with that page, after the
+        items already yielded (``None``: the walk's first page).
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_iter(
