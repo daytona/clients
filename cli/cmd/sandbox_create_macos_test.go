@@ -71,7 +71,7 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 		"--disk MIB whole sandbox disk in MiB, macOS included, minimum 81920 (default: the Mac model's default size, or the image's disk size for a captured image)",
 		"--memory MIB memory in MiB, minimum 4096 (default: the Mac model's default size)",
 		"--reservation ID|new",
-		"--auto-renew renew while a sandbox is active; create-macos requires --reservation new",
+		"--auto-renew renew while a sandbox is active; only with --reservation new",
 		"--persistent keep the disk and machine across stop/start on any Mac of the organization, and memory across pause/resume; delete erases the disk. A reservation end or a Mac failure stops a persistent sandbox that has started and never deletes it, though a Mac failure can lose its most recent writes; an ephemeral sandbox ends with its reservation or a failed Mac.",
 		"Each omitted size uses the Mac model's default size (DEFAULT_SIZE in mac-model list); a create from a captured image without --disk gets the image's disk size.",
 		"--on-lifecycle-timeout ACTION action when --lifecycle-timeout elapses: delete, or stop with --persistent",
@@ -89,6 +89,8 @@ func TestSandboxCreateMacos_helpIsPublicAndComplete(t *testing.T) {
 	help, _, err = runCLI(t, []string{"reservation", "create", "--help"}, nil)
 	require.NoError(t, err)
 	require.Contains(t, squashSpaces(help), "--model MODEL Mac model slug from mac-model list (default: the region's default model; no upgrade)")
+	require.Contains(t, squashSpaces(help), "--auto-renew renew while a sandbox is active")
+	require.NotContains(t, help, "--reservation new")
 }
 
 func TestSandboxCreateMacos_diskFullIsAConflict(t *testing.T) {

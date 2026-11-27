@@ -41,9 +41,9 @@ func newImageCommand() *cobra.Command {
 
 func newImageGetCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
+		Use:   "get <id-or-name>",
 		Short: "Get one image",
-		Long:  "Get one image.\nExample:\n  daytona image get <id>",
+		Long:  "Get one image by its img_… id or its name. The name search is reserved for the search route: read an image named search by its id.\nExamples:\n  daytona image get img_123\n  daytona image get py312",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// A usage error, so before any credential or profile work.

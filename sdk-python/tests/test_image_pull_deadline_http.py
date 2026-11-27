@@ -169,11 +169,19 @@ async def test_pull_preserves_408_only_when_before_deadline(
 async def test_pull_preserves_root_timeout_when_before_deadline(invoke_pull: Pull, phase: int) -> None:
     # Given a shorter independent root timeout and a stalled HTTP peer.
     with pull_peer(phase, None) as peer:
-        # When the root timeout expires before the overall pull budget.
-        with pytest.raises(ClientTimeoutError) as error:
+        if phase == 1:
+            # When the submission's root timeout expires before the pull budget.
+            with pytest.raises(ClientTimeoutError) as error:
+                await invoke_pull(peer, 3, 0.2)
+            # Then it remains an independent transport error, not pull exhaustion.
+            assert str(error.value) == "operation timed out"
+            return
+        # A waiting pull retries its stalled first lookup (a read) within the
+        # budget; the budget's end keeps the root timeout as its cause.
+        with pytest.raises(RequestTimeoutError) as timed_out:
             await invoke_pull(peer, 3, 0.2)
-        # Then it remains an independent transport error, not pull exhaustion.
-        assert str(error.value) == "operation timed out"
+        assert str(timed_out.value) == "image pull did not finish before timeout"
+        assert isinstance(timed_out.value.__cause__, ClientTimeoutError)
 
 
 @pytest.mark.anyio

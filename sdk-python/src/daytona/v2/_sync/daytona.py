@@ -96,7 +96,7 @@ class Daytona:
 
     def close(self) -> None:
         """Close HTTP resources, then stop the bridge loop. Idempotent; safe from any thread."""
-        self._bridge.close(self._impl.close)
+        self._bridge.close(self._impl.close, interrupt=self._impl._begin_close)
 
     def create(
         self,
@@ -273,9 +273,11 @@ class Daytona:
         24.8 days = no deadline). A failed
         build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
-        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
-        no sandbox exists. Then the sandbox is created exactly as by
-        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        ``build_timeout`` raises :class:`ImageBuildTimeoutError` (a
+        :class:`RequestTimeoutError`); both carry the image's ``image_id``, and
+        in both cases no sandbox exists (the timed-out build keeps running).
+        Then the sandbox is created exactly as by :meth:`create` with the same
+        keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
         ``persistent=True`` keeps disk across stop/start and memory and processes
@@ -560,7 +562,16 @@ class Daytona:
         return self._bridge.call(lambda: self._impl.get_project_budget())
 
     def iter(self, *, cursor: Optional[str] = None, limit: Optional[int] = None) -> Iterator[Sandbox]:
-        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size).
+
+        A page read that fails transiently (a dropped connection, or HTTP
+        429 other than ``LIMIT_EXCEEDED``, 502, 503 or 504) is tried again,
+        up to three reads; a server retry hint above 10 seconds ends the walk
+        without a retry. The error the walk itself raises carries
+        ``page_cursor``, the cursor of the page that failed:
+        ``iter(cursor=error.page_cursor)`` resumes with that page, after the
+        items already yielded (``None``: the walk's first page).
+        """
         from .sandbox import Sandbox
 
         return _rt.wrap_iter(

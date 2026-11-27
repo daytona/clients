@@ -58,8 +58,11 @@ func newSandboxSearchCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search [query]",
 		Short: "Search sandboxes across regions",
-		Long:  "Search sandboxes across regions. The query is optional: filters alone select a set.\nExamples:\n  daytona sandbox search python\n  daytona sandbox search worker --status running --class linux --region region-a\n  daytona sandbox search --status running\n  daytona sandbox search sandbox-example",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Search sandboxes across regions. The query is optional: filters alone select a set.\n" +
+			"Search is eventually consistent: a sandbox just created may not appear yet, and one just changed or deleted can show its old state, for a few seconds.\n" +
+			"--status takes the API's statuses (running, stopped, ...), not the SDKs' sandbox states (started, destroyed, ...).\n" +
+			"The platform currently leaves deleted sandboxes out of search results, so --status deleted returns none.\nExamples:\n  daytona sandbox search python\n  daytona sandbox search worker --status running --class linux --region region-a\n  daytona sandbox search --status running\n  daytona sandbox search sandbox-example",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			if strings.TrimSpace(flags.labels) != "" || cmd.Flags().Changed("label") {
@@ -152,14 +155,14 @@ func newSandboxSearchCommand() *cobra.Command {
 	addRegionFlag(cmd, "search this region and its child regions (validated against the region catalog)")
 	cmd.Flags().StringVar(&flags.namePrefix, "name-prefix", "", "filter by sandbox name prefix")
 	cmd.Flags().StringVar(&flags.idPrefix, "id-prefix", "", "filter by sandbox id prefix")
-	cmd.Flags().StringSliceVar(&flags.status, "status", nil, "filter by status (queued|pending|assigned|booting|running|pausing|paused|stopping|stopped|deleting|deleted|failed|lost; repeatable or comma-separated)")
+	cmd.Flags().StringSliceVar(&flags.status, "status", nil, "filter by API status (queued|pending|assigned|booting|running|pausing|paused|stopping|stopped|deleting|deleted|failed|lost; repeatable or comma-separated; deleted sandboxes are currently left out of results)")
 	cmd.Flags().StringSliceVar(&flags.classes, "class", nil, "filter by class (repeatable or comma-separated)")
-	cmd.Flags().StringVar(&flags.imageRef, "image-ref", "", "filter by exact image reference")
-	cmd.Flags().StringVar(&flags.imageRefPrefix, "image-ref-prefix", "", "filter by image reference prefix")
+	cmd.Flags().StringVar(&flags.imageRef, "image-ref", "", "filter by the image the sandbox was created from, as search records it (the project image name, or the snapshot name for a sandbox created from a snapshot; not the registry reference the image was pulled or built from); exact match")
+	cmd.Flags().StringVar(&flags.imageRefPrefix, "image-ref-prefix", "", "filter by a prefix of that image reference (see --image-ref)")
 	cmd.Flags().StringVar(&flags.labels, "labels", "", "filter by labels JSON object")
 	cmd.Flags().StringArrayVar(&flags.labelPairs, "label", nil, "filter by KEY=VALUE label (repeatable; commas preserved; merged with --labels, conflicting values refused)")
-	cmd.Flags().BoolVar(&flags.spot, "spot", false, "filter by spot tier")
-	cmd.Flags().BoolVar(&flags.persistent, "persistent", false, "filter by persistence")
+	cmd.Flags().BoolVar(&flags.spot, "spot", false, "filter by spot tier: --spot for spot sandboxes, --spot=false for on-demand ones")
+	cmd.Flags().BoolVar(&flags.persistent, "persistent", false, "filter by persistence: --persistent for persistent sandboxes, --persistent=false for the others")
 	cmd.Flags().StringVar(&flags.forkedFrom, "forked-from", "", "filter by source sandbox id")
 	cmd.Flags().Float64Var(&flags.minCores, "min-cores", 0, "minimum CPU limit in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)")
 	cmd.Flags().Float64Var(&flags.maxCores, "max-cores", 0, "maximum CPU limit in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU)")

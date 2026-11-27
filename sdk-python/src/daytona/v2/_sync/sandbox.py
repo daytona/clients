@@ -136,6 +136,15 @@ class Sandbox:
         """Capture this sandbox, memory and disk, as a new :class:`Snapshot`
         (``POST /sandboxes/{id}/snapshots``).
 
+        Linux sandboxes only, and only while running: a macOS sandbox raises
+        :class:`NotSupportedForClassError` (409). For a persistent macOS
+        sandbox, pausing it keeps its memory instead, and :meth:`capture_image`
+        captures its disk once it is stopped; a macOS sandbox that is not
+        persistent has neither option. The API also
+        refuses with :class:`ConflictError` (409) a sandbox that is not
+        running, one whose saved state is unavailable, one with an attached
+        volume, and a snapshot name that already exists.
+
         While the sandbox is still starting, this submission
         retries ``SANDBOX_TRANSITION_IN_PROGRESS`` for up to 30 seconds;
         other conflicts are raised immediately.
@@ -267,6 +276,8 @@ class Sandbox:
     ) -> Sandbox:
         """Fork this sandbox and return the fork's handle.
 
+        Fork requires a persistent sandbox (``persistent=True`` on create);
+        on one that is not, the API raises :class:`ConflictError` (409).
         Sandboxes with attached volumes cannot fork.
         While the source is still starting, stopping or pausing, the API may report
         ``SANDBOX_TRANSITION_IN_PROGRESS``. This submission retries that code
@@ -284,8 +295,8 @@ class Sandbox:
         no deadline) bounds the wait for the state the fork settles in: a fork of
         a running source waits for ``started``, even if a macOS fork is
         temporarily ``stopped`` while its source releases the disk. A fork of
-        a paused or stopped macOS source waits for ``stopped``. Linux forks
-        otherwise rest ``paused`` for a memory fork of a paused source, else
+        a paused or stopped macOS source waits for ``stopped``. Forks of a
+        persistent Linux source otherwise rest ``paused`` for a memory fork of a paused source, else
         ``stopped`` (call ``start()``). Like ``create()``, ``fork()`` never raises
         because of how the wait ended: the default 60-second budget may return
         a not-yet-started handle. When the budget runs out or the fork fails,
@@ -323,8 +334,7 @@ class Sandbox:
         confirm it, after up to one 30-second long-poll read. A paused macOS sandbox
         keeps its memory on its Mac. With auto-renew on, it keeps its
         reservation renewing; otherwise the sandbox is stopped, with its disk,
-        before the reservation ends. Which sandboxes can pause is the API's
-        decision.
+        before the reservation ends.
         """
         return self._bridge.call(lambda: self._impl.pause(timeout=timeout))
 
@@ -569,7 +579,13 @@ class Sandbox:
         boot mode and the reservation. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
-        for the other lifecycle waits and the create and fork waits.
+        for the other lifecycle waits and the create and fork waits. A read
+        that fails transiently (no response, a stalled read, HTTP 429 other
+        than ``LIMIT_EXCEEDED``, or a 5xx other than 501) is retried with
+        back-off within the budget, and the timeout then carries the last
+        failure as its cause; without a deadline (``timeout=0``) it is retried
+        until the server answers or the caller cancels. Any other failed read
+        is raised at once.
         """
         self._bridge.call(lambda: self._impl.wait(until=until, timeout=timeout))
         return self

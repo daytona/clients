@@ -12,8 +12,9 @@ npx @daytona/upgrade --suggest-v2
 ```
 
 Each release migrates to the SDK release of the same version (see
-[Versions](#versions)). Until SDK 2.0.0 is out, run the exact alpha you are
-migrating to, e.g. `npx @daytona/upgrade@2.0.0-alpha.N`.
+[Versions](#versions)). The commands above run the latest stable release; to
+migrate to another SDK release, run the tool release of that version, e.g.
+`npx @daytona/upgrade@X.Y.Z`.
 
 The default command moves proven client calls from `client.create()` to
 `client.v0.create()` and unconditionally routes resource imports and all 15 shared errors to `@daytona/sdk/v0`, preserving 0.x error constructors, fields and catches; constructor catches need a guaranteed `.v0` access inside the try, and wildcard re-exports require review. Conditional accesses (even in both `if/else` branches) and deferred callbacks keep the constructor FIXME; only straight-line accesses in the construction's block or an enclosing block suppress it. The tool updates

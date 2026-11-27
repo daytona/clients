@@ -47,7 +47,7 @@ func newServiceAccountCreateCmd() *cobra.Command {
 		}
 		return a.Printer().Object(resp, [][2]string{{"id", resp.V.Id.String()}, {"name", resp.V.Name}, {"roles", joinComma(resp.V.Roles)}, {"permissions", joinComma(resp.V.OrgPermissions)}})
 	}}
-	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (repeatable or comma-separated)")
+	addCSVListFlag(cmd.Flags(), &roleCSV, "role", "role slug (required, at least one; repeatable or comma-separated)")
 	return cmd
 }
 

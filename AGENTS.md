@@ -961,6 +961,14 @@ skipping exist only in the TypeScript tool).
   belong to `search()`, whose `states` take SDK states and map to the API's
   status vocabulary at the boundary. `find_by_name` / `findByName` returns
   every match and is the one documented exception to the one-page rule.
+  Every iterator walks through one helper per SDK (Python `_pages.py`, TS
+  `pages.ts`, Go `page.go`): a page read is retried after a dropped
+  connection or HTTP 429 (not `LIMIT_EXCEEDED`) / 502 / 503 / 504, at most
+  three reads, waiting at least the retry hint (body or `Retry-After`; a
+  hint above 10 s ends the walk), and the error that ends a walk carries
+  the failed page's input cursor (`page_cursor` / `pageCursor` /
+  `PageCursor`) on a copy, never on the caught error, which
+  concurrent walks can share. A new iterator uses that helper.
 - **SDK request attribution uses the Daytona header triple.** `X-Daytona-Source`
   (`sdk-typescript`, `sdk-python`, `sdk-python-async`),
   `X-Daytona-SDK-Version`, and `User-Agent: <source>/<version>` on every request.

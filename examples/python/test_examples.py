@@ -105,6 +105,13 @@ class FakeWorld:
         self.pulled_images: list[tuple[str, Optional[str]]] = []
         self.deleted_images: list[str] = []
         self.image_waits: list[tuple[object, object]] = []
+        # Statuses the waits on an image built with images.build() return.
+        self.build_waits: tuple[str, ...] = ("ready",)
+        # images.build() registers the image, then raises as if its reply was lost.
+        self.build_reply_lost = False
+        # images.delete() answers 409 this many times before it succeeds.
+        self.image_delete_conflicts = 0
+        self.built_dockerfiles: list[str] = []
         # Each sandbox's mounts, and each volume's files.
         self.mounts: list[tuple[Mount, ...]] = []
         self.volume_files: dict[str, dict[str, bytes]] = {}
@@ -151,6 +158,7 @@ class FakeWorld:
         )
         images.get.side_effect = self._image_ready
         images.pull.side_effect = self._image_pull
+        images.build.side_effect = self._image_build
         images.delete.side_effect = self._image_delete
         client.images = images
         return client
@@ -177,7 +185,10 @@ class FakeWorld:
         # budgeted wait: it follows the image until it settles, or raises
         # RequestTimeoutError when it never does.
         self.image_waits.append((wait, timeout))
-        image = next(i for i in self.images if i.id == image_id)
+        # As the API: an image is read by its id or its name.
+        image = next((i for i in self.images if image_id in (i.id, i.name)), None)
+        if image is None:
+            raise NotFoundError(f"image {image_id} not found", status_code=404, code="NOT_FOUND", source="API")
         if wait != "ready":
             return image
         while image.status not in ("ready", "failed", "error") and image.waits:
@@ -236,7 +247,18 @@ class FakeWorld:
             )
         return self.add_image(name or image, "ready")
 
+    def _image_build(self, builder: ImageBuilder, /, *, name: Optional[str] = None, **_: object) -> SimpleNamespace:
+        # As the SDK: the build is submitted and the image returned before it is ready.
+        self.built_dockerfiles.append(builder.to_dockerfile())
+        image = self.add_image(name or "anonymous", "pending", self.build_waits)
+        if self.build_reply_lost:
+            raise ConnectionError("connection reset reading the built image")
+        return image
+
     def _image_delete(self, image_id: str) -> None:
+        if self.image_delete_conflicts > 0:
+            self.image_delete_conflicts -= 1
+            raise ConflictError(f"image {image_id} is in use", status_code=409, code="CONFLICT", source="API")
         self.deleted_images.append(image_id)
         self.images = [i for i in self.images if i.id != image_id]
 
@@ -510,6 +532,76 @@ def test_example_succeeds_against_the_sdk_surface(
 ) -> None:
     code, world = run_example(name, *overrides)
     assert code == 0
+    assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_images_builds_an_image_boots_a_sandbox_and_deletes_both(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    code, world = run_example("images")
+    assert code == 0
+    assert len(world.built_dockerfiles) == 1
+    assert world.image_waits == [("ready", IMAGE_WAIT_SECONDS)]
+    assert world.deleted_images == ["img-0"]
+    assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+@pytest.mark.parametrize(
+    ("build_waits", "sandbox_state"),
+    [
+        (("failed",), "started"),  # a failed build
+        (("ready",), "creating"),  # a sandbox that does not start
+    ],
+)
+def test_images_deletes_the_image_it_built_when_a_step_fails(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+    build_waits: tuple[str, ...],
+    sandbox_state: str,
+) -> None:
+    # The TypeScript twin is the images failure loop in typescript/examples.test.ts.
+    world = FakeWorld()
+    world.build_waits = build_waits
+    world.sandbox_state = sandbox_state
+    code, _ = run_example("images", world=world)
+    assert code == 1
+    assert world.deleted_images == ["img-0"]
+    assert all(sandbox.process.run.call_count == 0 for sandbox in world.sandboxes)
+    assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
+
+
+def test_images_deletes_the_image_whose_build_never_settles(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    world = FakeWorld()
+    world.build_waits = ()
+    with pytest.raises(RuntimeError, match=r"^image example-img-\w+ did not settle within 1200 s$"):
+        run_example("images", world=world)
+    assert world.deleted_images == ["img-0"]
+    assert world.sandboxes == []
+
+
+def test_images_finds_and_deletes_an_image_whose_build_reply_was_lost(
+    run_example: Callable[..., tuple[int, FakeWorld]],
+) -> None:
+    # Given a build the API accepted but whose reply never arrived.
+    world = FakeWorld()
+    world.build_reply_lost = True
+    with pytest.raises(ConnectionError, match="connection reset reading the built image"):
+        run_example("images", world=world)
+    # Then the image is found by its unique name and deleted.
+    assert world.deleted_images == ["img-0"]
+    assert world.sandboxes == []
+
+
+def test_images_retries_the_image_delete_while_the_api_still_holds_it(
+    run_example: Callable[..., tuple[int, FakeWorld]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = FakeWorld()
+    world.image_delete_conflicts = 2
+    monkeypatch.setattr(importlib.import_module("images"), "DELETE_RETRY_SECONDS", 0)
+    code, _ = run_example("images", world=world)
+    assert code == 0
+    assert world.deleted_images == ["img-0"]
     assert sorted(world.deleted_sandboxes) == sorted(s.id for s in world.sandboxes)
 
 

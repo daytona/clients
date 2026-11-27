@@ -31,7 +31,8 @@ type CreateFromBuildOptions struct {
 //
 // BuildTimeout has its own readiness budget; it never consumes the sandbox's
 // Wait budget. A failed build returns ImageBuildFailedError, including its image
-// ID; an exhausted build budget returns ErrRequestTimeout. Neither creates a
+// ID; an exhausted build budget returns ImageBuildTimeoutError, which names
+// the still-building image and matches ErrRequestTimeout. Neither creates a
 // sandbox. Caller context cancellation applies to both stages.
 //
 // After image readiness, errors and returned handles behave exactly as Create:

@@ -121,21 +121,26 @@ describe('sandbox wait budgets', () => {
 
   it.each([
     { timeoutSeconds: 60, failedAt: 35_000 },
-    { timeoutSeconds: 0.05, failedAt: 1 },
-  ])('preserves a client timer failure before the wait deadline at $failedAt ms', async ({ timeoutSeconds, failedAt }) => {
+    { timeoutSeconds: 0.5, failedAt: 1 },
+  ])('retries a client timer failure before the wait deadline at $failedAt ms', async ({ timeoutSeconds, failedAt }) => {
     // Given either a slice timeout or an earlier client timer, not the wait deadline.
     jest.useFakeTimers({ now: 0 })
     const api = createHttpClient('http://api.invalid')
     const failure = new ClientTimeoutError('request timer expired')
-    jest.spyOn(api, 'get').mockImplementation(async () => {
-      jest.setSystemTime(failedAt)
+    const get = jest.spyOn(api, 'get').mockImplementation(async () => {
+      jest.setSystemTime(Math.max(Date.now(), failedAt))
       throw failure
     })
     const sandbox = createSandbox('sbx', api)
     // When the network read fails independently of the caller's deadline.
-    const result = sandbox.wait({ timeoutSeconds })
-    // Then the original request failure remains actionable.
-    await expect(result).rejects.toBe(failure)
+    const result = sandbox.wait({ timeoutSeconds }).catch((error: unknown) => error)
+    await jest.advanceTimersByTimeAsync(timeoutSeconds * 1000)
+    // Then the read is retried until the deadline, which keeps the failure as its cause.
+    const error = await result
+    expect(error).toBeInstanceOf(RequestTimeoutError)
+    expect(error).toMatchObject({ source: 'SDK', code: 'REQUEST_TIMEOUT' })
+    expect((error as RequestTimeoutError).cause).toBe(failure)
+    expect(get.mock.calls.length).toBeGreaterThan(1)
   })
 
   it('preserves an API HTTP 408 during a bounded wait', async () => {

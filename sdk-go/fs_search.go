@@ -90,7 +90,8 @@ func (f *FileSystem) Grep(ctx context.Context, path, pattern string, opts ...*Fi
 }
 
 // Glob finds paths whose base names match pattern. It does not search contents.
-// Pass at most one options value.
+// The walk is recursive and matches every entry, directories and path itself
+// included; pattern supports only * and ?. Pass at most one options value.
 func (f *FileSystem) Glob(ctx context.Context, path, pattern string, opts ...*FileSearchOptions) (
 	*FileSearchResult[string], error,
 ) {

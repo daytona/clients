@@ -43,7 +43,8 @@ func run(ctx context.Context) error {
 	}
 	defer client.Close()
 
-	// An empty image boots the platform default image (Python 3 included).
+	// An empty image boots the platform default image (Python 3 included),
+	// where the deployment configures one.
 	sandbox, err := client.Create(ctx, "", nil)
 	if sandbox != nil {
 		defer sandbox.Delete(context.WithoutCancel(ctx), nil)
@@ -193,6 +194,8 @@ provides `CPUArchAMD64` and `CPUArchARM64` for both sandbox and image options.
 separately (zero or `WaitForever` means no SDK deadline); the sandbox then
 receives its full `Wait`.
 Build failures return `*ImageBuildFailedError` without creating a sandbox.
+An exhausted `BuildTimeout` returns `*ImageBuildTimeoutError` (it matches
+`ErrRequestTimeout`), whose `ImageID` names the image that keeps building.
 Anonymous images expire under their idle-retention policy.
 
 To keep the image for reuse, use `Images().BuildAndWait` instead. You can also
@@ -235,6 +238,18 @@ if errors.As(err, &apiErr) {
 	fmt.Println(apiErr.Code, apiErr.StatusCode, apiErr.Message)
 }
 ```
+
+Every `ListAll` (and `SearchAll`, `ListEndpointsAll`) reads a page again after
+a transient failure: a dropped connection, or an HTTP 429 (other than
+`LIMIT_EXCEEDED`), 502, 503 or 504. A page gets at most three reads, and a
+retry waits at least as long as the server's retry hint (`RetryAfter`, from the
+error body or the `Retry-After` header); a hint above 10 seconds ends the walk
+at once, without a retry. The `*daytona.Error` the walk itself yields carries
+`PageCursor`, the cursor of the page that failed (empty for the first page):
+pass it as `Cursor` to the same call to resume with that page, after the items
+already yielded. A context cancelled between pages carries the next page's
+cursor; one cancelled while a page's items are being yielded carries none,
+since that page was partly consumed.
 
 `Fork`, `CaptureImage` and `CreateSnapshot` retry only
 `ErrSandboxTransitionInProgress` for up to 30 seconds from the first attempt.
@@ -303,6 +318,24 @@ Every duration is a `time.Duration`:
   `Stderr` set follows its output on one log stream for the whole run,
   bounded only by `Timeout` and the context. The request that starts a
   process is never retried.
+- Waits that read the server (sandbox waits, `Docker.WaitUntilReady`,
+  `Images.Get` / `Snapshots.Get` with `Wait` and a positive `Timeout`, the
+  readiness waits of `Images.Pull`, `Images.BuildAndWait` and
+  `CreateFromBuild`) retry a read that fails transiently (no response, a
+  client read timeout, HTTP 429 other than `daytona.ErrLimitExceeded`, or a
+  5xx other than 501) with backoff (200 ms doubling to 5 s, or the server's
+  `RetryAfter` when longer) within the same budget, and never sooner than the
+  wait's own poll spacing (200 ms for sandbox waits, 500 ms for Docker, 1 s
+  for image and snapshot readiness). The timeout then wraps the last failed
+  read. A wait without a deadline keeps retrying until the server answers,
+  the context ends or the client is closed. `Images.Get` / `Snapshots.Get`
+  with `Wait` but no `Timeout` make a single server-default hold and do not
+  retry. Any other failure returns at once, with one exception: while the
+  events stream is live, its early probes of a sandbox wait keep waiting
+  through any failure other than 401, 403, 404 or a closed client, and the
+  wait's timeout then wraps that failure. A failed probe is retried on the
+  probes' own schedule (after about 10 s of socket silence), not on the read
+  backoff.
 
 The caller's context always applies, including to unbounded waits.
 

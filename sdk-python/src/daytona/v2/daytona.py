@@ -77,6 +77,7 @@ from ._events import WaitHub, attach_hub, detach_hub, endpoint_from_headers
 from ._gen.api import Sandbox as SandboxDto
 from ._gen.api import SandboxListItem
 from ._otel import load_opentelemetry_support
+from ._pages import iter_pages
 from ._transport import DEFAULT_REQUEST_TIMEOUT_SECONDS, AsyncTransport
 from .errors import (
     AuthenticationError,
@@ -85,6 +86,7 @@ from .errors import (
     ConnectionError,
     DaytonaError,
     ImageBuildFailedError,
+    ImageBuildTimeoutError,
     SandboxCreateConnectionError,
     SandboxCreateRequestTimeoutError,
     create_error,
@@ -659,9 +661,11 @@ class AsyncDaytona:
         24.8 days = no deadline). A failed
         build (image status ``failed`` or ``error``) raises
         :class:`ImageBuildFailedError` and a build that outlasts
-        ``build_timeout`` raises :class:`RequestTimeoutError`; in both cases
-        no sandbox exists. Then the sandbox is created exactly as by
-        :meth:`create` with the same keywords — ``wait_seconds`` is the create's
+        ``build_timeout`` raises :class:`ImageBuildTimeoutError` (a
+        :class:`RequestTimeoutError`); both carry the image's ``image_id``, and
+        in both cases no sandbox exists (the timed-out build keeps running).
+        Then the sandbox is created exactly as by :meth:`create` with the same
+        keywords — ``wait_seconds`` is the create's
         own wait, and the create never raises because of how that wait ended.
 
         ``persistent=True`` keeps disk across stop/start and memory and processes
@@ -712,8 +716,16 @@ class AsyncDaytona:
             build_timeout = wait_budget_seconds(build_timeout, name="build_timeout") or None
         build_region = region_selector(region if region is not None else self._target)
 
-        def build_timed_out(cause: Optional[BaseException] = None) -> DaytonaError:
-            error = create_error("image build did not finish before timeout", 408, "REQUEST_TIMEOUT", "SDK")
+        def build_timed_out(image_id: str, cause: Optional[BaseException] = None) -> DaytonaError:
+            # The server keeps building: the id lets the caller follow, wait on
+            # or delete the image.
+            error = ImageBuildTimeoutError(
+                "image build did not finish before timeout",
+                status_code=408,
+                code="REQUEST_TIMEOUT",
+                source="SDK",
+                image_id=image_id,
+            )
             error.__cause__ = cause
             return error
 
@@ -728,10 +740,15 @@ class AsyncDaytona:
         while image.status not in ("ready", "failed", "error"):
             remaining = None if deadline is None else deadline - _clock.monotonic()
             if remaining is not None and remaining <= 0:
-                raise build_timed_out()
+                raise build_timed_out(image.id)
             poll_started = _clock.monotonic()
             try:
-                image = await self.images.get(image.id, wait="ready", timeout=remaining)
+                # Without a build budget, holds repeat without a deadline (a
+                # value above the timer maximum), retrying transient reads,
+                # never the single hold a ``None`` timeout makes.
+                image = await self.images.get(
+                    image.id, wait="ready", timeout=_UNBOUNDED_WAIT_S if remaining is None else remaining
+                )
             except DaytonaError as error:
                 # Only the client's own deadline is the build timeout; a server
                 # 408 keeps its source, as in TypeScript.
@@ -742,7 +759,7 @@ class AsyncDaytona:
                     deadline or 0
                 )
                 if own_timeout and deadline is not None and wait_ran_out:
-                    raise build_timed_out(error) from error
+                    raise build_timed_out(image.id, error) from error
                 raise
             if image.status not in ("ready", "failed", "error"):
                 # A server that answers the long poll early is not polled in a loop.
@@ -1278,19 +1295,18 @@ class AsyncDaytona:
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[AsyncSandbox]:
-        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size)."""
-        seen_cursors: set[str] = set()
-        page_cursor = cursor
-        if page_cursor is not None:
-            seen_cursors.add(page_cursor)
-        while True:
-            page = await self.list(cursor=page_cursor, limit=limit)
-            for item in page.items:
-                yield item
-            if not page.next_cursor or page.next_cursor == page_cursor or page.next_cursor in seen_cursors:
-                return
-            seen_cursors.add(page.next_cursor)
-            page_cursor = page.next_cursor
+        """Every sandbox, walking :meth:`list` page by page (``limit`` is the page size).
+
+        A page read that fails transiently (a dropped connection, or HTTP
+        429 other than ``LIMIT_EXCEEDED``, 502, 503 or 504) is tried again,
+        up to three reads; a server retry hint above 10 seconds ends the walk
+        without a retry. The error the walk itself raises carries
+        ``page_cursor``, the cursor of the page that failed:
+        ``iter(cursor=error.page_cursor)`` resumes with that page, after the
+        items already yielded (``None``: the walk's first page).
+        """
+        async for item in iter_pages(lambda page_cursor: self.list(cursor=page_cursor, limit=limit), cursor):
+            yield item
 
     async def start(self, sandbox: Union[AsyncSandbox, str], /, *, timeout: float = 60) -> None:
         """Start a sandbox by handle or id; see :meth:`AsyncSandbox.start`."""
@@ -1357,12 +1373,22 @@ class AsyncDaytona:
             sb._hub = self._acquire_hub()
         return sb
 
+    def _begin_close(self) -> None:
+        """End the retry pauses of this client's waits with
+        :class:`ClientClosedError` (on the client's loop; the sync client runs
+        it before it waits for in-flight calls)."""
+        for transport in (self._api, self._toolbox):
+            begin_close = getattr(transport, "begin_close", None)
+            if callable(begin_close):
+                begin_close()
+
     async def close(self) -> None:
         """Close HTTP resources; new requests on this client or its handles raise
         ``ClientClosedError``. Close the root to let later ``root.v2`` access
         build a fresh client.
         """
         self._closed = True
+        self._begin_close()
         hub, self._hub = self._hub, None
         if hub is not None:
             await detach_hub(
@@ -1663,6 +1689,8 @@ def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
 
 #: The least time between two build polls when the server answers early.
 _BUILD_POLL_INTERVAL_S: Final = 1.0
+#: A wait budget above the timer maximum: repeat holds without a deadline.
+_UNBOUNDED_WAIT_S: Final = MAX_WIRE_WAIT_SECONDS + 1
 
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within

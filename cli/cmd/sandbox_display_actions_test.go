@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
@@ -100,6 +101,19 @@ func TestSandboxAction_printsAcceptedOperation_whenNoWaitReadFails(t *testing.T)
 			require.NoError(t, err)
 			require.JSONEq(t, ack, stdout)
 			require.Contains(t, stderr, "warning:")
+		})
+	}
+}
+
+func TestSandboxLifecycleHelp_namesPersistence(t *testing.T) {
+	for _, verb := range []string{"stop", "start", "pause", "resume", "fork"} {
+		t.Run(verb, func(t *testing.T) {
+			// Given the lifecycle command.
+			cmd, _, err := NewRoot(io.Discard, io.Discard).Find([]string{"sandbox", verb})
+			require.NoError(t, err)
+
+			// Then its help says only a persistent sandbox supports it.
+			require.Contains(t, cmd.Long, "Only a persistent sandbox can stop, start again, pause, resume or fork")
 		})
 	}
 }

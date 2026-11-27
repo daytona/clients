@@ -475,7 +475,7 @@ class PortMapping:
 class VolumeMount:
     """Attach a volume to a sandbox.
 
-    ``mount_path`` is an absolute path with no ``..`` component. The API
+    ``volume_id`` is the volume's ``vol_`` id or its name. ``mount_path`` is an absolute path with no ``..`` component. The API
     normalizes it (repeated slashes, ``.`` components and a trailing slash are
     removed) and refuses ``/`` and any path on or beneath ``/bin``, ``/boot``,
     ``/dev``, ``/etc``, ``/lib``, ``/lib32``, ``/lib64``, ``/mnt/scratch``,
@@ -661,7 +661,8 @@ class Secret:
     """A project secret's metadata; the value is write-only and never returned."""
 
     name: str
-    #: The hosts the value may be sent to; ``("*",)`` means any verified host.
+    #: The hosts the value may be sent to; ``("*",)`` means any verified host
+    #: and an empty tuple none. ``secrets.set()`` requires at least one entry.
     allowed_domains: tuple[str, ...]
     created_at: datetime
     updated_at: datetime
@@ -838,7 +839,7 @@ class StorageLimits:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SandboxResourceLimits:
-    """Per-sandbox maximums for Linux sandboxes: ``cores_max`` in cores and ``memory_max_mib``."""
+    """Per-sandbox maximums for Linux sandboxes: ``max_cores`` in cores and ``max_memory_mib`` in MiB."""
 
     max_cores: float
     max_memory_mib: int

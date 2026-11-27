@@ -19,7 +19,7 @@ import { archiveBuilder, archiveDirectory, isContextDirectory } from './contextA
 import { localSourcesOf } from './ImageBuilder.js'
 import { expandHome } from './builderLocalSource.js'
 import type { BuildContext } from './contextUpload.js'
-import { HttpTransport, boundedRequestTimeout, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
+import { HttpTransport, boundedRequestTimeout, closedSignalOf, isRequestBudgetTimeout, sleep, strictUriEncode, transportFromAxiosInstance } from './http.js'
 import { acknowledgedId } from './responseFields.js'
 import type { HttpTransportConfig } from './http.js'
 import type * as api from './gen/api-types.js'
@@ -27,9 +27,11 @@ import type { BuildImageOptions, ListResult } from './types.js'
 import { ImageBuildFailedError, RequestTimeoutError } from './errors/DaytonaError.js'
 import { MAX_TIMER_DELAY_MS, assertKnownOptions, badRequest, optionalSeconds, optionKeys, snapshotOptions, waitDeadline } from './options.js'
 import { getArtifact } from './artifactOptions.js'
+import { ReadRetry } from './readRetry.js'
 import type { GetArtifactOptions } from './artifactOptions.js'
 import { INTERNAL, assertInternal } from './internal.js'
 import type { Internal } from './internal.js'
+import { iterPages } from './pages.js'
 
 export type { GetArtifactOptions } from './artifactOptions.js'
 
@@ -39,6 +41,13 @@ export interface ListImagesOptions {
   readonly name?: string
   readonly anonymous?: boolean
   readonly sandboxId?: string
+  /**
+   * `'false'` (the server default) lists the project's own images, `'true'`
+   * only the non-deprecated platform images the deployment publishes to every
+   * project (the default one, if the deployment has one, carries
+   * `default: true`), and `'any'` both. A deployment may publish no platform images, or no default:
+   * then create from an image you register with `pull()` or `build()`.
+   */
   readonly platform?: 'true' | 'false' | 'any'
 }
 
@@ -118,7 +127,13 @@ export class ImagesService {
     return this.resolvedApiTransport
   }
 
+  /**
+   * Follow an image's build by its ID or name. `'search'` cannot be followed
+   * by name (`GET /images/search` is the search route): it throws a
+   * `BadRequestError` before any request; follow such an image by its ID.
+   */
   public async followBuildLogs(imageId: string, options: BuildLogFollowOptions): Promise<BuildLogFollowResult> {
+    refuseSearchName(imageId, 'image')
     return followBuildLogs(this.getApiTransport(), `/images/${pathSegment(imageId, 'imageId')}/build-logs-url`, options)
   }
 
@@ -219,16 +234,7 @@ export class ImagesService {
 
   public async *iter(options: ListImagesOptions = {}): AsyncIterable<Image> {
     options = snapshotOptions('ListImagesOptions', options, LIST_IMAGES_OPTION_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
   /**
@@ -251,7 +257,10 @@ export class ImagesService {
     const timeoutSeconds = optionalSeconds('timeoutSeconds', options.timeoutSeconds)
     // Omitted, 0, or above the timer maximum (about 24.8 days): no deadline.
     const deadline = waitDeadline(timeoutSeconds)
-    const timeoutError = () => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+    // With `wait`, a read after the submission (the first lookup and every
+    // readiness hold) that fails transiently is retried within the budget.
+    const retry = new ReadRetry(closedSignalOf(this.http))
+    const timeoutError = (cause?: unknown) => new RequestTimeoutError('image pull did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: retry.lastError ?? cause })
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     let activeRequestUsesDeadline = false
@@ -276,7 +285,20 @@ export class ImagesService {
     try {
       const { data: response } = await this.http.post<api.CreateImageResponse>('/images', buildImageRequest(ImageBuilder.fromRegistry(ref), options), requestOptions())
       const submittedId = acknowledgedId(response, 'image create')
-      const { data: initial } = await this.http.get<api.ImageListItem>(`/images/${pathSegment(submittedId, 'image id')}`, requestOptions())
+      const path = `/images/${pathSegment(submittedId, 'image id')}`
+      // The lookup after the submission (a read, never the submission itself).
+      const firstRead = async (): Promise<api.ImageListItem> => {
+        for (;;) {
+          try {
+            return (await this.http.get<api.ImageListItem>(path, requestOptions())).data
+          } catch (error) {
+            if (options.wait === false || controller.signal.aborted || (activeRequestUsesDeadline && isRequestBudgetTimeout(error)) || !retry.note(error)) throw error
+            await retry.pause(deadline)
+          }
+        }
+      }
+      const initial = await firstRead()
+      retry.succeeded()
       checkDeadline()
       let image = new Image(INTERNAL, initial)
       if (options.wait === false) return image
@@ -295,10 +317,20 @@ export class ImagesService {
         // in whole milliseconds, and the read allows the hold plus slack.
         const hold = deadline === undefined ? undefined : Math.max(1, Math.min(Math.ceil(deadline - Date.now()), IMAGE_LONGPOLL_MAX_MS))
         const config = requestOptions(hold === undefined ? 0 : hold + IMAGE_HOLD_READ_SLACK_MS)
-        const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(image.id)}`, {
-          ...config,
-          params: { wait: 'ready', timeout_ms: hold },
-        })
+        let data: api.ImageListItem
+        try {
+          ({ data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(image.id)}`, {
+            ...config,
+            params: { wait: 'ready', timeout_ms: hold },
+          }))
+        } catch (error) {
+          // A read the pull's deadline cut is the pull running out (below).
+          if (controller.signal.aborted || (activeRequestUsesDeadline && isRequestBudgetTimeout(error)) || !retry.note(error)) throw error
+          // Never sooner than the poll spacing, whatever the back-off.
+          await retry.pause(deadline, lastPollStarted + IMAGE_POLL_MIN_INTERVAL_MS)
+          continue
+        }
+        retry.succeeded()
         checkDeadline()
         image = new Image(INTERNAL, data)
       }
@@ -314,7 +346,7 @@ export class ImagesService {
       if (controller.signal.aborted || (isRequestBudgetTimeout(error) && (
         activeRequestUsesDeadline
         || (deadline !== undefined && Date.now() >= deadline)
-      ))) throw timeoutError()
+      ))) throw timeoutError(error)
       throw error
     } finally {
       if (timer !== undefined) clearTimeout(timer)
@@ -328,12 +360,23 @@ export class ImagesService {
    * would silently relabel every sandbox created from it). A name that already
    * exists throws `ImageNameTakenError`; a reserved prefix (`img_`, `snap_`,
    * `sbx_`, `vol_`, `fn_`) throws `ImageNameReservedError`.
+   *
+   * The image is then read again by the id the promotion answered with, so
+   * the result reports the image's current state (its regions included), as
+   * `get()` does. The name is applied once the promotion succeeds; a failed
+   * read afterwards throws its error.
    */
   public async promote(imageId: string, name: string): Promise<Image> {
     const path = `/images/${pathSegment(imageId, 'imageId')}`
-    const promoted: unknown = name
-    if (typeof promoted !== 'string' || isBlank(promoted)) throw badRequest('name must be a non-empty string')
-    const { data } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
+    const promotedName: unknown = name
+    if (typeof promotedName !== 'string' || isBlank(promotedName)) throw badRequest('name must be a non-empty string')
+    const { data: patched } = await this.http.patch<api.ImageListItem>(path, { name } satisfies api.PromoteImageRequest)
+    // Checked before the read: the PATCH answer must be an image whose id can
+    // be a path id. By id: the caller's value may be a name (even 'search',
+    // which get() refuses).
+    acknowledgedId(patched, 'image')
+    const promoted = new Image(INTERNAL, patched)
+    const { data } = await this.http.get<api.ImageListItem>(`/images/${strictUriEncode(promoted.id)}`)
     return new Image(INTERNAL, data)
   }
 

@@ -279,7 +279,7 @@ async def test_a_stalled_artifact_wait_ends_at_its_budget(artifacts: _StallingAr
 
 @pytest.mark.anyio
 async def test_a_stalled_build_wait_ends_at_the_build_timeout(artifacts: _StallingArtifacts) -> None:
-    from daytona.v2 import ImageBuilder
+    from daytona.v2 import ImageBuilder, ImageBuildTimeoutError
 
     async with AsyncDaytona(_CONFIG) as root:
         started = time.monotonic()
@@ -287,4 +287,7 @@ async def test_a_stalled_build_wait_ends_at_the_build_timeout(artifacts: _Stalli
             await root.v2.create_from_build(ImageBuilder.from_registry("alpine"), build_timeout=1)
         elapsed = time.monotonic() - started
     assert raised.value.source == "SDK"
+    # A RequestTimeoutError still, naming the image the server keeps building.
+    assert isinstance(raised.value, ImageBuildTimeoutError)
+    assert raised.value.image_id == "img"
     assert 0.9 <= elapsed < 3

@@ -5,10 +5,13 @@ package daytona
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,18 +19,27 @@ func TestImagePromote_whenNameIsSearch(t *testing.T) {
 	// Given an anonymous image addressed by the name reserved only for GET.
 	wire := imageFixture("img", "ready")
 	wire["name"], wire["anonymous"], wire["retention"] = "permanent", false, "permanent"
-	fake := newFakeServer(t, map[string]http.HandlerFunc{"PATCH /images/search": jsonHandler(t, wire)})
+	current := imageFixture("img", "ready")
+	current["name"], current["anonymous"], current["retention"] = "permanent", false, "permanent"
+	current["region_ids"] = []string{"us", "eu"}
+	fake := newFakeServer(t, map[string]http.HandlerFunc{
+		"PATCH /images/search": jsonHandler(t, wire),
+		"GET /images/img":      jsonHandler(t, current),
+	})
 	client := newTestClient(t, fake.Server)
 	// When promoting.
 	image, err := client.Images().Promote(t.Context(), "search", "permanent")
-	// Then PATCH is permitted and the promoted response is mapped directly.
+	// Then PATCH is permitted and the image is read back by the answered ID.
 	require.NoError(t, err)
 	require.Equal(t, "permanent", image.Name)
 	require.False(t, image.Anonymous)
 	require.Equal(t, ImageRetentionPermanent, image.Retention)
+	require.Equal(t, []string{"us", "eu"}, image.AvailableIn)
 	requests := fake.requests()
-	require.Len(t, requests, 1)
+	require.Len(t, requests, 2)
 	require.JSONEq(t, `{"name":"permanent"}`, string(requests[0].Body))
+	require.Equal(t, http.MethodGet, requests[1].Method)
+	require.Equal(t, "/images/img", requests[1].Path)
 }
 
 func TestImagePromote_whenAPIRejectsName(t *testing.T) {
@@ -180,4 +192,29 @@ func TestCreateSnapshot_whenNameIsBlank(t *testing.T) {
 	// Then it is rejected before submission.
 	require.ErrorIs(t, err, ErrBadRequest)
 	require.Empty(t, fake.requests())
+}
+
+func TestImagePromote_whenResponseIDCannotBeAPathID(t *testing.T) {
+	for _, id := range []string{`..`, `\ud800`} {
+		t.Run(id, func(t *testing.T) {
+			// Given a promotion answer whose ID cannot be the read-back's path ID
+			// (a lone-surrogate escape decodes to U+FFFD).
+			wire, err := json.Marshal(imageFixture("img", "ready"))
+			require.NoError(t, err)
+			body := strings.Replace(string(wire), `"id":"img"`, `"id":"`+id+`"`, 1)
+			fake := newFakeServer(t, map[string]http.HandlerFunc{
+				"PATCH /images/img": func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					_, writeErr := w.Write([]byte(body))
+					assert.NoError(t, writeErr)
+				},
+			})
+			client := newTestClient(t, fake.Server)
+			// When promoting.
+			_, err = client.Images().Promote(t.Context(), "img", "permanent")
+			// Then the answer is refused before any read-back.
+			require.ErrorIs(t, err, ErrBadRequest)
+			require.Len(t, fake.requests(), 1)
+		})
+	}
 }

@@ -34,7 +34,7 @@ func newSandboxCPSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cp <src> <dst>",
 		Short: "Copy files to or from a sandbox",
-		Long:  "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). A file copied onto an existing sandbox directory lands inside it, as with POSIX cp; a local directory needs -r. With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself.",
+		Long:  "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). A file copied onto an existing sandbox directory lands inside it, as with POSIX cp; a local directory needs -r. With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself. A file upload creates the missing parent directories of its remote destination, where the sandbox user may create them.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())

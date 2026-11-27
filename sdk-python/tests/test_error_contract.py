@@ -97,6 +97,24 @@ def test_image_build_failed_error_keeps_build_error_separate_from_message() -> N
     assert from_wire.build_error is None
 
 
+def test_image_build_timeout_error_is_a_request_timeout_with_its_image() -> None:
+    error = v2.ImageBuildTimeoutError(
+        "image build did not finish before timeout",
+        status_code=408,
+        code="REQUEST_TIMEOUT",
+        source="SDK",
+        image_id="img_1",
+    )
+    assert isinstance(error, v2.RequestTimeoutError)
+    assert (error.image_id, error.status_code, error.code, error.source) == (
+        "img_1",
+        408,
+        "REQUEST_TIMEOUT",
+        "SDK",
+    )
+    assert v2.ImageBuildTimeoutError("x").image_id is None
+
+
 def test_unknown_codes_are_kept_verbatim_with_the_status_category() -> None:
     error = parse_error_payload(404, {"code": "SOMETHING_NEW", "source": "DAYTONA_SOMETHING", "message": "x"})
     assert type(error) is v2.NotFoundError

@@ -115,6 +115,7 @@ import {
   errorOptionsFromEnvelope,
   InternalServerError,
   ImageBuildFailedError,
+  ImageBuildTimeoutError,
   ImageClassMismatchError,
   ImageNameReservedError,
   ImageNameTakenError,
@@ -3005,8 +3006,8 @@ describe('V2 model', () => {
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
     const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    // The final read in the wait's reserve fails: the wait's own timeout stands.
-    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
+    // The final read in the wait's reserve fails for good: the wait's own timeout stands.
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new BadRequestError('refused', { statusCode: 400, code: 'BAD_REQUEST', source: 'DAYTONA_API' }))
 
     try {
       await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toMatchObject({ constructor: RequestTimeoutError, source: 'SDK' })
@@ -3712,6 +3713,9 @@ describe('creation shape', () => {
     await settled
     await expect(failure).rejects.toBeInstanceOf(RequestTimeoutError)
     await expect(failure).rejects.toMatchObject({ statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', message: 'image build did not finish before timeout' })
+    // It names the image the server keeps building.
+    await expect(failure).rejects.toBeInstanceOf(ImageBuildTimeoutError)
+    await expect(failure).rejects.toMatchObject({ imageId: 'img_wait' })
 
     expect(post.mock.calls.filter(([path]) => path === '/sandboxes')).toHaveLength(0)
   })
@@ -3898,7 +3902,8 @@ describe('creation shape', () => {
       .mockResolvedValueOnce({ data: imageResponse({ anonymous: true, name: null, status: 'pending' }) })
       .mockResolvedValueOnce({ data: { images: [imageResponse()], next_cursor: 'next' } })
       .mockResolvedValueOnce({ data: imageResponse({ id: 'img_999', name: 'keep-this' }) })
-    const patch = jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ name: 'keep-this' }) })
+      .mockResolvedValueOnce({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: ['us', 'eu'] }) })
+    const patch = jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: [] }) })
     const del = jest.spyOn(clientInstance(client), 'delete').mockResolvedValue({ data: undefined })
 
     const built = await client.images.build(ImageBuilder.fromRegistry('python:3.12').pipInstall('numpy'))
@@ -3913,10 +3918,32 @@ describe('creation shape', () => {
     expect(get.mock.calls[1]).toEqual(['/images/search', { params: { cursor: undefined, limit: undefined, name: undefined, anonymous: true, sandbox_id: 'sbx' } }])
     expect(get.mock.calls[2]).toEqual(['/images/img_999', { params: { wait: 'ready', timeout_ms: 15000 }, timeout: 15000 }])
     expect(patch).toHaveBeenCalledWith('/images/img_123', { name: 'keep-this' })
+    // The promotion is read back: the result reports the regions the PATCH answer lacks.
+    expect(get.mock.calls[3]).toEqual(['/images/img_123'])
     expect(del).toHaveBeenCalledWith('/images/img_123')
     expect(listed.items[0]).toBeInstanceOf(ImageHandle)
     expect(got).toBeInstanceOf(ImageHandle)
     expect(promoted.name).toBe('keep-this')
+    expect(promoted.availableIn).toEqual(['us', 'eu'])
+  })
+
+  it('reads a promoted image back by the id the promotion answered with', async () => {
+    const client = newClient()
+    const patch = jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: [] }) })
+    const get = jest.spyOn(clientInstance(client), 'get').mockResolvedValue({ data: imageResponse({ id: 'img_123', name: 'keep-this', region_ids: ['us'] }) })
+    // 'search' is a name get() refuses; the read-back uses the id.
+    const promoted = await client.images.promote('search', 'keep-this')
+    expect(patch).toHaveBeenCalledWith('/images/search', { name: 'keep-this' })
+    expect(get.mock.calls).toEqual([['/images/img_123']])
+    expect(promoted.availableIn).toEqual(['us'])
+  })
+
+  it.each(['..', '\ud800'])('refuses a promotion answer whose id %j cannot be a path id, before any read-back', async (id) => {
+    const client = newClient()
+    jest.spyOn(clientInstance(client), 'patch').mockResolvedValue({ data: imageResponse({ id, name: 'keep-this' }) })
+    const get = jest.spyOn(clientInstance(client), 'get')
+    await expect(client.images.promote('img_123', 'keep-this')).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST', source: 'SDK', message: expect.stringContaining('image response id') })
+    expect(get).not.toHaveBeenCalled()
   })
 
   it('derives the build-log transport from the internal service factory', async () => {
@@ -5574,6 +5601,29 @@ describe('toolbox service request shaping', () => {
 
     await interpreter.deleteContext('ctx-2')
     expect(interpreter['contextQueues'].size).toBe(0)
+  })
+
+  it('await using deletes the interpreter context on scope exit, as close() does', async () => {
+    const transport = transportStub()
+    const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
+    transport.post.mockResolvedValueOnce(sessionWire('ctx'))
+    {
+      await using context = await interpreter.createContext({ contextId: 'ctx', language: 'python' })
+      expect(context.contextId).toBe('ctx')
+      expect(transport.delete).not.toHaveBeenCalled()
+    }
+    expect(transport.delete.mock.calls).toEqual([['/sessions/ctx']])
+    expect(interpreter['contextQueues'].size).toBe(0)
+  })
+
+  it('surfaces a context delete failure from scope exit, as close() does', async () => {
+    const transport = transportStub()
+    const context = new InterpreterService(INTERNAL, transport.object, 'sbx').connectContext('ctx', 'python')
+    const close = jest.spyOn(context, 'close')
+    const gone = new SessionNotFoundError('gone', { statusCode: 404, code: 'SESSION_NOT_FOUND', source: 'DAYTONA_DAEMON' })
+    transport.delete.mockRejectedValueOnce(gone)
+    await expect(context[Symbol.asyncDispose]()).rejects.toBe(gone)
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   it('keeps interpreter queues after a failed close so reconnects stay serialized on the original queue', async () => {
@@ -12607,11 +12657,21 @@ describe('sandbox.docker', () => {
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
   })
 
-  it('waitUntilReady() rethrows a transport timeout that happens before the deadline', async () => {
+  it('waitUntilReady() retries a transport timeout that happens before the deadline', async () => {
     const transport = transportStub()
     const stalled = new publicSdk.ClientTimeoutError()
-    transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
-    await expect(new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
+    transport.get
+      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
+      .mockResolvedValueOnce({ state: 'ready', owner: 'daemon' })
+    jest.useFakeTimers({ now: 0 })
+    try {
+      const ready = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })
+      await jest.advanceTimersByTimeAsync(1_000)
+      await expect(ready).resolves.toMatchObject({ state: 'ready' })
+      expect(transport.get).toHaveBeenCalledTimes(2)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('waitUntilReady() against a stalling server ends near the deadline with DockerWaitTimeoutError', async () => {

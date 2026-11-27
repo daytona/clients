@@ -9,7 +9,9 @@ import (
 )
 
 // Create creates a Linux sandbox from an image of this project, by name or
-// img_ ID. Empty image boots the platform default image (Python 3 included).
+// img_ ID. Empty image boots the platform default image (Python 3 included),
+// where the deployment configures one; otherwise the create fails with
+// DEFAULT_IMAGE_NOT_CONFIGURED, so register an image first.
 // A registry reference such as "python:3.12" is not a create source: import it
 // once with client.Images().Pull and create from the returned image's name or
 // ID (an unknown image returns ErrImageNotFound). Whitespace-only images return

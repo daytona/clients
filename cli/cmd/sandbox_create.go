@@ -75,7 +75,7 @@ type createSurface struct {
 func newSandboxCreateCommand() *cobra.Command {
 	return newCreateSurfaceCommand(createSurface{
 		use: "create", short: "Create a sandbox from an image",
-		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image.\nUse --persistent for stop/start, pause/resume and fork: disk survives stop/start; memory and processes survive pause/resume. Attached volumes prevent pause and fork, not persistent creation. Unless a per-create policy or project lifecycle default overrides it, the platform lifecycle pauses a persistent sandbox after 300s instead of deleting it.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --persistent\n  daytona sandbox create --image py312 --name example-user --server-wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
+		long: "Create a Linux sandbox from an image (POST /sandboxes). The SDK twin is create([image], …).\nWithout --image the sandbox boots the platform default image, where the deployment has one: otherwise the create fails with DEFAULT_IMAGE_NOT_CONFIGURED, so register an image first (daytona image create NAME --ref REGISTRY_REF) and pass --image.\nUse --persistent for stop/start, pause/resume and fork: disk survives stop/start; memory and processes survive pause/resume. Attached volumes prevent pause and fork, not persistent creation. Unless a per-create policy or project lifecycle default overrides it, the platform lifecycle pauses a persistent sandbox after 300s instead of deleting it.\nExamples:\n  daytona sandbox create\n  daytona sandbox create --persistent\n  daytona sandbox create --image py312 --name example-user --server-wait 60s --create-ttl 1h\n  daytona sandbox create --image py312 --lifecycle-timeout 2h --on-lifecycle-timeout delete",
 		path: "/sandboxes", imageOptional: true, resources: true, burst: true, cpuConstraints: true, user: true, volumes: true, secrets: true, spot: true, networkPolicy: true,
 		decode: decodeAndCreate[gen.CreateSandboxRequest],
 		keys:   input.CheckKeysFor[gen.CreateSandboxRequest],
@@ -156,7 +156,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 		},
 	}
 	if sf.imageOptional {
-		cmd.Flags().StringVar(&flags.image, "image", "", "image name or img_… id (default: the platform default image)")
+		cmd.Flags().StringVar(&flags.image, "image", "", "image name or img_… id (default: the platform default image, where the deployment has one)")
 	} else if !sf.snapshot {
 		cmd.Flags().StringVar(&flags.image, "image", "", "image name or img_… id (required)")
 	}
@@ -206,7 +206,7 @@ func newCreateSurfaceCommand(sf createSurface) *cobra.Command {
 	if sf.volumes && sf.macos {
 		f.StringArrayVar(&flags.volumes, "volume", nil, "disk volume mount VOLUME:MOUNT_PATH[:SUBPATH] (repeatable; read-write, a macOS sandbox cannot mount a volume read-only)")
 	} else if sf.volumes {
-		f.StringArrayVar(&flags.volumes, "volume", nil, "volume mount VOLUME:MOUNT_PATH[:SUBPATH][:ro] (repeatable; a trailing :ro mounts read-only)")
+		f.StringArrayVar(&flags.volumes, "volume", nil, "volume mount VOLUME:MOUNT_PATH[:SUBPATH][:ro] (repeatable; a trailing :ro asks for a read-only mount, which only bucket volumes support). A third segment ro is always read as the read-only flag, never a subpath; a subpath named ro needs VOLUME:MOUNT_PATH:ro:ro, or --file for read-write. There is no :rw")
 	}
 	if sf.secrets {
 		f.StringArrayVar(&flags.secrets, "secret", nil, "secret name to attach (repeatable)")

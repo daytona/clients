@@ -29,6 +29,7 @@ import type { SearchOrder, SearchResult, SearchTimestamp } from './types.js'
 import { assertKnownOptions, assertOptionsObject, badRequest, optionKeys, snapshotOptions } from './options.js'
 import { arrayOf, checkResponse } from './responseFields.js'
 import type { ResponseFields } from './responseFields.js'
+import { iterPages } from './pages.js'
 import { omitNullSearchOptions, resourceSearchParams, resourceSearchResult } from './resourceSearch.js'
 import type { CommonResourceSearchOptions } from './resourceSearch.js'
 import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFirst.js'
@@ -36,6 +37,7 @@ import { SearchProbe, refuseResourceSearchName, searchOrList } from './searchFir
 /** Secret metadata (never the value). */
 export interface Secret {
   readonly name: string
+  /** The hosts the value may be sent to; `['*']` means any verified host and an empty list none. `secrets.set()` requires at least one entry. */
   readonly allowedDomains: readonly string[]
   readonly description?: string
   readonly createdAt: string
@@ -45,8 +47,10 @@ export interface Secret {
 /** Options for creating/updating a secret. */
 export interface SetSecretOptions {
   /** The hosts where this secret's value may be sent (exact or `*.` wildcard),
-   *  or `["*"]` for any verified host. `"*"` lets the value reach any HTTPS
-   *  host, including one a compromised sandbox controls. */
+   *  or `["*"]` for any verified host; it must not be empty (a {@link Secret}
+   *  read back with no allowed domains is sent nowhere, but `set()` cannot
+   *  create one). `"*"` lets the value reach any HTTPS host, including one a
+   *  compromised sandbox controls. */
   readonly allowedDomains: readonly string[]
   /**
    * Omitted (or `null`) keeps the stored description of an existing secret,
@@ -128,16 +132,7 @@ export class SecretsService {
 
   public async *iter(options: ListSecretsOptions = {}): AsyncIterable<Secret> {
     options = snapshotOptions('ListSecretsOptions', options, LIST_SECRETS_KEYS) ?? {}
-    let cursor = options.cursor
-    const seen = new Set<string>()
-    if (cursor !== undefined) seen.add(cursor)
-    for (;;) {
-      const page = await this.list({ ...options, cursor })
-      yield* page.items
-      if (!page.nextCursor || page.nextCursor === cursor || seen.has(page.nextCursor)) return
-      seen.add(page.nextCursor)
-      cursor = page.nextCursor
-    }
+    yield* iterPages((cursor) => this.list({ ...options, cursor }), options.cursor)
   }
 
   /** Gets one secret's metadata (never its value). */

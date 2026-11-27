@@ -133,7 +133,16 @@ export class ProcessHandle {
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, body)
   }
 
-  /** Close the stdin of an exec or pty process (EOF). */
+  /**
+   * Close the stdin of an exec process (EOF). On a code or session handle it
+   * throws `UnsupportedOperationError` before any request. A pty has no
+   * end-of-input signal of its own: on a pty handle the sandbox answers `BadRequestError` (400,
+   * "send ^D (0x04) as data instead"). Write `'\x04'`
+   * (Ctrl-D) with {@link writeStdin} instead: in the terminal's default
+   * (canonical) mode, at the start of a line, the program reads it as end of
+   * input; a program that puts the terminal in raw mode receives the byte as
+   * data.
+   */
   public async closeStdin(): Promise<void> {
     if (this.kind === 'code' || this.kind === 'session') throw invalidStdinVerbError('closeStdin', this.kind)
     await this.transport.post<void>(`/processes/${pathSegment(this.id, 'process id')}/stdin`, { data: '', eof: true })

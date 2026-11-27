@@ -16,6 +16,7 @@ import { credentialSafeDiagnostics } from '../diagnostics.js'
 import { createHttpClient, inBrowser, sandboxState } from './http.js'
 import {
   BadRequestError,
+  ClientClosedError,
   DaytonaError,
   AuthenticationError,
   ForbiddenError,
@@ -27,6 +28,8 @@ import {
 import type { SandboxEventsConfig, SandboxState } from './types.js'
 import { MAX_TIMER_DELAY_MS, optionalSeconds } from './options.js'
 import { WAIT_FOR_STATE_MIN_INTERVAL_MS } from './waitConstants.js'
+import { isRetryableReadError } from './readRetry.js'
+import type { ReadRetry } from './readRetry.js'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -560,18 +563,26 @@ function waiterStillPending(waiters: Map<string, Waiter[]>, waiter: Waiter): boo
 export async function runPollLoop(
   sandboxId: string,
   predicate: Predicate,
-  options: { readonly deadline: number | undefined; readonly fn: () => Promise<WaitOutcome> },
+  options: { readonly deadline: number | undefined; readonly fn: () => Promise<WaitOutcome>; readonly retry?: ReadRetry },
 ): Promise<WaitOutcome> {
-  const { deadline, fn } = options
+  const { deadline, fn, retry } = options
   for (;;) {
     const remaining = deadline === undefined ? undefined : deadline - Date.now()
     if (remaining !== undefined && remaining <= 0) {
       throw new RequestTimeoutError(
         `sandbox ${sandboxId} did not reach the requested state before timeout`,
-        { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' },
+        { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', cause: retry?.lastError },
       )
     }
-    const outcome = await fn()
+    let outcome: WaitOutcome
+    try {
+      outcome = await fn()
+    } catch (error) {
+      // `fn` records its failure in `retry` and waits out the back-off before
+      // its next read.
+      if (retry === undefined || !isRetryableReadError(error)) throw error
+      continue
+    }
     const result = evaluate(predicate, outcome.state)
     if (result === 'resolve') return outcome
     if (result === 'reject') throw new SandboxTerminalStateError(sandboxId, outcome.state, { rawState: outcome.rawState })
@@ -933,14 +944,16 @@ export class WaitHub {
       readonly regionHint?: string
       readonly sandboxPollFn?: () => Promise<WaitOutcome>
       readonly onObserved?: (outcome: WaitOutcome) => void
+      /** Retries `sandboxPollFn`'s transient failures in fallback mode (readRetry.ts). */
+      readonly readRetry?: ReadRetry
     } = {},
   ): Promise<WaitOutcome> {
-    const { timeout, regionHint, sandboxPollFn, onObserved } = options
+    const { timeout, regionHint, sandboxPollFn, onObserved, readRetry } = options
     const deadline = timeout === undefined || timeout === 0 ? undefined : Date.now() + timeout
 
     const useFallback = async (): Promise<WaitOutcome> => {
       if (sandboxPollFn !== undefined) {
-        return runPollLoop(sandboxId, predicate, { deadline, fn: sandboxPollFn })
+        return runPollLoop(sandboxId, predicate, { deadline, fn: sandboxPollFn, retry: readRetry })
       }
       if (deadline === undefined) return this.fallbackWait(sandboxId, predicate, undefined)
       const remaining = deadline - Date.now()
@@ -1146,7 +1159,8 @@ export class WaitHub {
       outcome = await sandboxPollFn()
     } catch (err) {
       if (!waiterStillPending(this.waiters, waiter)) return
-      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof ForbiddenError) {
+      // A closed client ends its waits, as a refused credential does.
+      if (err instanceof NotFoundError || err instanceof AuthenticationError || err instanceof ForbiddenError || err instanceof ClientClosedError) {
         this.clearWaiterTimers(waiter)
         this.removeWaiter(waiter)
         this.maybeUnsubscribeForId(waiter.sandboxId)

@@ -109,12 +109,7 @@ func TestWaitRetry_whenReadTimeoutPrecedesWait_appliesPhasePolicy(t *testing.T) 
 			// When
 			err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: WaitForever})
 
-			// Then: an early probe retries; fallback treats this 408 as permanent too.
-			if !live {
-				require.ErrorIs(t, err, ErrClientTimeout)
-				require.Len(t, reads, 1)
-				return
-			}
+			// Then: both an early probe and fallback polling retry a client read timeout.
 			require.NoError(t, err)
 			require.Len(t, reads, 2)
 			require.GreaterOrEqual(t, reads[1].Sub(reads[0]), waitSlice+waitReadSlack+waitMinInterval)

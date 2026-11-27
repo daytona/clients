@@ -30,8 +30,10 @@ func TestImagePull_whenOrdinaryRequestTimesOutFirst(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				client := imageClockClient(t, fake, time.Second)
 				start := time.Now()
-				// When the submission or initial lookup stalls.
-				_, err := client.Images().Pull(t.Context(), "alpine", &PullImageOptions{Timeout: 10 * time.Second})
+				// When the submission or initial lookup stalls (a pull that waits
+				// retries its lookup, so this one does not wait).
+				noWait := false
+				_, err := client.Images().Pull(t.Context(), "alpine", &PullImageOptions{Timeout: 10 * time.Second, Wait: &noWait})
 				// Then the root timer retains its category rather than becoming a pull timeout.
 				require.ErrorIs(t, err, ErrClientTimeout)
 				require.ErrorIs(t, err, context.DeadlineExceeded)
