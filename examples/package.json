@@ -9,7 +9,7 @@
     "file-operations": "tsx typescript/file-operations/index.ts",
     "git": "tsx typescript/git/index.ts",
     "lifecycle": "tsx typescript/lifecycle/index.ts",
-    "snapshots": "tsx typescript/snapshots/index.ts",
+    "images": "tsx typescript/images/index.ts",
     "local-files": "tsx typescript/local-files/index.ts",
     "pagination": "tsx typescript/pagination/index.ts",
     "secrets-env": "tsx typescript/secrets-env/index.ts",

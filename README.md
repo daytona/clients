@@ -70,8 +70,10 @@ options structs, `time.Duration`, `errors.Is`); see
   the scheme, host, query or fragment is rejected, and the id is percent-encoded into it identically in
   both SDKs. Direct toolbox URLs are not supported here: pre-signed URLs
   require the sandbox's toolbox proxy URL.
-- **Interpreter = code executions** (`kind:"code"`): Python and TS/JS with setup progress on the `setup`
-  channel. Timeouts are CLIENT-side (on expiry
+- **Interpreter = code executions** (`kind:"code"`): Python and TS/JS. Kernel setup
+  progress appears only on the `setup` channel of the raw process log
+  (`logs()` / `stream_logs()` on the code process), never in an
+  `InterpreterResult`, which has no setup field. Timeouts are CLIENT-side (on expiry
   the SDK interrupts the kernel like ^C). Rich `results[]` / `logs` / `error`
   decomposition comes from `runCode()` / `interpreter.run()`, not from
   rehydrating a serialized code-process handle elsewhere. If an explicit named

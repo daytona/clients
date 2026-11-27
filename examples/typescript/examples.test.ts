@@ -42,6 +42,7 @@ function runExample(entry: string, scenario: Scenario = {}): { code: number | nu
           EXAMPLE_FAKE_SCENARIO: JSON.stringify(scenario),
           EXAMPLE_FAKE_RECORD: recordPath,
           EXAMPLE_SYNC_WAIT_SECONDS: '0',
+          EXAMPLE_RETRY_DELAY_SECONDS: '0',
         },
         timeout: 60_000,
       },
@@ -318,6 +319,51 @@ test('secrets-env leaves a secret it did not create', () => {
   const { code, record, output } = runExample(example('secrets-env'), { secretSetThrows: 'already exists' })
   assert.equal(code, 1, output)
   assert.deepEqual(record.deletedSecrets, [])
+})
+
+test('images builds an image, boots a sandbox from it and deletes both', () => {
+  const { code, record, output } = runExample(example('images'))
+  assert.equal(code, 0, output)
+  assert.equal(record.builtDockerfiles.length, 1)
+  assert.deepEqual(record.imageWaits, [{ wait: 'ready', timeoutSeconds: IMAGE_WAIT_SECONDS }])
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assertCleanedUp(record)
+})
+
+for (const [label, scenario, message] of [
+  ['a failed build', { buildWaits: ['failed'] }, /image example-img-\w+ ended failed/],
+  ['a build that never settles', { buildWaits: [] }, /image example-img-\w+ did not settle within 1200 s/],
+  ['a sandbox that does not start', { sandboxStates: ['creating'] }, /sandbox sbx-0 did not start \(state=creating\)/],
+] as const) {
+  test(`images deletes the image it built after ${label}`, () => {
+    // Given a build, wait or create that does not succeed.
+    const { code, record, output } = runExample(example('images'), scenario)
+    // Then the run fails for that reason, and the image it built and any sandbox are deleted.
+    assert.equal(code, 1, output)
+    assert.match(output, message)
+    assert.deepEqual(record.deletedImages, ['img-0'])
+    assert.deepEqual(record.commands, [])
+    assertCleanedUp(record)
+  })
+}
+
+test('images finds and deletes an image whose build reply was lost', () => {
+  // Given a build the API accepted but whose reply never arrived.
+  const { code, record, output } = runExample(example('images'), { buildReplyLost: true })
+  // Then the run fails, and the image is found by its unique name and deleted.
+  assert.equal(code, 1, output)
+  assert.match(output, /connection reset reading the built image/)
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assert.deepEqual(record.sandboxes, [])
+})
+
+test('images retries the image delete while the API still holds the image', () => {
+  // Given an image delete refused twice with 409 after the sandbox delete.
+  const { code, record, output } = runExample(example('images'), { imageDeleteConflicts: 2 })
+  // Then the run still succeeds and the image is deleted.
+  assert.equal(code, 0, output)
+  assert.deepEqual(record.deletedImages, ['img-0'])
+  assertCleanedUp(record)
 })
 
 test('volumes_share round-trips through the volume', () => {

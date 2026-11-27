@@ -23,8 +23,9 @@ type ForkOptions struct {
 	Wait time.Duration
 }
 
-// Fork copies this sandbox and returns the fork's last observed handle. A running
-// source waits for Started; a paused Linux memory fork waits for Paused; all
+// Fork copies this sandbox and returns the fork's last observed handle. Fork
+// requires a persistent sandbox (CreateOptions.Persistent); others return
+// ErrConflict. A running source waits for Started; a paused Linux memory fork waits for Paused; all
 // other forks wait for Stopped. Waiting forks refresh the source before POST.
 // NoWait skips every GET, including the source refresh. Accepted forks return
 // their handle with a nil error when the wait times out, fails a read, or ends
