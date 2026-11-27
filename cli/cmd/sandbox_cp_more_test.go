@@ -92,7 +92,7 @@ func TestToolboxCP_recursiveUploadIntoTrailingSlashDestinationUsesSourceBasename
 	oldTempPath := newSandboxArchiveTempPath
 	newSandboxArchiveTempPath = func() (string, error) { return "/tmp/.daytona-cp-test.tar", nil }
 	defer func() { newSandboxArchiveTempPath = oldTempPath }()
-	_, _, err := runToolboxCLI(t, []string{"sandbox", "cp", "-r", localDir, "sbx:/remote/"}, []toolboxExpectedRequest{
+	stdout, _, err := runToolboxCLI(t, []string{"sandbox", "cp", "-r", localDir, "sbx:/remote/"}, []toolboxExpectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
 		{method: http.MethodPost, path: "/sandboxes/sbx/files/sign", status: 200, auth: true, response: signedFileURLFixture(t, "POST", "/tmp/.daytona-cp-test.tar"), check: expectSignFileRequest("POST", "/tmp/.daytona-cp-test.tar")},
 		{method: http.MethodPost, path: "/test-tools/sbx/files/upload", status: 200, auth: false, response: ``},
@@ -103,6 +103,8 @@ func TestToolboxCP_recursiveUploadIntoTrailingSlashDestinationUsesSourceBasename
 		}},
 	})
 	require.NoError(t, err)
+	// The acknowledgement names the directory the tree landed in.
+	require.Equal(t, map[string]any{"source": localDir, "destination": "sbx:/remote/src", "recursive": true}, requireJSONStdout(t, stdout))
 }
 
 func TestToolboxCP_recursiveUploadRemoteExtractFailureStillRemovesArchive(t *testing.T) {
@@ -152,7 +154,7 @@ func TestToolboxCP_recursiveDownloadDrainsArchivePaddingAndDecodesBase64URL(t *t
 	require.True(t, strings.ContainsAny(frame, "-_"))
 
 	dest := t.TempDir()
-	_, _, err := runToolboxCLI(t, []string{"sandbox", "cp", "-r", "sbx:/remote", dest}, []toolboxExpectedRequest{
+	stdout, _, err := runToolboxCLI(t, []string{"sandbox", "cp", "-r", "sbx:/remote", dest}, []toolboxExpectedRequest{
 		{method: http.MethodGet, path: "/sandboxes/sbx", status: 200, auth: true, response: toolboxSandboxDetailFixture("sbx", "linux", "running")},
 		{method: http.MethodPost, path: "/test-tools/sbx/processes", status: 201, auth: true, query: map[string][]string{"logs": {"base64"}, "waitMs": {"1000"}}, response: `{"id":"proc","state":"terminal","kind":"exec","stdin":"closed","cwd":"/","keepLogs":"on_exit_ttl","truncatedHead":false,"createdAt":"2026-09-13T00:00:00Z","reason":"exited","exitCode":0,"logs":{"frames":[{"cursor":"c1","channel":"stdout","timestamp":1,"data":"` + frame + `"}],"nextCursor":"c1","truncatedHead":false,"eof":true}}`},
 	})
@@ -160,6 +162,9 @@ func TestToolboxCP_recursiveDownloadDrainsArchivePaddingAndDecodesBase64URL(t *t
 	got, err := os.ReadFile(filepath.Join(dest, "remote", "blob.bin"))
 	require.NoError(t, err)
 	require.Equal(t, payload, got)
+	// dest existed, so the tree landed in dest/remote, and the
+	// acknowledgement says so.
+	require.Equal(t, map[string]any{"source": "sbx:/remote", "destination": filepath.Join(dest, "remote"), "recursive": true}, requireJSONStdout(t, stdout))
 }
 
 func TestToolboxCP_recursiveDownloadWithoutDirectoryDestinationUsesExactPath(t *testing.T) {

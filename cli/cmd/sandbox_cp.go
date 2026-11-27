@@ -38,7 +38,7 @@ func newSandboxCPSubcommand() *cobra.Command {
 		Short: "Copy files to or from a sandbox",
 		Long: "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). A file copied onto an existing sandbox directory lands inside it, as with POSIX cp; a local directory needs -r. With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself. A file upload creates the missing parent directories of its remote destination, where the sandbox user may create them.\n" +
 			"A local endpoint of - is stdin (upload) or stdout (download), for one file; a local file named - is ./-. An upload from stdin needs a remote file path, not a directory.\n" +
-			"With -o json or yaml a finished copy prints {source, destination, bytes} ({source, destination, recursive} for -r), except a download to stdout, which prints only the file.\n" +
+			"In non-interactive output (stdout not a terminal, or -o json|yaml) a finished copy prints {source, destination, bytes}, or {source, destination, recursive} for -r, where destination is the path the file or directory landed at; a download to stdout prints only the file.\n" +
 			"Examples:\n  daytona sandbox cp ./app.py <sandbox-id>:/home/daytona/app.py\n  daytona sandbox cp <sandbox-id>:/var/log/app.log - | tail\n  tar -cf - src | daytona sandbox cp - <sandbox-id>:/tmp/src.tar",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,10 +69,16 @@ func newSandboxCPSubcommand() *cobra.Command {
 					return err
 				}
 				if recursive {
+					// Resolved before the copy creates it: the directory the
+					// tree lands in, as recursiveDownload resolves it.
+					landed, err := recursiveDownloadPath(src.Path, args[1])
+					if err != nil {
+						return err
+					}
 					if err := recursiveDownload(cmd, toolClient, src.Path, args[1]); err != nil {
 						return err
 					}
-					return printCopyAck(a, args[0], args[1], -1)
+					return printCopyAck(a, args[0], landed, -1)
 				}
 				signedURL, err := toolboxclient.SignFileURL(cmd.Context(), signer, string(target.Detail.Class), target.Detail.Id, http.MethodGet, src.Path, presignedTransferTTL)
 				if err != nil {
@@ -97,7 +103,8 @@ func newSandboxCPSubcommand() *cobra.Command {
 				if err := recursiveUpload(cmd, toolClient, signer, target, args[0], dst.Path); err != nil {
 					return err
 				}
-				return printCopyAck(a, args[0], args[1], -1)
+				// The directory the tree was extracted into.
+				return printCopyAck(a, args[0], dst.SandboxID+":"+destinationUploadPath(args[0], dst.Path), -1)
 			}
 			remotePath := dst.Path
 			if args[0] != "-" {
@@ -138,7 +145,7 @@ func newSandboxCPSubcommand() *cobra.Command {
 // cpStdin is the stdin `sandbox cp - …` uploads; tests replace it.
 var cpStdin io.Reader = os.Stdin
 
-// printCopyAck prints what a finished copy did, with -o json or yaml only (a
+// printCopyAck prints what a finished copy did in JSON or YAML output (a
 // table-mode copy stays silent, as cp is). bytes < 0 marks a recursive copy,
 // whose archive size is not the files' size.
 func printCopyAck(a *app.App, source, destination string, bytes int64) error {

@@ -46,6 +46,7 @@ func TestToolboxCP_uploadFromStdin(t *testing.T) {
 		{method: http.MethodGet, path: "/test-tools/sbx/files/info", status: 404, auth: true, response: `{"code":"FILE_NOT_FOUND","message":"no such file"}`},
 		{method: http.MethodPost, path: "/sandboxes/sbx/files/sign", status: 200, auth: true, response: signedFileURLFixture(t, "POST", "/tmp/in.txt"), check: expectSignFileRequest("POST", "/tmp/in.txt")},
 		{method: http.MethodPost, path: "/test-tools/sbx/files/upload", status: 200, auth: false, check: func(t *testing.T, r *http.Request, body []byte) {
+			expectSignedTransferQuery("/tmp/in.txt")(t, r, body)
 			_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 			assert.NoError(t, err)
 			part, err := multipart.NewReader(bytes.NewReader(body), params["boundary"]).NextPart()
