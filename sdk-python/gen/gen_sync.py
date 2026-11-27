@@ -494,7 +494,7 @@ def _emit_class(module: str, cls: type) -> str:
             lines.append(
                 '        """Close HTTP resources, then stop the bridge loop. Idempotent; safe from any thread."""'
             )
-            lines.append("        self._bridge.close(self._impl.close)")
+            lines.append("        self._bridge.close(self._impl.close, interrupt=self._impl._begin_close)")
             lines.append("")
             continue
         if m.name == "__aenter__":

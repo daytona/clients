@@ -159,11 +159,24 @@ it.each<Phase>(['post', 'initial'])('preserves a root timeout during %s before t
   respond = (phase, response) => { if (phase !== stalled) reply(phase, response) }
   const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 200))
   // When the transport times out first (well inside the pull budget, even when
-  // the earlier phases are slow under load).
-  const result = service.pull('alpine', { timeoutSeconds: 3 })
+  // the earlier phases are slow under load); a pull that waits retries its
+  // first lookup, so this one does not wait.
+  const result = service.pull('alpine', { timeoutSeconds: 3, wait: false })
   // Then it is the client's own timeout, not the pull's deadline error.
   await expect(result).rejects.toBeInstanceOf(ClientTimeoutError)
   await expect(result).rejects.toMatchObject({ message: 'operation timed out', statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
+})
+
+it('retries a root timeout during the first lookup of a pull that waits', async () => {
+  // Given a first lookup that stalls past the root transport budget once.
+  let stalls = 1
+  respond = (phase, response) => { if (phase !== 'initial' || stalls-- <= 0) reply(phase, response) }
+  const service = new ImagesService(INTERNAL, createHttpClient(baseUrl, undefined, 200))
+  // When the pull waits for readiness.
+  const image = await service.pull('alpine', { timeoutSeconds: 3 })
+  // Then the lookup is read again within the pull budget.
+  expect(image.status).toBe('ready')
+  expect(phases).toEqual(['post', 'initial', 'initial', 'poll'])
 })
 
 it.each([undefined, 0, 1])('lets a long poll outlive a shorter request timeout when pull timeout is %s', async (timeoutSeconds) => {

@@ -108,6 +108,16 @@ A non-zero `ExitCode` is not an error; `err` means the call itself failed.
 res, err := sandbox.RunCode(ctx, "x = 21\nprint(x * 2)", nil)
 ```
 
+The first run of a language installs its kernel when the image does not ship
+it (Python's `ipykernel` from PyPI, Deno from `dl.deno.land`), which adds a few
+seconds and needs those hosts reachable under a network policy. When the kernel
+cannot be installed or started, `RunCode` returns `ErrKernelUnavailable` with
+the sandbox's setup diagnostic in the message.
+
+**Metadata after create.** A handle from `Create*` holds only what the create
+response reports; call `sandbox.Refresh(ctx)` before reading `Info().Resources`,
+labels or other detail fields.
+
 **Files.** Paths are inside the sandbox.
 
 ```go
@@ -250,7 +260,18 @@ Every duration is a `time.Duration`:
 
 - Sandbox create, fork, lifecycle operations and `Sandbox.Wait` wait up to
   60 seconds by default. `daytona.NoWait` skips waiting where supported;
-  `daytona.WaitForever` removes the SDK's wait deadline.
+  `daytona.WaitForever` removes the SDK's wait deadline. When `Sandbox.Wait`
+  or a lifecycle operation returns nil, `State()` reports the target it
+  observed. When the read after a target event shows another state, a state
+  terminal for that wait returns `*daytona.SandboxTerminalStateError`, and
+  any other state keeps polling until the deadline. `Start` on a sandbox that
+  is already starting (another caller started or resumed it) joins that
+  operation and returns `*daytona.SandboxTerminalStateError` when the sandbox
+  returns to stopped or paused, once the wait's long-poll reads confirm it
+  (up to one 30-second slice). A failed `Pause` is reported the same
+  way, after up to one 30-second long-poll read. `Resume` of a paused macOS
+  sandbox whose Mac reservation is ending returns
+  `daytona.ErrNoActiveReservation`.
 - `Images.BuildAndWait` has no readiness deadline by default. Its `Timeout`
   starts after build submission and the initial lookup, excluding local
   archiving and upload. `Images.Pull` also has no deadline by default; its
@@ -274,6 +295,39 @@ Every duration is a `time.Duration`:
   ended rather than `timed_out`.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
+  `FileSystem.Move` takes `&daytona.MoveOptions{Timeout: ...}` to replace it
+  for one move: zero keeps the request timeout, and `daytona.NoTimeout` or a
+  duration above 2,147,483.647 seconds means no limit. A move to another file
+  system is a copy in the sandbox. A move that timed out or failed is not
+  retried (only a 401, refused before anything moves, is re-sent once with a
+  fresh token), and a timeout ends the call, not the move; check the destination
+  before moving again.
+- Process runs without `Stdout` / `Stderr` writers (`Exec`, `Run`, `RunArgs`,
+  `Session.Run`) and `ProcessHandle.Wait` wait in rounds: the sandbox holds
+  each request for at most 30 seconds (its read is bounded at 35 seconds),
+  whatever the `Timeout` (or `WaitForever` / `daytona.NoTimeout`), so a
+  dropped quiet connection costs one retried round, not the whole wait. A run with `Stdout` or
+  `Stderr` set follows its output on one log stream for the whole run,
+  bounded only by `Timeout` and the context. The request that starts a
+  process is never retried.
+- Waits that read the server (sandbox waits, `Docker.WaitUntilReady`,
+  `Images.Get` / `Snapshots.Get` with `Wait` and a positive `Timeout`, the
+  readiness waits of `Images.Pull`, `Images.BuildAndWait` and
+  `CreateFromBuild`) retry a read that fails transiently (no response, a
+  client read timeout, HTTP 429 other than `daytona.ErrLimitExceeded`, or a
+  5xx other than 501) with backoff (200 ms doubling to 5 s, or the server's
+  `RetryAfter` when longer) within the same budget, and never sooner than the
+  wait's own poll spacing (200 ms for sandbox waits, 500 ms for Docker, 1 s
+  for image and snapshot readiness). The timeout then wraps the last failed
+  read. A wait without a deadline keeps retrying until the server answers,
+  the context ends or the client is closed. `Images.Get` / `Snapshots.Get`
+  with `Wait` but no `Timeout` make a single server-default hold and do not
+  retry. Any other failure returns at once, with one exception: while the
+  events stream is live, its early probes of a sandbox wait keep waiting
+  through any failure other than 401, 403, 404 or a closed client, and the
+  wait's timeout then wraps that failure. A failed probe is retried on the
+  probes' own schedule (after about 10 s of socket silence), not on the read
+  backoff.
 
 The caller's context always applies, including to unbounded waits.
 

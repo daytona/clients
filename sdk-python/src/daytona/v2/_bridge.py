@@ -27,6 +27,7 @@ import anyio
 from anyio.from_thread import BlockingPortal, start_blocking_portal
 from typing_extensions import Self
 
+from ._shutdown import refuse_during_interpreter_shutdown, shutdown_refusal_for
 from .errors import ClientClosedError, DaytonaError, _interrupt_error_of
 
 T = TypeVar("T")
@@ -121,6 +122,7 @@ class SyncBridge:
         """
         if self._closed:
             raise ClientClosedError(f"{self._name} is closed")
+        refuse_during_interpreter_shutdown()
         if _in_running_loop():
             raise BridgeError(_IN_EVENT_LOOP.format(name=self._name, async_name=self._async_name))
         unwound = threading.Event()
@@ -166,6 +168,13 @@ class SyncBridge:
                     on_submit()
                 future = portal.start_task_soon(run_and_signal)
             return future.result()
+        except RuntimeError as error:
+            # Starting the bridge's loop thread, or the loop's own work, needs
+            # threads shutdown may have stopped.
+            refusal = shutdown_refusal_for(error)
+            if refusal is None:
+                raise
+            raise refusal from error
         except KeyboardInterrupt as interrupt:
             if future is None:
                 raise  # interrupted before anything was submitted; nothing to cancel
@@ -289,8 +298,17 @@ class SyncBridge:
         except RuntimeError:
             return False
 
-    def close(self, finalizer: Callable[[], Awaitable[None]] | None = None) -> None:
+    def close(
+        self,
+        finalizer: Callable[[], Awaitable[None]] | None = None,
+        *,
+        interrupt: Callable[[], None] | None = None,
+    ) -> None:
         """Run ``finalizer`` on the loop once in-flight calls have finished, then stop the loop.
+
+        ``interrupt`` runs on the loop first, before the drain: the owner's
+        signal to calls that would otherwise wait on (a wait pausing to retry a
+        failed read ends with ``ClientClosedError``).
 
         ``finalizer`` is the owner's own async teardown (the root client's
         HTTP pools). It runs after every previously submitted call has
@@ -338,6 +356,9 @@ class SyncBridge:
 
         def drain_then_finalize_on_loop() -> None:
             # runs on the caller's thread: wait for in-flight calls, then run the finalizer on the loop
+            if interrupt is not None:
+                with contextlib.suppress(Exception):
+                    portal.call(interrupt)
             with self._inflight_lock:
                 while self._inflight:
                     self._idle.wait(timeout=_CANCEL_SETTLE_SECONDS)
@@ -352,6 +373,9 @@ class SyncBridge:
 
             async def finalize_after_inflight() -> None:
                 try:
+                    if interrupt is not None:
+                        with contextlib.suppress(Exception):
+                            interrupt()
                     # The call that invoked close() is itself in flight and will
                     # finish on its own; everything else must drain first. Wait
                     # for the count to reach the calls still running besides us —

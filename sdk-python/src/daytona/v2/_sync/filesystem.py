@@ -77,8 +77,12 @@ class FileSystemService:
         renames it over ``local_path`` on success; on an error or a
         cancellation that temporary file is removed. ``on_progress(bytes,
         total)`` reports progress (``total`` from ``Content-Length`` when the
-        sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
-        between chunks, and raises ``TransferCancelledError``.
+        sandbox sends it); ``cancel`` is any object with ``is_set()`` and
+        raises ``TransferCancelledError``: a ``threading.Event`` stops a
+        stalled transfer as soon as it is set, from any thread (on CPython
+        3.10 to 3.15; elsewhere, and for subclasses, within 50 ms). Any other
+        object, an ``asyncio.Event`` included, is checked every 50 ms while
+        the transfer waits on the network.
         """
         return self._bridge.call(
             lambda: self._impl.download_file(remote_path, local_path, on_progress=on_progress, cancel=cancel)
@@ -131,9 +135,23 @@ class FileSystemService:
         """Create a directory."""
         return self._bridge.call(lambda: self._impl.mkdir(path, mode=mode))
 
-    def move(self, source: str, destination: str, /) -> None:
-        """Move or rename files."""
-        return self._bridge.call(lambda: self._impl.move(source, destination))
+    def move(self, source: str, destination: str, /, *, timeout: Optional[float] = None) -> None:
+        """Move or rename a file or directory.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which a move to another file system (a copy in the sandbox) can
+        outlast: a total deadline in seconds; ``0``, or a value above
+        2,147,483.647 (about 24.8 days), means no limit; omitted, the client's
+        request timeout applies. A negative, non-finite or boolean value
+        raises ``BadRequestError`` before any request.
+
+        The SDK does not retry a move that timed out or failed (only a 401,
+        which the sandbox refuses before moving anything, is re-sent once with
+        a fresh token). A timeout ends the call, not the move: the move may
+        still be running in the sandbox, or have finished, so check the
+        destination (for example with :meth:`stat`) before moving again.
+        """
+        return self._bridge.call(lambda: self._impl.move(source, destination, timeout=timeout))
 
     def presigned_download_url(self, path: str, /, *, expires_in_seconds: int = 3600) -> str:
         """Return a pre-signed download URL for a sandbox file.
@@ -236,7 +254,11 @@ class FileSystemService:
         cancel: TransferCancelSignal | None = None,
         atomic: bool = False,
     ) -> None:
-        """Stream a local file into the sandbox without buffering it whole in memory."""
+        """Stream a local file into the sandbox without buffering it whole in memory.
+
+        ``cancel`` is any object with ``is_set()`` and raises
+        ``TransferCancelledError``, as for :meth:`download_file`.
+        """
         return self._bridge.call(
             lambda: self._impl.upload_file(
                 local_path, remote_path, on_progress=on_progress, cancel=cancel, atomic=atomic

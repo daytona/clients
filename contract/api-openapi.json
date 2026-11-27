@@ -301,7 +301,7 @@
             }
           }
         },
-        "description": "The request was rate limited, the service is overloaded, or a limit was reached (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `TOO_MANY_REQUESTS`)",
+        "description": "The request was rate limited, the service is overloaded, a limit was reached, or the sandbox is busy (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `DELETE_LOCK_TIMEOUT`, `TOO_MANY_REQUESTS`)",
         "headers": {
           "Retry-After": {
             "$ref": "#/components/headers/Retry-After"
@@ -418,6 +418,7 @@
           "SIGNUP_NOT_INVITED",
           "USER_SUSPENDED",
           "OVERLOADED",
+          "DELETE_LOCK_TIMEOUT",
           "RATE_LIMITED",
           "LIMIT_EXCEEDED",
           "IMAGE_TOO_LARGE",
@@ -488,6 +489,8 @@
           "ECR_CREDENTIALS_INVALID",
           "ECR_ACCOUNT_MISMATCH",
           "ECR_OWNERSHIP_UNVERIFIABLE",
+          "BUCKET_ROLE_INVALID",
+          "BUCKET_ROLE_UNVERIFIABLE",
           "IMAGE_NOT_FOUND",
           "IMAGE_NOT_READY",
           "IMAGE_BUILD_FAILED",
@@ -1360,30 +1363,40 @@
         "type": "object"
       },
       "BucketCredentials": {
-        "description": "Secret names used to access an external bucket.",
+        "description": "How the platform accesses an external bucket: either both secret names, or\n`role_arn` alone.",
         "properties": {
           "access_key_secret": {
             "description": "The project secret containing the access key.",
             "example": "AWS_KEY",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_arn": {
+            "description": "An IAM role in your AWS account that the platform assumes, with your\norganization ID as its `ExternalId`. Replaces the secret names; AWS\nbuckets only.",
+            "example": "arn:aws:iam::123456789012:role/daytona-bucket",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "secret_key_secret": {
             "description": "The project secret containing the secret key.",
             "example": "AWS_SECRET",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": [
-          "access_key_secret",
-          "secret_key_secret"
-        ],
         "type": "object"
       },
       "BucketOptions": {
         "description": "The customer's own bucket, for a bucket volume with origin `external`.",
         "properties": {
           "credentials": {
-            "description": "The secret names used to access the bucket.",
+            "description": "How the platform accesses the bucket: two project secret names, or an\nIAM role to assume.",
             "oneOf": [
               {
                 "type": "null"
@@ -2938,6 +2951,10 @@
               "null"
             ]
           },
+          "desktop": {
+            "$ref": "#/components/schemas/DesktopConfig",
+            "description": "Provision a Linux desktop. An empty object selects XFCE at 1280\u00d7720.\nRequires desktop creates to be enabled. Boot limits must be at least\n1 core and 2048 MiB for XFCE, or 2 cores and 8192 MiB for GNOME."
+          },
           "disk_max_mib": {
             "description": "Per-sandbox disk limit in MiB. Same semantics as `cores_max`; when\nrestoring a snapshot, it must equal the captured disk size or be absent.",
             "format": "int32",
@@ -3226,6 +3243,24 @@
         ],
         "type": "object"
       },
+      "DataPolicy": {
+        "description": "The data policy of an organization, project or sandbox. `standard`: the default. `zdr`: zero data retention, which is not available yet: no sandbox can be created under it.",
+        "enum": [
+          "standard",
+          "zdr"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "DataPolicyStatus": {
+        "description": "Whether the current data policy applies in every region. `pending`: at least one region has not applied it yet; read it again to check. `effective`: every region applies it.",
+        "enum": [
+          "pending",
+          "effective"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
       "DeclineInvitationRequest": {
         "properties": {
           "token": {
@@ -3235,6 +3270,84 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "DesktopConfig": {
+        "additionalProperties": false,
+        "description": "Desktop settings. Omit a member for its default: xfce, 1280\u00d7720.",
+        "properties": {
+          "environment": {
+            "default": "xfce",
+            "description": "Desktop session: xfce or gnome. Omitted = xfce.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DesktopEnvironment"
+              }
+            ]
+          },
+          "resolution": {
+            "default": {
+              "height": 720,
+              "width": 1280
+            },
+            "description": "Desktop resolution: 1024x768, 1280x720 or 1920x1080. Omitted = 1280x720.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DesktopResolution"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "DesktopEnvironment": {
+        "description": "Linux desktop session selected at create time.",
+        "enum": [
+          "xfce",
+          "gnome"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
+      },
+      "DesktopResolution": {
+        "additionalProperties": false,
+        "description": "Supported display geometry: 1024\u00d7768, 1280\u00d7720, or 1920\u00d71080.",
+        "properties": {
+          "height": {
+            "description": "Height in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width in pixels.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "DesktopSettings": {
+        "description": "Concrete create-time desktop settings. This records the request, not the\nlive guest state; GET /computeruse/display/info reports the live display size.",
+        "properties": {
+          "environment": {
+            "$ref": "#/components/schemas/DesktopEnvironment",
+            "description": "Desktop session the sandbox was created with."
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/DesktopResolution",
+            "description": "Exactly 1024\u00d7768, 1280\u00d7720, or 1920\u00d71080."
+          }
+        },
+        "required": [
+          "environment",
+          "resolution"
         ],
         "type": "object"
       },
@@ -5613,6 +5726,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The organization's data policy, set by Daytona. A project can be\nstricter than its organization, never looser."
+          },
           "from_v0": {
             "description": "Whether the organization was migrated from Daytona v0.",
             "type": "boolean"
@@ -7044,6 +7161,10 @@
               "null"
             ]
           },
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The project's own data policy. The policy new sandboxes are created\nunder is `zdr` when the project or its organization is `zdr`."
+          },
           "default": {
             "description": "Whether this is the organization's default project.",
             "type": "boolean"
@@ -7353,6 +7474,57 @@
           "period_start_date",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "ProjectDataPolicy": {
+        "description": "A project's data policy.",
+        "properties": {
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The project's own data policy."
+          },
+          "effective_data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The policy new sandboxes in the project are created under: `zdr` when\nthe project or its organization is `zdr`."
+          },
+          "not_covered": {
+            "description": "Existing resources of the project the effective policy does not cover,\nat most 1000: a policy applies only to sandboxes created after it is\nset. These are the live sandboxes created under the standard policy,\nand every image, snapshot and volume of the project. The list holds\nthe resources the organization's home region knows of.",
+            "items": {
+              "$ref": "#/components/schemas/UncoveredResource"
+            },
+            "type": "array"
+          },
+          "not_covered_count": {
+            "description": "How many existing resources the effective policy does not cover; more\nthan the length of `not_covered` when the list is cut at 1000.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "notice": {
+            "description": "What the effective policy means for sandbox creation, or null under the\nstandard policy.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_id": {
+            "description": "The project ID.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DataPolicyStatus",
+            "description": "Whether every region applies the project's current data policy."
+          }
+        },
+        "required": [
+          "project_id",
+          "data_policy",
+          "effective_data_policy",
+          "status",
+          "not_covered",
+          "not_covered_count",
+          "notice"
         ],
         "type": "object"
       },
@@ -8312,6 +8484,14 @@
               "string",
               "null"
             ]
+          },
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The data policy the sandbox was created under. It never changes: a\nlater change to the project's or organization's policy applies only to\nsandboxes created after it."
+          },
+          "desktop": {
+            "$ref": "#/components/schemas/DesktopSettings",
+            "description": "Desktop settings this sandbox was created with: the create request, or for\na restored or forked sandbox the settings captured from its source. Not\nlive state: a desktop restart can change them. GET /computeruse/display/info\nreports the live display size. Omitted when the sandbox has no desktop, and\nfrom batch-wait (`GET /sandboxes/batch-wait`) snapshots."
           },
           "disk_max_mib": {
             "description": "Maximum writable disk size in MiB.",
@@ -9460,6 +9640,20 @@
         ],
         "type": "object"
       },
+      "SetProjectDataPolicyRequest": {
+        "additionalProperties": false,
+        "description": "Body of the project data policy write. Unknown fields are rejected.",
+        "properties": {
+          "data_policy": {
+            "$ref": "#/components/schemas/DataPolicy",
+            "description": "The project's data policy. Only `zdr` will be accepted: switching a\nproject back to `standard` is done by Daytona."
+          }
+        },
+        "required": [
+          "data_policy"
+        ],
+        "type": "object"
+      },
       "SetRegistryRequest": {
         "description": "Registry credentials. Passwords are encrypted at rest and are write-only.",
         "properties": {
@@ -10090,6 +10284,43 @@
           "expires_in"
         ],
         "type": "object"
+      },
+      "UncoveredResource": {
+        "description": "A resource of the project that the data policy does not cover.",
+        "properties": {
+          "id": {
+            "description": "The resource ID.",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/UncoveredResourceKind",
+            "description": "The kind of the resource."
+          },
+          "name": {
+            "description": "The resource name, or null when the resource has none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "UncoveredResourceKind": {
+        "description": "The kind of a resource.",
+        "enum": [
+          "sandbox",
+          "image",
+          "snapshot",
+          "volume"
+        ],
+        "type": "string",
+        "x-daytona-open-enum": true
       },
       "UpdateAuditConfigRequest": {
         "properties": {
@@ -24176,6 +24407,177 @@
         "x-required-entitlement": "project_budgets"
       }
     },
+    "/projects/{project_id}/data-policy": {
+      "get": {
+        "description": "Returns the project's data policy, the policy new sandboxes are created under, and the existing resources that policy does not cover. The read waits up to two seconds for every region to apply the current policy.",
+        "operationId": "get_project_data_policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDataPolicy"
+                }
+              }
+            },
+            "description": "The project data policy",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The project ID is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Project not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "read:projects"
+            ]
+          }
+        ],
+        "summary": "Get the project data policy",
+        "tags": [
+          "projects"
+        ]
+      },
+      "put": {
+        "description": "Switching a project to the zero-data-retention data policy (`zdr`) is not available yet, so this operation refuses every request. Once available it will accept only `zdr` (only Daytona can switch a project back to `standard`), require the zero-data-retention entitlement, and list the existing resources the policy does not cover.",
+        "operationId": "set_project_data_policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectDataPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDataPolicy"
+                }
+              }
+            },
+            "description": "The project data policy",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The project ID or the request body is invalid (`BAD_REQUEST`)",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The caller cannot change the project, or the request asks for the standard policy, which only Daytona can set (`FORBIDDEN`). Switching a project to zero data retention is not available yet (`FEATURE_NOT_ENABLED`). The organization's plan does not include zero data retention (`ENTITLEMENT_REQUIRED`).",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Project not found",
+            "headers": {
+              "x-daytona-trace-id": {
+                "$ref": "#/components/headers/x-daytona-trace-id"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_jwt": [
+              "write:projects"
+            ]
+          }
+        ],
+        "summary": "Set the project data policy",
+        "tags": [
+          "projects"
+        ],
+        "x-required-entitlement": "zero_data_retention"
+      }
+    },
     "/projects/{project_id}/lifecycle-policy": {
       "get": {
         "operationId": "get_project_lifecycle_policy",
@@ -27338,6 +27740,9 @@
                 "$ref": "#/components/headers/x-daytona-trace-id"
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         },
         "security": [
@@ -29828,7 +30233,7 @@
                 }
               }
             },
-            "description": "A sandbox transition, memory snapshot or fork is in progress (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox has failed, was deleted or is lost (`CONFLICT`).",
+            "description": "A sandbox transition, memory snapshot or fork is in progress (`SECRETS_TRANSITION_IN_PROGRESS`). The sandbox has failed, was deleted or is lost (`CONFLICT`). The sandbox is a DGX Spark sandbox, which does not support runtime secrets (`NOT_SUPPORTED_FOR_CLASS`).",
             "headers": {
               "x-daytona-trace-id": {
                 "$ref": "#/components/headers/x-daytona-trace-id"
@@ -32568,6 +32973,16 @@
       "source": "DAYTONA_API",
       "status": 409
     },
+    "BUCKET_ROLE_INVALID": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 400
+    },
+    "BUCKET_ROLE_UNVERIFIABLE": {
+      "extras": [],
+      "source": "DAYTONA_API",
+      "status": 502
+    },
     "CHARGE_FAILED": {
       "extras": [],
       "source": "DAYTONA_API",
@@ -32619,6 +33034,13 @@
       "extras": [],
       "source": "DAYTONA_API",
       "status": 400
+    },
+    "DELETE_LOCK_TIMEOUT": {
+      "extras": [
+        "retry_after_seconds"
+      ],
+      "source": "DAYTONA_API",
+      "status": 429
     },
     "DISK_NOT_READY": {
       "extras": [],

@@ -55,13 +55,14 @@ type WaitProcessOptions struct {
 
 // KillProcessOptions selects a signal and optional escalation.
 type KillProcessOptions struct {
-	// Signal defaults to TERM and must be a bare name, not SIGTERM.
+	// Signal defaults to TERM and must be a bare name, not SIGTERM (case-insensitive).
 	Signal ProcessSignal
 	// EscalateAfter sends EscalateTo after this delay; nil disables escalation.
 	// A pointer permits explicit immediate escalation (zero). The delay rounds up
 	// to milliseconds and must be at most 10 minutes; otherwise Kill returns ErrBadRequest.
 	EscalateAfter *time.Duration
-	// EscalateTo defaults to KILL when EscalateAfter is set.
+	// EscalateTo defaults to KILL when EscalateAfter is set. Setting it
+	// without EscalateAfter returns ErrBadRequest.
 	EscalateTo ProcessSignal
 }
 

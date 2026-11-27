@@ -15,13 +15,9 @@ import pytest
 import daytona.v2.errors as v2_errors
 from daytona.v2 import AtomicUploadUnsupportedError, DaytonaError, TransferCancelledError
 from daytona.v2._core import RequestSpec
+from daytona.v2._transfer_cancel import TransferCancelWatch
 from daytona.v2._transport import AsyncTransport, _decode_response
-from daytona.v2.filesystem import (
-    AsyncFileSystemService,
-    _await_cancellable,
-    _multipart_preamble,
-    _read_download_chunk,
-)
+from daytona.v2.filesystem import AsyncFileSystemService, _multipart_preamble
 from daytona.v2.git import AsyncGitService
 from daytona.v2.sandbox import AsyncSandbox, sandbox_info_from_id
 
@@ -762,23 +758,18 @@ async def test_download_file_swallows_progress_callback_errors(tmp_path: Path) -
 
 
 @pytest.mark.anyio
-async def test_await_cancellable_propagates_task_timeout_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("daytona.v2.filesystem._TRANSFER_CANCEL_POLL_SECONDS", 0.01)
-
+async def test_cancellable_step_propagates_task_timeout_error() -> None:
     async def raise_timeout() -> str:
         await asyncio.sleep(0.02)
         raise asyncio.TimeoutError("task timed out")
 
     with pytest.raises(asyncio.TimeoutError, match="task timed out"):
-        await asyncio.wait_for(
-            _await_cancellable(raise_timeout(), cancel=asyncio.Event(), operation="download"), timeout=1
-        )
+        async with TransferCancelWatch(asyncio.Event()) as watch:
+            await asyncio.wait_for(watch.run(raise_timeout(), operation="download"), timeout=1)
 
 
 @pytest.mark.anyio
-async def test_read_download_chunk_propagates_iterator_timeout_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("daytona.v2.filesystem._TRANSFER_CANCEL_POLL_SECONDS", 0.01)
-
+async def test_cancellable_chunk_read_propagates_iterator_timeout_error() -> None:
     async def chunks():
         await asyncio.sleep(0.02)
         raise asyncio.TimeoutError("iterator timed out")
@@ -786,7 +777,8 @@ async def test_read_download_chunk_propagates_iterator_timeout_error(monkeypatch
             yield b""
 
     with pytest.raises(asyncio.TimeoutError, match="iterator timed out"):
-        await asyncio.wait_for(_read_download_chunk(chunks().__aiter__(), cancel=asyncio.Event()), timeout=1)
+        async with TransferCancelWatch(asyncio.Event()) as watch:
+            await asyncio.wait_for(watch.run(anext(chunks().__aiter__()), operation="download"), timeout=1)
 
 
 @pytest.mark.anyio

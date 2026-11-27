@@ -4,6 +4,18 @@
 
 package daytona
 
+// CodeImageNameReserved is IMAGE_NAME_RESERVED (API).
+const CodeImageNameReserved = "IMAGE_NAME_RESERVED"
+
+// ErrImageNameReserved matches code IMAGE_NAME_RESERVED, independently of its source.
+var ErrImageNameReserved = codeSentinel{"IMAGE_NAME_RESERVED", 400}
+
+// CodeImageTooLarge is IMAGE_TOO_LARGE (API).
+const CodeImageTooLarge = "IMAGE_TOO_LARGE"
+
+// ErrImageTooLarge matches code IMAGE_TOO_LARGE, independently of its source.
+var ErrImageTooLarge = codeSentinel{"IMAGE_TOO_LARGE", 409}
+
 // CodeIdleOutOfRange is IDLE_OUT_OF_RANGE (API).
 const CodeIdleOutOfRange = "IDLE_OUT_OF_RANGE"
 
@@ -76,6 +88,12 @@ const CodeOverloaded = "OVERLOADED"
 // ErrOverloaded matches code OVERLOADED, independently of its source.
 var ErrOverloaded = codeSentinel{"OVERLOADED", 429}
 
+// CodeDeleteLockTimeout is DELETE_LOCK_TIMEOUT (API).
+const CodeDeleteLockTimeout = "DELETE_LOCK_TIMEOUT"
+
+// ErrDeleteLockTimeout matches code DELETE_LOCK_TIMEOUT, independently of its source.
+var ErrDeleteLockTimeout = codeSentinel{"DELETE_LOCK_TIMEOUT", 429}
+
 // CodePlacementUnavailable is PLACEMENT_UNAVAILABLE (API, ROUTER).
 const CodePlacementUnavailable = "PLACEMENT_UNAVAILABLE"
 
@@ -106,26 +124,16 @@ const CodeSearchUnavailable = "SEARCH_UNAVAILABLE"
 // ErrSearchUnavailable matches code SEARCH_UNAVAILABLE, independently of its source.
 var ErrSearchUnavailable = codeSentinel{"SEARCH_UNAVAILABLE", 503}
 
-// CodeSignupNotInvited is SIGNUP_NOT_INVITED (API).
-const CodeSignupNotInvited = "SIGNUP_NOT_INVITED"
-
-// ErrSignupNotInvited matches code SIGNUP_NOT_INVITED, independently of its source.
-var ErrSignupNotInvited = codeSentinel{"SIGNUP_NOT_INVITED", 403}
-
-// CodeSourceAmbiguous is SOURCE_AMBIGUOUS (API).
-const CodeSourceAmbiguous = "SOURCE_AMBIGUOUS"
-
-// ErrSourceAmbiguous matches code SOURCE_AMBIGUOUS, independently of its source.
-var ErrSourceAmbiguous = codeSentinel{"SOURCE_AMBIGUOUS", 409}
-
-// CodeSecretAlreadyExists is SECRET_ALREADY_EXISTS (API).
-const CodeSecretAlreadyExists = "SECRET_ALREADY_EXISTS"
-
-// ErrSecretAlreadyExists matches code SECRET_ALREADY_EXISTS, independently of its source.
-var ErrSecretAlreadyExists = codeSentinel{"SECRET_ALREADY_EXISTS", 412}
-
 func catalogStatus5(source, code string) int {
 	switch code {
+	case "IMAGE_NAME_RESERVED":
+		if source == "DAYTONA_API" {
+			return 400
+		}
+	case "IMAGE_TOO_LARGE":
+		if source == "DAYTONA_API" {
+			return 409
+		}
 	case "IDLE_OUT_OF_RANGE":
 		if source == "DAYTONA_API" {
 			return 400
@@ -174,6 +182,10 @@ func catalogStatus5(source, code string) int {
 		if source == "DAYTONA_API" {
 			return 429
 		}
+	case "DELETE_LOCK_TIMEOUT":
+		if source == "DAYTONA_API" {
+			return 429
+		}
 	case "PLACEMENT_UNAVAILABLE":
 		if source == "DAYTONA_API" || source == "DAYTONA_ROUTER" {
 			return 503
@@ -193,18 +205,6 @@ func catalogStatus5(source, code string) int {
 	case "SEARCH_UNAVAILABLE":
 		if source == "DAYTONA_API" {
 			return 503
-		}
-	case "SIGNUP_NOT_INVITED":
-		if source == "DAYTONA_API" {
-			return 403
-		}
-	case "SOURCE_AMBIGUOUS":
-		if source == "DAYTONA_API" {
-			return 409
-		}
-	case "SECRET_ALREADY_EXISTS":
-		if source == "DAYTONA_API" {
-			return 412
 		}
 	}
 	return 0

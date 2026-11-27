@@ -48,6 +48,7 @@ from ._core import (
     parse_json_bytes,
 )
 from ._otel import OpenTelemetrySupport
+from ._shutdown import refuse_during_interpreter_shutdown, refusing_stopped_pools
 from ._transport_errors import bearer, connection_error
 from .errors import ClientClosedError, ClientTimeoutError, ConnectionError, create_error
 from .types import JsonValue, QueryParamScalar, QueryParamValue
@@ -578,9 +579,34 @@ class _StreamOwners:
     def __init__(self) -> None:
         self._streams: set[AsyncResponseStream] = set()
         self._closed = False
+        # Set once the owning client starts closing: wakes every wait pausing
+        # to retry a failed read (:meth:`retry_sleep`).
+        self._closing = False
+        self._retry_pauses: set[anyio.Event] = set()
 
     def ensure_open(self) -> None:
         if self._closed:
+            raise ClientClosedError()
+
+    def begin_close(self) -> None:
+        """Wake every retry pause; loop-confined like the rest of this class."""
+        self._closing = True
+        for pause in tuple(self._retry_pauses):
+            pause.set()
+
+    async def retry_sleep(self, seconds: float) -> None:
+        """Sleep before a wait retries a failed read; the client closing ends
+        it at once with :class:`ClientClosedError`."""
+        if self._closing:
+            raise ClientClosedError()
+        woken = anyio.Event()
+        self._retry_pauses.add(woken)
+        try:
+            with anyio.move_on_after(seconds):
+                await woken.wait()
+        finally:
+            self._retry_pauses.discard(woken)
+        if self._closing:
             raise ClientClosedError()
 
     def add(self, stream: AsyncResponseStream) -> None:
@@ -592,6 +618,7 @@ class _StreamOwners:
         self._streams.discard(stream)
 
     async def close(self) -> None:
+        self.begin_close()
         self._closed = True
         first_error: BaseException | None = None
         for stream in tuple(self._streams):
@@ -723,7 +750,7 @@ class AsyncTransport:
     async def send(self, spec: RequestSpec) -> Union[JsonValue, bytes]:
         # One total deadline for the whole call: resolving the bearer (a token
         # exchange), the request, a 401 refresh and its retry share it.
-        with _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
+        with refusing_stopped_pools(), _request_deadline(_total_seconds(spec, self._request_timeout_seconds)):
             with self._credential_deadline(spec.transfer, spec.timeout):
                 token = await self._request_token()
             try:
@@ -785,6 +812,7 @@ class AsyncTransport:
 
     async def _request_token(self) -> Optional[str]:
         self._stream_owners.ensure_open()
+        refuse_during_interpreter_shutdown()
         if self.auth_provider is not None:
             return await self.auth_provider.bearer()
         if self._auth is not None:
@@ -846,7 +874,10 @@ class AsyncTransport:
         # opening the stream (the bearer, the request, a 401 refresh and its
         # retry, until the response headers arrive), never the stream itself;
         # a transfer has no total bound (it is idle-bounded per phase).
-        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+        with (
+            refusing_stopped_pools(),
+            _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)),
+        ):
             with self._credential_deadline(spec.transfer, spec.timeout):
                 token = await self._request_token()
             try:
@@ -938,7 +969,10 @@ class AsyncTransport:
         self._stream_owners.ensure_open()
         # One deadline for opening it, as for ``open_stream``: the bearer, the
         # request, a 401 refresh and its retry, until the response headers.
-        with _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)):
+        with (
+            refusing_stopped_pools(),
+            _request_deadline(_stream_open_seconds(spec, self._request_timeout_seconds)),
+        ):
             token = await self._request_token()
             stream = await self._open_exclusive_once(spec, token)
             if stream.status_code != 401:
@@ -1007,6 +1041,17 @@ class AsyncTransport:
             raise
         return result
 
+    def begin_close(self) -> None:
+        """Wake the retry pauses of waits reading through this client's
+        transports, which then raise :class:`ClientClosedError` (the first step
+        of the owning client's close; loop-confined)."""
+        if self._owns_streams:
+            self._stream_owners.begin_close()
+
+    async def retry_sleep(self, seconds: float) -> None:
+        """A wait's pause before it retries a failed read (:mod:`._read_retry`)."""
+        await self._stream_owners.retry_sleep(seconds)
+
     async def close(self) -> None:
         try:
             if self._owns_streams:
@@ -1063,7 +1108,7 @@ class AsyncTransport:
         if content_factory is not None:
             kwargs["content"] = content_factory(0)
         # One total deadline for the bearer, the request, a 401 refresh and its retry.
-        with _request_deadline(total):
+        with refusing_stopped_pools(), _request_deadline(total):
             with self._credential_deadline(transfer, transfer_timeout):
                 token = await self._request_token()
             try:
@@ -1192,15 +1237,14 @@ def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
     ``timeout`` (a wait's budget plus its slack, a git remote call, ...)
     replaces it for that request with the same meaning: total time from
     sending to the last byte, ``0`` or a value above the timer maximum meaning
-    no limit. A hold that reads without a deadline (``unbounded_read``,
-    ``/wait`` with no budget) and a file transfer (idle-bounded per phase
-    instead) have no total bound.
+    no limit. A hold that reads without a deadline (``unbounded_read``) and a
+    file transfer (idle-bounded per phase instead) have no total bound.
     """
     if spec.transfer:
         return 0.0
     if spec.timeout is not None:
         return _per_call_seconds(spec.timeout)
-    if spec.unbounded_read or spec.path.endswith("/wait"):
+    if spec.unbounded_read:
         return 0.0
     return request_timeout_seconds
 
@@ -1277,7 +1321,7 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
     elif spec.timeout is not None:
         # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
         kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
-    elif spec.unbounded_read or spec.path.endswith("/wait"):
+    elif spec.unbounded_read:
         kwargs["timeout"] = _timeout_with_unbounded_read(request_timeout_seconds)
     return kwargs
 

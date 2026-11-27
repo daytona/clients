@@ -230,7 +230,30 @@ async def test_a_failed_read_in_the_reserve_keeps_the_wait_timeout(monkeypatch: 
             await _handle(client).wait(until="started", timeout=1)
     assert raised.value.source == "SDK"
     assert isinstance(raised.value.__cause__, ServiceUnavailableError)
-    assert [spec.method for spec in api.specs] == ["GET"]
+    # The 503 is retried with back-off within the reserve (0.25 s of the budget).
+    assert {spec.method for spec in api.specs} == {"GET"}
+    assert 1 <= len(api.specs) <= 2
+
+
+async def test_a_transient_failure_in_the_reserve_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    sandbox = _Sandbox("stopped", "running", None)
+    async with _client(monkeypatch, sandbox) as (client, api):
+        original = api.send
+        failures = [create_error("bad gateway", 502, None, None)]
+
+        async def flaky(spec: RequestSpec) -> object:
+            if failures:
+                api.specs.append(spec)
+                sandbox.reached_after = 0.0
+                sandbox.move()
+                raise failures.pop()
+            return await original(spec)
+
+        monkeypatch.setattr(api, "send", flaky)
+        handle = _handle(client)
+        await handle.wait(until="started", timeout=2)
+    assert handle.state == "started"
+    assert [spec.method for spec in api.specs] == ["GET", "GET"]
 
 
 async def test_a_refused_credential_in_the_reserve_is_raised(monkeypatch: pytest.MonkeyPatch) -> None:

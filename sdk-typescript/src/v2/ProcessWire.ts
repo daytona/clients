@@ -63,6 +63,29 @@ export const KILL_ALL_MAX_TIMEOUT_SECONDS = 60
 
 /** Extra HTTP read budget for a bounded process long-poll. */
 export const WAIT_READ_SLACK_MS = 5_000
+
+/**
+ * Longest server hold of one process wait request: the create hold of `run()`
+ * and every `/wait` round. A longer caller budget, or none, is waited out in
+ * rounds, so no request stays open (and quiet) for the whole wait. A `/wait`
+ * round (or the record read after it) that an intermediary drops costs one
+ * round, which the wait retries; the create request is never retried.
+ */
+export const PROCESS_WAIT_ROUND_MS = 30_000
+
+/** The server hold of one wait round in ms: the remaining budget (`undefined`: no deadline) capped at one round. */
+export function processWaitHoldMs(remainingMs: number | undefined): number {
+  return remainingMs === undefined ? PROCESS_WAIT_ROUND_MS : Math.min(remainingMs, PROCESS_WAIT_ROUND_MS)
+}
+
+/**
+ * The read bound of the record read that follows a `timed_out` wait round, in
+ * ms: one round's hold (never below zero, the budget may be spent) plus slack,
+ * so it cannot hold the wait longer than a round either.
+ */
+export function processRecordReadTimeoutMs(remainingMs: number | undefined): number {
+  return Math.max(0, processWaitHoldMs(remainingMs)) + WAIT_READ_SLACK_MS
+}
 export const WAIT_TRANSPORT_RETRY_LIMIT = 3
 
 /**
@@ -106,8 +129,24 @@ export function remainingWaitBudgetMs(deadline: number): number {
   return Math.max(0, Math.ceil(deadline - Date.now()))
 }
 
-export function signalWire(signal: ProcessSignal | undefined): string | undefined {
-  return signal ? `SIG${signal}` : undefined
+// Keyed by ProcessSignal, so a signal added to the type fails to compile here until it is listed.
+const SIGNAL_NAMES: { readonly [S in ProcessSignal]: true } = { TERM: true, KILL: true, INT: true, HUP: true, QUIT: true, USR1: true, USR2: true }
+// SAFETY: the keys of SIGNAL_NAMES are exactly ProcessSignal, as its mapped type requires.
+export const PROCESS_SIGNALS = Object.keys(SIGNAL_NAMES) as readonly ProcessSignal[]
+
+/**
+ * A signal as the wire spells it (`SIGTERM`). The SDK takes bare names
+ * (`TERM`, not `SIGTERM`), matched case-insensitively.
+ */
+export function signalWire(value: unknown, name: 'signal' | 'escalateTo'): string {
+  // ASCII only: Unicode case mapping would read 'kıll' as KILL.
+  const upper = typeof value === 'string' && /^[\x00-\x7f]*$/.test(value) ? value.toUpperCase() : undefined
+  const signal = PROCESS_SIGNALS.find((candidate) => candidate === upper)
+  if (signal === undefined) {
+    const shown = typeof value === 'string' ? `'${value}'` : String(value)
+    throw badRequest(`${name} must be one of ${PROCESS_SIGNALS.join(', ')} (a bare name, without the SIG prefix), got ${shown}`)
+  }
+  return `SIG${signal}`
 }
 
 /** The SDK spells signals without the wire's `SIG` prefix. */
@@ -152,9 +191,9 @@ export function startedProcessKind(started: toolbox.ProcessDto, body: toolbox.Cr
   }
 }
 
-export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessInfo['kind']): UnsupportedOperationError {
+export function invalidPtyVerbError(verb: 'attach' | 'resize' | 'delete', kind: ProcessInfo['kind'], namespace: 'process' | 'pty' = 'process'): UnsupportedOperationError {
   return new UnsupportedOperationError(
-    `process.${verb}() is only supported for pty handles; handle kind is ${kind}`,
+    `${namespace}.${verb}() is only supported for pty handles; handle kind is ${kind}`,
     { statusCode: 400, code: 'UNSUPPORTED_OPERATION', source: 'SDK' },
   )
 }
@@ -174,15 +213,35 @@ export function commandSpec(command: ProcessCommand): ProcessSpec {
   if (typeof command === 'string') return { cmd: command }
   if (typeof command !== 'object' || command === null) throw badRequest('command must be a string, { cmd } or { argv }')
   assertKnownOptions('ProcessCommand', command, COMMAND_KEYS)
-  if ('argv' in command && command.argv !== undefined) {
-    if (command.cmd !== undefined) throw badRequest('command takes exactly one of cmd or argv')
+  const hasArgv = 'argv' in command && command.argv !== undefined
+  if (hasArgv === (command.cmd !== undefined)) throw badRequest('command takes exactly one of cmd or argv')
+  if (hasArgv) {
     const argv: unknown = command.argv
     if (!Array.isArray(argv) || argv.length === 0 || !argv.every((item) => typeof item === 'string')) {
       throw badRequest('argv must be a non-empty array of strings')
     }
     return { argv: [...argv] as string[] }
   }
+  if (typeof command.cmd !== 'string') throw badRequest('command.cmd must be a string')
   return { cmd: command.cmd }
+}
+
+/** A shell command string, refused before any request otherwise. */
+export function shellCommand(command: unknown): string {
+  if (typeof command !== 'string') throw badRequest('command must be a string')
+  return command
+}
+
+/** Interpreter source code: a string (empty is allowed). */
+export function interpreterCode(code: unknown): string {
+  if (typeof code !== 'string') throw badRequest('code must be a string')
+  return code
+}
+
+/** An interpreter language: any non-empty string (the sandbox decides which it supports). */
+export function interpreterLanguage(language: unknown): string {
+  if (typeof language !== 'string' || language === '') throw badRequest('language must be a non-empty string')
+  return language
 }
 
 
@@ -225,12 +284,15 @@ export function runKeepLogs(keepLogs: RunKeepLogs | undefined): RunKeepLogs {
 }
 
 export function bodyFor(spec: ProcessSpec): toolbox.CreateProcessRequest {
-  const hasShell = typeof spec.cmd === 'string'
+  if (spec.cmd !== undefined) shellCommand(spec.cmd)
+  if (spec.code !== undefined) interpreterCode(spec.code)
+  if (spec.language !== undefined) interpreterLanguage(spec.language)
+  const hasShell = spec.cmd !== undefined
   const hasArgv = Array.isArray(spec.argv)
-  const hasCode = typeof spec.code === 'string'
+  const hasCode = spec.code !== undefined
   const sourceCount = [hasShell, hasArgv, hasCode].filter(Boolean).length
   if (!((spec.kind === 'pty' || spec.kind === 'session') && sourceCount === 0) && sourceCount !== 1) {
-    throw badRequest('exactly one of cmd, argv, or code is required')
+    throw badRequest(hasCode ? 'provide exactly one of command, argv, or code' : 'provide exactly one of command or argv')
   }
   if (hasCode && spec.user !== undefined) {
     throw new UnsupportedOperationError(

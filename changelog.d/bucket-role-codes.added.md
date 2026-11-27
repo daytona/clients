@@ -1,0 +1,1 @@
+**`BUCKET_ROLE_INVALID` and `BUCKET_ROLE_UNVERIFIABLE` error codes** — the SDKs recognize the API's codes for a bucket volume whose IAM role cannot be used: `BUCKET_ROLE_INVALID` (400) raises `BadRequestError` and `BUCKET_ROLE_UNVERIFIABLE` (502) raises `InternalServerError`. In Go, match `ErrBucketRoleInvalid` and `ErrBucketRoleUnverifiable`.

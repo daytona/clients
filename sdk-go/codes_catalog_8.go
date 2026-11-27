@@ -4,6 +4,18 @@
 
 package daytona
 
+// CodeUnprocessableEntity is UNPROCESSABLE_ENTITY (GENERIC).
+const CodeUnprocessableEntity = "UNPROCESSABLE_ENTITY"
+
+// CodeUnsupportedMediaType is UNSUPPORTED_MEDIA_TYPE (GENERIC).
+const CodeUnsupportedMediaType = "UNSUPPORTED_MEDIA_TYPE"
+
+// CodeClientClosed is CLIENT_CLOSED (SDK).
+const CodeClientClosed = "CLIENT_CLOSED"
+
+// ErrClientClosed matches code CLIENT_CLOSED, independently of its source.
+var ErrClientClosed = codeSentinel{"CLIENT_CLOSED", 0}
+
 // CodeRequestCancelled is REQUEST_CANCELLED (SDK).
 const CodeRequestCancelled = "REQUEST_CANCELLED"
 
@@ -12,6 +24,14 @@ var ErrRequestCancelled = codeSentinel{"REQUEST_CANCELLED", 499}
 
 func catalogStatus8(source, code string) int {
 	switch code {
+	case "UNPROCESSABLE_ENTITY":
+		return 422
+	case "UNSUPPORTED_MEDIA_TYPE":
+		return 415
+	case "CLIENT_CLOSED":
+		if source == "SDK" {
+			return 0
+		}
 	case "REQUEST_CANCELLED":
 	}
 	return 0

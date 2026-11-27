@@ -133,7 +133,10 @@ func (w *sandboxWait) raceRead(
 }
 
 // A terminal event can predate this operation. Only a full read decides that
-// failure; a successful target event needs just a best-effort metadata refresh.
+// failure. A target event is followed by a metadata refresh that also decides:
+// a target returns, a terminal state no lag can show fails, and any other
+// state polls on under the same deadline; a failed refresh keeps the observed
+// success.
 // A terminal disappearance is final and must not be replaced by an API read.
 func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) (bool, error) {
 	if event.NotFound {
@@ -157,19 +160,39 @@ func (w *sandboxWait) confirmEvent(ctx context.Context, event stateObservation) 
 	if err != nil && (ctx.Err() != nil || errors.Is(err, ErrClientClosed)) {
 		return true, err
 	}
-	if success {
-		// All read failures are SDK errors at this boundary. Success survives.
-		return true, nil
-	}
 	if err != nil {
+		if success {
+			// All read failures are SDK errors at this boundary. Success survives.
+			return true, nil
+		}
 		return true, w.terminalError(reported)
 	}
 	if w.target(fresh.State) {
 		return true, nil
 	}
-	if slices.Contains(w.terminal, fresh.State) {
+	// Only a state no lag can show decides here. Anything else (a read behind
+	// the event, a stale terminal event, the state before the operation, which
+	// is also its failure state, or a later transition) polls for the rest of
+	// the budget, and the long-poll reads decide. They are no proof against a
+	// lagging row: a loose wait=running still answers stopped at once.
+	if slices.Contains(w.terminal, fresh.State) && irreversibleState(fresh.State) {
 		return true, w.terminalError(fresh)
 	}
-	// A stale terminal event is discarded; poll for the rest of the budget.
+	w.lastRead = time.Now()
 	return false, nil
+}
+
+// irreversibleState reports the terminal states a lagging read cannot show by
+// lagging; operation-specific ones (started for a pause, stopped or paused for
+// a start) are also the state before the operation.
+func irreversibleState(state SandboxState) bool {
+	switch state {
+	case SandboxStateDestroying, SandboxStateDestroyed, SandboxStateError:
+		return true
+	case SandboxStateQueued, SandboxStateCreating, SandboxStateStarting, SandboxStateStarted,
+		SandboxStateStopping, SandboxStateStopped, SandboxStatePausing, SandboxStatePaused,
+		SandboxStateUnknown:
+		return false
+	}
+	return false
 }

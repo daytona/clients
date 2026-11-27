@@ -65,14 +65,18 @@ func TestWait_whenEventTerminal_isConfirmedByRead(t *testing.T) {
 func TestWait_whenTargetEventObserved_refreshIsBestEffort(t *testing.T) {
 	for _, status := range []string{"stopping", "500"} {
 		t.Run(status, func(t *testing.T) {
-			// Given
+			// Given: the refresh after the event fails, or shows a state that
+			// is not the target before a later read does.
+			var reads atomic.Int32
 			fake := newFakeServer(t, map[string]http.HandlerFunc{"GET /sandboxes/sbx": func(w http.ResponseWriter, _ *http.Request) {
 				if status == "500" {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
 				detail := sandboxFixture("sbx")
-				detail["status"] = status
+				if reads.Add(1) == 1 {
+					detail["status"] = status
+				}
 				writeJSON(t, w, detail)
 			}})
 			sandbox, err := newTestClient(t, fake.Server).lifecycleSandbox("sbx")
@@ -85,13 +89,13 @@ func TestWait_whenTargetEventObserved_refreshIsBestEffort(t *testing.T) {
 			err = sandbox.Wait(t.Context(), nil)
 			// Then
 			require.NoError(t, err)
-			expected := SandboxStateStopping
-			if status == "500" {
-				expected = SandboxStateStarted
-			}
-			require.Equal(t, expected, sandbox.State())
+			require.Equal(t, SandboxStateStarted, sandbox.State())
 			require.Empty(t, source.region)
-			require.Len(t, fake.requests(), 1)
+			if status == "500" {
+				require.Len(t, fake.requests(), 1)
+			} else {
+				require.Len(t, fake.requests(), 2)
+			}
 		})
 	}
 }

@@ -344,13 +344,32 @@ class AsyncDaytona:
         parameters. An explicit ``idempotency_key`` always wins.
 
         **Visible resources.** ``resources`` sizes the sandbox (cores and GiB;
-        see :class:`Resources`). Burstable sandboxes start with the burst
-        ceiling (``resources.cpu_max`` / ``memory_max``, or the deployment cap
-        when omitted), so ``nproc`` and ``/proc/meminfo`` report that ceiling,
-        not the guaranteed ``cpu``. Tools that size themselves from the CPU
-        count (``pytest -n auto``, ``make -j$(nproc)``) start one worker per
-        visible CPU. Pass an explicit worker count when you need the guarantee
-        instead of the ceiling.
+        see :class:`Resources`). A sandbox boots with its CPU limit,
+        ``resources.cpu_max * 2`` vCPUs (the deployment cap when omitted), so
+        ``nproc`` reports that, not the guaranteed ``cpu``. Tools that
+        size themselves from the CPU count (``pytest -n auto``,
+        ``make -j$(nproc)``) start one worker per visible CPU; pass an explicit
+        worker count when you need the guarantee instead of the limit. Memory
+        can instead start small and grow on demand up to ``memory_max`` (the
+        deployment cap when omitted):
+        ``/proc/meminfo`` and ``free`` then show the memory present now (about
+        the guaranteed ``memory`` plus some headroom at first), not the limit,
+        while :meth:`AsyncSandbox.metrics` reports the limit as the total.
+        Programs that size themselves from total memory at startup (a JVM's
+        default heap, for example) see the smaller figure; size them
+        explicitly.
+
+        **Returned metadata.** The handle holds what the create response
+        reports (id, name, state, image, reservation, and the lifecycle policy
+        when the response carries one) plus what the request fixed (the class,
+        the region, an ``img_`` / ``snap_`` id you passed). The rest (``cpu``,
+        ``memory``, ``disk`` and their limits, ``labels``, ``user``, ...) is
+        ``None`` (unknown, not empty) until a detail read. ``create()`` does
+        not read the sandbox itself when the create response already reports
+        it started (the usual case), so call
+        :meth:`AsyncSandbox.refresh_data` before reading them. The same holds
+        for :meth:`create_from_snapshot`, :meth:`create_from_build` and
+        :meth:`create_macos`.
 
         ``network_policy`` sets the sandbox's egress policy from its first boot
         (``None`` sends an explicit "no policy"); change it later with
@@ -713,7 +732,12 @@ class AsyncDaytona:
                 raise build_timed_out()
             poll_started = _clock.monotonic()
             try:
-                image = await self.images.get(image.id, wait="ready", timeout=remaining)
+                # Without a build budget, holds repeat without a deadline (a
+                # value above the timer maximum), retrying transient reads,
+                # never the single hold a ``None`` timeout makes.
+                image = await self.images.get(
+                    image.id, wait="ready", timeout=_UNBOUNDED_WAIT_S if remaining is None else remaining
+                )
             except DaytonaError as error:
                 # Only the client's own deadline is the build timeout; a server
                 # 408 keeps its source, as in TypeScript.
@@ -1338,12 +1362,22 @@ class AsyncDaytona:
             sb._hub = self._acquire_hub()
         return sb
 
+    def _begin_close(self) -> None:
+        """End the retry pauses of this client's waits with
+        :class:`ClientClosedError` (on the client's loop; the sync client runs
+        it before it waits for in-flight calls)."""
+        for transport in (self._api, self._toolbox):
+            begin_close = getattr(transport, "begin_close", None)
+            if callable(begin_close):
+                begin_close()
+
     async def close(self) -> None:
         """Close HTTP resources; new requests on this client or its handles raise
         ``ClientClosedError``. Close the root to let later ``root.v2`` access
         build a fresh client.
         """
         self._closed = True
+        self._begin_close()
         hub, self._hub = self._hub, None
         if hub is not None:
             await detach_hub(
@@ -1644,6 +1678,8 @@ def _merge_create_params(**overrides: CreateConfigValue) -> CreateConfig:
 
 #: The least time between two build polls when the server answers early.
 _BUILD_POLL_INTERVAL_S: Final = 1.0
+#: A wait budget above the timer maximum: repeat holds without a deadline.
+_UNBOUNDED_WAIT_S: Final = MAX_WIRE_WAIT_SECONDS + 1
 
 
 # Omitted macOS sizes use the server defaults. Supplied sizes must be within
