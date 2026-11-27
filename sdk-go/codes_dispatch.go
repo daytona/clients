@@ -29,5 +29,8 @@ func catalogStatus(source, code string) int {
 	if status := catalogStatus7(source, code); status != 0 {
 		return status
 	}
+	if status := catalogStatus8(source, code); status != 0 {
+		return status
+	}
 	return 0
 }

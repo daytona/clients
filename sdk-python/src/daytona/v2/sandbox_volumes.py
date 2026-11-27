@@ -9,11 +9,16 @@ from dataclasses import dataclass
 from typing import Literal, Optional, TypeGuard
 from urllib.parse import quote
 
+import anyio
+
+from . import _clock
 from ._core import (
     WAIT_READ_SLACK_SECONDS,
     RequestSpec,
     TransportPayload,
     _expect_model_from_dict,
+    above_timer_maximum,
+    checked_seconds,
     enum_str,
     json_object_from_mapping,
 )
@@ -45,6 +50,20 @@ class PullVolumeResult:
     manifest_id: Optional[str] = None
 
 
+# The longest server hold of one pull request (the contract's ``waitMs``
+# maximum). A longer caller budget is waited out in rounds of at most this
+# hold, so no request stays open (and quiet) for the whole wait.
+PULL_ROUND_SECONDS = 30.0
+# A round that comes back ``pending`` sooner than this is followed by a pause,
+# so a server that answers before its hold never turns the wait into a busy loop.
+_PULL_ROUND_MIN_SECONDS = 1.0
+
+
+async def _sleep(seconds: float) -> None:
+    # A seam so tests never patch anyio's own sleep.
+    await anyio.sleep(seconds)
+
+
 def pull_volume_spec(volume_id: str, *, request_id: str, timeout: Optional[float] = None) -> RequestSpec:
     """Sans-I/O validation and rendering shared by both transports."""
     for name, value in (("volume_id", volume_id), ("request_id", request_id)):
@@ -63,7 +82,9 @@ def pull_volume_spec(volume_id: str, *, request_id: str, timeout: Optional[float
             or not 0 <= timeout <= 30
             or not math.isfinite(timeout)
         ):
-            raise create_error("timeout must be finite and in 0..30 seconds", 400, "BAD_REQUEST", "SDK")
+            raise create_error(
+                "timeout must be a finite number of seconds in 0..30 per request", 400, "BAD_REQUEST", "SDK"
+            )
         # Round down to whole wire milliseconds, never exceeding the caller's wait,
         # but keep any positive wait positive: zero means check, not retry.
         body["waitMs"] = max(int(timeout * 1000), 1) if timeout > 0 else 0
@@ -101,13 +122,35 @@ class AsyncSandboxVolumesService:
     async def pull(
         self, volume_id: str, /, *, request_id: str, timeout: Optional[float] = None
     ) -> PullVolumeResult:
-        """Submit/check once; timeout is a server wait in seconds (0–30, default 30).
+        """Submit/check a pull; ``timeout`` is the wait in seconds (default 30).
 
         ``volume_id`` is the attached volume's ``vol_`` ID or its UUID. Zero
         does not wait: it submits a new request_id, or returns a known one's
-        last outcome without retrying it; a timeout above zero retries pending,
-        unavailable or rate-limited work. Expiry does not cancel work. Neither
-        retries nor identities are automatic.
+        last outcome without retrying it; during a timeout above zero the
+        sandbox itself retries pending, unavailable or rate-limited work. Up to
+        30 seconds is one request that the sandbox holds for that long. A
+        longer timeout is waited out in rounds of at most 30 seconds with the
+        same ``request_id`` while the result is ``pending`` (a value above
+        2,147,483.647, about 24.8 days, means no deadline), so no request stays
+        open for the whole wait.
+        Expiry does not cancel work. The SDK never retries an error returned to
+        it, and never generates an identity.
         """
-        spec = pull_volume_spec(volume_id, request_id=request_id, timeout=timeout)
-        return parse_pull_volume(await self._transport.send(spec))
+        if timeout is None or isinstance(timeout, bool) or checked_seconds(timeout) <= PULL_ROUND_SECONDS:
+            spec = pull_volume_spec(volume_id, request_id=request_id, timeout=timeout)
+            return parse_pull_volume(await self._transport.send(spec))
+        pull_volume_spec(volume_id, request_id=request_id)
+        deadline = None if above_timer_maximum(timeout) else _clock.monotonic() + timeout
+        while True:
+            started = _clock.monotonic()
+            hold = PULL_ROUND_SECONDS if deadline is None else min(PULL_ROUND_SECONDS, deadline - started)
+            spec = pull_volume_spec(volume_id, request_id=request_id, timeout=max(hold, 0.001))
+            result = parse_pull_volume(await self._transport.send(spec))
+            now = _clock.monotonic()
+            if result.status != "pending" or (deadline is not None and now >= deadline):
+                return result
+            pause = _PULL_ROUND_MIN_SECONDS - (now - started)
+            if pause > 0:
+                # Never return early: a pause cut at the deadline is followed
+                # by one last check there.
+                await _sleep(pause if deadline is None else min(pause, deadline - now))

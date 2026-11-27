@@ -82,7 +82,7 @@ func TestVolumeCreate_fileBucketOverride(t *testing.T) {
 
 func TestVolumeList_liveVolumes(t *testing.T) {
 	stdout, _, err := runCLI(t, []string{"volume", "list"}, []expectedRequest{
-		{method: http.MethodGet, path: "/volumes", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeFixture("55555555-5555-5555-5555-555555555555") + `]}`},
+		{method: http.MethodGet, path: "/volumes/search", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeSearchFixture("55555555-5555-5555-5555-555555555555") + `],"total":1,"total_relation":"eq"}`},
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, requireJSONStdout(t, stdout))

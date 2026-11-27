@@ -86,11 +86,11 @@ func headerText(value, name string) error {
 	}
 	for _, char := range value {
 		if char < 32 || char > 126 {
-			return badRequest(name + " must be printable ASCII with no leading or trailing whitespace")
+			return badRequest(name + " must be printable ASCII")
 		}
 	}
 	if strings.HasPrefix(value, " ") || strings.HasSuffix(value, " ") {
-		return badRequest(name + " must be printable ASCII with no leading or trailing whitespace")
+		return badRequest(name + " must have no leading or trailing whitespace")
 	}
 	return nil
 }

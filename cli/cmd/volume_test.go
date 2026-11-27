@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,10 @@ import (
 
 func diskVolumeFixture(id string) string {
 	return `{"created_at":"2026-09-13T00:00:00Z","updated_at":"2026-09-13T00:00:00Z","id":"` + id + `","name":"data","size_gib":100,"status":"ready","type":"disk"}`
+}
+
+func diskVolumeSearchFixture(id string) string {
+	return strings.TrimSuffix(diskVolumeFixture(id), "}") + `,"cursor":"volume-cursor"}`
 }
 
 func bucketVolumeFixture(id string) string {
@@ -42,7 +47,7 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 		{
 			name:     "list volumes",
 			args:     []string{"volume", "list"},
-			expected: []expectedRequest{{method: http.MethodGet, path: "/volumes", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeFixture("55555555-5555-5555-5555-555555555555") + `]}`}},
+			expected: []expectedRequest{{method: http.MethodGet, path: "/volumes/search", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeSearchFixture("55555555-5555-5555-5555-555555555555") + `],"total":1,"total_relation":"eq"}`}},
 		},
 		{
 			name:     "get volume",
@@ -68,7 +73,7 @@ func TestVolumeCommands_routeAndRenderJSON(t *testing.T) {
 
 func TestVolumeList_tableNamesTheCapacityColumnInGiB(t *testing.T) {
 	stdout, _, err := runCLIWithOutput(t, "table", []string{"volume", "list"}, []expectedRequest{
-		{method: http.MethodGet, path: "/volumes", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeFixture("55555555-5555-5555-5555-555555555555") + `]}`},
+		{method: http.MethodGet, path: "/volumes/search", query: "limit=100", status: 200, response: `{"volumes":[` + diskVolumeSearchFixture("55555555-5555-5555-5555-555555555555") + `],"total":1,"total_relation":"eq"}`},
 	})
 	require.NoError(t, err)
 	require.Contains(t, stdout, "SIZE_GIB")

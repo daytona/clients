@@ -51,6 +51,16 @@ export function registerErrorClasses(root: RegisteredErrorClass, members: readon
   registry.set(key, next)
 }
 
+/**
+ * Gives an error class its public name explicitly. Bundlers and minifiers
+ * rename classes, and every constructor sets `error.name` from
+ * `new.target.name`, so without this a production bundle would report a
+ * mangled name. A user subclass keeps its own name. Internal.
+ */
+export function nameErrorClass(errorClass: Function, name: string): void {
+  Object.defineProperty(errorClass, 'name', { value: name, configurable: true })
+}
+
 export class DaytonaError extends Error {
   // Fields both namespaces' error classes set (v0's and v2's). Declared, not
   // emitted: the root classes stay stateless markers; an instance from either
@@ -83,7 +93,8 @@ export class DaytonaInternalServerError extends DaytonaError {}
 export class DaytonaServiceUnavailableError extends DaytonaError {}
 export class DaytonaConnectionError extends DaytonaError {}
 
-// The category keys the registry is indexed by: also the names v0 exports.
+// The category keys the registry is indexed by: also the names v0 exports,
+// and each class's public name.
 for (const [key, category] of [
   ['DaytonaError', DaytonaError],
   ['DaytonaBadRequestError', DaytonaBadRequestError],
@@ -99,6 +110,7 @@ for (const [key, category] of [
   ['DaytonaServiceUnavailableError', DaytonaServiceUnavailableError],
   ['DaytonaConnectionError', DaytonaConnectionError],
 ] as const) {
+  nameErrorClass(category, key)
   categoryKeys.set(category, key)
   // The root classes join their own category, so a root marker built by the
   // ESM copy matches the CJS copy's class (and vice versa).

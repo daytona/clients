@@ -36,7 +36,7 @@ class MacModel(BaseModel):
     A Mac model.
     """ # noqa: E501
     cores: StrictInt = Field(description="CPU cores in the Mac. A Mac core is one CPU (Apple Silicon has no SMT).")
-    default_size: Optional[MacResources]
+    default_size: Optional[MacResources] = Field(description="The default size: the cores, memory and disk that a create gives each size field it omits. A create from a captured image gets the image's disk size instead. Null when this Mac model takes no sandbox.")
     disk_mib: StrictInt = Field(description="Size of the Mac's SSD in MiB. Sandboxes use the disk space in `sandbox_disk_mib`.")
     id: StrictStr = Field(description="Mac model slug accepted by POST /reservations.")
     max_sandboxes: StrictInt = Field(description="Most sandboxes on one Mac of this model at once. Stopped sandboxes do not count. The sizes of the sandboxes on one Mac must fit that Mac. 0 when this Mac model takes no sandbox.")
