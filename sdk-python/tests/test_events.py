@@ -184,6 +184,38 @@ async def _wait_for(predicate: Callable[[], bool]) -> None:
         await asyncio.sleep(0.01)
 
 
+class _FakeClock:
+    """Stands in for the hub's ``_clock.monotonic`` and ``_sleep``: time moves
+    only on ``advance()``, which wakes the sleeps that are due."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self._sleeps: List[Tuple[float, asyncio.Future[None]]] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    async def sleep(self, delay: float) -> None:
+        if delay <= 0:
+            await asyncio.sleep(0)
+            return
+        wake: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        self._sleeps.append((self.now + delay, wake))
+        await wake
+
+    def pending_sleeps(self) -> int:
+        return sum(1 for _, wake in self._sleeps if not wake.done())
+
+    async def advance(self, seconds: float) -> None:
+        self.now += seconds
+        due = [wake for at, wake in self._sleeps if at <= self.now]
+        self._sleeps = [(at, wake) for at, wake in self._sleeps if at > self.now and not wake.done()]
+        for wake in due:
+            if not wake.done():
+                wake.set_result(None)
+        await drain()
+
+
 async def _answer_every_subscribe(ws: FakeWS, sid: str) -> None:
     """Answer each subscribe of ``sid`` with a pre-target snapshot."""
     seen = version = 0
@@ -665,11 +697,12 @@ class TestHubTimeout:
         fc = FakeConnector()
         hub = make_hub(fc)
         ws = fc.prepare()
+        clock = _FakeClock()
+        monkeypatch.setattr(events_module._clock, "monotonic", clock.monotonic)
+        monkeypatch.setattr(events_module, "_sleep", clock.sleep)
         monkeypatch.setattr(events_module, "_jittered", lambda value, fraction=0.1: value)
-        # 0.5 s probe vs a frame every 0.02 s. The probe window also covers the
-        # setup before the first frame (200 waiters registering and the socket
-        # connecting), which took over 0.1 s on loaded CI machines and let every
-        # waiter poll before any frame arrived.
+        # The probe window and the frames run on the fake clock: setup time and
+        # a stalled runner cannot move a probe ahead of a frame.
         hub._early_probe_s = 0.5
         hub._client_ping_after_s = 1.0
         poll_calls = 0
@@ -686,30 +719,34 @@ class TestHubTimeout:
                     hub.wait(
                         f"sandbox{index}-region-a",
                         _started_predicate(),
-                        timeout=5.0,
+                        timeout=600.0,
                         sandbox_poll_fn=poll,
                     )
                 )
                 for index in range(200)
             ]
             await drain()
-            await asyncio.wait_for(_wait_for(lambda: fc.connection_count() == 1), timeout=1.0)
+            await asyncio.wait_for(_wait_for(lambda: fc.connection_count() == 1), timeout=30.0)
+            assert clock.pending_sleeps() >= 200
 
-            async def server_ping() -> None:
-                for _ in range(40):
-                    await asyncio.sleep(0.02)
-                    ws.inject({"type": "ping"})
-                    await drain()
+            # A frame every 0.02 s for 0.8 s, longer than one whole probe window.
+            for _ in range(40):
+                await clock.advance(0.02)
+                ws.inject({"type": "ping"})
+                await drain()
 
-            spammer = asyncio.create_task(server_ping())
-            # Frames for 0.8 s, longer than one whole probe window.
-            await spammer
+            assert poll_calls == 0
+            assert clock.pending_sleeps() >= 200
 
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            # The control: once the frames stop, every waiter probes when its
+            # window ends, so the frames above are what held the probes back.
+            await clock.advance(0.5)
+            results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=30.0)
+        await hub._close_hub()
 
-        assert poll_calls == 0
+        assert fc.connection_count() == 1
+        assert [result.state for result in results] == ["started"] * 200
+        assert poll_calls == 200
 
     async def test_registering_a_waiter_on_a_held_snapshot_does_not_refresh_the_socket_quiet_clock(
         self, monkeypatch: pytest.MonkeyPatch

@@ -27,6 +27,7 @@ import sys
 import time
 import traceback
 import uuid
+from typing import Callable
 
 from daytona import Daytona as RootDaytona
 from daytona import DaytonaConfig, DaytonaV2Client
@@ -93,6 +94,17 @@ def skip(label: str, reason: str) -> None:
     global SKIPPED
     SKIPPED += 1
     print(f"  SKIP {label}  ({reason})")
+
+
+def probe_search(label: str, run: Callable[[], bool]) -> None:
+    """Check a search route; skip it when the API key lacks the permission."""
+    try:
+        check(label, run())
+    except DaytonaError as error:
+        if error.status_code == 403 and (error.code == "FORBIDDEN" or "permission" in str(error)):
+            skip(label, f"not available to this API key: {error}")
+        else:
+            raise
 
 
 def expect_error(label: str, fn, exc_type, status=None) -> None:
@@ -166,6 +178,8 @@ def main() -> int:
         # consistent, so poll briefly. Match the name too, as a search item can
         # carry the id in another (region-tagged) form.
         check("list includes ours", list_includes(daytona, box))
+        probe_search("secret search", lambda: daytona.secrets.search(limit=1).total >= 0)
+        probe_search("volume search", lambda: daytona.volumes.search(limit=1).total >= 0)
 
         if not SKIP_TOOLBOX and box.state == "started":
             log("toolbox: exec round-trip")

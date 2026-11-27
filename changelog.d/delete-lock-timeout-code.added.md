@@ -1,0 +1,1 @@
+**`DELETE_LOCK_TIMEOUT` error code** — a sandbox delete the API cannot start because the sandbox is busy answers HTTP 429 with code `DELETE_LOCK_TIMEOUT`. The Python and TypeScript SDKs raise it as `OverloadedError`, so existing handlers keep catching it; read `retry_after_seconds` and retry. In Go, match `ErrDeleteLockTimeout`.

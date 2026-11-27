@@ -86,6 +86,9 @@ step "down-converting contract specs to OpenAPI 3.0"
 # Credential fields keep their wire value but are redacted from to_str() and
 # repr() (gen/mark_sensitive.py; the templates read its markers).
 python3 gen/mark_sensitive.py gen/.toolbox-3.0.json gen/.api-3.0.json
+# Nullable references keep their nullability when inherited through allOf
+# (gen/nullable_refs.py).
+python3 gen/nullable_refs.py gen/.toolbox-3.0.json gen/.api-3.0.json
 
 export OPENAPI_GENERATOR_CLI_SEARCH_URL=""
 for key in toolbox api; do

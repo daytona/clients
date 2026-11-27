@@ -36,6 +36,8 @@ export interface PreparedSandboxCreate {
     readonly snapshot?: string
     /** The class the create route fixes. */
     readonly sandboxClass: 'linux' | 'macos'
+    /** Unknown for a snapshot restore, which inherits it from the snapshot. */
+    readonly persistent?: boolean
   }
 }
 
@@ -59,7 +61,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
   }
   const route = 'linux'
   const lifecyclePolicy = lifecycleBody(options.lifecyclePolicy, { creating: true }) as api.CreateSandboxRequest['lifecycle_policy']
-  assertLifecycleClassSupport(options.lifecyclePolicy ?? undefined, { sandboxClass: route, persistent: false })
+  assertLifecycleClassSupport(options.lifecyclePolicy ?? undefined, { sandboxClass: route, persistent: options.persistent === true })
   const body: LinuxCreateRequest = {
     name: options.name,
     ...(source !== undefined ? { image: source } : {}),
@@ -76,6 +78,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     secrets: options.secrets === undefined ? undefined : [...options.secrets],
     labels: labelsWithName(options.name, options.labels),
     spot: options.spot,
+    persistent: options.persistent,
     lifecycle_policy: lifecyclePolicy,
     network_policy: createNetworkPolicyCreateField(options),
     cpu_arch: options.cpuArch,
@@ -85,7 +88,7 @@ export function linuxCreateRequest(imageOrOptions: string | CreateSandboxOptions
     create_timeout_seconds: createTimeoutSeconds(options.createTimeoutSeconds),
     idempotency_key: resolveIdempotencyKey(options.idempotencyKey),
   }
-  return { path: '/sandboxes', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source, sandboxClass: route } }
+  return { path: '/sandboxes', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source, sandboxClass: route, persistent: options.persistent } }
 }
 
 /** @internal */
@@ -96,7 +99,7 @@ export function snapshotCreateRequest(snapshot: string, options: CreateSandboxFr
   assertCreateNestedOptions(options)
   const source = snapshotSourceString(snapshot)
   const lifecyclePolicy = lifecycleBody(options.lifecyclePolicy, { creating: true }) as api.CreateSandboxFromSnapshotRequest['lifecycle_policy']
-  assertLifecycleClassSupport(options.lifecyclePolicy ?? undefined, { sandboxClass: 'linux', persistent: false })
+  // Persistence belongs to the snapshot; only the API can validate its actions.
   const body: api.CreateSandboxFromSnapshotRequest = {
     name: options.name,
     snapshot: source,
@@ -150,5 +153,5 @@ export function macosCreateRequest(image: string, options: CreateMacosSandboxOpt
     // The helper checks property presence and validates before serializing.
     network_policy: createNetworkPolicyCreateField(options),
   }
-  return { path: '/sandboxes/macos', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source, sandboxClass: 'macos' } }
+  return { path: '/sandboxes/macos', body, metadata: { autoDelete: options.autoDelete ?? false, waitSeconds: createWaitSeconds(options.waitSeconds), image: source, sandboxClass: 'macos', persistent: options.persistent } }
 }

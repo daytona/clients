@@ -897,15 +897,14 @@ async def test_valid_search_classes_and_timestamps_are_sent() -> None:
     assert (query["class"], query["created_start_at"]) == (["linux,macos"], ["2026-01-01T00:00:00.5+02:00"])
 
 
-async def test_a_search_label_with_a_lone_surrogate_is_sent_json_escaped() -> None:
-    # Labels are sent as JSON, which escapes a lone surrogate (as a body does).
-    with FakeApi(
-        [PlannedResponse(200, {"sandboxes": [], "total": 0, "total_relation": "eq", "next_cursor": None})]
-    ) as fake:
+async def test_a_search_label_with_a_lone_surrogate_is_refused_before_any_request() -> None:
+    # The API cannot read a JSON-escaped lone surrogate; the TypeScript twin refuses it too.
+    with FakeApi([]) as fake:
         os.environ["DAYTONA_V2_API_URL"] = fake.url
         async with AsyncDaytona(DaytonaConfig(api_key="key")) as root:
-            await root.v2.search(labels={"team": "a\ud800b"})
-    assert "%5Cud800" in fake.requests[0].path
+            with pytest.raises(BadRequestError, match="^label values must not contain a lone surrogate$"):
+                await root.v2.search(labels={"team": "a\ud800b"})
+    assert fake.requests == []
 
 
 _TIMESTAMPS = json.loads(

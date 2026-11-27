@@ -69,6 +69,35 @@ Once a create or fork is accepted, its handle is returned even if the caller's
 context ends the wait with an error. Delete the non-nil handle or keep it;
 cleanup needs a context that has not been cancelled.
 
+## Persistence
+
+Linux sandboxes are non-persistent by default. Set `CreateOptions.Persistent`
+to a pointer to `true` (also through `CreateFromBuildOptions.CreateOptions`) for
+persistence. When neither a per-create policy nor a project lifecycle default
+overrides it, persistent Linux sandboxes pause after a 300-second lifetime.
+
+- `Stop` / `Start` preserve disk, not memory or running processes.
+  `Stop` requires persistence, including on macOS, and is unavailable on GPU.
+- `Pause` / `Resume` preserve disk, memory and processes.
+- Linux stop, start, pause, resume and fork require persistence; the
+  API checks support.
+- Lifecycle policies allow `delete` everywhere, `stop` on persistent non-GPU
+  sandboxes, and `pause` on persistent Linux.
+- Volumes are accepted on create, but sandboxes with attached volumes currently
+  reject pause and fork with `ErrConflict`.
+- Snapshot restores inherit the source's persistence; there is no override.
+
+Submissions retry only `SANDBOX_TRANSITION_IN_PROGRESS` for up to 30 seconds:
+`Fork` while the source is still starting, stopping or pausing;
+`CaptureImage` while it is still starting (Linux, Windows) or stopping (macOS);
+and `CreateSnapshot` (memory and disk) while it is still starting.
+Other conflicts are returned immediately.
+The window limits new retries; an admitted POST keeps its normal request timeout.
+
+`Search` / `SearchAll` accept `SearchSandboxesOptions.Persistent`: a pointer to
+`true` selects persistent sandboxes, a pointer to `false` selects ephemeral
+sandboxes, and `nil` omits the filter.
+
 ## Common tasks
 
 **Run code.** `sandbox.Exec` runs a shell command, `sandbox.ExecArgs` an argv
@@ -199,12 +228,19 @@ normally.
 ```go
 if errors.Is(err, daytona.ErrNotFound) { /* any 404 */ }
 if errors.Is(err, daytona.ErrSandboxNotRunning) { /* one specific code */ }
+if errors.Is(err, daytona.ErrSandboxTransitionInProgress) { /* retry window exhausted */ }
 
 var apiErr *daytona.Error
 if errors.As(err, &apiErr) {
 	fmt.Println(apiErr.Code, apiErr.StatusCode, apiErr.Message)
 }
 ```
+
+`Fork`, `CaptureImage` and `CreateSnapshot` retry only
+`ErrSandboxTransitionInProgress` for up to 30 seconds from the first attempt.
+The API's retry delay is clamped to 1–5 seconds; other conflicts are returned
+immediately. Caller cancellation, deadlines and client closure interrupt retries.
+Fork's readiness wait keeps its separate budget.
 
 ## Durations and waits
 
@@ -217,6 +253,23 @@ Every duration is a `time.Duration`:
   starts after build submission and the initial lookup, excluding local
   archiving and upload. `Images.Pull` also has no deadline by default; its
   `Timeout` covers submission, lookup and readiness together.
+- A recursive remove or a search over a large tree can take longer than the
+  request timeout. `FileSystem.Remove`, `Grep`, `Glob`, `Replace` and `Chmod`
+  therefore take a `Timeout` option (`RemoveFileOptions`, `FileSearchOptions`,
+  `ReplaceOptions`, `FilePermissionsOptions`) that replaces the request timeout
+  for that call. Zero keeps the request timeout; `daytona.NoTimeout`, or a
+  duration above 2,147,483.647 seconds, means no limit. Any other negative
+  value returns `ErrBadRequest` before a request is sent. A timeout ends the
+  call, not the work in the sandbox.
+- `Exec`, `ExecArgs`, `Run`, `RunArgs` and `Session.Run` with `Stdout` or
+  `Stderr` writers follow the output on a log stream. A stream that delivers nothing
+  for 45 seconds is treated as dropped and resumed after the last event, so a
+  network path that drops quiet connections does not hold the run until its
+  `Timeout`. When the `Timeout` ends, the SDK first reads the retained log
+  (up to eight pages, each an ordinary request bounded by the request
+  timeout), then checks the process with one read bounded at 5 seconds; if
+  that check succeeds and the process already ended, the run reports how it
+  ended rather than `timed_out`.
 - Ordinary requests time out after 60 seconds by default
   (`daytona.WithRequestTimeout`); transfers use that as an idle timeout.
 

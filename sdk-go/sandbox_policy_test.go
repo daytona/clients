@@ -14,8 +14,9 @@ import (
 func newMutatorSandbox(t *testing.T, fake *fakeServer) *Sandbox {
 	t.Helper()
 	client := newTestClient(t, fake.Server)
+	persistent := false
 	sandbox, err := client.newSandbox(sandboxInit{
-		Info:       SandboxInfo{ID: "sbx", Class: SandboxClassLinux},
+		Info:       SandboxInfo{ID: "sbx", Class: SandboxClassLinux, Persistent: &persistent},
 		ToolboxURL: fake.Server.URL + "/toolbox",
 		Options:    GetSandboxOptions{AccessToken: "caller-" + "credential"},
 	})
@@ -95,8 +96,8 @@ func TestSandboxPolicyClassReads(t *testing.T) {
 		{"unknown class", "", "linux", LifecycleActionDelete, 2, nil},
 		{"persistent mac", SandboxClassMacOS, "macos", LifecycleActionStop, 2, nil},
 		{"ephemeral mac", SandboxClassMacOS, "macos", LifecycleActionStop, 1, ErrBadRequest},
-		{"missing mac persistence", SandboxClassMacOS, "macos", LifecycleActionStop, 1, ErrBadRequest},
-		{"future class", SandboxClassUnknown, "future", LifecycleActionDelete, 0, ErrUnsupportedOperation},
+		{"missing mac persistence", SandboxClassMacOS, "macos", LifecycleActionStop, 2, nil},
+		{"future class", SandboxClassUnknown, "future", LifecycleActionDelete, 1, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given
@@ -114,6 +115,7 @@ func TestSandboxPolicyClassReads(t *testing.T) {
 			})
 			sandbox := newMutatorSandbox(t, fake)
 			sandbox.info.Class = tc.initial
+			sandbox.info.Persistent = nil
 			if tc.initial == SandboxClassUnknown {
 				sandbox.info.RawClass = "future"
 			}

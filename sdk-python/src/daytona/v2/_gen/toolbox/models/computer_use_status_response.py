@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona.v2._gen.toolbox.models.computer_use_activity_status import ComputerUseActivityStatus
 from daytona.v2._gen.toolbox.models.computer_use_desktop_failure import ComputerUseDesktopFailure
@@ -37,7 +37,7 @@ class ComputerUseStatusResponse(BaseModel):
     """
     The public desktop status surface.
     """ # noqa: E501
-    cause: Optional[ComputerUseDesktopFailure] = None
+    cause: Optional[ComputerUseDesktopFailure] = Field(default=None, description="Present exactly when `desktop` is `failed`.")
     desktop: ComputerUseDesktopState
     status: ComputerUseActivityStatus
     additional_properties: Dict[str, Any] = {}

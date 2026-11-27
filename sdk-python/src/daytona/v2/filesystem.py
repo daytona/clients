@@ -26,7 +26,6 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
-    TypeVar,
 )
 from urllib.parse import quote
 
@@ -51,6 +50,7 @@ from ._core import (
     parse_sse_events_bounded,
     sse_json,
     stream_event_too_large,
+    wait_budget,
 )
 from ._filesystem_inputs import buffer_bytes, path_sequence, sandbox_path
 from ._filesystem_watch_events import (
@@ -63,6 +63,8 @@ from ._filesystem_watch_events import (
     parse_watch_error,
 )
 from ._timestamps import parse_timestamp
+from ._transfer_cancel import raise_if_transfer_cancelled as _raise_if_transfer_cancelled
+from ._transfer_cancel import transfer_scope
 from ._transport import AsyncTransport
 from .errors import ConnectionError, DaytonaError, TransferCancelledError, create_error
 from .types import (
@@ -89,8 +91,6 @@ WATCH_MAX_EVENTS_BEFORE_START: Final[int] = 4096
 # malformed stream, like the count cap.
 WATCH_MAX_BYTES_BEFORE_START: Final[int] = 1_048_576
 _FILE_TRANSFER_CHUNK_BYTES: Final[int] = 64 * 1024
-_T = TypeVar("_T")
-_TRANSFER_CANCEL_POLL_SECONDS: Final[float] = 0.05
 _UPLOAD_BOUNDARY_PREFIX: Final[str] = "daytona-upload-"
 
 
@@ -422,7 +422,11 @@ class AsyncFileSystemService:
         cancel: TransferCancelSignal | None = None,
         atomic: bool = False,
     ) -> None:
-        """Stream a local file into the sandbox without buffering it whole in memory."""
+        """Stream a local file into the sandbox without buffering it whole in memory.
+
+        ``cancel`` is any object with ``is_set()`` and raises
+        ``TransferCancelledError``, as for :meth:`download_file`.
+        """
         if not isinstance(local_path, (str, os.PathLike)):
             raise create_error(
                 "local_path must be a path to a local file; use write_bytes() or write_text() for in-memory content",
@@ -446,25 +450,25 @@ class AsyncFileSystemService:
         # The body generator observes `cancel` while it streams; once it is
         # exhausted the request is still in flight (server-side processing),
         # so the send itself is raced against the signal too.
-        await _await_cancellable(
-            self._transport.request(
-                "POST",
-                "/files/upload",
-                transfer=True,
-                params=_atomic_params(path=remote_path, atomic=atomic),
-                headers=headers,
-                content_factory=lambda attempt: _upload_multipart_content(
-                    source_path,
-                    preamble=preamble,
-                    closing=closing,
-                    total_bytes=total_bytes,
-                    on_progress=retry_progress.callback_for_attempt(attempt),
-                    cancel=cancel,
+        async with transfer_scope(cancel) as watch:
+            await watch.run(
+                self._transport.request(
+                    "POST",
+                    "/files/upload",
+                    transfer=True,
+                    params=_atomic_params(path=remote_path, atomic=atomic),
+                    headers=headers,
+                    content_factory=lambda attempt: _upload_multipart_content(
+                        source_path,
+                        preamble=preamble,
+                        closing=closing,
+                        total_bytes=total_bytes,
+                        on_progress=retry_progress.callback_for_attempt(attempt),
+                        cancel=cancel,
+                    ),
                 ),
-            ),
-            cancel=cancel,
-            operation="upload",
-        )
+                operation="upload",
+            )
 
     async def download_file(
         self,
@@ -481,8 +485,12 @@ class AsyncFileSystemService:
         renames it over ``local_path`` on success; on an error or a
         cancellation that temporary file is removed. ``on_progress(bytes,
         total)`` reports progress (``total`` from ``Content-Length`` when the
-        sandbox sends it); ``cancel`` is any object with ``is_set()``, checked
-        between chunks, and raises ``TransferCancelledError``.
+        sandbox sends it); ``cancel`` is any object with ``is_set()`` and
+        raises ``TransferCancelledError``: a ``threading.Event`` stops a
+        stalled transfer as soon as it is set, from any thread (on CPython
+        3.10 to 3.15; elsewhere, and for subclasses, within 50 ms). Any other
+        object, an ``asyncio.Event`` included, is checked every 50 ms while
+        the transfer waits on the network.
         """
         sandbox_path(remote_path, "remote_path")
         destination_path = Path(local_path)
@@ -490,51 +498,51 @@ class AsyncFileSystemService:
         progress_calls = 0
         temporary_path: Path | None = None
         _raise_if_transfer_cancelled(cancel, operation="download")
-        stream = await _await_cancellable(
-            self._transport.open_stream(file_download_spec(remote_path, timeout=None)),
-            cancel=cancel,
-            operation="download",
-        )
-        total_bytes = _content_length(stream.headers)
-        try:
-            temporary_path, handle = _open_download_staging_file(destination_path)
-            with handle:
-                iterator = stream.iter_bytes().__aiter__()
-                while True:
-                    try:
-                        chunk = await _read_download_chunk(iterator, cancel=cancel)
-                    except StopAsyncIteration:
-                        break
+        async with transfer_scope(cancel) as watch:
+            stream = await watch.run(
+                self._transport.open_stream(file_download_spec(remote_path, timeout=None)),
+                operation="download",
+            )
+            total_bytes = _content_length(stream.headers)
+            try:
+                temporary_path, handle = _open_download_staging_file(destination_path)
+                with handle:
+                    iterator = stream.iter_bytes().__aiter__()
+                    while True:
+                        try:
+                            chunk = await watch.run(anext(iterator), operation="download")
+                        except StopAsyncIteration:
+                            break
+                        _raise_if_transfer_cancelled(cancel, operation="download")
+                        await asyncio.to_thread(handle.write, chunk)
+                        bytes_written += len(chunk)
+                        if on_progress is not None:
+                            _report_transfer_progress(on_progress, bytes_written, total_bytes)
+                            progress_calls += 1
+                    _raise_if_length_mismatch(bytes_written, total_bytes)
                     _raise_if_transfer_cancelled(cancel, operation="download")
-                    await asyncio.to_thread(handle.write, chunk)
-                    bytes_written += len(chunk)
-                    if on_progress is not None:
-                        _report_transfer_progress(on_progress, bytes_written, total_bytes)
-                        progress_calls += 1
-                _raise_if_length_mismatch(bytes_written, total_bytes)
-                _raise_if_transfer_cancelled(cancel, operation="download")
-                await asyncio.to_thread(_preserve_replaced_file_mode, handle.fileno(), destination_path)
-            if (
-                on_progress is not None
-                and total_bytes is not None
-                and (progress_calls == 0 or bytes_written != total_bytes)
-            ):
-                _report_transfer_progress(on_progress, bytes_written, total_bytes)
-            assert temporary_path is not None
-            await asyncio.to_thread(os.replace, temporary_path, destination_path)
-        except TransferCancelledError:
-            if temporary_path is not None:
-                with contextlib.suppress(FileNotFoundError):
-                    temporary_path.unlink()
-            await stream.close()
-            raise
-        except BaseException:
-            if temporary_path is not None:
-                with contextlib.suppress(FileNotFoundError):
-                    temporary_path.unlink()
-            raise
-        finally:
-            await stream.close()
+                    await asyncio.to_thread(_preserve_replaced_file_mode, handle.fileno(), destination_path)
+                if (
+                    on_progress is not None
+                    and total_bytes is not None
+                    and (progress_calls == 0 or bytes_written != total_bytes)
+                ):
+                    _report_transfer_progress(on_progress, bytes_written, total_bytes)
+                assert temporary_path is not None
+                await asyncio.to_thread(os.replace, temporary_path, destination_path)
+            except TransferCancelledError:
+                if temporary_path is not None:
+                    with contextlib.suppress(FileNotFoundError):
+                        temporary_path.unlink()
+                await stream.close()
+                raise
+            except BaseException:
+                if temporary_path is not None:
+                    with contextlib.suppress(FileNotFoundError):
+                        temporary_path.unlink()
+                raise
+            finally:
+                await stream.close()
 
     async def read_many(
         self, paths: Sequence[str], /, *, max_response_bytes: Optional[int] = None
@@ -596,10 +604,24 @@ class AsyncFileSystemService:
             RequestSpec("POST", "/files/folder", params={"path": sandbox_path(path), "mode": mode})
         )
 
-    async def remove(self, path: str, /, *, recursive: bool = False) -> None:
-        """Remove a file, or a directory with ``recursive=True``."""
+    async def remove(self, path: str, /, *, recursive: bool = False, timeout: Optional[float] = None) -> None:
+        """Remove a file, or a directory with ``recursive=True``.
+
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
+        """
         await self._transport.send(
-            RequestSpec("DELETE", "/files", params={"path": sandbox_path(path), "recursive": recursive})
+            RequestSpec(
+                "DELETE",
+                "/files",
+                params={"path": sandbox_path(path), "recursive": recursive},
+                timeout=wait_budget(timeout),
+            )
         )
 
     async def move(self, source: str, destination: str, /) -> None:
@@ -615,7 +637,9 @@ class AsyncFileSystemService:
             )
         )
 
-    async def grep(self, path: str, pattern: str, /) -> FileSearchResult[FileMatch]:
+    async def grep(
+        self, path: str, pattern: str, /, *, timeout: Optional[float] = None
+    ) -> FileSearchResult[FileMatch]:
         """Search file contents under ``path`` for the literal substring ``pattern``.
 
         Returns matches with one-based line numbers, as the sandbox user sees
@@ -623,31 +647,68 @@ class AsyncFileSystemService:
         read are not searched; ``skipped`` lists their absolute paths (at most
         1000). Only an unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
+
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
         return parse_grep_response(
             await self._transport.send(
-                RequestSpec("GET", "/files/find", params={"path": sandbox_path(path), "pattern": pattern})
+                RequestSpec(
+                    "GET",
+                    "/files/find",
+                    params={"path": sandbox_path(path), "pattern": pattern},
+                    timeout=wait_budget(timeout),
+                )
             )
         )
 
-    async def glob(self, path: str, pattern: str, /) -> FileSearchResult[str]:
+    async def glob(
+        self, path: str, pattern: str, /, *, timeout: Optional[float] = None
+    ) -> FileSearchResult[str]:
         """Return the paths of files under ``path`` whose base name matches the glob ``pattern``.
 
         Directories below ``path`` that the sandbox user cannot read are not
         searched; ``skipped`` lists their absolute paths (at most 1000). Only an
         unreadable ``path`` itself raises
         :class:`~daytona.v2.errors.FileAccessDeniedError`.
+
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
         """
         return parse_glob_response(
             await self._transport.send(
-                RequestSpec("GET", "/files/search", params={"path": sandbox_path(path), "pattern": pattern})
+                RequestSpec(
+                    "GET",
+                    "/files/search",
+                    params={"path": sandbox_path(path), "pattern": pattern},
+                    timeout=wait_budget(timeout),
+                )
             )
         )
 
     async def replace(
-        self, files: Sequence[str], pattern: str, new_value: str, /
+        self, files: Sequence[str], pattern: str, new_value: str, /, *, timeout: Optional[float] = None
     ) -> ListResult[ReplaceResult]:
-        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``."""
+        """Replace the literal substring ``pattern`` with ``new_value`` in ``files``.
+
+        Work over a large tree can take longer than the client's
+        ``request_timeout``; ``timeout`` replaces it for this call, as a total
+        deadline in seconds. ``0``, or a value above 2,147,483.647 (about 24.8
+        days), means no limit; omitted, the client's request timeout applies.
+        A negative, non-finite or boolean value raises ``BadRequestError``
+        before any request. A timeout ends the call, not the work in the
+        sandbox.
+        """
         checked_files = [
             sandbox_path(path, f"files[{index}]") for index, path in enumerate(path_sequence(files, "files"))
         ]
@@ -657,6 +718,7 @@ class AsyncFileSystemService:
                     "POST",
                     "/files/replace",
                     json_body={"files": checked_files, "pattern": pattern, "newValue": new_value},
+                    timeout=wait_budget(timeout),
                 )
             ),
             description="replace response",
@@ -671,8 +733,17 @@ class AsyncFileSystemService:
         mode: Optional[str] = None,
         owner: Optional[str] = None,
         group: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> None:
-        """Set file permissions and ownership."""
+        """Set file permissions and ownership.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        as a total deadline in seconds (a slow sandbox file system can outlast
+        it). ``0``, or a value above 2,147,483.647 (about 24.8 days), means no
+        limit; omitted, the client's request timeout applies. A negative,
+        non-finite or boolean value raises ``BadRequestError`` before any
+        request. A timeout ends the call, not the work in the sandbox.
+        """
         params: Dict[str, JsonValue] = {"path": sandbox_path(path)}
         if mode is not None:
             params["mode"] = mode
@@ -680,7 +751,9 @@ class AsyncFileSystemService:
             params["owner"] = owner
         if group is not None:
             params["group"] = group
-        await self._transport.send(RequestSpec("POST", "/files/permissions", params=params))
+        await self._transport.send(
+            RequestSpec("POST", "/files/permissions", params=params, timeout=wait_budget(timeout))
+        )
 
     async def watch_dir(
         self,
@@ -1033,52 +1106,6 @@ def _report_transfer_progress(
         return
 
 
-async def _await_cancellable(
-    awaitable: Awaitable[_T],
-    *,
-    cancel: TransferCancelSignal | None,
-    operation: str,
-) -> _T:
-    """Await `awaitable`, raising TransferCancelledError (and cancelling the
-    underlying task) as soon as `cancel` is set, even if the awaitable is
-    stalled on the network."""
-    if cancel is None:
-        return await awaitable
-    task: asyncio.Task[_T] = asyncio.ensure_future(awaitable)
-    try:
-        while True:
-            done, _ = await asyncio.wait({task}, timeout=_TRANSFER_CANCEL_POLL_SECONDS)
-            if done:
-                return task.result()
-            _raise_if_transfer_cancelled(cancel, operation=operation)
-    except BaseException:
-        if not task.done():
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await task
-        raise
-
-
-async def _read_download_chunk(
-    iterator: AsyncIterator[bytes],
-    *,
-    cancel: TransferCancelSignal | None,
-) -> bytes:
-    read_task: asyncio.Task[bytes] = asyncio.create_task(anext(iterator))
-    try:
-        while True:
-            done, _ = await asyncio.wait({read_task}, timeout=_TRANSFER_CANCEL_POLL_SECONDS)
-            if done:
-                return read_task.result()
-            _raise_if_transfer_cancelled(cancel, operation="download")
-    except BaseException:
-        if not read_task.done():
-            read_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await read_task
-        raise
-
-
 def _open_download_staging_file(destination: Path) -> tuple[Path, BinaryIO]:
     """Exclusively create a random `.daytona-dl-*` sibling of `destination`.
 
@@ -1123,13 +1150,6 @@ def _preserve_replaced_file_mode(staging_fd: int, destination: Path) -> None:
         os.umask(mask)
         mode = 0o666 & ~mask
     os.fchmod(staging_fd, mode)
-
-
-def _raise_if_transfer_cancelled(cancel: TransferCancelSignal | None, *, operation: str) -> None:
-    if cancel is not None and cancel.is_set():
-        raise TransferCancelledError(
-            f"{operation} transfer cancelled", status_code=499, code="REQUEST_CANCELLED", source="SDK"
-        )
 
 
 def _content_length(headers: Mapping[str, str]) -> int | None:

@@ -7,15 +7,18 @@ import (
 	"context"
 	"maps"
 	"net/http"
+	"slices"
+	"unicode/utf8"
 )
 
 // SetLabels replaces labels and returns the applied map. Nil clears all but the
 // reserved name label. Unless name is supplied, a detail read preserves its
 // current value; this read and write are not atomic. Empty keys return
-// ErrBadRequest before I/O. ErrConflict identifies deleting or deleted sandboxes.
+// ErrBadRequest before I/O, as do keys or values that are not valid UTF-8.
+// ErrConflict identifies deleting or deleted sandboxes.
 func (s *Sandbox) SetLabels(ctx context.Context, labels map[string]string) (map[string]string, error) {
-	if _, exists := labels[""]; exists {
-		return nil, badRequest("label keys must not be empty")
+	if err := checkLabels(labels); err != nil {
+		return nil, err
 	}
 	body := make(map[string]string, len(labels)+1)
 	maps.Copy(body, labels)
@@ -60,4 +63,21 @@ func (s *Sandbox) SetLabels(ctx context.Context, labels map[string]string) (map[
 	s.info.Labels = maps.Clone(applied)
 	s.mu.Unlock()
 	return applied, nil
+}
+
+// checkLabels refuses labels the API cannot read, before any request: an empty
+// key, then a key or a value that is not valid UTF-8, in key order.
+func checkLabels(labels map[string]string) error {
+	if _, exists := labels[""]; exists {
+		return badRequest("label keys must not be empty")
+	}
+	for _, key := range slices.Sorted(maps.Keys(labels)) {
+		if !utf8.ValidString(key) {
+			return badRequest("label keys must be valid UTF-8")
+		}
+		if !utf8.ValidString(labels[key]) {
+			return badRequest("label values must be valid UTF-8")
+		}
+	}
+	return nil
 }

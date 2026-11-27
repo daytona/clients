@@ -40,8 +40,8 @@ class LifecyclePolicy(BaseModel):
     idle_timeout_at: Optional[datetime] = Field(default=None, description="Absolute idle-expiry deadline, or null when idle expiry is not armed.")
     last_activity_at: Optional[datetime] = Field(default=None, description="When activity was last observed, or null when no activity is recorded.")
     last_activity_source: Optional[StrictStr] = Field(default=None, description="The kind of activity most recently observed, such as an explicit idle-timer reset (`api`), a running command, or sandbox traffic. Open vocabulary: treat an unrecognized value as sandbox activity.")
-    on_idle_timeout: Optional[LifecycleAction] = None
-    on_timeout: Optional[LifecycleAction] = None
+    on_idle_timeout: Optional[LifecycleAction] = Field(default=None, description="The action run when the idle expiry elapses, or null when idle expiry is not armed.")
+    on_timeout: Optional[LifecycleAction] = Field(default=None, description="The action run when the timeout expires, or null when no timeout is armed.")
     timeout_at: Optional[datetime] = Field(default=None, description="Absolute timeout deadline, or null when no timeout is armed.")
     timeout_seconds: Optional[StrictInt] = Field(default=None, description="Configured timeout in seconds.")
     additional_properties: Dict[str, Any] = {}

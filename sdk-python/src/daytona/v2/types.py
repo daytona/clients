@@ -299,8 +299,9 @@ class LifecyclePolicyOptions(TypedDict, total=False):
     only; :meth:`daytona.v2.Sandbox.update_lifecycle_policy` never consults them.
 
     Settings unavailable for the sandbox's class and persistence are rejected before
-    sending the request. Linux supports ``delete``; persistent macOS sandboxes
-    also support ``stop``. Pause macOS explicitly with :meth:`daytona.v2.Sandbox.pause`.
+    sending the request. ``delete`` is available everywhere; ``stop`` requires
+    persistence and is unavailable on GPU sandboxes. ``pause`` requires a
+    persistent Linux sandbox. Pause macOS explicitly with :meth:`daytona.v2.Sandbox.pause`.
     """
 
     timeout_seconds: int
@@ -345,7 +346,7 @@ class FileSearchResult(ListResult[T]):
 
 @dataclass(frozen=True, init=False)
 class SearchResult(Generic[T]):
-    """One page of ``GET /sandboxes/search`` (``Daytona.search()``).
+    """One page returned by a resource ``search()`` method.
 
     ``total`` is exact when ``total_relation == "eq"`` and a lower bound when it
     is ``"gte"`` (exact counting is capped at 10 000). Immutable, like
@@ -1584,6 +1585,9 @@ SearchSort = Literal[
     "created_at", "updated_at", "last_activity_at", "name", "cores", "memory_mib", "disk_mib"
 ]
 SearchOrder = Literal["asc", "desc"]
+SecretSearchSort = Literal["name", "created_at", "updated_at"]
+VolumeSearchSort = Literal["created_at", "updated_at", "name", "used_bytes", "last_used_at", "size_gib"]
+VolumeSearchStatus = Literal["ready", "deleting", "error"]
 SearchTimestamp = Union[str, datetime]
 """A search bound: an RFC 3339 timestamp without a leap second (year 0001-9999,
 a real calendar date), checked and sent exactly as written; or a ``datetime``,
@@ -1608,6 +1612,8 @@ class SandboxSearchFilters:
     image_ref: Optional[str] = None
     image_ref_prefix: Optional[str] = None
     labels: Optional[Mapping[str, str]] = None
+    #: Filter by persistence; ``None`` leaves both kinds.
+    persistent: Optional[bool] = None
     spot: Optional[bool] = None
     forked_from: Optional[str] = None
     #: Bounds on ``cores_max`` (the CPU limit), in cores (1 core = 2 vCPUs; a
