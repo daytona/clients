@@ -106,6 +106,7 @@ daytona sandbox exec <id> -- python -c 'print("hello")'
 daytona sandbox docker status <id> --wait
 daytona sandbox ssh <id>
 daytona sandbox cp ./data.csv <id>:/work/data.csv
+daytona sandbox cp <id>:/var/log/app.log - | tail   # - is stdout (or stdin, for an upload)
 daytona sandbox port expose <id> 8080 --public   # a preview URL anyone can open, with no credential
 daytona sandbox port preview-url <id> 8080 --signed --ttl 10m
 daytona volume create shared --type bucket
@@ -114,6 +115,8 @@ daytona snapshot create <id> --name saved-state
 daytona sandbox create-from-snapshot saved-state --name resumed   # resume a memory snapshot
 daytona image build my-app --context .  # honours .dockerignore
 daytona image capture <id> --name py312-after-setup
+daytona image create --ref python:3.12 --idle-expiry 24h   # anonymous: deleted after 24h unused
+daytona sandbox exec <id> --tag build -- make   # then: daytona sandbox process kill-all <id> --tag build
 daytona image promote img_123 keep-this   # name an anonymous image (makes it permanent)
 daytona org limits                     # sandbox limits and current usage
 daytona billing usage                  # current open billing period
@@ -136,6 +139,8 @@ attached volumes prevent pause and fork (409). A fork inherits persistence;
 `--persistent` override.
 
 `sandbox fork` retries a sandbox still starting, stopping or pausing.
+`sandbox fork --memory=false` copies only the disk (the source is not
+paused); such a fork, like the fork of a stopped source, rests stopped.
 `image capture` retries a Linux or Windows sandbox still starting, or a macOS
 sandbox still stopping. `snapshot create` retries a sandbox still starting.
 These submissions retry for up to 30 seconds before the POST is accepted.
@@ -210,6 +215,11 @@ resource id and its `get` command; the operation keeps running on the server.
 `image capture` and `snapshot create` need `write:sandboxes` in addition to
 `write:images` / `write:snapshots` (exit code `4` without it).
 `image list --platform` accepts only `true`, `false` or `any`.
+`image list --name` and `snapshot list --name` send an explicit empty name
+(`--name ''`), which matches nothing, as the SDKs do; `snapshot list
+--sandbox <id>` lists the snapshots of one sandbox. `image create` without a
+name, and `image capture` without `--name`, make an anonymous image, kept for
+`--idle-expiry` (a duration, or `max`) after its last use.
 
 `sandbox exec <id> -- COMMAND [ARGS...]` copies stdout and stderr as raw bytes,
 including binary output. `--timeout` only stops the CLI waiting; the process
@@ -341,9 +351,11 @@ intermediate `stopped` state. A fork of a paused or stopped source waits for
 | `login`, `logout`, `whoami` | sign in (`--device`, `--browser`, `--token`), sign out, show the credential and the selected organization and project |
 | `profile` | `list`, `use`, `delete` (`login --profile NAME` creates one) |
 | `config` | `get`, `set`, `path` (the only setting is `confirm`) |
-| `sandbox` | `create`, `create-from-snapshot`, `create-macos`, `list`, `search`, `get`, `wait`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `update`, `logs`, `usage`, `exec`, `ssh`, `cp` |
-| `sandbox port` | `list`, `endpoints`, `expose`, `unexpose`, `preview-url` (and `preview-url expire`) |
-| `sandbox process` | `list`, `get`, `wait`, `signal`, `kill`, `logs`, `attach` |
+| `sandbox` | `create`, `create-from-snapshot`, `create-macos`, `list`, `search`, `get`, `wait`, `start`, `stop`, `pause`, `resume`, `fork`, `delete`, `update`, `logs`, `usage`, `exec`, `ssh`, `cp`, `access-token` |
+| `sandbox secrets` | `get`, `set` |
+| `sandbox network-policy` | `get`, `set`, `reset` |
+| `sandbox port` | `list`, `in-use`, `endpoints`, `expose`, `unexpose`, `preview-url` (and `preview-url expire`) |
+| `sandbox process` | `list`, `get`, `wait`, `signal`, `kill`, `kill-all`, `logs`, `attach` |
 | `sandbox docker` | `status` |
 | `image` | `create`, `build`, `capture`, `promote`, `list`, `get`, `delete`, `logs` |
 | `snapshot` | `create`, `list`, `get`, `delete` |
@@ -371,6 +383,14 @@ commands that use them; any other command rejects them as unknown flags
 search`, `image list`, `image create`, `image build`, `reservation create`,
 `cpu-type list` and `mac-model list`. A renamed flag's old spelling is
 refused with a hint that names the new one.
+
+`daytona completion bash|zsh|fish|powershell` prints a completion script.
+Completion is local: it offers the values of flags and arguments with a
+fixed vocabulary (`-o`, `sandbox wait --for`, `volume create --type`,
+`config set`, signal names, …) and the saved profile names (`--profile`,
+`profile use`), sends no request, and does not complete resource ids or
+regions; it never offers local file names for an argument that names a
+remote resource.
 
 ## Scripts and agents
 
@@ -477,6 +497,20 @@ never prompts:
   secret with no scope); use `--allowed-domain '*'` to remove domain restrictions
   (the value can then reach any verified HTTPS host). An empty scope is not
   supported by the API; delete the secret to remove it entirely.
+  Creating a secret is conditional: if another caller created it after
+  `secret set` read it, the command fails with 412 `SECRET_ALREADY_EXISTS`
+  (run it again) instead of overwriting it. Updating an existing secret is
+  not: the API has no conditional update, so of two concurrent updates the
+  last one wins, including the metadata it kept from its own read.
+- `sandbox secrets set` and `sandbox network-policy set|reset` replace the
+  whole set or policy of a running sandbox. They send `If-Match`: the
+  `--if-match` you pass (the `etag` that `get` prints), or else the etag of a
+  read made just before, so a change made in between is refused (412)
+  instead of overwritten. The change applies asynchronously: `get` shows
+  `status` and the desired and applied revisions.
+- `sandbox access-token <id>` mints a scoped, short-lived token for one
+  sandbox (`--operations`, `--ports`, each comma-separated or `none`;
+  `--ttl`) and prints it: treat the output as a secret.
 - Repeatable list flags accumulate: `--role a --role b,c` is `a,b,c` (also
   `--permission`, `--allow-domain`, …). `--label` and `--env` take one
   `KEY=VALUE` each and keep commas inside the value; repeat them for more.
@@ -643,10 +677,14 @@ than the configured duration. While a sandbox is stopped, commands that work ins
   `invite decline` prints `{"declined": true}` (the token is not echoed),
   `sandbox port preview-url expire` `{"sandbox_id", "revoked": true}`,
   `sandbox port unexpose` `{"sandbox_id", "port", "unexposed": true}`, and `sandbox process signal` / `kill` `{"id", "signal"}`.
+  `sandbox cp` prints `{"source", "destination", "bytes"}` for a file
+  (`destination` is the path the file was written to) and `{"source",
+  "destination", "recursive": true}` for `-r`; a download to `-` prints only
+  the file. With table output `cp` prints nothing.
   With table output `org delete`, `project delete` and `project budget
   remove` print a sentence on stderr instead.
 - Raw streams are never JSON: the output of `sandbox exec`, `ssh`,
-  `process attach` and `cp`, `--follow` in table mode, `billing invoice pdf`,
+  `process attach` and `cp … -`, `--follow` in table mode, `billing invoice pdf`,
   `docs`, `completion`, `help` and `--version`.
 - The local configuration commands (`login`, `logout`, `org use`, `project
   use`, `profile use`, `profile delete`, `config set`) print nothing on
