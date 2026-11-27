@@ -1,0 +1,224 @@
+README.md
+  h_e7759ddd73fa65 73-76
+SECURITY.md
+  h_e7759ddd73fa65 17,21-22
+changelog.d/cli-help-auto-renew.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-help-cp.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-get-id-or-name.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-required-roles.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-search.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/cli-help-secret-set.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-help-volume-create-name.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-help-volume-flag.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-readme-ci-output.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-readme-cursors.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/cli-readme-lifecycle-deadlines.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/cli-readme-units.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-account.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-build-context-region.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-capture-image-examples.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-computer-use-availability.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-create-snapshot.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-create-timeout-range.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-default-image.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-docker-off.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-fs-glob.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-fs-list-depth.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-fs-upload-atomic.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-git-clone-timeout.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-git-history-unpaged.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-git-init-remote-reset.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-git-pull-remotes.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/docs-if-match.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-image-regions.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-kill-all-sessions.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/docs-kill-interactive-shell.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-persistence-lifecycle.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-pty-close-stdin.changed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/docs-python-asyncio.changed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/docs-reservations-get.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-retries-timeouts.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/docs-search-ordering.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-session-examples.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/docs-volume-ids.changed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/examples-image-cleanup.fixed.md
+  h_e7759ddd73fa65 1-4
+changelog.d/examples-images-rename.fixed.md
+  h_e7759ddd73fa65 1-2
+changelog.d/examples-volume-notes.fixed.md
+  h_e7759ddd73fa65 1-3
+changelog.d/stable-install-docs.changed.md
+  h_e7759ddd73fa65 1-5
+changelog.d/upgrade-guide-stable.changed.md
+  h_e7759ddd73fa65 1-2
+cli/README.md
+  h_e7759ddd73fa65 21-25,43-45,49,98,112,387-389,416-419,434-450,473-474,509-515,575-577
+cli/cmd/image.go
+  h_e7759ddd73fa65 44,46
+cli/cmd/key.go
+  h_e7759ddd73fa65 30
+cli/cmd/member.go
+  h_e7759ddd73fa65 102
+cli/cmd/orgkey.go
+  h_e7759ddd73fa65 25
+cli/cmd/reservation.go
+  h_e7759ddd73fa65 25
+cli/cmd/sandbox_actions.go
+  h_e7759ddd73fa65 212-224,229
+cli/cmd/sandbox_cp.go
+  h_e7759ddd73fa65 37
+cli/cmd/sandbox_create.go
+  h_e7759ddd73fa65 78,159,209
+cli/cmd/sandbox_create_macos.go
+  h_e7759ddd73fa65 98
+cli/cmd/sandbox_create_macos_test.go
+  h_e7759ddd73fa65 74,92-93
+cli/cmd/sandbox_display_actions_test.go
+  h_e7759ddd73fa65 7,107-119
+cli/cmd/sandbox_fork.go
+  h_e7759ddd73fa65 58-59
+cli/cmd/sandbox_search.go
+  h_e7759ddd73fa65 61-65,158,160-161,164-165
+cli/cmd/secret.go
+  h_e7759ddd73fa65 39-40,105-106
+cli/cmd/service_account.go
+  h_e7759ddd73fa65 50
+cli/cmd/snapshot.go
+  h_e7759ddd73fa65 131,133
+cli/cmd/volume.go
+  h_e7759ddd73fa65 48-49,158
+docs/adr/0001-sdk-parity.md
+  h_e7759ddd73fa65 36-39
+examples/README.md
+  h_e7759ddd73fa65 11-14,16-22,34,52,74,76,133
+examples/package.json
+  h_e7759ddd73fa65 12
+examples/python/git_ops.py
+  h_e7759ddd73fa65 4-8
+examples/python/images.py
+  h_e7759ddd73fa65 2,11-16,20,25,28,30,33-65,67-71,77,82-93,102-104,109-115
+examples/python/test_examples.py
+  h_e7759ddd73fa65 108-114,161,188-191,250-257,259-261,538-607
+examples/python/volumes.py
+  h_e7759ddd73fa65 10-15,53
+examples/run-examples.sh
+  h_e7759ddd73fa65 12-14,26-27
+examples/typescript/examples.test.ts
+  h_e7759ddd73fa65 45,324-368
+examples/typescript/git/index.ts
+  h_e7759ddd73fa65 4-8
+examples/typescript/images/index.ts
+  h_e7759ddd73fa65 1-15,17-19,21-30,34-41,43,45-62,65-87,89-92,95-101,105-110
+examples/typescript/test-support/fake-sdk.ts
+  h_e7759ddd73fa65 54-59,102,309-312,318-325,337-340
+examples/typescript/volumes/index.ts
+  h_e7759ddd73fa65 9-14,46
+sdk-go/README.md
+  h_e7759ddd73fa65 46-47
+sdk-go/doc.go
+  h_e7759ddd73fa65 14
+sdk-go/fs_search.go
+  h_e7759ddd73fa65 93-94
+sdk-go/process_handle.go
+  h_e7759ddd73fa65 111-115
+sdk-go/sandbox_create.go
+  h_e7759ddd73fa65 12-14
+sdk-go/sandbox_lifecycle_fork.go
+  h_e7759ddd73fa65 26-28
+sdk-python/README.md
+  h_e7759ddd73fa65 9-11,14-20,104-107,239,275-277,279-281,294-295,299-303,463-467,475-476,484-489,509-510,514-533,612-615,752-757,774-776,809-816,994-999,1015-1017,1029,1045,1047-1048,1061-1062,1075-1076,1090-1092,1126,1139-1142,1196-1199,1228-1232,1286-1306,1324-1326,1358-1360,1418-1421,1427,1523-1534
+sdk-python/src/daytona/v2/_sync/filesystem.py
+  h_e7759ddd73fa65 92,94-98,135-141
+sdk-python/src/daytona/v2/_sync/process.py
+  h_e7759ddd73fa65 60-70
+sdk-python/src/daytona/v2/_sync/sandbox.py
+  h_e7759ddd73fa65 139-147,279-280,298-299,337
+sdk-python/src/daytona/v2/_sync/services.py
+  h_e7759ddd73fa65 207-213,518-521,619-623
+sdk-python/src/daytona/v2/filesystem.py
+  h_e7759ddd73fa65 594-600,707,709-713
+sdk-python/src/daytona/v2/process.py
+  h_e7759ddd73fa65 407-417
+sdk-python/src/daytona/v2/sandbox.py
+  h_e7759ddd73fa65 1491,1532-1533,1551-1552,1923-1931
+sdk-python/src/daytona/v2/services.py
+  h_e7759ddd73fa65 401-407,1100-1104,1402-1405
+sdk-python/src/daytona/v2/types.py
+  h_e7759ddd73fa65 478,664-665,842
+sdk-typescript/README.md
+  h_e7759ddd73fa65 9,12-19,150-155,172,174-177,228-232,386-390,401-406,427-428,482-500,566-569,664-669,675-677,698-705,880-884,903-906,910-911,926,929,943-945,962-963,972-973,1013,1030-1033,1097-1100,1116-1121,1179-1199,1217-1219,1252-1254,1337-1341,1350,1415-1426
+sdk-typescript/src/v2/FileSystem.ts
+  h_e7759ddd73fa65 469-474,772-777
+sdk-typescript/src/v2/Images.ts
+  h_e7759ddd73fa65 44-50
+sdk-typescript/src/v2/ProcessHandle.ts
+  h_e7759ddd73fa65 136-145
+sdk-typescript/src/v2/Reservations.ts
+  h_e7759ddd73fa65 147-151
+sdk-typescript/src/v2/Sandbox.ts
+  h_e7759ddd73fa65 802-803,842-844,1223-1231
+sdk-typescript/src/v2/Secret.ts
+  h_e7759ddd73fa65 40,50-53
+sdk-typescript/src/v2/accountTypes.ts
+  h_e7759ddd73fa65 85
+sdk-typescript/src/v2/types.ts
+  h_e7759ddd73fa65 293
+upgrade/MIGRATION.md
+  h_e7759ddd73fa65 30-31,47-49
+upgrade/python/README.md
+  h_e7759ddd73fa65 16-18
+upgrade/scripts/gen-guide.mjs
+  h_e7759ddd73fa65 62-63,79-81
+upgrade/typescript/README.md
+  h_e7759ddd73fa65 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e23a7f183f4837e272550d0c25b0ed0eeef7ab0d",
+  "prompts": {},
+  "humans": {
+    "h_e7759ddd73fa65": {
+      "author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
