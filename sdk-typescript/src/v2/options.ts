@@ -127,8 +127,9 @@ export function assertIfMatchOptions(options: IfMatchOptions | undefined): void 
 
 /**
  * A sandbox environment variable name (`create({ env })`, `updateEnv`): not
- * empty, without `=`, NUL, CR or LF. Which names the platform reserves is
- * checked by the API, which answers with a 400 naming the key.
+ * empty, without `=`, NUL, CR or LF, and without a lone surrogate (no UTF-8
+ * form). Which names the platform reserves is checked by the API, which
+ * answers with a 400 naming the key.
  * @internal
  */
 export function envKey(key: string): string {
@@ -139,7 +140,7 @@ export function envKey(key: string): string {
   return key
 }
 
-/** A sandbox environment variable value: no NUL. @internal */
+/** A sandbox environment variable value: no NUL and no lone surrogate (no UTF-8 form). @internal */
 export function envValue(value: string): string {
   if (value.includes('\0')) throw badRequest('env values must not contain NUL')
   if (hasLoneSurrogate(value)) throw badRequest('env values must not contain a lone surrogate')

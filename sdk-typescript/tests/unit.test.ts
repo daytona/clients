@@ -2068,6 +2068,23 @@ describe('V2 model', () => {
     expect(post).not.toHaveBeenCalled()
   })
 
+  it('sends the own string entries of any object as updateEnv env, process.env and class instances included', async () => {
+    const sandbox = createSandbox('sbx', undefined, undefined, 'key', undefined, { toolboxUrl: 'http://toolbox.invalid/sandbox-api/sbx' })
+    const post = jest.spyOn(toolboxInstance(sandbox), 'post').mockResolvedValue({ data: undefined })
+    class Env { A = 'x' }
+    await sandbox.updateEnv(new Env() as never)
+    const saved = process.env.DAYTONA_UPDATE_ENV_PROBE
+    process.env.DAYTONA_UPDATE_ENV_PROBE = 'p'
+    try {
+      await sandbox.updateEnv(process.env as Record<string, string>)
+    } finally {
+      if (saved === undefined) delete process.env.DAYTONA_UPDATE_ENV_PROBE
+      else process.env.DAYTONA_UPDATE_ENV_PROBE = saved
+    }
+    expect(post.mock.calls[0]?.[1]).toEqual({ env: { A: 'x' }, unset: [] })
+    expect((post.mock.calls[1]?.[1] as { env: Record<string, string> }).env.DAYTONA_UPDATE_ENV_PROBE).toBe('p')
+  })
+
   it.each([
     ['', 'env key is not a valid variable name'],
     ['BAD=KEY', 'env key is not a valid variable name'],
@@ -10166,6 +10183,7 @@ describe('sandbox search', () => {
     }
     // JS `null` is absent (Python's `None`): no parameter, no request-time error.
     expect(searchQueryParams({ labels: null as unknown as Record<string, string> })).toEqual({})
+    // The first bad entry is reported: 'running' (not a state) before 7 (not a string).
     for (const status of [['running', 7], ['running', ''], ['a,b'], ['started', 'unknown'], ['unknown', 'started']]) {
       // Deliberately invalid entries a JS caller could pass; the cast only exists to reach the runtime guard.
       const options = { states: status as unknown as readonly Exclude<import('../src/v2/types').SandboxState, 'unknown'>[] }

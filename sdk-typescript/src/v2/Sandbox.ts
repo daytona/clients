@@ -42,7 +42,7 @@ import {
   lifecycleBody,
   parseSandboxLifecycle,
 } from './http.js'
-import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError } from './errors/DaytonaError.js'
+import { BadRequestError, ClientTimeoutError, DaytonaError, RequestTimeoutError, TransferCancelledError, UnsupportedOperationError, createDaytonaError, nonOptionsDescription } from './errors/DaytonaError.js'
 import { eventDestinationFromHeaders } from './events.js'
 import type { WaitHub } from './events.js'
 import { assertIfMatchOptions, assertKnownOptions, assertLabelKeys, assertOptionsObject, badRequest, envKey, envValue, isPlainStringRecord, optionKeys, optionalSeconds, RENAMED_OPTIONS, waitDeadline } from './options.js'
@@ -237,12 +237,19 @@ function labelsBody(labels: unknown): Record<string, string> {
 }
 
 function updateEnvBody(env: Record<string, string>, options: UpdateEnvOptions): toolbox.EnvRequest {
-  // A Map or class instance has no own string entries: refused, never sent as {}.
-  if (!isPlainStringRecord(env)) {
+  // Any object's own string entries are sent (`process.env`, a class
+  // instance, as Python takes any Mapping); a built-in such as a Map, whose
+  // contents are not own entries, is refused instead of being sent as {}.
+  if (nonOptionsDescription(env) !== undefined) {
     throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
   }
   const outputEnv = emptyStringMap()
-  for (const [key, value] of Object.entries(env)) outputEnv[envKey(key)] = envValue(value)
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value !== 'string') {
+      throw new BadRequestError('updateEnv requires env to be a Record<string, string>', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })
+    }
+    outputEnv[envKey(key)] = envValue(value)
+  }
   const unset = options.unset ?? []
   if (!Array.isArray(unset) || unset.some((key) => typeof key !== 'string')) {
     throw new BadRequestError('updateEnv requires unset to be an array of strings', { statusCode: 400, code: 'BAD_REQUEST', source: 'SDK' })

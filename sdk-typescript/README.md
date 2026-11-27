@@ -1268,7 +1268,8 @@ every `DAYTONA_*` name other than `DAYTONA_API_URL`, `DAYTONA_OTEL_ENDPOINT`
 and `DAYTONA_DOCKER_START` (`DAYTONA_SANDBOX_TOKEN` included). A sandbox `env`
 that sets a reserved name fails the create with `BadRequestError` (400) naming
 the key. The SDK itself refuses, before any request, a name that is empty or
-contains `=`, NUL, CR or LF and a value that contains NUL, in
+contains `=`, NUL, CR, LF or a lone surrogate and a value that contains NUL or
+a lone surrogate, in
 `create*({ env })` and `updateEnv()` alike. `updateEnv()` refuses reserved `DAYTONA_*` names in the keys it sets or
 unsets too (`DAYTONA_SANDBOX_ID`, for one), by the sandbox's own list, which
 differs from the create's: it accepts `DAYTONA_SANDBOX_TOKEN`, for one.

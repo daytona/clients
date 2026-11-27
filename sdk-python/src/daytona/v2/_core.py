@@ -1440,7 +1440,8 @@ INVALID_ENV_KEY_REASON: Final = "env key is not a valid variable name"
 
 def check_env_key(key: object) -> str:
     """A sandbox environment variable name (``create(env=...)``,
-    ``update_env``): a non-empty string without ``=``, NUL, CR or LF. Which
+    ``update_env``): a non-empty string without ``=``, NUL, CR, LF or a
+    surrogate code point (no UTF-8 form). Which
     names the platform reserves is checked by the API, which answers with a
     400 naming the key."""
     if not isinstance(key, str):
@@ -1453,7 +1454,8 @@ def check_env_key(key: object) -> str:
 
 
 def check_env_value(value: object) -> str:
-    """A sandbox environment variable value: a string without NUL."""
+    """A sandbox environment variable value: a string without NUL or a
+    surrogate code point (no UTF-8 form)."""
     if not isinstance(value, str):
         raise create_error("env values must be strings", 400, "BAD_REQUEST", "SDK")
     if "\0" in value:
@@ -2358,7 +2360,9 @@ def _wire_statuses(states: object) -> str:
         if statuses is None:
             if not isinstance(state, str):
                 raise create_error("states entries must be strings", 400, "BAD_REQUEST", "SDK")
-            shown = json.dumps(state, ensure_ascii=False)
+            # As JSON.stringify: non-ASCII literal, a lone surrogate escaped
+            # (it has no UTF-8 form, so printing the message would fail).
+            shown = json.dumps(state, ensure_ascii=False).encode("utf-8", "backslashreplace").decode("utf-8")
             raise create_error(
                 f"states entries must be known sandbox states, got {shown}", 400, "BAD_REQUEST", "SDK"
             )

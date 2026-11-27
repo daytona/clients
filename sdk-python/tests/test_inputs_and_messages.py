@@ -19,7 +19,7 @@ from network_policy_test_server import FakeApi, PlannedResponse
 from daytona import AsyncDaytona as RootAsyncDaytona
 from daytona import DaytonaConfig as RootDaytonaConfig
 from daytona.v2 import AuthenticationError, BadRequestError, PayloadTooLargeError
-from daytona.v2._core import RequestSpec, _wire_statuses
+from daytona.v2._core import RequestSpec, _wire_statuses, expect_branch_list
 from daytona.v2.computer_use_core import (
     expect_computer_use_point,
     expect_computer_use_process_logs_response,
@@ -296,6 +296,7 @@ async def test_missing_and_conflicting_credentials_name_the_config_and_the_varia
         ([True], "states entries must be strings"),
         ([None], "states entries must be strings"),
         ("météo", 'states entries must be known sandbox states, got "météo"'),
+        ("\ud800", 'states entries must be known sandbox states, got "\\ud800"'),
     ],
 )
 def test_search_states_messages(states: object, message: str) -> None:
@@ -334,6 +335,14 @@ async def test_wait_timeouts_share_one_message() -> None:
             {"processName": "xvfb", "logs": 5},
             "expected computer-use process logs response: logs must be a string",
         ),
+        # A null list item is a wrong-typed value; a null or absent field is missing.
+        (
+            expect_branch_list,
+            {"branches": ["main", None]},
+            "expected branch list response: branches.1 must be a string",
+        ),
+        (expect_branch_list, {"branches": None}, "expected branch list response: branches is required"),
+        (expect_branch_list, {}, "expected branch list response: branches is required"),
     ],
 )
 def test_malformed_response_messages_use_sdk_wording(

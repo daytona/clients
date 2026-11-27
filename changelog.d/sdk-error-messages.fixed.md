@@ -3,8 +3,9 @@ message in Python, TypeScript and Go, modulo parameter naming:
 - missing or conflicting credentials: `configure api_key or jwt_token (in
   DaytonaConfig or as DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)`, and
   `jwt_token requires project_id (in DaytonaConfig or as DAYTONA_PROJECT_ID)`;
-- every invalid duration: `<name> must be a non-negative finite number of
-  seconds`;
+- every duration checked only as non-negative finite seconds (timeouts,
+  wait budgets, the request timeout, the events intervals): `<name> must be
+  a non-negative finite number of seconds`;
 - `search(states=...)`: a value that is neither a state nor a list is a type
   error (`states must be a sandbox state or a list of sandbox states`; a number
   used to read as an empty list), an empty list says `states must name at

@@ -118,22 +118,22 @@ func (s *ComputerUseScreen) Screenshot(
 	return result, nil
 }
 
-// checkScreenshotRegion refuses an empty region, or a coordinate beyond
-// 2**53 - 1, before any request, as the Python and TypeScript SDKs do.
+// checkScreenshotRegion refuses a coordinate beyond 2**53 - 1, or an empty
+// region, before any request. Fields are checked in order, each for range
+// then sign, so the first faulty field is the one the Python and TypeScript
+// SDKs report.
 func checkScreenshotRegion(region ComputerUseRegion) error {
 	for _, field := range []struct {
 		name  string
 		value int
-	}{{"X", region.X}, {"Y", region.Y}, {"Width", region.Width}, {"Height", region.Height}} {
+		size  bool
+	}{{"X", region.X, false}, {"Y", region.Y, false}, {"Width", region.Width, true}, {"Height", region.Height, true}} {
 		if int64(field.value) > maxSafeInteger || int64(field.value) < -maxSafeInteger {
 			return badRequest("Region." + field.name + " must be between -9007199254740991 and 9007199254740991")
 		}
-	}
-	if region.Width <= 0 {
-		return badRequest("Region.Width must be greater than 0")
-	}
-	if region.Height <= 0 {
-		return badRequest("Region.Height must be greater than 0")
+		if field.size && field.value <= 0 {
+			return badRequest("Region." + field.name + " must be greater than 0")
+		}
 	}
 	return nil
 }

@@ -98,8 +98,9 @@ func stateWire(state SandboxState) ([]string, error) {
 	}
 }
 
-// jsonQuote quotes text as JSON.stringify and Python's json.dumps(...,
-// ensure_ascii=False) do, so a message that shows it reads the same in every SDK.
+// jsonQuote quotes text as JSON, without HTML escaping, as the Python and
+// TypeScript SDKs quote it in the same message (encoding/json also escapes
+// U+2028 and U+2029, which they leave literal).
 func jsonQuote(text string) string {
 	var out strings.Builder
 	encoder := json.NewEncoder(&out)

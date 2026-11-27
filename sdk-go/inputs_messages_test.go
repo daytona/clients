@@ -84,6 +84,7 @@ func TestScreenshot_whenRegionIsEmpty(t *testing.T) {
 		{ComputerUseRegion{Width: 0, Height: 1}, "Region.Width must be greater than 0"},
 		{ComputerUseRegion{Width: 1, Height: -2}, "Region.Height must be greater than 0"},
 		{ComputerUseRegion{X: 1 << 53, Width: 1, Height: 1}, "Region.X must be between -9007199254740991 and 9007199254740991"},
+		{ComputerUseRegion{Width: 0, Height: 1 << 53}, "Region.Width must be greater than 0"},
 	} {
 		// Given
 		sandbox, fake := computerUseTestSandbox(t, jsonHandler(t, JSONValue(`{"screenshot":"AA==","sizeBytes":1}`)))
