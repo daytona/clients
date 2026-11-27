@@ -168,9 +168,9 @@ func checkAccessTokenResponse(token api.Raw[gen.SandboxAccessToken]) error {
 // sends as If-Match. The ETag header is the value If-Match needs, so it
 // takes the "etag" key even if a later API adds a body field of that name.
 func withETag(raw json.RawMessage, etag string) (map[string]json.RawMessage, error) {
-	out := map[string]json.RawMessage{}
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, err
+	var out map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &out); err != nil || out == nil {
+		return nil, cerr.New(cerr.ExitFailure, "the response body is not a JSON object")
 	}
 	encoded, err := json.Marshal(etag)
 	if err != nil {
@@ -189,9 +189,9 @@ func conditionalPut(ctx context.Context, client *api.Client, path, ifMatch strin
 		if err != nil {
 			return nil, "", err
 		}
-		ifMatch = headers.Get("ETag")
-		if ifMatch == "" {
-			return nil, "", cerr.New(cerr.ExitFailure, "GET %s returned no ETag to update with", path)
+		ifMatch, err = responseETag(headers, http.MethodGet, path)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 	var raw json.RawMessage
@@ -199,7 +199,22 @@ func conditionalPut(ctx context.Context, client *api.Client, path, ifMatch strin
 	if err != nil {
 		return nil, "", err
 	}
-	return raw, headers.Get("ETag"), nil
+	etag, err := responseETag(headers, http.MethodPut, path)
+	if err != nil {
+		return nil, "", err
+	}
+	return raw, etag, nil
+}
+
+// responseETag is the ETag a settings response carries (the contract
+// declares it on every success): the token the next update sends as
+// If-Match. A response without one is an error, not an empty etag.
+func responseETag(headers http.Header, method, path string) (string, error) {
+	etag := headers.Get("ETag")
+	if etag == "" {
+		return "", cerr.New(cerr.ExitFailure, "%s %s returned no ETag, the token the next update needs", method, path)
+	}
+	return etag, nil
 }
 
 func addIfMatchFlag(cmd *cobra.Command, target *string, what string) {
@@ -258,11 +273,15 @@ func newSandboxSecretsGetCommand() *cobra.Command {
 				return err
 			}
 			var raw json.RawMessage
-			headers, err := resolved.Client.DoReturningHeaders(cmd.Context(), http.MethodGet, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/secrets", nil, nil, nil, &raw)
+			path := "/sandboxes/" + url.PathEscape(resolved.Detail.Id) + "/secrets"
+			headers, err := resolved.Client.DoReturningHeaders(cmd.Context(), http.MethodGet, path, nil, nil, nil, &raw)
 			if err != nil {
 				return err
 			}
-			etag := headers.Get("ETag")
+			etag, err := responseETag(headers, http.MethodGet, path)
+			if err != nil {
+				return err
+			}
 			out, err := withETag(raw, etag)
 			if err != nil {
 				return err
@@ -366,11 +385,15 @@ func newSandboxNetworkPolicyGetCommand() *cobra.Command {
 				return err
 			}
 			var raw json.RawMessage
-			headers, err := resolved.Client.DoReturningHeaders(cmd.Context(), http.MethodGet, "/sandboxes/"+url.PathEscape(resolved.Detail.Id)+"/network-policy", nil, nil, nil, &raw)
+			path := "/sandboxes/" + url.PathEscape(resolved.Detail.Id) + "/network-policy"
+			headers, err := resolved.Client.DoReturningHeaders(cmd.Context(), http.MethodGet, path, nil, nil, nil, &raw)
 			if err != nil {
 				return err
 			}
-			etag := headers.Get("ETag")
+			etag, err := responseETag(headers, http.MethodGet, path)
+			if err != nil {
+				return err
+			}
 			out, err := withETag(raw, etag)
 			if err != nil {
 				return err

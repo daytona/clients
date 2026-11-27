@@ -207,3 +207,43 @@ func TestSandboxSecretsSetTrimsNames(t *testing.T) {
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, []any{"GITHUB_TOKEN"}, findRequest(t, f, http.MethodPut, "/sandboxes/"+settingsSandboxID+"/secrets").Body["secrets"])
 }
+
+// A settings response whose body is JSON null, or that carries no ETag (the
+// token the next update needs), is an error rather than a panic or an empty
+// etag.
+func TestSandboxSettingsRefuseANullBodyOrAMissingETag(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		method string
+		etag   string
+		body   string
+	}{
+		{"get null body", []string{"secrets", "get", settingsSandboxID}, http.MethodGet, `"rev-3"`, `null`},
+		{"get no etag", []string{"network-policy", "get", settingsSandboxID}, http.MethodGet, "", networkPolicyBody},
+		{"put null body", []string{"secrets", "set", settingsSandboxID, "--clear", "--if-match", `"rev-3"`}, http.MethodPut, `"rev-4"`, `null`},
+		{"put no etag", []string{"network-policy", "reset", settingsSandboxID, "--if-match", `"np-1"`}, http.MethodPut, "", networkPolicyBody},
+	} {
+		f := newFakeAPI(t)
+		f.handle(http.MethodGet, "/sandboxes/"+settingsSandboxID, sandboxDetailHandler)
+		route := "/sandboxes/" + settingsSandboxID + "/" + tc.args[0]
+		f.handle(tc.method, route, func(w http.ResponseWriter, _ *http.Request) {
+			if tc.etag != "" {
+				w.Header().Set("ETag", tc.etag)
+			}
+			if tc.body == "null" {
+				// Off-contract on purpose: a non-JSON media type skips the
+				// harness's fixture check; the CLI decodes the body anyway.
+				w.Header().Set("Content-Type", "text/plain")
+			}
+			if tc.method == http.MethodPut {
+				w.WriteHeader(http.StatusAccepted)
+			}
+			_, _ = io.WriteString(w, tc.body)
+		})
+		args := append([]string{"--api-url", f.srv.URL, "--api-key", "k", "-o", "json", "sandbox"}, tc.args...)
+		stdout, stderr, code := runReported(t, cfgDir(t), nil, args...)
+		require.Equal(t, cerr.ExitFailure, code, "%s: %s", tc.name, stderr)
+		require.Empty(t, stdout, tc.name)
+	}
+}
