@@ -245,5 +245,8 @@ func TestSandboxSettingsRefuseANullBodyOrAMissingETag(t *testing.T) {
 		stdout, stderr, code := runReported(t, cfgDir(t), nil, args...)
 		require.Equal(t, cerr.ExitFailure, code, "%s: %s", tc.name, stderr)
 		require.Empty(t, stdout, tc.name)
+		// The failure comes from the configured response, not from an
+		// earlier step.
+		findRequest(t, f, tc.method, route)
 	}
 }
