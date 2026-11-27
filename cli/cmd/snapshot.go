@@ -85,24 +85,40 @@ func newSnapshotCreateCommand() *cobra.Command {
 
 func newSnapshotListCommand() *cobra.Command {
 	var flags pageFlags
+	var name, sandboxID string
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List snapshots",
-		Long:  "List snapshots.\nExample:\n  daytona snapshot list --limit 20",
+		Long:  "List snapshots.\nExamples:\n  daytona snapshot list --limit 20\n  daytona snapshot list --sandbox <sandbox-id>",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			a := FromContext(cmd.Context())
+			if cmd.Flags().Changed("sandbox") && strings.TrimSpace(sandboxID) == "" {
+				return cerr.Usage("--sandbox is empty").WithHint("pass a sandbox id, or omit --sandbox")
+			}
 			client, _, err := a.WorkloadClient(cmd.Context(), pickProject(a))
 			if err != nil {
 				return err
 			}
+			query := func(cursor string) url.Values {
+				q := listQuery(flags, cursor)
+				// An explicit --name '' is sent (it matches no snapshot), as
+				// the SDKs send name=.
+				if cmd.Flags().Changed("name") {
+					q.Set("name", name)
+				}
+				if sandboxID != "" {
+					q.Set("sandbox_id", sandboxID)
+				}
+				return q
+			}
 			probe := &searchProbe{}
 			fetch := func(ctx context.Context, cursor string) (output.List[api.Raw[gen.SnapshotListItem]], error) {
 				// A deployment with search serves the list from it.
-				if list, served, err := getRawSearchPage[gen.SnapshotListItem](ctx, probe, client, "/snapshots/search", listQuery(flags, cursor), "snapshots"); served {
+				if list, served, err := getRawSearchPage[gen.SnapshotListItem](ctx, probe, client, "/snapshots/search", query(cursor), "snapshots"); served {
 					return list, err
 				}
-				return getRawList[gen.SnapshotListItem](ctx, client, "/snapshots", listQuery(flags, cursor), "snapshots")
+				return getRawList[gen.SnapshotListItem](ctx, client, "/snapshots", query(cursor), "snapshots")
 			}
 			var list output.List[api.Raw[gen.SnapshotListItem]]
 			if flags.all {
@@ -123,6 +139,8 @@ func newSnapshotListCommand() *cobra.Command {
 		},
 	}
 	addPageFlags(cmd, &flags)
+	cmd.Flags().StringVar(&name, "name", "", "filter by exact snapshot name (an empty name matches no snapshot)")
+	cmd.Flags().StringVar(&sandboxID, "sandbox", "", "filter by source sandbox id")
 	return cmd
 }
 
