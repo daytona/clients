@@ -212,8 +212,11 @@ func newSandboxUpdateCommand() *cobra.Command {
 func sandboxActionPersistenceNote(verb string) string {
 	switch verb {
 	case "stop", "start", "pause", "resume", "fork":
-		return "\nOnly a persistent sandbox can stop, start again, pause, resume or fork (its class decides which of these it supports); on one that is not, the API answers 409 (exit code 6).\n" +
-			"Create a persistent sandbox with `sandbox create --persistent` or `sandbox create-macos --persistent`."
+		note := "\nOnly a persistent sandbox can stop, start again, pause, resume or fork (its class decides which of these it supports); on one that is not, the API answers 409 (exit code 6).\n"
+		if verb == "start" {
+			note += "A start on a sandbox that is already running sends no request and succeeds, whether or not it is persistent.\n"
+		}
+		return note + "Create a persistent sandbox with `sandbox create --persistent` or `sandbox create-macos --persistent`."
 	default:
 		return ""
 	}

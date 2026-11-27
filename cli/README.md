@@ -435,8 +435,8 @@ never prompts:
   `paused`, …), not the SDKs' sandbox states (`started`, `destroyed`, …),
   which the SDKs map to these statuses. Search is eventually consistent: for a
   few seconds a sandbox just created may not appear yet, and one just changed
-  can still show its old status or labels. Deleted sandboxes are never returned, even with `--status
-  deleted`; `deleting`, `failed` and `lost` ones are returned until the
+  can still show its old status or labels. The platform currently leaves deleted sandboxes
+  out of search results, so `--status deleted` returns none; `deleting`, `failed` and `lost` ones are returned until the
   platform removes their records. `--image-ref` and `--image-ref-prefix`
   match the project image the sandbox was created from (by its name; the
   snapshot name for a sandbox created from a snapshot), not the registry

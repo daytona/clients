@@ -61,7 +61,7 @@ func newSandboxSearchCommand() *cobra.Command {
 		Long: "Search sandboxes across regions. The query is optional: filters alone select a set.\n" +
 			"Search is eventually consistent: a sandbox just created may not appear yet, and one just changed or deleted can show its old state, for a few seconds.\n" +
 			"--status takes the API's statuses (running, stopped, ...), not the SDKs' sandbox states (started, destroyed, ...).\n" +
-			"Deleted sandboxes are never returned, even with --status deleted.\nExamples:\n  daytona sandbox search python\n  daytona sandbox search worker --status running --class linux --region region-a\n  daytona sandbox search --status running\n  daytona sandbox search sandbox-example",
+			"The platform currently leaves deleted sandboxes out of search results, so --status deleted returns none.\nExamples:\n  daytona sandbox search python\n  daytona sandbox search worker --status running --class linux --region region-a\n  daytona sandbox search --status running\n  daytona sandbox search sandbox-example",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
@@ -155,7 +155,7 @@ func newSandboxSearchCommand() *cobra.Command {
 	addRegionFlag(cmd, "search this region and its child regions (validated against the region catalog)")
 	cmd.Flags().StringVar(&flags.namePrefix, "name-prefix", "", "filter by sandbox name prefix")
 	cmd.Flags().StringVar(&flags.idPrefix, "id-prefix", "", "filter by sandbox id prefix")
-	cmd.Flags().StringSliceVar(&flags.status, "status", nil, "filter by API status (queued|pending|assigned|booting|running|pausing|paused|stopping|stopped|deleting|failed|lost; repeatable or comma-separated; deleted sandboxes are never returned)")
+	cmd.Flags().StringSliceVar(&flags.status, "status", nil, "filter by API status (queued|pending|assigned|booting|running|pausing|paused|stopping|stopped|deleting|deleted|failed|lost; repeatable or comma-separated; deleted sandboxes are currently left out of results)")
 	cmd.Flags().StringSliceVar(&flags.classes, "class", nil, "filter by class (repeatable or comma-separated)")
 	cmd.Flags().StringVar(&flags.imageRef, "image-ref", "", "filter by the image the sandbox was created from, as search records it (the project image name, or the snapshot name for a sandbox created from a snapshot; not the registry reference the image was pulled or built from); exact match")
 	cmd.Flags().StringVar(&flags.imageRefPrefix, "image-ref-prefix", "", "filter by a prefix of that image reference (see --image-ref)")
