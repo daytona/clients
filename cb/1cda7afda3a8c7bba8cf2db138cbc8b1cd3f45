@@ -1,0 +1,25 @@
+changelog.d/cli-secret-set-create-race.fixed.md
+  s_3768b20845d0e6::t_1f4d4249103591 1-6
+cli/cmd/secret.go
+  s_3768b20845d0e6::t_282ee84e5bc387 40-41,97-105,107
+cli/cmd/secret_registry_more_test.go
+  s_3768b20845d0e6::t_aacdbbd09cba4e 7
+  s_3768b20845d0e6::t_cf1be7a58eda27 255-281
+  s_3768b20845d0e6::t_9c68d7e2dad179 282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb1cda7afda3a8c7bba8cf2db138cbc8b1cd3f45",
+  "prompts": {},
+  "sessions": {
+    "s_3768b20845d0e6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de23122ffffey86PwhvwpU9R87",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
