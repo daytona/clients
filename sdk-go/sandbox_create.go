@@ -31,8 +31,9 @@ import (
 // The handle holds what the create response reports (ID, name, state, image,
 // reservation and, when reported, the lifecycle policy) plus what the request
 // fixed (class, region, an img_ ID you passed) until something reads the
-// sandbox; the create's wait follows the sandbox's state only and does not
-// read it. Call Refresh before reading Info().Resources, Info().Labels or
+// sandbox. A create wait that a target event from the sandbox events stream
+// decides does not read it; one the stream leaves undecided reads it while it
+// polls, and a terminal event gets one confirming read. Call Refresh before reading Info().Resources, Info().Labels or
 // other detail fields. Inside the sandbox, nproc reports the CPU limit
 // (Resources.CPUMax * 2 vCPUs), while memory can start near
 // the guarantee and grow on demand up to the memory limit: /proc/meminfo shows

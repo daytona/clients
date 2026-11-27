@@ -265,14 +265,21 @@ Every duration is a `time.Duration`:
   60 seconds by default. `daytona.NoWait` skips waiting where supported;
   `daytona.WaitForever` removes the SDK's wait deadline. When `Sandbox.Wait`
   or a lifecycle operation returns nil, `State()` reports the target it
-  observed. A wait that the sandbox events stream decides makes no further
-  request: the handle takes the reported state and the sandbox's error
-  message, and its other fields, lifecycle-policy deadlines included, are as
-  of the last read (`Refresh` reloads them). The exception is `Start` /
-  `Resume` of a macOS sandbox, which reads the sandbox once more to report
-  the boot mode and the reservation; when that read shows another state, a
-  state terminal for that wait returns `*daytona.SandboxTerminalStateError`,
-  and any other state keeps polling until the deadline. `Start` on a sandbox that
+  observed. A wait decided by a target event from the sandbox events stream
+  makes no further request: the handle takes the event's state and the
+  sandbox's error message (cleared when there is none), and its other
+  fields, `SpotEvictedAt`, the lifecycle-policy deadlines and the activity
+  clock included, are as of the last read (`Refresh` reloads them). A
+  terminal state the stream reports gets one confirming read, unless it is
+  destroyed or the budget is spent, and a wait the stream leaves undecided
+  reads the sandbox while it polls. `Start` / `Resume` of a macOS sandbox
+  read it once more after the target event, while budget remains and unless
+  the event is destroyed, to report the boot mode and the reservation
+  (`Client.Resume` by ID knows the class only when a read during the wait
+  reported it); a failed read keeps the observed success, and when the read
+  shows another state, a state terminal for that wait returns
+  `*daytona.SandboxTerminalStateError` and any other state keeps polling
+  until the deadline. `Start` on a sandbox that
   is already starting (another caller started or resumed it) joins that
   operation and returns `*daytona.SandboxTerminalStateError` when the sandbox
   returns to stopped or paused, once the wait's long-poll reads confirm it

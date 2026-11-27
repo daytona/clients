@@ -160,9 +160,11 @@ and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
 response (id, status, `forked_from`, class) and no wait follows. A target
 state the events hub reports ends the wait with no read (`_observe_outcome`
-takes the frame's state and error message); only a macOS `start()` /
-`resume()` passes `read_after_target=True` to `_wait_for_state` for the boot
-mode and the reservation. Once that wait has observed its target, a failed
+takes the frame's state and error message; `spot_evicted_at`, the
+lifecycle-policy deadlines and the activity clock stay as of the last read);
+only `start()` / `resume()` pass `read_after_target=self._is_macos` to
+`_wait_for_state`, checked when the report arrives, for the boot mode and the
+reservation of a macOS sandbox. Once that wait has observed its target, a failed
 read is suppressed; a successful one decides too (a target returns, `destroyed` or
 `error` raises, and `destroying` too unless the wait targets `destroyed`; any
 other state polls on under the same deadline). An operation's own failure
