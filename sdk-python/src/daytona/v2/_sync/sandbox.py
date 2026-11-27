@@ -319,7 +319,8 @@ class Sandbox:
         and processes survive pause/resume, unlike stop/start, which keeps disk.
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A pause that fails returns the sandbox to ``started``; this
-        then raises :class:`SandboxTerminalStateError`. A paused macOS sandbox
+        then raises :class:`SandboxTerminalStateError` once the wait's reads
+        confirm it, after up to one 30-second long-poll read. A paused macOS sandbox
         keeps its memory on its Mac. With auto-renew on, it keeps its
         reservation renewing; otherwise the sandbox is stopped, with its disk,
         before the reservation ends. Which sandboxes can pause is the API's
@@ -371,6 +372,21 @@ class Sandbox:
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a
         value above about 24.8 days, = no deadline). A resume that cannot finish ends ``stopped``; this then
         raises :class:`SandboxTerminalStateError`.
+
+        Whether the sandbox can resume is the API's decision; a refusal
+        surfaces as its typed error. A sandbox that is not paused, or whose
+        saved state is unavailable, raises :class:`ConflictError` with
+        ``CONFLICT``, and a sandbox class that cannot resume raises
+        :class:`NotSupportedForClassError` (``NOT_SUPPORTED_FOR_CLASS``). A
+        paused macOS sandbox whose Mac reservation is ending raises
+        :class:`ConflictError` with
+        ``NO_ACTIVE_RESERVATION``: its memory is on that Mac, so another
+        reservation cannot take it over. The sandbox is stopped with its disk
+        when the reservation ends, and :meth:`start` can then start it under
+        another reservation. A suspended organization raises
+        :class:`OrgSuspendedError`, a project at its monthly budget
+        :class:`ProjectBudgetExceededError`, and a resume the platform cannot
+        take now :class:`ServiceUnavailableError`.
         """
         return self._bridge.call(lambda: self._impl.resume(timeout=timeout))
 
@@ -398,7 +414,7 @@ class Sandbox:
         cwd: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> InterpreterResult:
-        """Execute code and return its result: an alias for ``interpreter.run()``, same parameters."""
+        """Execute code and return its result: an alias for ``interpreter.run()``, same parameters and errors."""
         return self._bridge.call(
             lambda: self._impl.run_code(
                 code,
@@ -438,7 +454,12 @@ class Sandbox:
         sandbox can be started is the API's decision: a refusal surfaces as its
         typed error.
         If a stop or pause is still in progress, wait for it to settle before
-        sending start or resume, using the same timeout budget.
+        sending start or resume, using the same timeout budget. A sandbox that
+        is already ``starting`` (a start or resume another caller sent) is
+        waited for without a new request; when that operation fails and the
+        sandbox returns to ``stopped`` or ``paused``, this raises
+        :class:`SandboxTerminalStateError` once the wait's long-poll reads
+        confirm either state (up to one 30-second slice).
 
         A stopped macOS sandbox starts with its disk and size on any Mac of the
         organization; after a start on a different Mac, iCloud asks the user to
@@ -531,11 +552,19 @@ class Sandbox:
 
         ``timeout`` is the wait budget in seconds (default 60; ``0``, or a value
         above about 24.8 days, waits without a deadline). Running out raises :class:`RequestTimeoutError`;
-        reaching ``destroying``, ``destroyed`` or ``error`` first raises
+        reaching ``destroyed`` or ``error`` first (or ``destroying``, unless
+        ``until`` includes ``destroyed``) raises
         :class:`SandboxTerminalStateError`. A terminal state the events hub
         reports is confirmed with one read before it raises, while the wait has
         budget left, unless that state already came from a full read or is
-        ``destroyed``. When the events hub has reported nothing decisive, the
+        ``destroyed``. A target state the events hub reports is followed by
+        one read of the sandbox's details; when that read shows another state,
+        it decides instead: a state terminal for this wait raises, and any
+        other state keeps the wait going under the same deadline, so the
+        returned handle is in a requested state. No read follows a
+        ``destroyed`` report (it would be a 404) or a report that arrives as
+        the budget runs out, and a failed read keeps the reported state; the
+        handle then carries the reported target. When the events hub has reported nothing decisive, the
         last part of a bounded budget (up to 5 s) reads the state from the
         server, so a state the hub missed still ends the wait; the same holds
         for the other lifecycle waits and the create and fork waits. A read

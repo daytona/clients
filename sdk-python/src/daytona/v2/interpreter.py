@@ -14,6 +14,8 @@ from ._core import (
     RequestSpec,
     bounded_request_timeout,
     expect_object,
+    interpreter_code,
+    interpreter_language,
     is_json_value,
     loads_json,
     path_segment,
@@ -21,7 +23,7 @@ from ._core import (
     wait_budget,
 )
 from ._transport import AsyncTransport
-from .errors import DaytonaError, create_error
+from .errors import DaytonaError, KernelUnavailableError, create_error
 from .process import (
     TIMED_OUT_LOG_PAGE_LIMIT,
     AsyncProcessHandle,
@@ -87,6 +89,29 @@ def _session_identity(value: object, *, requested_id: Optional[str] = None) -> t
         problem = "is required" if kernel is None else "must be a string"
         raise create_error(f"expected {description}: kernel {problem}", 400, codes.BAD_REQUEST, "SDK")
     return context_id, kernel
+
+
+def _setup_failure(process_id: str, setup: str) -> KernelUnavailableError:
+    """A code run that ended ``failed``: the sandbox could not provision,
+    start or reach the kernel, so the code did not run. Its ``setup`` channel
+    carries the reason (as TypeScript's ``setupFailure``)."""
+    diagnostic = setup.strip() or "the sandbox reported no setup diagnostic"
+    return KernelUnavailableError(
+        f"the interpreter did not run the code (process {process_id}): {diagnostic}",
+        status_code=503,
+        code=codes.KERNEL_UNAVAILABLE,
+        source="SDK",
+    )
+
+
+def _check_context_language(language: Optional[str], context_language: str) -> None:
+    if language is not None and language != context_language:
+        raise create_error(
+            f"language {language!r} does not match the context's language {context_language!r}",
+            400,
+            codes.BAD_REQUEST,
+            "SDK",
+        )
 
 
 def _timed_out_result() -> InterpreterResult:
@@ -217,10 +242,13 @@ class AsyncInterpreterService:
         :class:`~daytona.v2.errors.UnsupportedOperationError` (400) before a
         kernel is provisioned, while
         :class:`~daytona.v2.errors.KernelUnavailableError` (503) means a
-        supported language's kernel failed to install or start. ``cwd`` and
-        ``env`` apply to every run in the context.
+        supported language's kernel failed to install or start (see
+        :meth:`run` for what the first use of a language installs). ``cwd``
+        and ``env`` apply to every run in the context.
         """
-        return await self._create_context(language=language, context_id=context_id, cwd=cwd, env=env)
+        return await self._create_context(
+            language=interpreter_language(language), context_id=context_id, cwd=cwd, env=env
+        )
 
     async def _create_context(
         self,
@@ -260,9 +288,27 @@ class AsyncInterpreterService:
         *,
         language: str | None = None,
     ) -> AsyncInterpreterContext:
-        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request."""
+        """Reconnect a context by id (with ``language``), handle or ``to_json()``, without a request.
+
+        With a handle or ``to_json()`` identity, ``language`` is optional; one
+        that differs from the context's language raises
+        :class:`~daytona.v2.errors.BadRequestError`.
+        """
+        if language is not None and (not isinstance(language, str) or not language):
+            raise create_error(
+                "interpreter context language must be a non-empty string", 400, codes.BAD_REQUEST, "SDK"
+            )
         if isinstance(context, (AsyncInterpreterContext, Mapping)):
-            return self._bind_context(*self._context_identity(context))
+            context_id, context_language = self._context_identity(context)
+            _check_context_language(language, context_language)
+            return self._bind_context(context_id, context_language)
+        if not isinstance(context, str) or not context:
+            raise create_error(
+                "interpreter context id must be a non-empty string",
+                400,
+                codes.BAD_REQUEST,
+                "SDK",
+            )
         if language is None:
             raise create_error(
                 "language is required when reconnecting an interpreter context by id",
@@ -334,7 +380,9 @@ class AsyncInterpreterService:
         :meth:`create_context`. With a context handle or ``to_json()``
         identity, a ``language`` that differs from the context's language
         raises :class:`~daytona.v2.errors.BadRequestError` before any request;
-        a bare context id takes ``language`` as the context's language.
+        a bare context id takes ``language`` as the context's language. A
+        ``code`` that is not a string, or an empty ``language``, raises
+        :class:`~daytona.v2.errors.BadRequestError` before any request.
 
         A rehydrated ``kind='code'`` process handle can still replay logs and
         wait/kill, but it does not reconstruct this decomposed result on
@@ -342,7 +390,32 @@ class AsyncInterpreterService:
         ``SESSION_NOT_FOUND`` error; callers decide whether to recreate the
         context and what to rerun. ``timeout`` is the caller wait budget in
         seconds; ``0`` waits unbounded.
+
+        **First run of a language.** The sandbox starts the language's kernel
+        on its first run, installing it when the image does not ship it:
+        Python installs ``ipykernel`` from PyPI (``pypi.org``,
+        ``files.pythonhosted.org``) unless the image's Python already has it
+        and its ``venv`` module;
+        TypeScript and JavaScript download Deno from ``dl.deno.land`` unless
+        ``deno`` is on the image's ``PATH``. That run takes a few seconds
+        longer, and under a network policy that blocks those hosts it cannot
+        install the kernel: allow those domains, or use an image that ships
+        ``ipykernel`` / ``deno``. When the sandbox ends the run before the
+        code reaches a kernel (most often a kernel that could not be installed
+        or started), this raises
+        :class:`~daytona.v2.errors.KernelUnavailableError` (503, source
+        ``SDK``) carrying the sandbox's setup diagnostic. The sandbox reports
+        no error code for such a run: a context that is already gone when the
+        run is submitted raises ``SESSION_NOT_FOUND`` as above, but one
+        deleted while the run waits behind another run in it ends the run
+        this way and raises this error. A kernel that stops
+        during the run returns the output produced so far with
+        ``process.reason == "lost"``; its state is gone and the next run starts
+        a new kernel.
         """
+        interpreter_code(code)
+        if language is not None:
+            interpreter_language(language)
         timeout = wait_budget(timeout)
         if isolated and context is not None:
             raise create_error(
@@ -353,13 +426,7 @@ class AsyncInterpreterService:
             )
         if context is not None:
             rebound_context = self.connect_context(context, language=language)
-            if language is not None and language != rebound_context.language:
-                raise create_error(
-                    f"language {language!r} does not match the context's language {rebound_context.language!r}",
-                    400,
-                    codes.BAD_REQUEST,
-                    "SDK",
-                )
+            _check_context_language(language, rebound_context.language)
             if env is not None:
                 raise create_error(
                     "env is only supported when creating a context or running without an explicit context",
@@ -435,6 +502,7 @@ class AsyncInterpreterService:
             cwd: Optional[str],
             timeout: Optional[float],
         ) -> InterpreterResult:
+            interpreter_code(code)
             return await gate.run(
                 wait_budget(timeout),
                 lambda remaining_timeout: self._run_bound_context(
@@ -485,6 +553,8 @@ class AsyncInterpreterService:
             handle,
             max_pages=TIMED_OUT_LOG_PAGE_LIMIT if wait.reason == "timed_out" else None,
         )
+        if wait.reason == "failed":
+            raise _setup_failure(handle.id, "".join(frame.data for frame in logs if frame.channel == "setup"))
         stdout = "".join(frame.data for frame in logs if frame.channel == "stdout")
         stderr = "".join(frame.data for frame in logs if frame.channel == "stderr")
         results: list[InterpreterOutput] = []

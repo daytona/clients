@@ -120,10 +120,20 @@ func waitReadDecisive(err error) bool {
 
 func (w *sandboxWait) poll(ctx context.Context, retry *waitReadRetry) error {
 	retry.fallback = true
+	spacing := time.Duration(0)
+	if !w.lastRead.IsZero() {
+		spacing = waitMinInterval - time.Since(w.lastRead)
+		// The spacing never spends what is left: with less, the read is at once.
+		if remaining := waitRemaining(w.deadline); remaining >= 0 && remaining <= spacing {
+			spacing = 0
+		}
+		w.lastRead = time.Time{}
+	}
 	for {
-		if err := w.pause(ctx, retry.remaining()); err != nil {
+		if err := w.pause(ctx, max(retry.remaining(), spacing)); err != nil {
 			return retry.finish(err)
 		}
+		spacing = 0
 		started := time.Now()
 		outcome, err := w.read(ctx, waitReadOptions{deadline: w.deadline, longPoll: true})
 		if err != nil {

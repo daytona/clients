@@ -425,10 +425,15 @@ make asynchronous callback work cancellation-aware when needed.
   `memoryMax`, `disk`, `diskMax`, `sandboxClass`, `region`,
   `persistent`, `spot`, `spotEvictedAt`,
   `lifecyclePolicy`, `forkedFrom`, `user`, and `error` (network policy is read through `getNetworkPolicy()`).
-  A handle from `create*()` or `fork()` whose wait did not read the sandbox
-  (`waitSeconds: 0`, or a wait that ended early) holds only what the create
-  response carries: fields it does not report are `undefined` (unknown),
-  `labels` included, until `refreshData()` reads them; `state` is `'unknown'` before a
+  A handle from `create*()` holds only what the create response carries (id,
+  name, state, image, reservation and, when reported, the lifecycle policy)
+  plus what the request fixed (`sandboxClass`, `region`, an `img_` / `snap_`
+  id you passed) until something reads the sandbox, and a sandbox that is already started when the create
+  answers (the usual case) is not read: call `refreshData()` before reading
+  `cpu`, `memory`, `disk`, their limits, `labels` or any other field the
+  response does not report. Until then they are `undefined` (unknown). A
+  `fork()` handle whose wait did not read the sandbox (`waitSeconds: 0`, or a
+  failed read) is the same. `state` is `'unknown'` before a
   status is known. Absent values are `undefined` throughout the SDK's models,
   never `null`.
 
@@ -621,7 +626,11 @@ seconds; `-1` asks the server to apply its maximum.
 
 Linux sizing uses only `resources: { cpu, cpuMax, memory, memoryMax, disk, diskMax }`.
 CPU is in cores; memory and disk are in GiB and must convert exactly to whole
-MiB. Readback preserves exact GiB values. `createFromSnapshot()` inherits the
+MiB. Readback preserves exact GiB values. Inside the sandbox, `nproc` reports
+the CPU limit (`cpuMax * 2` vCPUs), while memory can start near the guaranteed `memory`
+and grow on demand up to `memoryMax`: `/proc/meminfo` and `free` show the
+memory present now, and `sandbox.metrics()` reports the limit as the total.
+`createFromSnapshot()` inherits the
 snapshot's configuration and accepts no resources, CPU selectors, environment,
 volumes, secrets or network policy options.
 
@@ -765,6 +774,10 @@ the sandbox's memory on its Mac and waits for `paused`; `resume()` puts the
 sandbox in `assigned` and waits for `started`. A paused sandbox keeps its
 memory on its Mac. With auto-renew on, it keeps its reservation renewing;
 otherwise the sandbox is stopped, with its disk, before the reservation ends.
+Once that reservation is ending, `resume()` throws `ConflictError` with
+`code === 'NO_ACTIVE_RESERVATION'`: the memory is on that Mac, so another
+reservation cannot take the sandbox over; after the end, `start()` starts it
+under another reservation.
 `sandbox.macBootMode` reports how the macOS sandbox resumed; `sandbox.error`
 provides additional details when resuming fails.
 
@@ -789,6 +802,13 @@ reported them; `reason` is always set (`'unknown'` with the value on
 from the process log, so its `keepLogs` takes `'on_exit_ttl'` (default) or
 `'until_cleanup'`, not `'none'`. It returns no handle to write to, so it
 refuses `stdin: 'open'`: use `start()` for a process that reads stdin.
+
+`run()`, `session.run()` and `ProcessHandle.wait()` wait in rounds: the
+sandbox holds each request for at most 30 seconds (its read is bounded at 35
+seconds), however long the `timeoutSeconds` (or with none), so a network path
+that drops long, quiet connections costs one round, which the wait retries,
+not the whole wait. The request that starts the
+process is never retried: when it fails, the process may already be running.
 
 `process.start()` (and `session.start()`) sends `keepLogs: 'on_exit_ttl'`
 unless you pass another value: the sandbox keeps the record and log for a while
@@ -817,8 +837,9 @@ last event's cursor. Every duration is in seconds: `timeoutSeconds` is the calle
 budget (omitted or `0` waits unbounded), `executionTimeoutSeconds` the process
 deadline for server-managed runs that support one (omitted or `0`: no
 deadline), and
-`kill({ escalateAfterSeconds })` the escalation delay. Signals are bare names
-(`'TERM'`), in `kill()` and in what `wait()` and `get()` report. Reconnected
+`kill({ escalateAfterSeconds })` the escalation delay (at most 600; `escalateTo`
+needs it). Signals are bare names (`'TERM'`, not `'SIGTERM'`; `kill()` matches
+them case-insensitively), in `kill()` and in what `wait()` and `get()` report. Reconnected
 `kind:'code'` handles remain replay/control handles (`logs()` / `wait()` /
 `kill()`), not a way to recover a parsed `InterpreterResult` on another worker.
 
@@ -941,6 +962,16 @@ run as the sandbox user; a `FileSearchResult` is a `ListResult` whose
 `FileAccessDeniedError`. `readText()` decodes strictly as UTF-8 (invalid bytes throw)
 and keeps a leading byte-order mark. Writes take no `mode`; use `chmod()`.
 
+`move(source, destination, { timeoutSeconds })` moves or renames a file or
+directory. `timeoutSeconds` (`0`, or a value above 2,147,483.647 (about 24.8
+days), means no limit) replaces `requestTimeoutSeconds` for that call, which a
+move to another file system (a copy in the sandbox) can outlast; a negative or
+non-finite value throws `BadRequestError` before any request. The SDK does not
+retry a move that timed out or failed (only a 401, which the sandbox refuses
+before moving anything, is re-sent once with a fresh token), and a timeout ends
+the call, not the move: it may still be running, or have finished, so check
+the destination before moving again.
+
 `watchDir(path, onEvent, { recursive, onOverflow, onExit })` calls `onEvent`
 for each change (a `FilesystemEvent`; `timestampMs` is Unix milliseconds;
 `type` is `'create'`, `'write'`, `'remove'`, `'rename'`, `'chmod'` or a kind a
@@ -1010,6 +1041,31 @@ vanished, `interpreter.run(..., { context })` / `context.run()` surface the type
 `results[]`, `logs{stdout,stderr}`, `error`, and `process`. That rich result
 shape comes from the interpreter run path itself; reconnecting a serialized
 code-process handle later does not recreate it.
+
+The first run of a language in a sandbox starts its kernel and installs it when
+the image does not ship it, which adds a few seconds: Python installs
+`ipykernel` from PyPI (`pypi.org`, `files.pythonhosted.org`) unless the image's
+Python already has it and its `venv` module, and TypeScript / JavaScript download Deno from
+`dl.deno.land` unless `deno` is on the image's `PATH`. A sandbox whose network
+policy blocks those hosts needs an image that ships the kernel, or those
+domains in `allowDomains`. When the kernel cannot be installed or started, the
+code does not run and `runCode()` throws `KernelUnavailableError` with the
+sandbox's setup diagnostic:
+
+```ts
+import { KernelUnavailableError } from '@daytona/sdk/v2'
+
+try {
+  await sandbox.runCode('console.log(1)', { language: 'typescript' })
+} catch (error) {
+  if (!(error instanceof KernelUnavailableError)) throw error
+  console.error(error.message) // ... allow egress to dl.deno.land ...
+}
+```
+
+A kernel that stops during a run returns the output produced so far with
+`result.process.reason === 'lost'`; its state is gone, and the next run starts
+a new kernel.
 
 ### Git
 
@@ -1162,8 +1218,16 @@ about 10 s of socket silence), not on the read backoff.
 completion: `stop()` returns at `stopped`, and `delete()` returns at
 `destroyed` (a sandbox disappearing during deletion also means completion).
 Client methods accept a sandbox or its ID and the same options, for example
-`daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. The server decides
-which lifecycle actions the sandbox supports.
+`daytona.v2.stop(sandbox.id, { timeoutSeconds: 120 })`. Once the target state
+has been observed, a failed metadata refresh afterwards does not turn that
+success into an error; a refresh that shows another state decides instead
+(a state terminal for that wait throws, any other state keeps the wait going
+under the same budget), so a lifecycle wait that returns leaves the handle in
+a requested state. `start()` on a sandbox that is already `starting`, because
+another caller started or resumed it, joins that operation and throws
+`SandboxTerminalStateError` when the sandbox returns to `stopped` or `paused`,
+once the wait's long-poll reads confirm it (up to one 30-second slice). A `pause()` that fails is reported the same way,
+after up to one 30-second long-poll read. The server decides which lifecycle actions the sandbox supports.
 
 `fork({ waitSeconds: 60 })` has its own wait budget; fractions are allowed,
 `0` skips waiting, and a value above about 24.8 days waits with no deadline. Once their create or fork request succeeds, these calls

@@ -519,10 +519,11 @@ describe('events-hub probes', () => {
     } as unknown as AxiosInstance
     const hub = new WaitHub('https://api.test', 'key', { enabled: true, reconcileIntervalMs: 0 }, () => socket as unknown as WebSocket, ticketApi, { earlyProbeMs: 50, noFrameTimeoutMs: 60_000 })
     const http = createHttpClient('http://api.invalid', 'key')
-    // The first probe is rate-limited for 3 s; later reads would answer.
+    // The first probe is rate-limited for 3 s; the read that confirms the
+    // `running` frame answers `running`.
     const record = script(http, [
       { status: 429, body: { code: 'RATE_LIMITED', message: 'slow down', retryAfterMs: 3_000 } },
-      { body: detail('booting') },
+      { body: detail('running') },
     ])
     const sandbox = createSandbox('sbx', http, undefined, 'key', undefined, {}, undefined, undefined, hub)
     try {

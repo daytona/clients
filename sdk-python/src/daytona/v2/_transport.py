@@ -1237,15 +1237,14 @@ def _total_seconds(spec: RequestSpec, request_timeout_seconds: float) -> float:
     ``timeout`` (a wait's budget plus its slack, a git remote call, ...)
     replaces it for that request with the same meaning: total time from
     sending to the last byte, ``0`` or a value above the timer maximum meaning
-    no limit. A hold that reads without a deadline (``unbounded_read``,
-    ``/wait`` with no budget) and a file transfer (idle-bounded per phase
-    instead) have no total bound.
+    no limit. A hold that reads without a deadline (``unbounded_read``) and a
+    file transfer (idle-bounded per phase instead) have no total bound.
     """
     if spec.transfer:
         return 0.0
     if spec.timeout is not None:
         return _per_call_seconds(spec.timeout)
-    if spec.unbounded_read or spec.path.endswith("/wait"):
+    if spec.unbounded_read:
         return 0.0
     return request_timeout_seconds
 
@@ -1322,7 +1321,7 @@ def _request_kwargs(spec: RequestSpec, request_timeout_seconds: float) -> _Reque
     elif spec.timeout is not None:
         # httpx's per-phase bound; ``_total_seconds`` holds the whole request to it.
         kwargs["timeout"] = spec.timeout if _per_call_seconds(spec.timeout) else httpx.Timeout(None)
-    elif spec.unbounded_read or spec.path.endswith("/wait"):
+    elif spec.unbounded_read:
         kwargs["timeout"] = _timeout_with_unbounded_read(request_timeout_seconds)
     return kwargs
 

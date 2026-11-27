@@ -108,6 +108,7 @@ from .types import (
     NamedImageSource,
     ProcessInfo,
     ProcessKind,
+    ProcessSignal,
     ProcessStateFilter,
     RegistryImageSource,
     ReplaceResult,
@@ -1140,6 +1141,29 @@ def expect_status_response(value: TransportPayload) -> GitStatus:
 # the caller past its budget by more than this.
 WAIT_READ_SLACK_SECONDS = 5.0
 
+# Longest server hold of one process wait request: the create hold of
+# ``run()`` and every ``/wait`` round. A longer caller budget, or none, is
+# waited out in rounds, so no request stays open (and quiet) for the whole
+# wait. A ``/wait`` round (or the record read after it) that an intermediary
+# drops costs one round, which the wait retries; the create request is never
+# retried.
+PROCESS_WAIT_ROUND_SECONDS = 30.0
+
+
+def process_wait_hold(remaining: Optional[float]) -> float:
+    """The server hold of one wait round in seconds: the remaining caller
+    budget (``None``: no deadline) capped at :data:`PROCESS_WAIT_ROUND_SECONDS`."""
+    if remaining is None:
+        return PROCESS_WAIT_ROUND_SECONDS
+    return min(remaining, PROCESS_WAIT_ROUND_SECONDS)
+
+
+def process_record_read_timeout(remaining: Optional[float]) -> float:
+    """The read bound of the record read that follows a ``timed_out`` wait
+    round: one round's hold (never below zero, the budget may be spent) plus
+    slack, so it cannot hold the wait longer than a round either."""
+    return max(0.0, process_wait_hold(remaining)) + WAIT_READ_SLACK_SECONDS
+
 
 def bounded_request_timeout(timeout: Optional[float]) -> Optional[float]:
     """Per-request HTTP timeout for a caller budget.
@@ -1174,11 +1198,24 @@ def process_create_spec(
     request_timeout: Optional[float] = None,
     tag: Optional[str] = None,
 ) -> RequestSpec:
+    if command is not None:
+        process_command(command)
+    if code is not None:
+        interpreter_code(code)
+    if language is not None:
+        interpreter_language(language)
     chosen = [command is not None, argv is not None, code is not None]
     if kind in ("pty", "session") and sum(1 for item in chosen if item) == 0:
         pass
     elif sum(1 for item in chosen if item) != 1:
-        raise create_error("provide exactly one of command, argv, or code", 400, "BAD_REQUEST", "SDK")
+        # Named after the public method's own parameters: without code this
+        # is exec / start, which take command or argv.
+        message = (
+            "provide exactly one of command or argv"
+            if code is None
+            else "provide exactly one of command, argv, or code"
+        )
+        raise create_error(message, 400, "BAD_REQUEST", "SDK")
     if code is not None and user is not None:
         raise UnsupportedOperationError(
             "user is not supported for code processes; the kernel runs as the sandbox user",
@@ -1247,21 +1284,20 @@ def process_create_spec(
             timeout=bounded_request_timeout(request_timeout),
             unbounded_read=request_timeout == 0,
         )
-    # waitMs holds the request for the caller budget. The HTTP
-    # read must outlive that hold (budget + slack) so the server's expiry
-    # answers first — but a positive budget still bounds it, so a stalled
-    # request cannot hold the caller indefinitely. waitMs=0 = unbounded read.
+    # waitMs (positive, at most one wait round: ``run()`` caps it at
+    # PROCESS_WAIT_ROUND_SECONDS) holds the request. The HTTP read must
+    # outlive that hold (hold + slack) so the server's expiry answers first,
+    # but the hold still bounds it, so a stalled request cannot hold the
+    # caller indefinitely.
     params: Dict[str, JsonValue] = {"waitMs": wait_ms}
     if inline_logs:
         params["logs"] = "text"
-    bounded = None if wait_ms == 0 else wait_ms / 1000 + WAIT_READ_SLACK_SECONDS
     return RequestSpec(
         "POST",
         "/processes",
         params=params,
         json_body=body,
-        timeout=bounded,
-        unbounded_read=bounded is None,
+        timeout=wait_ms / 1000 + WAIT_READ_SLACK_SECONDS,
     )
 
 
@@ -1358,6 +1394,28 @@ _PROCESS_TAG: Final = re.compile(r"[A-Za-z0-9._-]{1,128}")
 # (``timeoutMs`` 1-60000), in seconds.
 KILL_ALL_DEFAULT_TIMEOUT_SECONDS: Final = 10
 KILL_ALL_MAX_TIMEOUT_SECONDS: Final = 60
+
+
+def process_command(command: object) -> str:
+    """A shell command string, refused before any request otherwise."""
+    if not isinstance(command, str):
+        raise create_error("command must be a string", 400, "BAD_REQUEST", "SDK")
+    return command
+
+
+def interpreter_code(code: object) -> str:
+    """Interpreter source code: a string (empty is allowed)."""
+    if not isinstance(code, str):
+        raise create_error("code must be a string", 400, "BAD_REQUEST", "SDK")
+    return code
+
+
+def interpreter_language(language: object) -> str:
+    """An interpreter language: any non-empty string (the sandbox decides
+    which languages it supports)."""
+    if not isinstance(language, str) or not language:
+        raise create_error("language must be a non-empty string", 400, "BAD_REQUEST", "SDK")
+    return language
 
 
 def process_tag(value: object) -> str:
@@ -1527,21 +1585,18 @@ def timeout_seconds_from_millis(timeout_millis: JsonValue | None) -> Optional[fl
     return None
 
 
-def wait_spec(process_id: str, *, timeout: Optional[float], unbounded: bool = False) -> RequestSpec:
-    params: Dict[str, JsonValue] = {}
-    timeout_millis = 0 if unbounded else timeout_millis_from_seconds(timeout)
-    if timeout_millis is not None:
-        params["timeoutMs"] = timeout_millis
-    # A positive caller budget bounds the transport read too — a stalled
-    # request must not block wait() past its documented budget. Unbounded
-    # waits keep the unbounded read.
-    bounded = None if unbounded or timeout is None or timeout == 0 else timeout + WAIT_READ_SLACK_SECONDS
+def wait_spec(process_id: str, *, timeout: Optional[float]) -> RequestSpec:
+    """One ``/wait`` round. ``timeout`` is the caller's remaining budget in
+    seconds (``None``: no deadline); the round holds at most
+    :data:`PROCESS_WAIT_ROUND_SECONDS`, and its read is bounded by that hold
+    plus slack, so a stalled request ends with the round."""
+    hold = process_wait_hold(timeout)
+    timeout_millis = timeout_millis_from_seconds(hold)
     return RequestSpec(
         "GET",
         f"/processes/{path_segment(process_id, 'process id')}/wait",
-        params=params,
-        timeout=bounded,
-        unbounded_read=bounded is None,
+        params={"timeoutMs": timeout_millis},
+        timeout=hold + WAIT_READ_SLACK_SECONDS,
     )
 
 
@@ -1850,19 +1905,62 @@ def stdin_spec(process_id: str, data: Union[str, bytes], *, eof: bool) -> Reques
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/stdin", json_body=body)
 
 
+PROCESS_SIGNALS: Final[tuple[str, ...]] = get_args(ProcessSignal)
+
+# The longest escalation delay the toolbox takes (``escalateAfterMs``).
+ESCALATE_AFTER_MAX_MS: Final = 600_000
+
+
+def process_signal_name(value: object, name: str) -> str:
+    """A signal the SDK can send: a bare name (``TERM``, not ``SIGTERM``),
+    matched case-insensitively and sent upper-case."""
+    # ASCII only: Unicode case mapping would read "kıll" as KILL.
+    signal = value.upper() if isinstance(value, str) and value.isascii() else None
+    if signal not in PROCESS_SIGNALS:
+        raise create_error(
+            f"{name} must be one of {', '.join(PROCESS_SIGNALS)} (a bare name, without the SIG prefix), "
+            f"got {value!r}",
+            400,
+            "BAD_REQUEST",
+            "SDK",
+        )
+    return signal
+
+
 def signal_spec(
     process_id: str,
     *,
-    signal: str,
-    escalate_after_ms: Optional[int],
-    escalate_to: str,
+    signal: object,
+    escalate_after: Optional[float],
+    escalate_to: object,
 ) -> RequestSpec:
+    """``kill()``'s request. ``escalate_to`` is ``None`` when the caller
+    omitted it (``KILL`` when escalating); naming it without
+    ``escalate_after`` is refused, as it would never be sent."""
     # The wire takes SIGTERM-style names; the SDK surface uses bare names
     # (TERM/INT/...) in both languages, so the prefix is added here.
-    body: JsonObject = {"signal": f"SIG{signal}"}
-    if escalate_after_ms is not None:
+    body: JsonObject = {"signal": f"SIG{process_signal_name(signal, 'signal')}"}
+    if escalate_after is None:
+        if escalate_to is not None:
+            raise create_error("escalate_to needs escalate_after", 400, "BAD_REQUEST", "SDK")
+    else:
+        seconds = checked_seconds(escalate_after, "escalate_after")
+        # Rounded up to whole milliseconds, as sent, before the cap applies.
+        escalate_after_ms = (
+            ESCALATE_AFTER_MAX_MS + 1
+            if seconds > ESCALATE_AFTER_MAX_MS
+            else timeout_millis_from_seconds(seconds, "escalate_after")
+        )
+        if escalate_after_ms is None or escalate_after_ms > ESCALATE_AFTER_MAX_MS:
+            raise create_error(
+                f"escalate_after must be at most {ESCALATE_AFTER_MAX_MS // 1000} seconds",
+                400,
+                "BAD_REQUEST",
+                "SDK",
+            )
         body["escalateAfterMs"] = escalate_after_ms
-        body["escalateTo"] = f"SIG{escalate_to}"
+        target = "KILL" if escalate_to is None else process_signal_name(escalate_to, "escalate_to")
+        body["escalateTo"] = f"SIG{target}"
     return RequestSpec("POST", f"/processes/{path_segment(process_id, 'process id')}/signals", json_body=body)
 
 

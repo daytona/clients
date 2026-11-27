@@ -6349,7 +6349,7 @@ async def test_interpreter_isolated_run_spends_the_caller_budget_on_context_crea
 
 
 @pytest.mark.anyio
-async def test_process_run_timeout_zero_uses_the_unbounded_wait_wire_form():
+async def test_process_run_timeout_zero_waits_in_bounded_rounds():
     transport = RecordingTransport(
         [
             _process_payload("proc", "exec", "running"),
@@ -6367,13 +6367,12 @@ async def test_process_run_timeout_zero_uses_the_unbounded_wait_wire_form():
     assert transport.specs[0] == RequestSpec(
         "POST",
         "/processes",
-        params={"waitMs": 0, "logs": "text"},
+        params={"waitMs": 30000, "logs": "text"},
         json_body={"kind": "exec", "shellCommand": "echo hi", "stdin": "closed", "keepLogs": "on_exit_ttl"},
-        timeout=None,
-        unbounded_read=True,
+        timeout=30 + WAIT_READ_SLACK_SECONDS,
     )
     assert transport.specs[1] == RequestSpec(
-        "GET", "/processes/proc/wait", params={"timeoutMs": 0}, unbounded_read=True
+        "GET", "/processes/proc/wait", params={"timeoutMs": 30000}, timeout=30 + WAIT_READ_SLACK_SECONDS
     )
 
 
@@ -7038,10 +7037,11 @@ async def test_process_wait_bounds_the_transport_read_for_a_positive_budget_only
     assert bounded.params == {"timeoutMs": 10000}
     assert bounded.timeout == pytest.approx(10 + WAIT_READ_SLACK_SECONDS)
     assert bounded.unbounded_read is False
-    # 0 = unbounded, on the wire AND on the read side.
-    assert unbounded.params == {"timeoutMs": 0}
-    assert unbounded.timeout is None
-    assert unbounded.unbounded_read is True
+    # 0 = no deadline, waited out in bounded rounds: no request is held,
+    # or read, without a bound.
+    assert unbounded.params == {"timeoutMs": 30000}
+    assert unbounded.timeout == pytest.approx(30 + WAIT_READ_SLACK_SECONDS)
+    assert unbounded.unbounded_read is False
 
 
 @pytest.mark.anyio
@@ -7152,7 +7152,7 @@ async def test_pty_delete_refuses_non_pty_processes() -> None:
     transport = RecordingTransport([_process_payload("p1", "exec", "running")])
     pty = AsyncPtyService(AsyncProcessService("sbx", transport))
     with pytest.raises(
-        UnsupportedOperationError, match="process.delete\\(\\) is only supported for pty handles"
+        UnsupportedOperationError, match="pty.delete\\(\\) is only supported for pty handles"
     ):
         await pty.delete("p1")
     # Only the metadata lookup was sent — no signal, no cleanup.
@@ -8682,7 +8682,7 @@ async def test_pty_service_lists_and_deletes_via_process_handles() -> None:
 
 
 @pytest.mark.anyio
-async def test_process_wait_timeout_zero_sends_unbounded_poll_and_waits_for_terminal() -> None:
+async def test_process_wait_timeout_zero_sends_bounded_rounds_and_waits_for_terminal() -> None:
     class DelayedTransport(RecordingTransport):
         async def send(self, spec):
             await asyncio.sleep(0.001)
@@ -8693,7 +8693,7 @@ async def test_process_wait_timeout_zero_sends_unbounded_poll_and_waits_for_term
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert await handle.wait(timeout=0) == WaitResult(reason="exited", exit_code=0, raw_reason="exited")
-    assert transport.specs[0].params == {"timeoutMs": 0}
+    assert transport.specs[0].params == {"timeoutMs": 30000}
 
 
 @pytest.mark.anyio
@@ -8734,15 +8734,19 @@ async def test_process_stdin_allows_exec_and_unknown_handles_to_call_the_wire() 
 async def test_process_wait_computed_exhaustion_returns_timed_out_without_forwarding_zero(monkeypatch):
     now = iter([0.0, 0.0, 0.001, 0.001])
     monkeypatch.setattr("daytona.v2._clock.monotonic", lambda: next(now, 0.001))
-    transport = RecordingTransport([{"reason": "timed_out"}])
+    transport = RecordingTransport([{"reason": "timed_out"}, _process_payload("proc", "exec", "running")])
 
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert await handle.wait(timeout=0.001) == WaitResult(reason="timed_out")
+    # The round that spends the budget is followed by one record read (the
+    # process may have ended with it), bounded by the slack alone.
     assert [(spec.path, spec.params, spec.unbounded_read) for spec in transport.specs] == [
-        ("/processes/proc/wait", {"timeoutMs": 1}, False)
+        ("/processes/proc/wait", {"timeoutMs": 1}, False),
+        ("/processes/proc", {}, False),
     ]
     assert transport.specs[0].timeout == pytest.approx(0.001 + WAIT_READ_SLACK_SECONDS)
+    assert transport.specs[1].timeout == pytest.approx(WAIT_READ_SLACK_SECONDS)
 
 
 @pytest.mark.anyio
@@ -8761,7 +8765,9 @@ async def test_process_wait_preserves_the_caller_deadline(monkeypatch):
     handle = AsyncProcessHandle("sbx", "proc", transport)  # type: ignore[arg-type]
 
     assert (await handle.wait(timeout=600.001)).exit_code == 0
-    assert transport.specs[0].params == {"timeoutMs": 600001}
+    # The first round holds 30 s, not the whole budget; the last one only
+    # what is left of it.
+    assert transport.specs[0].params == {"timeoutMs": 30000}
     assert transport.specs[2].params is not None
     remaining = transport.specs[2].params["timeoutMs"]
     assert isinstance(remaining, int)

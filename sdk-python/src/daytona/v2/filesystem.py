@@ -36,7 +36,9 @@ from ._bridge import BridgeError, on_a_bridge_loop
 from ._core import (
     RequestSpec,
     TransportPayload,
+    above_timer_maximum,
     bulk_download_spec,
+    checked_seconds,
     expect_file_info,
     file_bulk_upload_spec,
     file_download_spec,
@@ -624,18 +626,34 @@ class AsyncFileSystemService:
             )
         )
 
-    async def move(self, source: str, destination: str, /) -> None:
-        """Move or rename files."""
-        await self._transport.send(
-            RequestSpec(
-                "POST",
-                "/files/move",
-                params={
-                    "source": sandbox_path(source, "source"),
-                    "destination": sandbox_path(destination, "destination"),
-                },
-            )
+    async def move(self, source: str, destination: str, /, *, timeout: Optional[float] = None) -> None:
+        """Move or rename a file or directory.
+
+        ``timeout`` replaces the client's ``request_timeout`` for this call,
+        which a move to another file system (a copy in the sandbox) can
+        outlast: a total deadline in seconds; ``0``, or a value above
+        2,147,483.647 (about 24.8 days), means no limit; omitted, the client's
+        request timeout applies. A negative, non-finite or boolean value
+        raises ``BadRequestError`` before any request.
+
+        The SDK does not retry a move that timed out or failed (only a 401,
+        which the sandbox refuses before moving anything, is re-sent once with
+        a fresh token). A timeout ends the call, not the move: the move may
+        still be running in the sandbox, or have finished, so check the
+        destination (for example with :meth:`stat`) before moving again.
+        """
+        spec = RequestSpec(
+            "POST",
+            "/files/move",
+            params={
+                "source": sandbox_path(source, "source"),
+                "destination": sandbox_path(destination, "destination"),
+            },
         )
+        if timeout is not None:
+            seconds = checked_seconds(timeout)
+            spec = replace(spec, timeout=0 if seconds == 0 or above_timer_maximum(seconds) else seconds)
+        await self._transport.send(spec)
 
     async def grep(
         self, path: str, pattern: str, /, *, timeout: Optional[float] = None

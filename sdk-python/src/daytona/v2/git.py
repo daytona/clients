@@ -76,7 +76,7 @@ class AsyncGitService:
                 body[key] = value
         if depth is not None:
             body["depth"] = _git_clone_depth(depth)
-        if _git_insecure_skip_tls(insecure_skip_tls):
+        if _git_bool(insecure_skip_tls, "insecure_skip_tls"):
             body["insecureSkipTls"] = True
         await _send_remote(self._transport, RequestSpec("POST", "/git/clone", json_body=body), timeout)
 
@@ -88,7 +88,7 @@ class AsyncGitService:
         bare: bool = False,
         initial_branch: Optional[str] = None,
     ) -> None:
-        body: JsonObject = {"path": path, "bare": bare}
+        body: JsonObject = {"path": path, "bare": _git_bool(bare, "bare")}
         if initial_branch is not None:
             body["initial_branch"] = initial_branch
         await self._transport.send(RequestSpec("POST", "/git/init", json_body=body))
@@ -157,10 +157,8 @@ class AsyncGitService:
         (``ConflictError``); a branch that does not exist raises
         :class:`~daytona.v2.errors.GitBranchNotFoundError`.
         """
-        if not isinstance(force, bool):
-            raise create_error("force must be a boolean", 400, "BAD_REQUEST", "SDK")
         body: JsonObject = {"path": path, "name": name}
-        if force:
+        if _git_bool(force, "force"):
             body["force"] = True
         await self._transport.send(RequestSpec("DELETE", "/git/branches", json_body=body))
 
@@ -206,9 +204,9 @@ class AsyncGitService:
     ) -> None:
         body: JsonObject = {"path": path, "files": path_sequence(files, "files")}
         if staged is not None:
-            body["staged"] = staged
+            body["staged"] = _git_bool(staged, "staged")
         if worktree is not None:
-            body["worktree"] = worktree
+            body["worktree"] = _git_bool(worktree, "worktree")
         if source is not None:
             body["source"] = source
         await self._transport.send(RequestSpec("POST", "/git/restore", json_body=body))
@@ -224,6 +222,7 @@ class AsyncGitService:
         allow_empty: bool = False,
     ) -> GitCommitResponse:
         """Commit staged changes, optionally allowing an empty commit."""
+        _git_bool(allow_empty, "allow_empty")
         author = author.strip()
         email = email.strip()
         if not author or not email:
@@ -278,6 +277,7 @@ class AsyncGitService:
         timeout: Optional[float] = None,
     ) -> None:
         """Push to the configured or named remote."""
+        _git_bool(set_upstream, "set_upstream")
         await self._with_credentials(
             "/git/push",
             path,
@@ -390,9 +390,10 @@ def _git_clone_depth(depth: int) -> int:
     return depth
 
 
-def _git_insecure_skip_tls(value: bool) -> bool:
+def _git_bool(value: object, name: str) -> bool:
+    """A boolean option, never truth-tested: ``"false"`` is refused, not read as true."""
     if not isinstance(value, bool):
-        raise create_error("insecure_skip_tls must be a boolean", 400, "BAD_REQUEST", "SDK")
+        raise create_error(f"{name} must be a boolean", 400, "BAD_REQUEST", "SDK")
     return value
 
 

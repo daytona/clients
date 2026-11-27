@@ -77,9 +77,16 @@ class ProcessHandle:
         *,
         signal: ProcessSignal = "TERM",
         escalate_after: Optional[float] = None,
-        escalate_to: ProcessSignal = "KILL",
+        escalate_to: Optional[ProcessSignal] = None,
     ) -> None:
-        """Send a signal and optional escalation signal."""
+        """Send a signal, optionally escalating to ``escalate_to`` (default
+        ``KILL``) after ``escalate_after`` seconds.
+
+        Signals are bare names (``TERM``, not ``SIGTERM``; case-insensitive).
+        ``escalate_after`` is at most 600 seconds, and ``escalate_to`` needs
+        ``escalate_after``; anything else raises ``BadRequestError`` before
+        any request.
+        """
         return self._bridge.call(
             lambda: self._impl.kill(signal=signal, escalate_after=escalate_after, escalate_to=escalate_to)
         )
@@ -128,8 +135,14 @@ class ProcessHandle:
     def wait(self, *, timeout: Optional[float] = None) -> WaitResult:
         """Wait for terminal state using the process long-poll contract.
 
-        ``timeout`` is the caller wait budget in seconds; ``0`` waits
-        unbounded.
+        ``timeout`` is the caller wait budget in seconds; omitted or ``0``
+        waits until the process ends. The wait is a series of requests the
+        sandbox holds for at most 30 seconds each (each read is bounded at 35
+        seconds), so no single request stays open for the whole budget; a
+        dropped or stalled round is retried within the budget. A timed-out
+        wait may return a few seconds past the budget: the process record is
+        read once after the last round, so a process that ended with it is
+        reported.
         """
         return self._bridge.call(lambda: self._impl.wait(timeout=timeout))
 
@@ -251,9 +264,12 @@ class ProcessService:
         """Start a process, wait for its shell to exit, and collect its output.
 
         The common case is one round trip: the sandbox starts the process, holds
-        the request until it exits (or ``timeout`` expires), and returns the
-        output inline. A process that outlives the wait window or produces more
-        output than fits in one page falls back to split calls automatically.
+        the request until it exits (for at most 30 seconds, or ``timeout`` if
+        shorter), and returns the output inline. A process that outlives that
+        window is waited for in further rounds of at most 30 seconds each until
+        ``timeout``, and output larger than one page is read in further calls.
+        The start request itself is never retried: a failed start may still
+        have started the process.
 
         The result holds the output available when the call returns:
         its per-process log is bounded, so very large output loses its oldest
