@@ -32,7 +32,7 @@ func TestExecCollectsChannelsWhenExitIsNonzero(t *testing.T) {
 	require.Equal(t, "warning", result.Stderr)
 	require.Equal(t, "hellowarning\n", result.Output)
 	require.Len(t, result.Logs, 5)
-	require.Equal(t, "60000", fake.requests()[0].Query.Get("waitMs"))
+	require.Equal(t, "30000", fake.requests()[0].Query.Get("waitMs"))
 	require.Equal(t, "text", fake.requests()[0].Query.Get("logs"))
 	require.JSONEq(t, `{"kind":"exec","shellCommand":"printf hello; exit 7","stdin":"closed","keepLogs":"on_exit_ttl"}`,
 		string(fake.requests()[0].Body))
@@ -81,8 +81,9 @@ func TestExecReplaysPagesWhenInlineLogIsIncomplete(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ab", result.Output)
 	require.Len(t, fake.requests(), 4)
-	require.Equal(t, "0", fake.requests()[0].Query.Get("waitMs"))
-	require.Equal(t, "0", fake.requests()[1].Query.Get("timeoutMs"))
+	// WaitForever is waited out in bounded rounds, never one unbounded hold.
+	require.Equal(t, "30000", fake.requests()[0].Query.Get("waitMs"))
+	require.Equal(t, "30000", fake.requests()[1].Query.Get("timeoutMs"))
 	require.Equal(t, "next", fake.requests()[3].Query.Get("cursor"))
 }
 

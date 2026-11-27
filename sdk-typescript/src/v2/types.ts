@@ -250,8 +250,10 @@ export interface SnapshotRef {
 /**
  * Sandbox resources; CPU is cores (1 core = 2 vCPUs), memory and disk are GiB.
  * `cpu`/`memory`/`disk` are the request: what is reserved and
- * billed as a floor. `cpuMax`/`memoryMax`/`diskMax` are the limits: the boot
- * shape and the ceiling, the system cap when omitted. Set each limit equal to
+ * billed as a floor. `cpuMax`/`memoryMax`/`diskMax` are the limits, the
+ * system cap when omitted: the sandbox boots with `cpuMax * 2` vCPUs, while its memory
+ * can start smaller and grow on demand up to `memoryMax` (see
+ * {@link CreateSandboxOptions}, "Visible resources"). Set each limit equal to
  * its request for a fixed shape. Requests below the platform minimums are
  * raised to them, so a fixed shape below a minimum is refused.
  */
@@ -489,13 +491,18 @@ export interface CreateRequestBaseOptions {
 /**
  * Options for {@link Daytona.create}.
  *
- * **Visible resources.** Burstable sandboxes expose the burst
- * ceiling (`resources.cpuMax` / `memoryMax`, or the deployment cap when
- * omitted), so `nproc` and `/proc/meminfo` report that ceiling, not the
- * guaranteed `cpu`. Tools that size themselves from the CPU count
- * (`pytest -n auto`, `make -j$(nproc)`) start one worker per visible CPU.
- * Pass an explicit worker count when you need the guarantee instead of the
- * ceiling.
+ * **Visible resources.** A sandbox boots with its CPU limit,
+ * `resources.cpuMax * 2` vCPUs (the deployment cap when omitted), so `nproc`
+ * reports that, not the guaranteed `cpu`. Tools that size themselves
+ * from the CPU count (`pytest -n auto`, `make -j$(nproc)`) start one worker
+ * per visible CPU; pass an explicit worker count when you need the guarantee
+ * instead of the limit. Memory can instead start small and grow on demand up
+ * to `memoryMax` (the deployment cap when omitted): `/proc/meminfo` and
+ * `free` then show the memory present now
+ * (about the guaranteed `memory` plus some headroom at first), not the limit,
+ * while `sandbox.metrics()` reports the limit as the total. Programs that
+ * size themselves from total memory at startup (a JVM's default heap, for
+ * example) see the smaller figure; size them explicitly.
  */
 export interface CreateSandboxOptions extends CreateRequestBaseOptions {
   /**
@@ -1178,11 +1185,11 @@ export interface WaitProcessOptions {
 }
 
 export interface KillOptions {
-  /** Default `'TERM'`. */
+  /** Default `'TERM'`. A bare name, matched case-insensitively. */
   readonly signal?: ProcessSignal
-  /** Send `escalateTo` if the process is still running this many seconds later. */
+  /** Send `escalateTo` if the process is still running this many seconds later (at most 600). */
   readonly escalateAfterSeconds?: number
-  /** Default `'KILL'`. */
+  /** Default `'KILL'`; only with `escalateAfterSeconds`. */
   readonly escalateTo?: ProcessSignal
 }
 

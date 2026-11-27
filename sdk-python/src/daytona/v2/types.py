@@ -429,8 +429,10 @@ class Resources:
     """Linux sandbox resources; CPU is cores (1 core = 2 vCPUs), memory and disk are GiB.
 
     ``cpu``/``memory``/``disk`` are the request: what is reserved and billed as a
-    floor. ``cpu_max``/``memory_max``/``disk_max`` are the limits: the boot shape
-    and the ceiling, the system cap when omitted. Set each limit equal to its
+    floor. ``cpu_max``/``memory_max``/``disk_max`` are the limits, the system
+    cap when omitted: the sandbox boots with ``cpu_max * 2`` vCPUs, while its memory can
+    start smaller and grow on demand up to ``memory_max`` (see
+    :meth:`AsyncDaytona.create`, "Visible resources"). Set each limit equal to its
     request for a fixed shape. Requests below the platform minimums are raised
     to them, so a fixed shape below a minimum is refused. ``cpu_max`` is a
     multiple of 0.5 cores: the sandbox boots ``cpu_max * 2`` vCPUs. A memory or
@@ -1497,8 +1499,11 @@ class AsyncInterpreterContext:
         Environment variables are set when the context is created. If the
         context vanished, the API's typed ``SESSION_NOT_FOUND`` error surfaces
         unchanged so the caller can recreate the context and decide what code,
-        if any, is safe to rerun. ``timeout`` is the caller wait budget in
-        seconds; ``0`` waits unbounded.
+        if any, is safe to rerun. A run the sandbox ended before the code
+        reached a kernel raises
+        :class:`~daytona.v2.errors.KernelUnavailableError`, as
+        :meth:`AsyncInterpreterService.run` describes. ``timeout`` is the
+        caller wait budget in seconds; ``0`` waits unbounded.
         """
         return await self._require_binding().runner(code, cwd, timeout)
 

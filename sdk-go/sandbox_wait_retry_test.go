@@ -5,6 +5,7 @@ package daytona
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -102,14 +103,14 @@ func TestWaitRetry_whenReadFailsOnce_reachesTarget(t *testing.T) {
 	}
 }
 
-func TestWaitRetry_whenEventsDisabled_propagatesReadError(t *testing.T) {
+func TestWaitRetry_whenEventsDisabled_retriesTransientReadError(t *testing.T) {
 	for _, mode := range []string{"config", "0", "false", "off", " FALSE "} {
-		for _, status := range []int{502, 503, 504, 0, 429} {
+		for _, status := range []int{500, 502, 503, 504, 0, 429} {
 			t.Run(mode+"/"+strconv.Itoa(status), func(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					// Given: direct polling, including an explicitly disabled installed hub.
-					sandbox := virtualWaitSandbox(t, func(http.ResponseWriter, *http.Request) {
-						t.Error("failed read must not be retried")
+					sandbox := virtualWaitSandbox(t, func(w http.ResponseWriter, _ *http.Request) {
+						writeJSON(t, w, sandboxFixture("sbx"))
 					})
 					if mode != "config" {
 						t.Setenv("DAYTONA_SANDBOX_EVENTS", mode)
@@ -117,29 +118,81 @@ func TestWaitRetry_whenEventsDisabled_propagatesReadError(t *testing.T) {
 						// This source has no hub; the ambient switch bypasses it.
 						t.Cleanup(func() { sandbox.client.stateSource = noopStateSource{} })
 					}
-					reads := 0
-					sandbox.client.http.Transport = waitRetryTransport(func(*http.Request) (*http.Response, error) {
-						reads++
-						return waitRetryResponse(status)
+					base := sandbox.client.http.Transport
+					var reads []time.Time
+					sandbox.client.http.Transport = waitRetryTransport(func(r *http.Request) (*http.Response, error) {
+						reads = append(reads, time.Now())
+						if len(reads) == 1 {
+							return waitRetryResponse(status)
+						}
+						return base.RoundTrip(r)
 					})
-					began := time.Now()
 
 					// When
 					err := sandbox.Wait(t.Context(), nil)
 
-					// Then
-					require.Error(t, err)
-					if status == 0 {
-						require.ErrorIs(t, err, syscall.ECONNRESET)
-					} else {
-						var detail *Error
-						require.ErrorAs(t, err, &detail)
-						require.Equal(t, status, detail.StatusCode)
-					}
-					require.Equal(t, 1, reads)
-					require.Zero(t, time.Since(began))
+					// Then: one policy whether or not events are on.
+					require.NoError(t, err)
+					require.Equal(t, SandboxStateStarted, sandbox.State())
+					require.Len(t, reads, 2)
+					require.Equal(t, waitMinInterval, reads[1].Sub(reads[0]))
 				})
 			})
 		}
 	}
+}
+
+func TestWaitRetry_whenEventsDisabled_returnsPermanentReadError(t *testing.T) {
+	for _, status := range []int{400, 401, 403, 404, 408, 501} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				// Given
+				sandbox := virtualWaitSandbox(t, func(http.ResponseWriter, *http.Request) {
+					t.Error("a permanent failure must not be retried")
+				})
+				reads := 0
+				sandbox.client.http.Transport = waitRetryTransport(func(*http.Request) (*http.Response, error) {
+					reads++
+					return waitRetryResponse(status)
+				})
+				began := time.Now()
+
+				// When
+				err := sandbox.Wait(t.Context(), nil)
+
+				// Then
+				var detail *Error
+				require.ErrorAs(t, err, &detail)
+				require.Equal(t, status, detail.StatusCode)
+				require.NotErrorIs(t, err, ErrClientTimeout)
+				require.Equal(t, 1, reads)
+				require.Zero(t, time.Since(began))
+			})
+		})
+	}
+}
+
+func TestWaitRetry_whenEventsDisabledAndReadsKeepFailing_timesOutWithCause(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Given
+		sandbox := virtualWaitSandbox(t, func(http.ResponseWriter, *http.Request) {})
+		reads := 0
+		sandbox.client.http.Transport = waitRetryTransport(func(*http.Request) (*http.Response, error) {
+			reads++
+			return waitRetryResponse(http.StatusServiceUnavailable)
+		})
+		began := time.Now()
+
+		// When
+		err := sandbox.Wait(t.Context(), &WaitOptions{Timeout: 10 * time.Second})
+
+		// Then: reads at 0, 0.2, 0.6, 1.4, 3.0 and 6.2 s; the next is past the deadline.
+		require.ErrorIs(t, err, ErrRequestTimeout)
+		require.NotErrorIs(t, err, ErrClientTimeout)
+		var cause *Error
+		require.ErrorAs(t, errors.Unwrap(err), &cause)
+		require.Equal(t, http.StatusServiceUnavailable, cause.StatusCode)
+		require.Equal(t, 10*time.Second, time.Since(began))
+		require.Equal(t, 6, reads)
+	})
 }

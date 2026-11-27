@@ -12,6 +12,7 @@ import { assertInternal, INTERNAL } from './internal.js'
 import type { Internal } from './internal.js'
 import { assertKnownOptions, optionKeys } from './options.js'
 import { refuseDotSegment } from './pathSegment.js'
+import { shellCommand } from './ProcessWire.js'
 
 /** A missing id must never degrade a session command into a plain, stateless exec. */
 export function requireSessionId(value: unknown, field: 'sandboxId' | 'sessionId'): string {
@@ -106,13 +107,13 @@ export class Session {
   public async run(command: string, options: SessionRunOptions = {}): Promise<ProcessResult> {
     assertKnownOptions('SessionRunOptions', options, SESSION_RUN_OPTION_KEYS)
     const { timeoutSeconds, keepLogs, ...start } = options
-    return runProcess(this.binding, { ...start, cmd: command, kind: 'exec', sessionId: this.id }, { timeoutSeconds, keepLogs })
+    return runProcess(this.binding, { ...start, cmd: shellCommand(command), kind: 'exec', sessionId: this.id }, { timeoutSeconds, keepLogs })
   }
 
   /** Queue a command and return its handle without waiting for completion. */
   public async start(command: string, options: SessionStartOptions = {}): Promise<ProcessHandle> {
     assertKnownOptions('SessionStartOptions', options, SESSION_START_OPTION_KEYS)
-    return startProcess(this.binding.transport, this.sandboxId, { ...options, cmd: command, kind: 'exec', sessionId: this.id, stdin: options.stdin ?? 'closed', keepLogs: options.keepLogs ?? 'on_exit_ttl' })
+    return startProcess(this.binding.transport, this.sandboxId, { ...options, cmd: shellCommand(command), kind: 'exec', sessionId: this.id, stdin: options.stdin ?? 'closed', keepLogs: options.keepLogs ?? 'on_exit_ttl' })
   }
 
   /** Read the shell process, including its current working directory. */

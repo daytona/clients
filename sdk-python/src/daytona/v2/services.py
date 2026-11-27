@@ -66,6 +66,7 @@ from ._gen.api import Volume as VolumeWire
 from ._gen.api import VolumeType as VolumeTypeWire
 from ._image_context import prepared_context
 from ._image_pull import ImagePull
+from ._read_retry import ReadRetry
 from ._transport import AsyncTransport
 from .build_logs import BuildLogEventCallback, BuildLogFollowResult, BuildLogsCallback, follow_build_logs
 from .errors import ClientTimeoutError, ConflictError, DaytonaError, NotFoundError, create_error
@@ -650,6 +651,8 @@ async def _get_artifact(
     a budget that runs out before the artifact settles raises
     :class:`RequestTimeoutError` (408, ``REQUEST_TIMEOUT``, ``SDK``), as
     ``images.pull()`` and ``sandbox.wait()`` do: never an unsettled observation.
+    A hold that fails transiently is retried with back-off within the budget
+    (:mod:`._read_retry`); the timeout then carries the last failure as its cause.
     """
     if wait is not None and wait != "ready":
         raise create_error(f'wait must be "ready" or omitted, got {wait!r}', 400, "BAD_REQUEST", "SDK")
@@ -669,10 +672,11 @@ async def _get_artifact(
     def timed_out() -> DaytonaError:
         return create_error("artifact did not become ready before timeout", 408, "REQUEST_TIMEOUT", "SDK")
 
+    retry = ReadRetry(transport)
     while True:
         remaining = None if deadline is None else deadline - _clock.monotonic()
         if remaining is not None and remaining <= 0:
-            raise timed_out()
+            raise timed_out() from retry.last_error
         # A long poll is governed by the wait budget, not the request timeout:
         # each hold is the smaller of the remaining budget and the server's
         # 60 s cap, in whole milliseconds, and the read adds network slack —
@@ -695,19 +699,25 @@ async def _get_artifact(
                     )
                 )
             )
-        except ClientTimeoutError as error:
+        except DaytonaError as error:
             # Only expiry of this wait's own cap is the wait running out.
             if (
-                deadline is not None
+                isinstance(error, ClientTimeoutError)
+                and deadline is not None
                 and remaining is not None
                 and (remaining <= slack_read or _clock.monotonic() >= deadline)
             ):
                 raise timed_out() from error
-            raise
+            if not retry.note(error):
+                raise
+            # Never sooner than the one-second poll spacing, whatever the back-off.
+            await retry.pause(deadline, not_before=started + _ARTIFACT_MIN_POLL_INTERVAL_S)
+            continue
+        retry.succeeded()
         if status_of(artifact) in _ARTIFACT_SETTLED_STATUSES:
             return artifact
         if deadline is not None and _clock.monotonic() >= deadline:
-            raise timed_out()
+            raise timed_out() from retry.last_error
         elapsed = _clock.monotonic() - started
         if elapsed < _ARTIFACT_MIN_POLL_INTERVAL_S:
             pause = _ARTIFACT_MIN_POLL_INTERVAL_S - elapsed

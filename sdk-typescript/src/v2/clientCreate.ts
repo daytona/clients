@@ -12,7 +12,7 @@ import type { Sandbox, SandboxConnectOptionsFromCreate } from './Sandbox.js'
 import { artifactRefOf, imageOptionsBody, isImageBuilder } from './Image.js'
 import type { Image, ImageBuilder } from './Image.js'
 import type { ImagesService } from './Images.js'
-import { assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitDeadline } from './options.js'
+import { MAX_TIMER_DELAY_MS, assertKnownOptions, badRequest, optionalSeconds, snapshotOptions, waitDeadline } from './options.js'
 import { assertCreateNestedOptions, BUILD_CREATE_KEYS, RESOURCES_KEYS, withoutNullOptions } from './clientOptionKeys.js'
 import { createRegion, createWaitSeconds, MAX_WIRE_WAIT_SECONDS, rejectV0Target } from './clientCreateOptions.js'
 import { linuxCreateRequest } from './clientCreateRequests.js'
@@ -157,12 +157,18 @@ function buildTimedOut(imageId: string, cause?: unknown): ImageBuildTimeoutError
   return new ImageBuildTimeoutError('image build did not finish before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK', imageId, cause })
 }
 
+/** A wait budget above the timer maximum: repeat holds without a deadline. */
+const UNBOUNDED_WAIT_SECONDS = MAX_TIMER_DELAY_MS / 1000 + 1
+
 async function waitForBuiltImage(images: ImagesService, initial: Image, deadline: number | undefined): Promise<Image> {
   let image = initial
   for (;;) {
     if (image.status === 'ready') return image
     if (image.status === 'failed' || image.status === 'error') throw new ImageBuildFailedError(image.error ?? `image ${image.id} build failed`, { statusCode: 409, code: 'IMAGE_BUILD_FAILED', source: 'SDK', imageId: image.id, buildError: image.error ?? undefined })
-    const remainingTimeout = deadline === undefined ? 0 : (deadline - Date.now()) / 1000
+    // Without a build budget, holds repeat without a deadline (a value above
+    // the timer maximum), retrying transient reads, never the single hold a
+    // zero budget makes.
+    const remainingTimeout = deadline === undefined ? UNBOUNDED_WAIT_SECONDS : (deadline - Date.now()) / 1000
     if (deadline !== undefined && remainingTimeout <= 0) throw buildTimedOut(image.id)
     try {
       const started = Date.now()

@@ -2994,8 +2994,8 @@ describe('V2 model', () => {
       throw new RequestTimeoutError('sandbox failed to reach the requested state before timeout', { statusCode: 408, code: 'REQUEST_TIMEOUT', source: 'SDK' })
     })
     const sandbox = createSandbox({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024 }, api, 'http://toolbox/{sandboxId}', 'key', undefined, {}, undefined, undefined, hub)
-    // The final read in the wait's reserve fails: the wait's own timeout stands.
-    const get = jest.spyOn(api, 'get').mockRejectedValue(new ServiceUnavailableError('busy', { statusCode: 503, code: 'SERVICE_UNAVAILABLE', source: 'DAYTONA_API' }))
+    // The final read in the wait's reserve fails for good: the wait's own timeout stands.
+    const get = jest.spyOn(api, 'get').mockRejectedValue(new BadRequestError('refused', { statusCode: 400, code: 'BAD_REQUEST', source: 'DAYTONA_API' }))
 
     try {
       await expect(sandbox.wait({ until: 'started', timeoutSeconds: 1 })).rejects.toMatchObject({ constructor: RequestTimeoutError, source: 'SDK' })
@@ -5110,7 +5110,8 @@ describe('toolbox service request shaping', () => {
       await jest.advanceTimersByTimeAsync(5)
 
       await expect(waitPromise).resolves.toEqual({ reason: 'exited', rawReason: 'exited', exitCode: 0 })
-      expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
+      // No deadline: one bounded round, its read bounded too, never one request held until the end.
+      expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=30000', { timeout: 35_000 }])
     } finally {
       jest.useRealTimers()
     }
@@ -5142,14 +5143,20 @@ describe('toolbox service request shaping', () => {
     const now = jest.spyOn(Date, 'now')
     try {
       now.mockReturnValueOnce(0)
-      transport.get.mockResolvedValueOnce({ reason: 'timed_out' })
+      transport.get
+        .mockResolvedValueOnce({ reason: 'timed_out' })
+        .mockResolvedValueOnce(createdWire({ id: 'proc', state: 'running' }))
       now.mockReturnValueOnce(0)
-      now.mockReturnValueOnce(1)
-      now.mockReturnValueOnce(1)
+      now.mockReturnValue(1)
       const handle = new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc')
 
       await expect(handle.wait({ timeoutSeconds: 0.001 })).resolves.toEqual({ reason: 'timed_out' })
-      expect(transport.get.mock.calls).toEqual([['/processes/proc/wait?timeoutMs=1', { timeout: 1 + WAIT_READ_SLACK_MS }]])
+      // The round that spends the budget is followed by one record read (the
+      // process may have ended with it), bounded by the slack alone.
+      expect(transport.get.mock.calls).toEqual([
+        ['/processes/proc/wait?timeoutMs=1', { timeout: 1 + WAIT_READ_SLACK_MS }],
+        ['/processes/proc', { timeout: WAIT_READ_SLACK_MS }],
+      ])
     } finally {
       now.mockRestore()
     }
@@ -5441,14 +5448,14 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce(createdWire({ id: 'p1' }))
       .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
-      if (path === '/processes/p1/wait?timeoutMs=0') {
+      if (path === '/processes/p1/wait?timeoutMs=30000') {
         firstSubmitted?.()
         return new Promise((resolve) => {
           releaseFirstWait = () => resolve({ reason: 'exited', exitCode: 0 })
         })
       }
       if (path === '/processes/p1/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
-      if (path === '/processes/p2/wait?timeoutMs=0') return { reason: 'exited', exitCode: 0 }
+      if (path === '/processes/p2/wait?timeoutMs=30000') return { reason: 'exited', exitCode: 0 }
       if (path === '/processes/p2/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
       throw new Error(`unexpected GET ${path}`)
     })
@@ -5484,14 +5491,14 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce(createdWire({ id: 'p1' }))
       .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
-      if (path === '/processes/p1/wait?timeoutMs=0') {
+      if (path === '/processes/p1/wait?timeoutMs=30000') {
         firstSubmitted?.()
         return new Promise((resolve) => {
           releaseFirstWait = () => resolve({ reason: 'exited', exitCode: 0 })
         })
       }
       if (path === '/processes/p1/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
-      if (path === '/processes/p2/wait?timeoutMs=0') return { reason: 'exited', exitCode: 0 }
+      if (path === '/processes/p2/wait?timeoutMs=30000') return { reason: 'exited', exitCode: 0 }
       if (path === '/processes/p2/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
       throw new Error(`unexpected GET ${path}`)
     })
@@ -5526,7 +5533,7 @@ describe('toolbox service request shaping', () => {
     })
     transport.post.mockResolvedValueOnce(createdWire({ id: 'p1' }))
     transport.get.mockImplementation(async (path: string) => {
-      if (path === '/processes/p1/wait?timeoutMs=0') {
+      if (path === '/processes/p1/wait?timeoutMs=30000') {
         firstSubmitted?.()
         return new Promise((resolve) => {
           releaseFirstWait = () => resolve({ reason: 'exited', exitCode: 0 })
@@ -5597,14 +5604,14 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce(createdWire({ id: 'p1' }))
       .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
-      if (path === '/processes/p1/wait?timeoutMs=0') {
+      if (path === '/processes/p1/wait?timeoutMs=30000') {
         firstSubmitted?.()
         return new Promise((resolve) => {
           releaseFirstWait = () => resolve({ reason: 'exited', exitCode: 0 })
         })
       }
       if (path === '/processes/p1/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
-      if (path === '/processes/p2/wait?timeoutMs=0') return { reason: 'exited', exitCode: 0 }
+      if (path === '/processes/p2/wait?timeoutMs=30000') return { reason: 'exited', exitCode: 0 }
       if (path === '/processes/p2/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
       throw new Error(`unexpected GET ${path}`)
     })
@@ -5652,14 +5659,14 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce(createdWire({ id: 'p1' }))
       .mockResolvedValueOnce(createdWire({ id: 'p2' }))
     transport.get.mockImplementation(async (path: string) => {
-      if (path === '/processes/p1/wait?timeoutMs=0') {
+      if (path === '/processes/p1/wait?timeoutMs=30000') {
         firstSubmitted?.()
         return new Promise((resolve) => {
           releaseFirstWait = () => resolve({ reason: 'exited', exitCode: 0 })
         })
       }
       if (path === '/processes/p1/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
-      if (path === '/processes/p2/wait?timeoutMs=0') return { reason: 'exited', exitCode: 0 }
+      if (path === '/processes/p2/wait?timeoutMs=30000') return { reason: 'exited', exitCode: 0 }
       if (path === '/processes/p2/logs') return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
       throw new Error(`unexpected GET ${path}`)
     })
@@ -5702,7 +5709,7 @@ describe('toolbox service request shaping', () => {
       throw new Error(`unexpected POST ${path}`)
     })
     transport.get.mockImplementation(async (path: string) => {
-      if (path.endsWith('/wait?timeoutMs=0')) return { reason: 'exited', exitCode: 0 }
+      if (path.endsWith('/wait?timeoutMs=30000')) return { reason: 'exited', exitCode: 0 }
       if (path.endsWith('/logs')) return { frames: [], nextCursor: '0', truncatedHead: false, eof: true }
       throw new Error(`unexpected GET ${path}`)
     })
@@ -5876,7 +5883,9 @@ describe('toolbox service request shaping', () => {
     const context = interpreter.connectContext('ctx', 'python')
     try {
       await expect(context.run('1', { timeoutSeconds: 600.001 })).resolves.toMatchObject({ process: { exitCode: 0 } })
-      expect(transport.get.mock.calls[0]?.[0]).toBe('/processes/p/wait?timeoutMs=600001')
+      // The 600 s budget is waited out in 30 s rounds, never one 600 s request.
+      expect(transport.get.mock.calls[0]?.[0]).toBe('/processes/p/wait?timeoutMs=30000')
+      expect(transport.get.mock.calls[2]?.[0]).toBe('/processes/p/wait?timeoutMs=30000')
     } finally {
       now.mockRestore()
     }
@@ -5918,6 +5927,7 @@ describe('toolbox service request shaping', () => {
         jest.advanceTimersByTime(10)
         return { reason: 'timed_out' }
       })
+      .mockResolvedValueOnce(createdWire({ id: 'p', state: 'running' }))
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 130 })
       .mockResolvedValueOnce({ frames: [], nextCursor: '0', truncatedHead: false, eof: true })
     const interpreter = new InterpreterService(INTERNAL, transport.object, 'sbx')
@@ -5927,6 +5937,7 @@ describe('toolbox service request shaping', () => {
     expect(transport.post.mock.calls[1]?.[0]).toBe('/processes/p/signals')
     expect(transport.get.mock.calls.map((call) => call[0])).toEqual([
       '/processes/p/wait?timeoutMs=10',
+      '/processes/p',
       '/processes/p/wait?timeoutMs=250',
       '/processes/p/logs',
     ])
@@ -6622,7 +6633,7 @@ describe('toolbox service request shaping', () => {
       .mockResolvedValueOnce({ id: 'p', kind: 'code', state: 'running', createdAt: '2026-01-01T00:00:00Z', cwd: '/w', stdin: 'closed', keepLogs: 'until_cleanup', truncatedHead: false })
       .mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
     await expect(new ProcessService(INTERNAL, transport.object, 'sbx').connect('p').wait()).resolves.toEqual({ reason: 'exited', rawReason: 'exited', exitCode: 0 })
-    expect(transport.get.mock.calls.map((call) => call[0])).toEqual(['/processes/p/wait?timeoutMs=0', '/processes/p', '/processes/p/wait?timeoutMs=0'])
+    expect(transport.get.mock.calls.map((call) => call[0])).toEqual(['/processes/p/wait?timeoutMs=30000', '/processes/p', '/processes/p/wait?timeoutMs=30000'])
   })
 
   it('raises after repeated record-read failures even when the long-poll succeeds', async () => {
@@ -8908,7 +8919,10 @@ describe('toolbox service request shaping', () => {
     const waitSecond = jest.spyOn(secondHub, 'wait').mockRejectedValue(new Error('unexpected second hub wait'))
     const sandbox = createSandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
     ;(second as unknown as { hub?: WaitHub }).hub = secondHub
-    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+    // start() reads the stopped sandbox; the read after the hub's event shows it running.
+    jest.spyOn(firstApi, 'get')
+      .mockResolvedValueOnce({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+      .mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     jest.spyOn(firstApi, 'post').mockResolvedValue({ data: {} })
 
     try {
@@ -8960,7 +8974,10 @@ describe('toolbox service request shaping', () => {
     const sandbox = createSandbox(sandboxDetail({ id: 'sbx', status: 'stopped' }) as unknown as SandboxDto, firstApi, 'http://toolbox/{sandboxId}', 'key-1', undefined, {}, undefined, undefined, firstHub)
     ;(second as unknown as { hub?: WaitHub }).hub = secondHub
     await firstHub.detach()
-    jest.spyOn(firstApi, 'get').mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+    // start() reads the stopped sandbox; the read after the hub's event shows it running.
+    jest.spyOn(firstApi, 'get')
+      .mockResolvedValueOnce({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'stopped', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
+      .mockResolvedValue({ data: sandboxDetail({ class: 'linux', id: 'sbx', status: 'running', name: 'sbx', cpu: 1, cores_max: 1, memory_mib: 1024, disk_mib: 1024, region_id: '', port_map: [] }) })
     jest.spyOn(firstApi, 'post').mockResolvedValue({ data: {} })
 
     try {
@@ -9090,6 +9107,7 @@ describe('toolbox service request shaping', () => {
         jest.advanceTimersByTime(10)
         return { reason: 'timed_out' }
       }
+      if (path === '/processes/proc') return createdWire({ id: 'proc', kind: 'exec', state: 'running' })
       const cursor = Number(new URL(`http://x${path}`).searchParams.get('cursor') ?? '0')
       return { frames: [{ cursor: String(cursor), channel: 'stdout', data: `p${cursor}`, timestamp: 1 }], nextCursor: String(cursor + 1), truncatedHead: false, eof: false }
     })
@@ -9132,7 +9150,7 @@ describe('toolbox service request shaping', () => {
     expect(boundedRequestTimeout(now + 0.4, 30_000)).toBe(1) // fractional remainder rounds UP, never to 0
   })
 
-  it('keeps process.run timeout=0 as an unbounded caller wait', async () => {
+  it('keeps process.run timeout=0 as an unbounded caller wait, in bounded rounds', async () => {
     const transport = transportStub()
     transport.post.mockResolvedValue(createdWire({ id: 'proc', kind: 'exec', state: 'running' }))
     transport.get
@@ -9142,10 +9160,10 @@ describe('toolbox service request shaping', () => {
     const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     await expect(process.run('echo hi', { timeoutSeconds: 0 })).resolves.toMatchObject({ reason: 'exited', stdout: 'out' })
-    expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=0&logs=text')
+    expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=30000&logs=text')
     expect(transport.post.mock.calls[0]?.[1]).toMatchObject({ shellCommand: 'echo hi', keepLogs: 'on_exit_ttl' })
-    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 0 })
-    expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 35_000 })
+    expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=30000', { timeout: 35_000 }])
   })
 
   it('keeps process.run without a timeout unbounded across the awaited exec and terminal wait', async () => {
@@ -9158,10 +9176,11 @@ describe('toolbox service request shaping', () => {
     const process = new ProcessService(INTERNAL, transport.object, 'sbx')
 
     await expect(process.run('echo hi')).resolves.toMatchObject({ reason: 'exited', stdout: 'out' })
-    // The first request holds one 60 s window, as in the Python SDK; the rest of the wait is unbounded.
-    expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=60000&logs=text')
-    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 65_000 })
-    expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
+    // The first request holds one 30 s round, as in the Python SDK; the rest
+    // of the wait has no deadline and goes on in rounds of 30 s.
+    expect(transport.post.mock.calls[0]?.[0]).toBe('/processes?waitMs=30000&logs=text')
+    expect(transport.post.mock.calls[0]?.[2]).toEqual({ timeout: 35_000 })
+    expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=30000', { timeout: 35_000 }])
   })
 
   it('holds for the wait budget, not the shorter request timeout', async () => {
@@ -12603,11 +12622,21 @@ describe('sandbox.docker', () => {
     await expect(failure).rejects.toMatchObject({ status: { state: 'starting' } })
   })
 
-  it('waitUntilReady() rethrows a transport timeout that happens before the deadline', async () => {
+  it('waitUntilReady() retries a transport timeout that happens before the deadline', async () => {
     const transport = transportStub()
     const stalled = new publicSdk.ClientTimeoutError()
-    transport.get.mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
-    await expect(new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })).rejects.toBe(stalled)
+    transport.get
+      .mockImplementationOnce(async () => { jest.setSystemTime(Date.now() + 6_000); throw stalled })
+      .mockResolvedValueOnce({ state: 'ready', owner: 'daemon' })
+    jest.useFakeTimers({ now: 0 })
+    try {
+      const ready = new DockerService(INTERNAL, transport.object).waitUntilReady({ timeoutSeconds: 60 })
+      await jest.advanceTimersByTimeAsync(1_000)
+      await expect(ready).resolves.toMatchObject({ state: 'ready' })
+      expect(transport.get).toHaveBeenCalledTimes(2)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('waitUntilReady() against a stalling server ends near the deadline with DockerWaitTimeoutError', async () => {
@@ -12899,11 +12928,15 @@ describe('toolbox surface', () => {
       expect(thrown).toMatchObject({ ...refused, message })
     }
     check(() => process.connect(''), 'process handle identity needs a non-empty string processId')
-    check(() => process.connect(5 as never), 'process handle identity needs a non-empty string sandboxId')
+    // Anything but an identity object is read as an id, as Python does.
+    check(() => process.connect(5 as never), 'process handle identity needs a non-empty string processId')
+    check(() => process.connect(null as never), 'process handle identity needs a non-empty string processId')
     check(() => process.connect({ sandboxId: 'sbx' } as never), 'process handle identity needs a non-empty string processId')
     check(() => process.connect({ sandboxId: 'other', processId: 'p' }), 'process handle belongs to a different sandbox')
     check(() => process.connectSession(''), 'session identity needs a non-empty string sessionId')
-    check(() => process.connectSession(5 as never), 'session identity needs a non-empty string sandboxId')
+    check(() => process.connectSession(5 as never), 'session identity needs a non-empty string sessionId')
+    check(() => process.connectSession(null as never), 'session identity needs a non-empty string sessionId')
+    check(() => process.connectSession({ sessionId: 's' } as never), 'session identity needs a non-empty string sandboxId')
     check(() => process.connectSession({ sandboxId: 'other', sessionId: 's' }), 'session belongs to a different sandbox')
     expect(process.connect({ sandboxId: 'sbx', processId: 'p', kind: 'future' as never }).toJSON()).toEqual({ sandboxId: 'sbx', processId: 'p' })
     expect(process.connectSession({ sandboxId: 'sbx', sessionId: 's' }).id).toBe('s')
@@ -13512,7 +13545,8 @@ describe('toolbox surface', () => {
     const transport = transportStub()
     transport.get.mockResolvedValueOnce({ reason: 'exited', exitCode: 0 })
     await new ProcessService(INTERNAL, transport.object, 'sbx').connect('proc').wait({ timeoutSeconds: 10 ** 9 })
-    expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=0', { timeout: 0 }])
+    // No deadline: one bounded round, not one request held until the end.
+    expect(transport.get.mock.calls[0]).toEqual(['/processes/proc/wait?timeoutMs=30000', { timeout: 35_000 }])
     transport.post.mockResolvedValueOnce(createdWire({ id: 'p' }))
     await new ProcessService(INTERNAL, transport.object, 'sbx').start('x', { executionTimeoutSeconds: 10 ** 9 })
     expect(transport.post.mock.calls[0]?.[1]).toEqual({ shellCommand: 'x', stdin: 'closed', keepLogs: 'on_exit_ttl' })

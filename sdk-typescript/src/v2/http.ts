@@ -231,6 +231,8 @@ type AuthorizationHeaderOptions = {
 export interface HttpClientOptions {
   /** Shared by every transport owned by one v2 client. */
   readonly ensureOpen?: () => void
+  /** Aborted when the owning v2 client closes: ends a wait's retry pause. */
+  readonly closed?: AbortSignal
   readonly authProvider?: HttpAuthProvider
   readonly connectionPoolMaxsize?: number
   readonly otelEnabled?: boolean
@@ -1893,6 +1895,11 @@ export class HttpTransport {
     })
     return new Response(detachingBody, { status: response.status, statusText: response.statusText, headers: response.headers })
   }
+}
+
+/** The closed signal of the v2 client that built `instance`, if any (readRetry.ts). @internal */
+export function closedSignalOf(instance: AxiosInstance): AbortSignal | undefined {
+  return axiosTransportConfig(instance)?.httpOptions?.closed
 }
 
 export function transportFromAxiosInstance(instance: AxiosInstance, config: HttpTransportConfig = {}): HttpTransport {
