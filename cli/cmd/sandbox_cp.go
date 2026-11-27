@@ -22,7 +22,9 @@ import (
 
 	tbgen "github.com/daytona/clients/cli/gen/toolbox"
 	"github.com/daytona/clients/cli/internal/api"
+	"github.com/daytona/clients/cli/internal/app"
 	"github.com/daytona/clients/cli/internal/cerr"
+	"github.com/daytona/clients/cli/internal/output"
 	toolboxclient "github.com/daytona/clients/cli/internal/toolbox"
 )
 
@@ -34,8 +36,11 @@ func newSandboxCPSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cp <src> <dst>",
 		Short: "Copy files to or from a sandbox",
-		Long:  "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). A file copied onto an existing sandbox directory lands inside it, as with POSIX cp; a local directory needs -r. With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself. A file upload creates the missing parent directories of its remote destination, where the sandbox user may create them.",
-		Args:  cobra.ExactArgs(2),
+		Long: "Copies one file over a pre-signed toolbox URL minted by the API (POST /sandboxes/{id}/files/sign). A file copied onto an existing sandbox directory lands inside it, as with POSIX cp; a local directory needs -r. With -r, destination handling matches POSIX cp -r: if the destination ends with / (or is an existing local directory on download), the source directory is copied into it as <dest>/<basename(src)>; otherwise the destination path is the new directory itself. A file upload creates the missing parent directories of its remote destination, where the sandbox user may create them.\n" +
+			"A local endpoint of - is stdin (upload) or stdout (download), for one file; a local file named - is ./-. An upload from stdin needs a remote file path, not a directory.\n" +
+			"With -o json or yaml a finished copy prints {source, destination, bytes} ({source, destination, recursive} for -r), except a download to stdout, which prints only the file.\n" +
+			"Examples:\n  daytona sandbox cp ./app.py <sandbox-id>:/home/daytona/app.py\n  daytona sandbox cp <sandbox-id>:/var/log/app.log - | tail\n  tar -cf - src | daytona sandbox cp - <sandbox-id>:/tmp/src.tar",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := FromContext(cmd.Context())
 			src, srcRemote := toolboxclient.ParseTransferSpec(args[0])
@@ -46,7 +51,14 @@ func newSandboxCPSubcommand() *cobra.Command {
 			case !srcRemote && !dstRemote:
 				return cerr.Usage("sandbox cp needs one endpoint in <sandbox-id>:/path form")
 			}
-			if dstRemote {
+			stdio := (dstRemote && args[0] == "-") || (srcRemote && args[1] == "-")
+			if stdio && recursive {
+				return cerr.Usage("- (stdin or stdout) copies one file; -r copies a directory").WithHint("drop -r, or name a local directory")
+			}
+			if dstRemote && args[0] == "-" && strings.HasSuffix(dst.Path, "/") {
+				return cerr.Usage("an upload from stdin needs a remote file path, not the directory %s", dst.Path).WithHint("name the file, e.g. %s:%sfile", dst.SandboxID, dst.Path)
+			}
+			if dstRemote && args[0] != "-" {
 				if err := checkLocalUploadSource(args[0], recursive); err != nil {
 					return err
 				}
@@ -57,26 +69,47 @@ func newSandboxCPSubcommand() *cobra.Command {
 					return err
 				}
 				if recursive {
-					return recursiveDownload(cmd, toolClient, src.Path, args[1])
+					if err := recursiveDownload(cmd, toolClient, src.Path, args[1]); err != nil {
+						return err
+					}
+					return printCopyAck(a, args[0], args[1], -1)
 				}
 				signedURL, err := toolboxclient.SignFileURL(cmd.Context(), signer, string(target.Detail.Class), target.Detail.Id, http.MethodGet, src.Path, presignedTransferTTL)
 				if err != nil {
 					return err
 				}
-				return toolClient.DownloadFile(cmd.Context(), signedURL, toolboxclient.SingleFileLocalDestination(args[1], src.Path))
+				if args[1] == "-" {
+					_, err := toolClient.DownloadTo(cmd.Context(), signedURL, a.Stdout)
+					return err
+				}
+				localPath := toolboxclient.SingleFileLocalDestination(args[1], src.Path)
+				n, err := toolClient.DownloadFileCounted(cmd.Context(), signedURL, localPath)
+				if err != nil {
+					return err
+				}
+				return printCopyAck(a, args[0], localPath, n)
 			}
 			toolClient, target, _, signer, err := sandboxClients(cmd.Context(), a, dst.SandboxID)
 			if err != nil {
 				return err
 			}
 			if recursive {
-				return recursiveUpload(cmd, toolClient, signer, target, args[0], dst.Path)
+				if err := recursiveUpload(cmd, toolClient, signer, target, args[0], dst.Path); err != nil {
+					return err
+				}
+				return printCopyAck(a, args[0], args[1], -1)
 			}
-			remotePath := destinationUploadPath(args[0], dst.Path)
+			remotePath := dst.Path
+			if args[0] != "-" {
+				remotePath = destinationUploadPath(args[0], dst.Path)
+			}
 			if remotePath == dst.Path {
 				isDir, err := remoteIsDir(cmd.Context(), toolClient, dst.Path)
 				if err != nil {
 					return err
+				}
+				if isDir && args[0] == "-" {
+					return cerr.Usage("an upload from stdin needs a remote file path; %s is a directory", dst.Path).WithHint("name the file, e.g. %s:%s/file", dst.SandboxID, strings.TrimSuffix(dst.Path, "/"))
 				}
 				if isDir {
 					remotePath = path.Join(dst.Path, filepath.Base(args[0]))
@@ -86,11 +119,39 @@ func newSandboxCPSubcommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return toolClient.UploadFile(cmd.Context(), signedURL, args[0], remotePath)
+			var n int64
+			if args[0] == "-" {
+				n, err = toolClient.UploadReaderCounted(cmd.Context(), signedURL, "stdin", remotePath, cpStdin)
+			} else {
+				n, err = toolClient.UploadFileCounted(cmd.Context(), signedURL, args[0], remotePath)
+			}
+			if err != nil {
+				return err
+			}
+			return printCopyAck(a, args[0], dst.SandboxID+":"+remotePath, n)
 		},
 	}
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "copy a directory by uploading one tar archive, then extracting it remotely")
 	return cmd
+}
+
+// cpStdin is the stdin `sandbox cp - …` uploads; tests replace it.
+var cpStdin io.Reader = os.Stdin
+
+// printCopyAck prints what a finished copy did, with -o json or yaml only (a
+// table-mode copy stays silent, as cp is). bytes < 0 marks a recursive copy,
+// whose archive size is not the files' size.
+func printCopyAck(a *app.App, source, destination string, bytes int64) error {
+	if a.Format == output.FormatTable {
+		return nil
+	}
+	ack := map[string]any{"source": source, "destination": destination}
+	if bytes < 0 {
+		ack["recursive"] = true
+	} else {
+		ack["bytes"] = bytes
+	}
+	return a.Printer().Object(ack, nil)
 }
 
 // checkLocalUploadSource refuses, before anything is signed or sent, a local

@@ -25,32 +25,94 @@ var openUploadFile = func(path string) (io.ReadCloser, error) {
 // DownloadFile fetches a pre-signed toolbox file URL to localPath. The
 // client identity headers are included like every other toolbox request.
 func (c *Client) DownloadFile(ctx context.Context, signedURL, localPath string) error {
+	_, err := c.DownloadFileCounted(ctx, signedURL, localPath)
+	return err
+}
+
+// DownloadFileCounted is DownloadFile that also returns the bytes written.
+func (c *Client) DownloadFileCounted(ctx context.Context, signedURL, localPath string) (int64, error) {
+	body, err := c.openSignedDownload(ctx, signedURL)
+	if err != nil {
+		return 0, err
+	}
+	defer body.Close()
+	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
+		return 0, fmt.Errorf("create local parent directory: %w", err)
+	}
+	counted := &countingReader{r: body}
+	if err := writeDownloadedFile(counted, localPath); err != nil {
+		return 0, err
+	}
+	return counted.n, nil
+}
+
+// DownloadTo copies a pre-signed toolbox file URL to w (stdout for
+// `sandbox cp <sandbox>:/path -`) and returns the bytes written.
+func (c *Client) DownloadTo(ctx context.Context, signedURL string, w io.Writer) (int64, error) {
+	body, err := c.openSignedDownload(ctx, signedURL)
+	if err != nil {
+		return 0, err
+	}
+	defer body.Close()
+	n, err := io.Copy(w, body)
+	if err != nil {
+		return n, fmt.Errorf("download signed file: %w", redactURLError(err))
+	}
+	return n, nil
+}
+
+func (c *Client) openSignedDownload(ctx context.Context, signedURL string) (io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, signedURL, nil)
 	if err != nil {
-		return fmt.Errorf("build signed download request: %w", signedURLParseError(err))
+		return nil, fmt.Errorf("build signed download request: %w", signedURLParseError(err))
 	}
 	c.inner.SetIdentityHeaders(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("download signed file: %w", redactURLError(err))
+		return nil, fmt.Errorf("download signed file: %w", redactURLError(err))
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return mapError(http.MethodGet, req.URL.Path, resp)
+		defer resp.Body.Close()
+		return nil, mapError(http.MethodGet, req.URL.Path, resp)
 	}
-	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
-		return fmt.Errorf("create local parent directory: %w", err)
-	}
-	return writeDownloadedFile(resp.Body, localPath)
+	return resp.Body, nil
+}
+
+type countingReader struct {
+	r io.Reader
+	n int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	return n, err
 }
 
 func (c *Client) UploadFile(ctx context.Context, signedURL, localPath, remotePath string) error {
+	_, err := c.UploadFileCounted(ctx, signedURL, localPath, remotePath)
+	return err
+}
+
+// UploadFileCounted is UploadFile that also returns the bytes read from the
+// local file.
+func (c *Client) UploadFileCounted(ctx context.Context, signedURL, localPath, remotePath string) (int64, error) {
 	file, err := openUploadFile(localPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer file.Close()
-	return c.UploadReader(ctx, signedURL, localPath, remotePath, file)
+	return c.UploadReaderCounted(ctx, signedURL, localPath, remotePath, file)
+}
+
+// UploadReaderCounted is UploadReader that also returns the bytes read from
+// file.
+func (c *Client) UploadReaderCounted(ctx context.Context, signedURL, localPath, remotePath string, file io.Reader) (int64, error) {
+	counted := &countingReader{r: file}
+	if err := c.UploadReader(ctx, signedURL, localPath, remotePath, counted); err != nil {
+		return 0, err
+	}
+	return counted.n, nil
 }
 
 func (c *Client) UploadReader(ctx context.Context, signedURL, localPath, remotePath string, file io.Reader) error {
