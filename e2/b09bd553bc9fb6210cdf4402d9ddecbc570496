@@ -1,0 +1,43 @@
+changelog.d/sdk-screenshot-region.fixed.md
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 6-9
+changelog.d/sdk-error-messages.fixed.md
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 6-8
+sdk-typescript/README.md
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 1271-1272
+sdk-go/computer_use_screen.go
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 121-124,129-130,134-136
+sdk-go/inputs_messages_test.go
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 87
+sdk-typescript/src/v2/Sandbox.ts
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 45,240-243,247-252
+sdk-python/src/daytona/v2/_core.py
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 1443-1444,1457-1458,2363-2365
+sdk-go/sandbox_info_state.go
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 101-103
+changelog.d/sdk-create-env-names.fixed.md
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 6-10
+sdk-python/README.md
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 1378-1379
+sdk-typescript/src/v2/options.ts
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 130-132,143
+sdk-typescript/tests/unit.test.ts
+  s_cdd0f68a8f776a::t_984b0ea0ce08db 2071-2087,10186
+sdk-python/tests/test_inputs_and_messages.py
+  s_cdd0f68a8f776a::t_92c3ed0f7c6769 22,299,338-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2b09bd553bc9fb6210cdf4402d9ddecbc570496",
+  "prompts": {},
+  "sessions": {
+    "s_cdd0f68a8f776a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_de231bf37ffehrrSh4v7IOEgN3",
+        "model": "unknown"
+      },
+      "human_author": "MDzaja <mirkodzaja0@gmail.com>"
+    }
+  }
+}
