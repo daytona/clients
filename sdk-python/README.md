@@ -302,11 +302,10 @@ image creates need a region that is not a group, and the API rejects a group
 with 400. The SDKs do not list regions or CPU types: use the CLI
 (`daytona region list`, `daytona cpu-type list --region <region>`).
 
-Every `create*()` sends an idempotency key, as the `Idempotency-Key` header:
-the one you pass as `idempotency_key` (printable ASCII with no leading or
-trailing space, at most 256 bytes),
-else one derived from `name` (next section), else a random UUID per
-invocation. If the create request times out or loses its connection,
+Every `create*()` sends an idempotency key: the one you pass as
+`idempotency_key` (printable ASCII with no leading or trailing space, at most
+256 bytes), else one derived from `name` (next section), else a random UUID
+per invocation. If the create request times out or loses its connection,
 `SandboxCreateRequestTimeoutError` / `SandboxCreateConnectionError` exposes
 `idempotency_key`. Retry with that key and **the identical source and create
 arguments**; do not start a fresh-key create to recover a lost response. A

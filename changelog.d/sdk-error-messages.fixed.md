@@ -1,5 +1,7 @@
 **Validation messages match across SDKs** — the same misuse now gives the same
-message in Python, TypeScript and Go, modulo parameter naming:
+message in Python and TypeScript, modulo parameter naming; Go shares the
+search-state and port messages (its credential and duration messages keep
+naming its options, such as `WithAPIKey` and `WaitForever`):
 - missing or conflicting credentials: `configure api_key or jwt_token (in
   DaytonaConfig or as DAYTONA_API_KEY / DAYTONA_JWT_TOKEN)`, and
   `jwt_token requires project_id (in DaytonaConfig or as DAYTONA_PROJECT_ID)`;

@@ -1,4 +1,4 @@
-**Create refuses environment names `update_env` refuses** — `create*(env=...)`
+**Create validates environment names like `update_env`** — `create*(env=...)`
 (`create*({ env })`, Go `CreateOptions.Env` / `CreateMacOSOptions.Env`) refuses
 an empty name, a name with `=`, NUL, CR or LF (`env key is not a valid variable
 name`) and a value with NUL (`env values must not contain NUL`) before any
