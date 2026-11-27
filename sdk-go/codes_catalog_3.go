@@ -70,6 +70,18 @@ const CodeECROwnershipUnverifiable = "ECR_OWNERSHIP_UNVERIFIABLE"
 // ErrECROwnershipUnverifiable matches code ECR_OWNERSHIP_UNVERIFIABLE, independently of its source.
 var ErrECROwnershipUnverifiable = codeSentinel{"ECR_OWNERSHIP_UNVERIFIABLE", 502}
 
+// CodeBucketRoleInvalid is BUCKET_ROLE_INVALID (API).
+const CodeBucketRoleInvalid = "BUCKET_ROLE_INVALID"
+
+// ErrBucketRoleInvalid matches code BUCKET_ROLE_INVALID, independently of its source.
+var ErrBucketRoleInvalid = codeSentinel{"BUCKET_ROLE_INVALID", 400}
+
+// CodeBucketRoleUnverifiable is BUCKET_ROLE_UNVERIFIABLE (API).
+const CodeBucketRoleUnverifiable = "BUCKET_ROLE_UNVERIFIABLE"
+
+// ErrBucketRoleUnverifiable matches code BUCKET_ROLE_UNVERIFIABLE, independently of its source.
+var ErrBucketRoleUnverifiable = codeSentinel{"BUCKET_ROLE_UNVERIFIABLE", 502}
+
 // CodeEmailAccessDenied is EMAIL_ACCESS_DENIED (API).
 const CodeEmailAccessDenied = "EMAIL_ACCESS_DENIED"
 
@@ -111,18 +123,6 @@ const CodeUsageUnavailable = "USAGE_UNAVAILABLE"
 
 // ErrUsageUnavailable matches code USAGE_UNAVAILABLE, independently of its source.
 var ErrUsageUnavailable = codeSentinel{"USAGE_UNAVAILABLE", 503}
-
-// CodeBadRange is BAD_RANGE (API).
-const CodeBadRange = "BAD_RANGE"
-
-// ErrBadRange matches code BAD_RANGE, independently of its source.
-var ErrBadRange = codeSentinel{"BAD_RANGE", 400}
-
-// CodeBadResolution is BAD_RESOLUTION (API).
-const CodeBadResolution = "BAD_RESOLUTION"
-
-// ErrBadResolution matches code BAD_RESOLUTION, independently of its source.
-var ErrBadResolution = codeSentinel{"BAD_RESOLUTION", 400}
 
 func catalogStatus3(source, code string) int {
 	switch code {
@@ -170,6 +170,14 @@ func catalogStatus3(source, code string) int {
 		if source == "DAYTONA_API" {
 			return 502
 		}
+	case "BUCKET_ROLE_INVALID":
+		if source == "DAYTONA_API" {
+			return 400
+		}
+	case "BUCKET_ROLE_UNVERIFIABLE":
+		if source == "DAYTONA_API" {
+			return 502
+		}
 	case "EMAIL_ACCESS_DENIED":
 		if source == "DAYTONA_API" {
 			return 403
@@ -197,14 +205,6 @@ func catalogStatus3(source, code string) int {
 	case "USAGE_UNAVAILABLE":
 		if source == "DAYTONA_API" {
 			return 503
-		}
-	case "BAD_RANGE":
-		if source == "DAYTONA_API" {
-			return 400
-		}
-	case "BAD_RESOLUTION":
-		if source == "DAYTONA_API" {
-			return 400
 		}
 	}
 	return 0

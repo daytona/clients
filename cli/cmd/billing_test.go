@@ -22,7 +22,7 @@ import (
 func TestBillingPaymentMethods_rendersTopLevelArrayInTableMode(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/billing/payment-methods", http.StatusOK, map[string]any{"payment_methods": []map[string]any{paymentMethodFixture()}, "next_cursor": nil})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "payment-methods")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "payment-methods")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "pm_123")
 	require.Contains(t, stdout, "visa")
@@ -31,7 +31,7 @@ func TestBillingPaymentMethods_rendersTopLevelArrayInTableMode(t *testing.T) {
 func TestBillingPaymentMethods_wrapsTopLevelArrayInJSON(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/billing/payment-methods", http.StatusOK, map[string]any{"payment_methods": []map[string]any{paymentMethodFixture()}, "next_cursor": nil})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "payment-methods")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "payment-methods")
 	require.Equal(t, 0, code, stderr)
 	payload := mustJSON(t, stdout)
 	require.Equal(t, false, payload["incomplete"])
@@ -41,7 +41,7 @@ func TestBillingPaymentMethods_wrapsTopLevelArrayInJSON(t *testing.T) {
 func TestBillingUnpaidInvoices_rendersTopLevelArrayInTableMode(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/billing/invoices", http.StatusOK, map[string]any{"invoices": []map[string]any{invoiceFixture("inv_123")}, "next_cursor": nil})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "--unpaid")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "--unpaid")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "inv_123")
 	require.Equal(t, "limit=25&unpaid=true", api.requests[0].Query)
@@ -50,7 +50,7 @@ func TestBillingUnpaidInvoices_rendersTopLevelArrayInTableMode(t *testing.T) {
 func TestBillingUsagePast_rendersTopLevelArrayInTableMode(t *testing.T) {
 	api := newFakeAPI(t)
 	api.on(http.MethodGet, "/orgs/0000000a-0000-4000-8000-00000000a001/billing/usage-periods", http.StatusOK, usagePeriodPageFixture("closed", nil))
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "usage-periods")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "usage-periods")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "1000")
 	require.Contains(t, stdout, "2026-09-30")
@@ -62,7 +62,7 @@ func TestBillingBalances_rendersDataWrapperAsListInTableMode(t *testing.T) {
 		"balances":    []map[string]any{{"id": "bal_123", "name": "credits", "type": "credit", "balance_cents": 1000, "granted_amount_cents": 1000, "currency": "usd", "created_at": "2026-09-01T00:00:00Z"}},
 		"next_cursor": nil,
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "balances")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "balances")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "bal_123")
 }
@@ -73,7 +73,7 @@ func TestBillingBalances_wrapsDataWrapperInYAML(t *testing.T) {
 		"balances":    []map[string]any{{"id": "bal_123", "name": "credits", "type": "credit", "balance_cents": 1000, "granted_amount_cents": 1000, "currency": "usd", "created_at": "2026-09-01T00:00:00Z"}},
 		"next_cursor": nil,
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "yaml", "billing", "balances")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "yaml", "billing", "balances")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "items:")
 	require.Contains(t, stdout, "incomplete: false")
@@ -85,7 +85,7 @@ func TestBillingBalances_wrapsPaginationMetadataInJSON(t *testing.T) {
 		"balances":    []map[string]any{{"id": "bal_123", "name": "credits", "type": "credit", "balance_cents": 1000, "granted_amount_cents": 1000, "currency": "usd", "created_at": "2026-09-01T00:00:00Z"}},
 		"next_cursor": "page_2",
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "balances", "--limit", "5", "--cursor", "page_1")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "balances", "--limit", "5", "--cursor", "page_1")
 	require.Equal(t, 0, code, stderr)
 	payload := mustJSON(t, stdout)
 	require.Equal(t, false, payload["incomplete"])
@@ -99,7 +99,7 @@ func TestBillingInvoices_rendersItemsWrapperAsListInTableMode(t *testing.T) {
 		"invoices":    []map[string]any{invoiceFixture("inv_123")},
 		"next_cursor": nil,
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "inv_123")
 }
@@ -110,7 +110,7 @@ func TestBillingCharges_forwardsCursorAndSurfacesContinuationHint(t *testing.T) 
 		"charges":     []map[string]any{{"id": "ch_123", "amount_cents": 1000, "currency": "usd", "description": "charge", "has_pdf": false, "has_invoice": false, "invoice_url": nil, "receipt_url": nil, "failure_message": nil, "created_at": "2026-09-01T00:00:00Z", "status": "succeeded"}},
 		"next_cursor": "ch_456",
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "charges", "--limit", "5", "--cursor", "ch_0", "-o", "table")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "charges", "--limit", "5", "--cursor", "ch_0", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "cursor=ch_0&limit=5", api.requests[0].Query)
 	require.Contains(t, stdout, "--cursor ch_456")
@@ -122,7 +122,7 @@ func TestBillingInvoices_surfaceTruncatedAndPageHint(t *testing.T) {
 		"invoices":    []map[string]any{invoiceFixture("inv_123")},
 		"next_cursor": "invoice_2",
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "--limit", "1", "--cursor", "invoice_1", "-o", "table")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "--limit", "1", "--cursor", "invoice_1", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "cursor=invoice_1&limit=1", api.requests[0].Query)
 	require.Contains(t, stdout, "--cursor invoice_2")
@@ -134,7 +134,7 @@ func TestBillingInvoices_lastPageDoesNotHintNextPageWhenTruncated(t *testing.T) 
 		"invoices":    []map[string]any{invoiceFixture("inv_123")},
 		"next_cursor": nil,
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "-o", "table")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoices", "-o", "table")
 	require.Equal(t, 0, code, stderr)
 	require.NotContains(t, stdout, "--cursor")
 }
@@ -153,7 +153,7 @@ func TestBillingInvoicePDF_writesToInjectedStdout(t *testing.T) {
 		w.Header().Set("Content-Type", "application/pdf")
 		_, _ = w.Write([]byte("PDF"))
 	})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoice", "pdf", "inv-1")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoice", "pdf", "inv-1")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "PDF", stdout)
 }
@@ -176,11 +176,11 @@ func TestBillingInvoiceCommands_escapeInvoiceIDInURLs(t *testing.T) {
 		_, _ = w.Write([]byte(`{"url":"https://billing.example/pay","expires_at":null}`))
 	})
 
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoice", "pdf", "inv/part")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "invoice", "pdf", "inv/part")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "PDF", stdout)
 
-	stdout, stderr, code = run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "invoice", "payment-session", "inv/part")
+	stdout, stderr, code = run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "-o", "json", "billing", "invoice", "payment-session", "inv/part")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "https://billing.example/pay", mustJSON(t, stdout)["url"])
 }
@@ -206,11 +206,11 @@ func TestBillingCommands_escapeOrgIDPathSegment(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "--org", "org?1", "billing", "wallet")
+	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", testLoginBearer, "--org", "org?1", "billing", "wallet")
 	require.Equal(t, 0, code, stderr)
-	_, stderr, code = run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "--org", "org?1", "billing", "top-up", "2500")
+	_, stderr, code = run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", testLoginBearer, "--org", "org?1", "billing", "top-up", "2500")
 	require.Equal(t, 0, code, stderr)
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "--org", "org?1", "billing", "invoice", "pdf", "inv-1")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", testLoginBearer, "--org", "org?1", "billing", "invoice", "pdf", "inv-1")
 	require.Equal(t, 0, code, stderr)
 	require.Equal(t, "PDF", stdout)
 	// A non-UUID --org is first offered to the name resolver (GET /orgs, which
@@ -312,7 +312,7 @@ func TestBillingPortalOpenRequiresURL(t *testing.T) {
 		_, _ = w.Write([]byte(`{"url":"","expires_at":null}`))
 	}))
 	defer server.Close()
-	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", "k", "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "portal-session", "--open")
+	_, stderr, code := run(t, cfgDir(t), nil, "--api-url", server.URL, "--api-key", testLoginBearer, "--org", "0000000a-0000-4000-8000-00000000a001", "billing", "portal-session", "--open")
 	require.Equal(t, cerr.ExitFailure, code, stderr)
 	require.Contains(t, stderr, "not an https URL")
 }
@@ -366,13 +366,13 @@ func TestBillingSession_rendersExpiryInYAML(t *testing.T) {
 	orgID := "0000000a-0000-4000-8000-00000000a001"
 	api := newFakeAPI(t)
 	api.on(http.MethodPost, "/orgs/"+orgID+"/billing/portal-sessions", http.StatusCreated, map[string]any{"url": "https://billing.example/portal", "expires_at": nil})
-	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", "k", "--org", orgID, "-o", "yaml", "billing", "portal-session")
+	stdout, stderr, code := run(t, cfgDir(t), nil, "--api-url", api.srv.URL, "--api-key", testLoginBearer, "--org", orgID, "-o", "yaml", "billing", "portal-session")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "expires_at: null")
 
 	bounded := newFakeAPI(t)
 	bounded.on(http.MethodPost, "/orgs/"+orgID+"/billing/portal-sessions", http.StatusCreated, map[string]any{"url": "https://billing.example/portal", "expires_at": "2026-10-20T00:00:00Z"})
-	stdout, stderr, code = run(t, cfgDir(t), nil, "--api-url", bounded.srv.URL, "--api-key", "k", "--org", orgID, "-o", "yaml", "billing", "portal-session")
+	stdout, stderr, code = run(t, cfgDir(t), nil, "--api-url", bounded.srv.URL, "--api-key", testLoginBearer, "--org", orgID, "-o", "yaml", "billing", "portal-session")
 	require.Equal(t, 0, code, stderr)
 	require.Contains(t, stdout, "2026-10-20T00:00:00Z")
 }

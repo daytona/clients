@@ -4,7 +4,7 @@
  */
 
 import { badRequest } from './options.js'
-import { hasLoneSurrogate } from './pathSegment.js'
+import { hasLoneSurrogate } from './pyText.js'
 
 /**
  * A caller string sent as a query value: one with a lone surrogate is

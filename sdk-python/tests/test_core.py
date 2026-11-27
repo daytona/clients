@@ -261,7 +261,6 @@ _CONTRACT_ROUTE_PREFIXES: Final = (
 )
 
 _API_ROUTE_ALLOWLIST: Final[dict[tuple[str, str], str]] = {
-    ("GET", "/volumes/search"): "Not exposed by the SDK yet.",
 }
 
 
@@ -4119,17 +4118,19 @@ def test_create_body_rejects_lifecycle_actions_the_class_forbids(message, config
 
 
 @pytest.mark.parametrize("action", ["stop", "pause"])
-def test_snapshot_create_rejects_unsupported_lifecycle_actions(action: str) -> None:
-    # Given a Linux snapshot source.
+def test_snapshot_create_forwards_actions_for_inherited_persistence(action: str) -> None:
+    # Given a Linux snapshot source whose persistence is inherited, not known.
     config = {
         "route": "linux",
         "source_kind": "snapshot",
         "source": "snapshot-name",
         "lifecycle_policy": {"timeout_seconds": 60, "on_timeout": action},
     }
-    # When rendering its create body, then unsupported actions are rejected.
-    with pytest.raises(BadRequestError):
-        _create_body(config)
+    # When rendering its create body.
+    body = _create_body(config)
+    # Then the API decides support from the snapshot's inherited configuration.
+    assert body["lifecycle_policy"] == {"timeout_seconds": 60, "on_timeout": action}
+    assert "persistent" not in body
 
 
 def test_create_body_forwards_snapshot_lifecycle_settings():
@@ -12733,7 +12734,7 @@ def test_sandbox_accepts_unrecognized_classes_and_extra_response_fields(
 
 
 @pytest.mark.anyio
-async def test_sandbox_refuses_class_gated_calls_for_an_unknown_class_instead_of_assuming_linux():
+async def test_sandbox_refuses_fork_for_an_unknown_class_instead_of_assuming_linux():
     api = RecordingTransport([])
     odd = AsyncSandbox._from_api(
         {**_sandbox_detail_payload("odd", "running"), "class": "future-class"}, api, None
@@ -12741,8 +12742,6 @@ async def test_sandbox_refuses_class_gated_calls_for_an_unknown_class_instead_of
     assert (odd.sandbox_class, odd.raw_sandbox_class) == ("unknown", "future-class")
     assert odd.to_json()["sandboxClass"] == "unknown"
     assert odd.to_json()["rawSandboxClass"] == "future-class"
-    with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
-        await odd.update_lifecycle_policy(on_idle_timeout="delete")
     with pytest.raises(UnsupportedOperationError, match="unsupported sandbox class future-class"):
         await odd.fork()
     assert api.specs == []

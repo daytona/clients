@@ -38,7 +38,7 @@ class MacCatalogModel(BaseModel):
     """ # noqa: E501
     available: StrictInt = Field(description="Macs of this model that a purchase in this region can reserve now. Another purchase can take a Mac first. 0 when the model has no price.")
     model: MacModel
-    price: Optional[MacPrice]
+    price: Optional[MacPrice] = Field(description="What one reservation of this model costs. Null where billing is not enabled.")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["available", "model", "price"]
 

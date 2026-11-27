@@ -36,11 +36,12 @@ func TestCreateFromBuild_whenImageBecomesReady(t *testing.T) {
 	builder := NewImageBuilder("python:3.12-slim").PipInstall("six==1.17.0")
 	dockerfile, renderErr := builder.Dockerfile()
 	require.NoError(t, renderErr)
+	persistent := true
 	options := &CreateFromBuildOptions{
 		CreateOptions: CreateOptions{
 			Name: "build-and-boot", Region: "us", CPUArch: CPUArchARM64, Wait: 73 * time.Second,
 			Env: map[string]string{"APP": "demo"}, Resources: &Resources{CPU: 2, MemoryGiB: 1},
-			User: "app", CPUType: "shared",
+			User: "app", CPUType: "shared", Persistent: &persistent,
 		},
 		IdleExpiry: 2 * time.Minute, BuildTimeout: 11 * time.Second,
 	}
@@ -75,7 +76,7 @@ func TestCreateFromBuild_whenImageBecomesReady(t *testing.T) {
 	require.LessOrEqual(t, hold, 11000)
 	require.JSONEq(t, `{"image":"img-build","name":"build-and-boot","labels":{"name":"build-and-boot"},
 		"region_id":"us","cpu_arch":"arm64","wait_seconds":73,"idempotency_key":"name:build-and-boot",
-		"env":{"APP":"demo"},"cpu":2,"memory_mib":1024,"user":"app","cpu_type":"shared"}`, string(requests[3].Body))
+		"env":{"APP":"demo"},"cpu":2,"memory_mib":1024,"user":"app","cpu_type":"shared","persistent":true}`, string(requests[3].Body))
 	require.Equal(t, "us", requests[3].Header.Get("X-Daytona-Region"))
 	require.Equal(t, "name:build-and-boot", requests[3].Header.Get("Idempotency-Key"))
 }

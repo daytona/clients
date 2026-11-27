@@ -35,10 +35,10 @@ class NetworkPolicy(BaseModel):
     """
     NetworkPolicy
     """ # noqa: E501
-    applied: Optional[NetworkPolicyRules] = None
+    applied: Optional[NetworkPolicyRules] = Field(default=None, description="Rules currently active for the sandbox, or null when the policy is open.")
     applied_revision: Optional[StrictInt] = Field(default=None, description="Revision currently active for the sandbox.")
     applied_start_id: Optional[StrictStr] = Field(default=None, description="The sandbox start the active revision was applied to, or `null` when no revision is active.")
-    desired: Optional[NetworkPolicyRules] = None
+    desired: Optional[NetworkPolicyRules] = Field(default=None, description="Requested rules, or null when the policy is open.")
     desired_revision: StrictInt = Field(description="Revision of the requested rules.")
     error: Optional[StrictStr] = Field(default=None, description="Failure detail when the requested rules could not be applied.")
     status: Optional[StrictStr] = Field(default=None, description="Application status of the requested rules.")

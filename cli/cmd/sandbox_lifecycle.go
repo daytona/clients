@@ -13,17 +13,21 @@ import (
 )
 
 // lifecycleActionsFor lists the lifecycle-policy actions a sandbox accepts:
-// `delete` everywhere, `stop` on a persistent macOS sandbox only. Pausing is
-// the explicit `sandbox pause` command, never a lifecycle action. An unknown
-// class returns nil: the server decides.
+// delete everywhere, stop on persistent non-GPU sandboxes, and pause on
+// persistent Linux sandboxes. Unknown classes leave support to the server.
 func lifecycleActionsFor(class string, persistent bool) []string {
 	switch class {
 	case workload.ClassLinux:
+		if persistent {
+			return []string{"stop", "pause", "delete"}
+		}
 		return []string{"delete"}
 	case workload.ClassMacOS:
 		if persistent {
 			return []string{"stop", "delete"}
 		}
+		return []string{"delete"}
+	case "gpu":
 		return []string{"delete"}
 	}
 	return nil
@@ -46,15 +50,15 @@ func validateLifecycleActions(class string, persistent bool, policy gen.UpdateSa
 			}
 		}
 		label := "a " + class
-		if class == workload.ClassMacOS {
-			label = map[bool]string{true: "a persistent macos", false: "an ephemeral macos"}[persistent]
+		if class == workload.ClassMacOS || class == workload.ClassLinux {
+			label = map[bool]string{true: "a persistent ", false: "an ephemeral "}[persistent] + class
 		}
 		e := cerr.Usage("%s %q is not available for %s sandbox (allowed: %s)", flag, string(*action), label, strings.Join(allowed, ", "))
 		switch string(*action) {
 		case "pause":
-			return e.WithHint("pause a sandbox with `daytona sandbox pause`; lifecycle policies stop or delete")
+			return e.WithHint("the pause lifecycle action requires a persistent Linux sandbox (`sandbox create --persistent`)")
 		case "stop":
-			return e.WithHint("only a persistent macOS sandbox (`sandbox create-macos --persistent`) can be stopped by its lifecycle policy")
+			return e.WithHint("the stop lifecycle action requires a persistent non-GPU sandbox (`sandbox create --persistent` or `sandbox create-macos --persistent`)")
 		}
 		return e
 	}
@@ -65,8 +69,17 @@ func validateLifecycleActions(class string, persistent bool, policy gen.UpdateSa
 }
 
 // validateLifecycleBody checks the merged create body's lifecycle policy
-// against the class the create surface makes (persistence from the body).
-func validateLifecycleBody(macos bool, body input.Body) error {
+// against the create surface. Snapshot persistence is inherited, so only its
+// action vocabulary is checked locally.
+func validateLifecycleBody(sf createSurface, body input.Body) error {
+	persistent := sf.snapshot
+	if v, ok := lookupField(body, "persistent"); ok && v != nil {
+		var isBool bool
+		persistent, isBool = v.(bool)
+		if !isBool {
+			return cerr.Usage("\"persistent\" must be a boolean")
+		}
+	}
 	raw, ok := lookupField(body, "lifecycle_policy")
 	if !ok || raw == nil {
 		return nil
@@ -84,12 +97,8 @@ func validateLifecycleBody(macos bool, body input.Body) error {
 		return err
 	}
 	class := workload.ClassLinux
-	persistent := false
-	if macos {
+	if sf.macos {
 		class = workload.ClassMacOS
-		if v, ok := lookupField(body, "persistent"); ok {
-			persistent, _ = v.(bool)
-		}
 	}
 	return validateLifecycleActions(class, persistent, policy)
 }

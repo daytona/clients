@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona.v2._gen.toolbox.models.computer_use_resolution import ComputerUseResolution
 from typing import Optional, Set
@@ -35,7 +35,7 @@ class ComputerUseStartRequest(BaseModel):
     """
     The optional body of `POST /computeruse/start` and `/restart`.
     """ # noqa: E501
-    resolution: Optional[ComputerUseResolution] = None
+    resolution: Optional[ComputerUseResolution] = Field(default=None, description="The desktop resolution. Omitted = the resolution last selected in this sandbox, or 1280x720 if none was. One of 1024x768, 1280x720 or 1920x1080.")
     __properties: ClassVar[List[str]] = ["resolution"]
 
     model_config = ConfigDict(
