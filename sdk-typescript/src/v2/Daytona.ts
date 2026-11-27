@@ -207,8 +207,9 @@ export class Daytona {
    * response carries one) plus what the request fixed (the class, the region,
    * an `img_` / `snap_` id you passed). The rest (`cpu`, `memory`, `disk` and their limits, `labels`,
    * `user`, ...) is `undefined` (unknown, not empty) until a detail read.
-   * A create whose response already reports the sandbox started returns with
-   * no wait and no read. Otherwise its wait reads as every wait does: a wait
+   * A create returns with no wait and no read when its response already
+   * reports the sandbox started, when `waitSeconds` is 0, or when the server's
+   * hold (`wait_cap_seconds`) used up a finite `waitSeconds`. Otherwise its wait reads as every wait does: a wait
    * decided by a target event from the sandbox events stream makes no further
    * request; a terminal event (`error`, `destroying`) gets one confirming read,
    * except after a `destroyed` report or once the budget is spent, and when

@@ -160,12 +160,18 @@ and an unexpected non-SDK error during the wait. The fork's detail read counts
 against `wait_seconds`; if it fails, the handle is built from the fork
 response (id, status, `forked_from`, class) and no wait follows.
 
+A create returns with no wait and no read when its response already reports
+the sandbox started, when `wait_seconds=0`, or when the server's hold
+(`wait_cap_seconds`) used up a finite budget; otherwise it waits with the
+rules below. A fork's handle keeps its detail read, made before its wait.
+
 Reads in `_wait_for_state`:
 
 - A wait decided by a target event makes no further request
-  (`_observe_outcome` takes the frame's state and error message; without a
-  message, `_kept_error` keeps one held for the same state and wire status;
-  `spot_evicted_at`, the lifecycle-policy deadlines and the activity clock
+  (`_observe_outcome` takes the frame's state and error message verbatim, so
+  a frame without one clears the handle's; only `_observe_destroyed`, for a
+  404 during a delete, keeps a message read with `destroyed` through
+  `_kept_error`; `spot_evicted_at`, the lifecycle-policy deadlines and the activity clock
   stay as of the last read).
 - A terminal event (`error`, `destroying`) gets one confirming read before
   the wait raises. It is skipped after a `destroyed` report, once the budget
@@ -182,8 +188,8 @@ Reads in `_wait_for_state`:
   never after `destroyed`. A failed read is suppressed and the observed
   success stands; a successful one decides as the confirming read does.
 
-An operation's own failure state (`started` for a pause, `stopped` / `paused` for a joined start) is also
-the state before it, so a plain read that confirms an events report never
+An operation's own failure state (`started` for a pause, `stopped` /
+`paused` for a joined start) is also the state before it, so a plain read that confirms an events report never
 raises on it; the long polls that follow decide. The server holds a loose
 `wait=paused` on `started`, and `wait=running` on `paused`, for the whole
 slice, so such a failure is reported up to one 30-second slice later; a loose

@@ -546,9 +546,10 @@ Update it with methods such as `set_labels()` and reload it with
 `refresh_data()`. A handle from `create*()` holds only what the create response
 carries (id, name, state, image, reservation and, when reported, the lifecycle
 policy) plus what the request fixed (`sandbox_class`, `region`, an `img_` / `snap_`
-id you passed) until something reads the sandbox. A create whose response
-already reports the sandbox started (the usual case) returns with no wait and
-no read; otherwise its wait reads the sandbox only as every wait does (see
+id you passed) until something reads the sandbox. A create returns with no
+wait and no read when its response already reports the sandbox started (the
+usual case), when `wait_seconds=0`, or when the server's hold used up a
+finite `wait_seconds`; otherwise its wait reads the sandbox only as every wait does (see
 "Waits and reads" below: never after a target event, once to confirm a
 terminal event, and while it polls when the events stream decides nothing).
 Call
@@ -1424,8 +1425,7 @@ wait raises, except after a `destroyed` report or once the budget is spent;
 when that read is skipped or fails, the handle carries the reported state and
 the wait raises it. A wait the stream leaves undecided reads the sandbox
 while it polls. The handle takes an event's state and error message (an
-event without one keeps only a message held for the same state and wire
-status), and its other fields, `spot_evicted_at`, the `lifecycle_policy`
+event without one clears the handle's), and its other fields, `spot_evicted_at`, the `lifecycle_policy`
 deadlines and the activity clock included, are as of the last read
 (`refresh_data()` reloads them). `start()` / `resume()` of a macOS sandbox
 read it once more after the target event, while budget remains and never

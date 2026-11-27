@@ -116,8 +116,9 @@ cannot be installed or started, `RunCode` returns `ErrKernelUnavailable` with
 the sandbox's setup diagnostic in the message.
 
 **Metadata after create.** A handle from `Create*` holds only what the create
-response reports. A create already started when the response arrives returns
-with no wait and no read; otherwise its wait reads only as every wait does
+response reports. A create returns with no wait and no read when the response
+already reports the sandbox started, with `NoWait`, or when the server's hold
+used up a finite wait; otherwise its wait reads only as every wait does
 (see "Durations and waits"). Call `sandbox.Refresh(ctx)` before reading
 `Info().Resources`, labels or other detail fields.
 
@@ -268,14 +269,17 @@ Every duration is a `time.Duration`:
   `daytona.WaitForever` removes the SDK's wait deadline. When `Sandbox.Wait`
   or a lifecycle operation returns nil, `State()` reports the target it
   observed. Waits and reads: a wait decided by a target event from the
-  sandbox events stream makes no further request. A terminal event (error,
+  sandbox events stream makes no further request, except `Start` / `Resume`
+  of a macOS sandbox (below). A terminal event (error,
   destroying) gets one confirming read before the wait fails, except after a
   destroyed report or once the budget is spent; when that read is skipped or
   fails, the handle carries the reported state and the wait returns it as
   `*daytona.SandboxTerminalStateError`. A wait the stream leaves undecided
-  reads the sandbox while it polls. The handle takes an event's state and
-  error message (an event without one keeps only a message a read reported
-  for the same state and wire status), and its other fields,
+  reads the sandbox while it polls, and spends the last part of a bounded
+  budget (up to five seconds) on reads of the server, long polls when the
+  wait has one target state. The handle takes an event's state and error
+  message verbatim (an event without one clears the handle's), and its other
+  fields,
   `SpotEvictedAt`, the lifecycle-policy deadlines and the activity clock
   included, are as of the last read (`Refresh` reloads them). `Start` /
   `Resume` of a macOS sandbox read it once more after the target event,

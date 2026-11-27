@@ -453,9 +453,10 @@ make asynchronous callback work cancellation-aware when needed.
   A handle from `create*()` holds only what the create response carries (id,
   name, state, image, reservation and, when reported, the lifecycle policy)
   plus what the request fixed (`sandboxClass`, `region`, an `img_` / `snap_`
-  id you passed) until something reads the sandbox. A create whose response
-  already reports the sandbox started (the usual case) returns with no wait
-  and no read; otherwise its wait reads the sandbox only as every wait does
+  id you passed) until something reads the sandbox. A create returns with no
+  wait and no read when its response already reports the sandbox started (the
+  usual case), when `waitSeconds` is 0, or when the server's hold used up a
+  finite `waitSeconds`; otherwise its wait reads the sandbox only as every wait does
   (see "Waits and reads" below: never after a target event, once to confirm a
   terminal event, and while it polls when the events stream decides nothing).
   Call `refreshData()` before reading `cpu`, `memory`, `disk`, their limits,
@@ -1342,8 +1343,8 @@ confirming read before the wait throws, except after a `destroyed` report or
 once the budget is spent; when that read is skipped or fails, the handle
 carries the reported state and the wait throws it. A wait the stream leaves
 undecided reads the sandbox while it polls. The handle takes an event's
-state and error message (an event without one keeps only a message held for
-the same state and wire status), and its other fields, `spotEvictedAt`, the
+state and error message (an event without one clears the handle's), and its
+other fields, `spotEvictedAt`, the
 `lifecyclePolicy` deadlines and the activity clock included, are as of the
 last read (`refreshData()` reloads them). `start()` / `resume()` of a macOS
 sandbox read it once more after the target event, while budget remains and
