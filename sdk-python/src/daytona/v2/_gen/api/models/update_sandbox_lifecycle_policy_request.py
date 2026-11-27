@@ -37,8 +37,8 @@ class UpdateSandboxLifecyclePolicyRequest(BaseModel):
     Sandbox lifecycle settings accepted during creation and lifecycle updates. Unknown fields return 400 instead of being ignored.
     """ # noqa: E501
     idle_expiry_seconds: Optional[Annotated[int, Field(le=2147483647, strict=True, ge=-1)]] = Field(default=None, description="Idle seconds before the idle action runs. A value below 60 is raised to 60; use `-1` to clear the idle expiry.")
-    on_idle_timeout: Optional[LifecycleAction] = None
-    on_timeout: Optional[LifecycleAction] = None
+    on_idle_timeout: Optional[LifecycleAction] = Field(default=None, description="Action to run when the idle expiry elapses.")
+    on_timeout: Optional[LifecycleAction] = Field(default=None, description="Action to run when the timeout expires.")
     timeout_seconds: Optional[Annotated[int, Field(le=2147483647, strict=True, ge=1)]] = Field(default=None, description="Seconds before the timeout action runs. Supplying a value restarts the countdown.")
     __properties: ClassVar[List[str]] = ["idle_expiry_seconds", "on_idle_timeout", "on_timeout", "timeout_seconds"]
 

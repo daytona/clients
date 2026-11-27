@@ -25,6 +25,7 @@ import httpx
 from typing_extensions import Buffer
 
 from ._core import RequestSpec, path_segment
+from ._shutdown import refusing_stopped_pools
 from ._transport import AsyncTransport, _per_call_seconds
 from .errors import (
     BadRequestError,
@@ -365,7 +366,22 @@ async def upload_build_context(
     dockerfile: str,
     region: Optional[str],
 ) -> tuple[str, str]:
-    """Upload ``context``; return the ID and region of its verified upload."""
+    """Upload ``context``; return the ID and region of its verified upload.
+
+    Reading the archive and the part uploads run on thread pools outside the
+    transport, so a pool stopped at interpreter shutdown is mapped here too.
+    """
+    with refusing_stopped_pools():
+        return await _upload_build_context(transport, context, dockerfile=dockerfile, region=region)
+
+
+async def _upload_build_context(
+    transport: AsyncTransport,
+    context: BuildContext,
+    *,
+    dockerfile: str,
+    region: Optional[str],
+) -> tuple[str, str]:
     if not isinstance(dockerfile, str) or dockerfile.strip() == "":
         raise BadRequestError(
             "dockerfile must be a non-empty path", status_code=400, code="BAD_REQUEST", source="SDK"

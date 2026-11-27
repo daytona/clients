@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from daytona.v2._gen.api.models.update_ephemeral_lifecycle_defaults import UpdateEphemeralLifecycleDefaults
 from typing import Optional, Set
@@ -35,7 +35,7 @@ class UpdateProjectLifecyclePolicyRequest(BaseModel):
     """
     A `PATCH` at block granularity: an absent block is kept, `null` clears it, and an object replaces the whole block (a field missing inside it is unset). Blocks never merge field by field, so each block is validated on its own.
     """ # noqa: E501
-    ephemeral: Optional[UpdateEphemeralLifecycleDefaults] = None
+    ephemeral: Optional[UpdateEphemeralLifecycleDefaults] = Field(default=None, description="Replacement defaults for ephemeral sandboxes; null clears the block.")
     __properties: ClassVar[List[str]] = ["ephemeral"]
 
     model_config = ConfigDict(

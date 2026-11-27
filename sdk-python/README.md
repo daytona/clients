@@ -75,6 +75,27 @@ finish — teardown drops the sockets. In a long-lived process, prefer one
 you drop without closing keeps its idle keep-alive connections open until
 interpreter exit.
 
+Closing a client releases its connections; it does not delete or stop the
+sandboxes it created. Clean up sandboxes while the program still runs, for
+example in a `try`/`finally` around the code that uses them:
+
+```python
+with Daytona() as d:
+    sandbox = d.v2.create()
+    try:
+        sandbox.process.run("echo hello")
+    finally:
+        sandbox.delete()
+```
+
+Cleanup registered with `atexit` (or run by a finalizer at interpreter
+shutdown) never works: the SDK refuses a request made from an `atexit` handler with
+`ClientClosedError` before sending it, with the sync or the async client. A
+request or file transfer from another thread still running after the program
+ended (or while Python stops its thread pools at exit) raises the same error
+when it needs a thread pool Python has already stopped, such as for a DNS
+lookup or for writing a downloaded file.
+
 `d.v2` on the sync `Daytona` runs the async implementation on a private
 background event loop and blocks the calling thread. Calling it from inside a
 running event loop raises immediately instead of silently stalling that loop —
@@ -1072,7 +1093,11 @@ id).
 
 `upload_file()` streams a local file in chunks, reports `on_progress(bytes,
 total)`, accepts `cancel=` via any event-like object with `is_set()`, and can
-set `atomic=True` to write through a temp file + rename. `download_file()`
+set `atomic=True` to write through a temp file + rename. A `threading.Event`
+stops an upload or download as soon as it is set, from any thread, even while
+the transfer waits on the network (on CPython 3.10 to 3.15; elsewhere, and for
+`Event` subclasses, it is checked every 50 ms). Any other object, an
+`asyncio.Event` included, is checked every 50 ms while the transfer waits. `download_file()`
 streams to a unique temp file in the destination directory, renames it on
 success, reports progress with `Content-Length` when the server sends it, and
 removes that temp file on error or cancellation. `write_bytes()`,
